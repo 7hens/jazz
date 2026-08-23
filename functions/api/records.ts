@@ -1,0 +1,102 @@
+import { getAuthenticatedUser } from './_lib/auth'
+
+function jsonResponse(data: unknown, init: ResponseInit = {}) {
+  return new Response(JSON.stringify(data), {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {}),
+    },
+  })
+}
+
+export async function onRequestGet({ request, env }: { request: Request; env: { DB: D1Database } }) {
+  const user = await getAuthenticatedUser(request, env)
+  if (!user) {
+    return jsonResponse({ message: '未授权' }, { status: 401 })
+  }
+
+  const rows = (await env.DB.prepare(
+    'SELECT id, type, date, note, amount, category, weight, exercise_type AS exerciseType, duration, calories, created_at AS createdAt FROM records WHERE user_id = ? ORDER BY date DESC, created_at DESC LIMIT 200',
+  ).bind(user.id).all()) as { results?: Array<Record<string, unknown>> }
+
+  return jsonResponse({ records: rows.results ?? [] })
+}
+
+export async function onRequestPost({ request, env }: { request: Request; env: { DB: D1Database } }) {
+  const user = await getAuthenticatedUser(request, env)
+  if (!user) {
+    return jsonResponse({ message: '未授权' }, { status: 401 })
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    type?: string
+    date?: string
+    note?: string
+    amount?: number | string
+    category?: string
+    weight?: number | string
+    exerciseType?: string
+    duration?: number | string
+    calories?: number | string
+  }
+
+  const type = String(body.type ?? '').trim()
+  const date = String(body.date ?? '').trim() || new Date().toISOString().slice(0, 10)
+
+  if (!['expense', 'weight', 'exercise'].includes(type)) {
+    return jsonResponse({ message: '类型不合法' }, { status: 400 })
+  }
+
+  if (!date) {
+    return jsonResponse({ message: '日期不能为空' }, { status: 400 })
+  }
+
+  if (type === 'expense' && (Number(body.amount ?? 0) <= 0 || !body.category)) {
+    return jsonResponse({ message: '记账必须提供金额和分类' }, { status: 400 })
+  }
+
+  if (type === 'weight' && Number(body.weight ?? 0) <= 0) {
+    return jsonResponse({ message: '体重必须大于 0' }, { status: 400 })
+  }
+
+  if (type === 'exercise' && (Number(body.duration ?? 0) <= 0 || !body.exerciseType)) {
+    return jsonResponse({ message: '运动必须提供类型和时长' }, { status: 400 })
+  }
+
+  const recordId = crypto.randomUUID()
+  await env.DB.prepare(
+    'INSERT INTO records (id, user_id, type, date, note, amount, category, weight, exercise_type, duration, calories) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  )
+    .bind(
+      recordId,
+      user.id,
+      type,
+      date,
+      body.note ?? '',
+      type === 'expense' ? Number(body.amount ?? 0) : null,
+      type === 'expense' ? (body.category ?? '其他') : null,
+      type === 'weight' ? Number(body.weight ?? 0) : null,
+      type === 'exercise' ? (body.exerciseType ?? '其他') : null,
+      type === 'exercise' ? Number(body.duration ?? 0) : null,
+      type === 'exercise' ? Number(body.calories ?? 0) : null,
+    )
+    .run()
+
+  return jsonResponse({ ok: true, recordId })
+}
+
+export async function onRequestDelete({ request, env }: { request: Request; env: { DB: D1Database } }) {
+  const user = await getAuthenticatedUser(request, env)
+  if (!user) {
+    return jsonResponse({ message: '未授权' }, { status: 401 })
+  }
+
+  const recordId = new URL(request.url).searchParams.get('id')
+  if (!recordId) {
+    return jsonResponse({ message: '缺少记录 ID' }, { status: 400 })
+  }
+
+  await env.DB.prepare('DELETE FROM records WHERE id = ? AND user_id = ?').bind(recordId, user.id).run()
+  return jsonResponse({ ok: true })
+}

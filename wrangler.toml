@@ -1,0 +1,9 @@
+name = "jazz-life-tracker"
+compatibility_date = "2025-08-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jazz-life-tracker"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
