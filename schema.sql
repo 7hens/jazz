@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS records (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  type TEXT NOT NULL CHECK(type IN ('expense', 'weight', 'exercise')),
+  type TEXT NOT NULL CHECK(type IN ('expense', 'income', 'weight')),
   date TEXT NOT NULL,
   note TEXT,
   amount REAL,
