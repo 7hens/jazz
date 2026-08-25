@@ -44,7 +44,7 @@ export async function onRequestPost({ request, env }: { request: Request; env: {
   const type = String(body.type ?? '').trim()
   const date = String(body.date ?? '').trim() || new Date().toISOString().slice(0, 10)
 
-  if (!['expense', 'weight', 'exercise'].includes(type)) {
+  if (!['expense', 'income', 'weight'].includes(type)) {
     return jsonResponse({ message: '类型不合法' }, { status: 400 })
   }
 
@@ -52,16 +52,12 @@ export async function onRequestPost({ request, env }: { request: Request; env: {
     return jsonResponse({ message: '日期不能为空' }, { status: 400 })
   }
 
-  if (type === 'expense' && (Number(body.amount ?? 0) <= 0 || !body.category)) {
-    return jsonResponse({ message: '记账必须提供金额和分类' }, { status: 400 })
+  if ((type === 'expense' || type === 'income') && Number(body.amount ?? 0) <= 0) {
+    return jsonResponse({ message: '金额必须大于 0' }, { status: 400 })
   }
 
   if (type === 'weight' && Number(body.weight ?? 0) <= 0) {
     return jsonResponse({ message: '体重必须大于 0' }, { status: 400 })
-  }
-
-  if (type === 'exercise' && (Number(body.duration ?? 0) <= 0 || !body.exerciseType)) {
-    return jsonResponse({ message: '运动必须提供类型和时长' }, { status: 400 })
   }
 
   const recordId = crypto.randomUUID()
@@ -74,12 +70,12 @@ export async function onRequestPost({ request, env }: { request: Request; env: {
       type,
       date,
       body.note ?? '',
-      type === 'expense' ? Number(body.amount ?? 0) : null,
-      type === 'expense' ? (body.category ?? '其他') : null,
+      type === 'expense' || type === 'income' ? Number(body.amount ?? 0) : null,
+      type === 'expense' || type === 'income' ? (body.category ?? '其他') : null,
       type === 'weight' ? Number(body.weight ?? 0) : null,
-      type === 'exercise' ? (body.exerciseType ?? '其他') : null,
-      type === 'exercise' ? Number(body.duration ?? 0) : null,
-      type === 'exercise' ? Number(body.calories ?? 0) : null,
+      null,
+      null,
+      null,
     )
     .run()
 
