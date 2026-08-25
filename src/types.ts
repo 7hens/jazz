@@ -1,4 +1,4 @@
-export type RecordType = 'expense' | 'income' | 'weight' | 'exercise'
+export type RecordType = 'expense' | 'income' | 'weight'
 
 export type RecordFormData = {
   date: string
@@ -6,9 +6,6 @@ export type RecordFormData = {
   category: string
   note: string
   weight: string
-  exerciseType: string
-  duration: string
-  calories: string
 }
 
 export type LifeRecord = {
