@@ -33,6 +33,7 @@ export function RecordList({ records, onDelete, currency }: RecordListProps) {
             records.map((record) => {
               const badgeMap = {
                 expense: '支',
+                income: '收',
                 weight: '体',
                 exercise: '运',
               }
@@ -40,16 +41,20 @@ export function RecordList({ records, onDelete, currency }: RecordListProps) {
               const valueText =
                 record.type === 'expense'
                   ? `- ${currency.format(record.amount ?? 0)}`
-                  : record.type === 'weight'
-                    ? `${record.weight?.toFixed(1)} kg`
-                    : `${record.duration ?? 0} 分钟`
+                  : record.type === 'income'
+                    ? `+ ${currency.format(record.amount ?? 0)}`
+                    : record.type === 'weight'
+                      ? `${record.weight?.toFixed(1)} kg`
+                      : `${record.duration ?? 0} 分钟`
 
               const labelText =
                 record.type === 'expense'
                   ? `${record.category ?? '其他'} · ${record.note || '消费记录'}`
-                  : record.type === 'weight'
-                    ? `${record.weight?.toFixed(1)} kg · ${record.note || '体重记录'}`
-                    : `${record.exerciseType ?? '运动'} · ${record.duration ?? 0} 分钟`
+                  : record.type === 'income'
+                    ? `${record.category ?? '其他'} · ${record.note || '收入记录'}`
+                    : record.type === 'weight'
+                      ? `${record.weight?.toFixed(1)} kg · ${record.note || '体重记录'}`
+                      : `${record.exerciseType ?? '运动'} · ${record.duration ?? 0} 分钟`
 
               return (
                 <div key={record.id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">

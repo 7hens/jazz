@@ -1,4 +1,4 @@
-export type RecordType = 'expense' | 'weight' | 'exercise'
+export type RecordType = 'expense' | 'income' | 'weight' | 'exercise'
 
 export type RecordFormData = {
   date: string
