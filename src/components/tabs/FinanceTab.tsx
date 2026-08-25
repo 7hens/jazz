@@ -56,7 +56,7 @@ export function FinanceTab({ records, error, onSave, onDelete }: FinanceTabProps
   const expenseBreakdown = useMemo(() => {
     const totals = new Map<string, number>()
     financeRecords
-      .filter((record) => record.type === 'expense')
+      .filter((record) => record.type === 'expense' && isInThisMonth(record.date))
       .forEach((record) => {
         const key = record.category ?? '其他'
         totals.set(key, (totals.get(key) ?? 0) + Number(record.amount ?? 0))
@@ -130,7 +130,10 @@ export function FinanceTab({ records, error, onSave, onDelete }: FinanceTabProps
               <Button
                 type="button"
                 variant={type === 'expense' ? 'default' : 'secondary'}
-                onClick={() => setType('expense')}
+                onClick={() => {
+                  setType('expense')
+                  setCategory('餐饮')
+                }}
                 className="rounded-full"
               >
                 支出
@@ -138,7 +141,10 @@ export function FinanceTab({ records, error, onSave, onDelete }: FinanceTabProps
               <Button
                 type="button"
                 variant={type === 'income' ? 'default' : 'secondary'}
-                onClick={() => setType('income')}
+                onClick={() => {
+                  setType('income')
+                  setCategory('工资')
+                }}
                 className="rounded-full"
               >
                 收入
