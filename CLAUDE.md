@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-「隐私生活记录仪」（jazz）— 自托管私人生活记录应用：记账 / 体重 / 运动三类记录，登录后查看。技术栈：
+「隐私生活记录仪」（jazz）— 自托管私人生活记录应用：三个 tab（体重 / 财务 / 运动），登录后查看。技术栈：
 
-- **前端**: React 19 + TypeScript + Vite（端口 3000）+ Tailwind 4（`@tailwindcss/vite` 插件）+ Shadcn 风格组件
+- **前端**: React 19 + TypeScript + Vite（端口 3000）+ Tailwind 4（`@tailwindcss/vite` 插件）+ Shadcn 风格组件 + recharts 图表
 - **后端**: Cloudflare Pages Functions（`functions/` 目录文件式路由）
 - **数据库**: Cloudflare D1（binding 为 `DB`）
 - **认证**: HttpOnly + SameSite=Lax 会话 cookie（`jazz_session`），服务端校验
@@ -19,6 +19,7 @@ npm run dev            # 仅前端开发服务器（:3000）；无后端也可�
 npm run build          # tsc -b && vite build → dist/
 npm run lint           # oxlint
 npm run db:apply       # 将 schema.sql 应用到本地 D1
+npm run db:migrate     # 执行 migrations/ 下迁移(表重建加入 income)
 npm run pages:dev      # wrangler pages dev，全栈本地运行（:3000）
 ```
 
@@ -57,13 +58,14 @@ npx wrangler pages deploy dist
 
 单表 `records` + `users` + `sessions`：
 
-- `records`：`type` ∈ `('expense','weight','exercise')`；按 type 复用可空列 —— `amount`/`category` 用于支出，`weight` 用于体重，`exercise_type`/`duration`/`calories` 用于运动
+- `records`：`type` ∈ `('expense','income','weight')`；支出/收入共用 `amount`/`category`，体重用 `weight`；`exercise_type`/`duration`/`calories` 列保留但不再写入
 - `sessions`：id + user_id + expires_at（7 天过期），删除即登出
 - 类型为 camelCase 的字段（如 `exerciseType`）在 SQL 中用 snake_case（`exercise_type`），靠显式别名或映射转换
 
-### 前端（单页 App.tsx）
+### 前端（三 tab 单页 App.tsx）
 
-- `src/App.tsx` — 全部业务逻辑：登录门槛 + 仪表盘（统计卡、记录表单、消费分布、记录列表）。统计（月支出/最新体重/近 7 天运动时长/分类分布）均为 `useMemo` 前端计算，服务端不聚合
+- `src/App.tsx` — 登录门槛 + 持有 records 状态与 CRUD（保存/删除/刷新），按 `activeTab` 渲染三个受控 tab 组件
+- `src/components/tabs/` — `WeightTab`（体重）、`FinanceTab`（财务）、`ExerciseTab`（运动）。体重/财务 tab 用 `useMemo` 前端聚合图表数据（趋势/月度收支/分类分布），服务端不聚合；运动 tab 为静态指导（`src/data/exercises.ts`），无数据记录
 - `src/components/ui/*` — Shadcn 风格基础组件（card/button/label/input/badge），基于 `class-variance-authority` + `tailwind-merge`
 - `src/types.ts` — `LifeRecord` / `RecordFormData` / `UserProfile`，与 D1 列对应
 - 数据流：`fetch('/api/...', { credentials: 'include' })`
@@ -71,6 +73,8 @@ npx wrangler pages deploy dist
 ### 本地开发回退（重要）
 
 `App.tsx` 中 `isLocalDevFallback()`：当 hostname 是 localhost 且 `/api` 请求失败时，自动回退到 **localStorage 模拟**（键 `jazz-life-tracker-dev-user` / `jazz-life-tracker-dev-records`，含种子示例数据）。因此 `npm run dev`（纯 Vite）无需后端即可跑通 UI；要测真实后端/D1 用 `pages:dev`。
+
+涉及表结构变更的迁移需按 `npm run db:apply` → `npm run db:migrate` 顺序执行。
 
 ## 注意
 
