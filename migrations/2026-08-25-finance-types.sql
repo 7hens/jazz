@@ -1,5 +1,7 @@
+-- Atomicity: `wrangler d1 execute --file` wraps the whole file in one implicit transaction,
+-- and rejects explicit BEGIN/COMMIT (SQLITE_ERROR: "use the state.storage.transaction() APIs").
 DELETE FROM records WHERE type = 'exercise';
-
+DROP TABLE IF EXISTS records_new;
 CREATE TABLE records_new (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

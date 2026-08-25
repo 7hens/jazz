@@ -42,14 +42,14 @@ export function RecordList({ records, onDelete, currency }: RecordListProps) {
                   ? `- ${currency.format(record.amount ?? 0)}`
                   : record.type === 'income'
                     ? `+ ${currency.format(record.amount ?? 0)}`
-                    : `${record.weight?.toFixed(1)} kg`
+                    : `${(record.weight ?? 0).toFixed(1)} kg`
 
               const labelText =
                 record.type === 'expense'
                   ? `${record.category ?? '其他'} · ${record.note || '消费记录'}`
                   : record.type === 'income'
                     ? `${record.category ?? '其他'} · ${record.note || '收入记录'}`
-                    : `${record.weight?.toFixed(1)} kg · ${record.note || '体重记录'}`
+                    : `${(record.weight ?? 0).toFixed(1)} kg · ${record.note || '体重记录'}`
 
               return (
                 <div key={record.id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">

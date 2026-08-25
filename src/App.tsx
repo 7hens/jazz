@@ -168,7 +168,7 @@ function App() {
     setRecords([])
   }
 
-  async function saveRecord(payload: Record<string, string | number | undefined>) {
+  async function saveRecord(payload: Record<string, string | number | undefined>): Promise<boolean> {
     if (isLocalDevFallback()) {
       const type = String(payload.type) as RecordType
       const next = [...getDevRecords()]
@@ -184,7 +184,7 @@ function App() {
       setDevRecords(next)
       setRecords(next)
       setError('')
-      return
+      return true
     }
     const response = await fetch('/api/records', {
       method: 'POST',
@@ -195,10 +195,11 @@ function App() {
     const data = (await response.json().catch(() => ({ message: '保存失败' }))) as { message?: string }
     if (!response.ok) {
       setError(data.message ?? '保存失败')
-      return
+      return false
     }
     setError('')
     await fetchRecords()
+    return true
   }
 
   async function deleteRecord(recordId: string) {
@@ -211,6 +212,8 @@ function App() {
     const response = await fetch(`/api/records?id=${recordId}`, { method: 'DELETE', credentials: 'include' })
     if (response.ok) {
       setRecords((current) => current.filter((record) => record.id !== recordId))
+    } else {
+      setError('删除失败')
     }
   }
 
@@ -266,7 +269,10 @@ function App() {
               key={tab.id}
               type="button"
               variant={activeTab === tab.id ? 'default' : 'secondary'}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setError('')
+              }}
               className="rounded-full"
             >
               {tab.icon}

@@ -1,13 +1,5 @@
 export type RecordType = 'expense' | 'income' | 'weight'
 
-export type RecordFormData = {
-  date: string
-  amount: string
-  category: string
-  note: string
-  weight: string
-}
-
 export type LifeRecord = {
   id: string
   type: RecordType

@@ -19,7 +19,7 @@ const incomeCategories = ['工资', '奖金', '副业', '理财', '其他']
 type FinanceTabProps = {
   records: LifeRecord[]
   error: string
-  onSave: (payload: Record<string, string | number | undefined>) => Promise<void>
+  onSave: (payload: Record<string, string | number | undefined>) => Promise<boolean>
   onDelete: (recordId: string) => Promise<void>
 }
 
@@ -80,15 +80,17 @@ export function FinanceTab({ records, error, onSave, onDelete }: FinanceTabProps
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await onSave({
+    const ok = await onSave({
       type,
       date: date || todayIso(),
       note,
       amount: Number(amount || 0),
       category,
     })
-    setAmount('')
-    setNote('')
+    if (ok) {
+      setAmount('')
+      setNote('')
+    }
   }
 
   const categories = type === 'expense' ? expenseCategories : incomeCategories

@@ -15,7 +15,7 @@ const currency = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: '
 type WeightTabProps = {
   records: LifeRecord[]
   error: string
-  onSave: (payload: Record<string, string | number | undefined>) => Promise<void>
+  onSave: (payload: Record<string, string | number | undefined>) => Promise<boolean>
   onDelete: (recordId: string) => Promise<void>
 }
 
@@ -45,9 +45,11 @@ export function WeightTab({ records, error, onSave, onDelete }: WeightTabProps) 
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    await onSave({ type: 'weight', date: date || todayIso(), note, weight: Number(weight || 0) })
-    setWeight('')
-    setNote('')
+    const ok = await onSave({ type: 'weight', date: date || todayIso(), note, weight: Number(weight || 0) })
+    if (ok) {
+      setWeight('')
+      setNote('')
+    }
   }
 
   return (
@@ -55,7 +57,7 @@ export function WeightTab({ records, error, onSave, onDelete }: WeightTabProps) 
       <section className="grid gap-4 md:grid-cols-3">
         <StatCard
           title="最新体重"
-          value={latest ? `${latest.weight?.toFixed(1)} kg` : '--'}
+          value={latest ? `${(latest.weight ?? 0).toFixed(1)} kg` : '--'}
           detail={latest ? `记录于 ${latest.date}` : '暂无体重记录'}
           icon={<TrendingUp className="h-5 w-5" />}
           tone="violet"
