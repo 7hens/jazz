@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { CalendarClock, TrendingUp } from 'lucide-react'
 import { RecordList } from '../dashboard/RecordList'
 import { StatCard } from '../dashboard/StatCard'
+import { ChartTooltip } from '../ui/chart-tooltip'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
@@ -82,12 +83,12 @@ export function WeightTab({ records, error, onSave, onDelete }: WeightTabProps) 
         <Card>
           <CardHeader>
             <CardTitle>记录体重</CardTitle>
-            <CardDescription>每周五记录一次,追踪变化趋势。</CardDescription>
+            <CardDescription>每周五记录一次，追踪变化趋势。</CardDescription>
           </CardHeader>
           <CardContent>
             {recordedThisWeek ? (
-              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                本周已记录体重,如需更新可直接修改后保存。
+              <div className="mb-5 rounded-xl bg-emerald-tint px-3.5 py-2.5 text-sm text-emerald">
+                本周已记录体重，如需更新可直接修改后保存。
               </div>
             ) : null}
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -98,16 +99,30 @@ export function WeightTab({ records, error, onSave, onDelete }: WeightTabProps) 
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="weight-value">体重（kg）</Label>
-                  <Input id="weight-value" type="number" step="0.1" min="20" max="300" placeholder="68.5" value={weight} onChange={(event) => setWeight(event.target.value)} />
+                  <Input
+                    id="weight-value"
+                    type="number"
+                    step="0.1"
+                    min="20"
+                    max="300"
+                    placeholder="68.5"
+                    value={weight}
+                    onChange={(event) => setWeight(event.target.value)}
+                  />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="weight-note">备注</Label>
-                  <Input id="weight-note" value={note} placeholder="例如：晨间空腹、运动后" onChange={(event) => setNote(event.target.value)} />
+                  <Input
+                    id="weight-note"
+                    value={note}
+                    placeholder="例如：晨间空腹、运动后"
+                    onChange={(event) => setNote(event.target.value)}
+                  />
                 </div>
               </div>
 
               {error ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>
+                <div className="rounded-xl bg-red-tint px-3.5 py-2.5 text-sm text-red">{error}</div>
               ) : null}
 
               <div className="flex justify-end">
@@ -124,19 +139,45 @@ export function WeightTab({ records, error, onSave, onDelete }: WeightTabProps) 
           </CardHeader>
           <CardContent>
             {chartData.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
-                暂无体重数据,记录后即可查看趋势。
+              <div className="rounded-2xl border border-dashed border-hairline-strong bg-surface-2 p-6 text-sm text-ink-3">
+                暂无体重数据，记录后即可查看趋势。
               </div>
             ) : (
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis domain={['auto', 'auto']} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="weight" name="体重 (kg)" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
+                  <AreaChart data={chartData} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--color-violet)" stopOpacity={0.16} />
+                        <stop offset="100%" stopColor="var(--color-violet)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12, fill: 'var(--color-ink-3)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={8}
+                    />
+                    <YAxis
+                      domain={['auto', 'auto']}
+                      tick={{ fontSize: 12, fill: 'var(--color-ink-3)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={44}
+                    />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--color-hairline-strong)' }} />
+                    <Area
+                      type="monotone"
+                      dataKey="weight"
+                      name="体重 (kg)"
+                      stroke="var(--color-violet)"
+                      strokeWidth={2.5}
+                      fill="url(#weightFill)"
+                      dot={{ r: 3, fill: 'var(--color-violet)', strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}

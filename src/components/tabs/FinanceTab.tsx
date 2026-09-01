@@ -1,13 +1,16 @@
 import { useMemo, useState, type FormEvent } from 'react'
+import { motion } from 'motion/react'
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { CircleDollarSign, PiggyBank, Wallet } from 'lucide-react'
 import { ExpenseBreakdown } from '../dashboard/ExpenseBreakdown'
 import { RecordList } from '../dashboard/RecordList'
 import { StatCard } from '../dashboard/StatCard'
+import { ChartTooltip } from '../ui/chart-tooltip'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import { Select } from '../ui/select'
 import { getMonthKey, isInThisMonth, todayIso } from '../../lib/date'
 import type { LifeRecord, RecordType } from '../../types'
 
@@ -15,6 +18,8 @@ const currency = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: '
 
 const expenseCategories = ['餐饮', '购物', '交通', '娱乐', '生活', '医疗', '其他']
 const incomeCategories = ['工资', '奖金', '副业', '理财', '其他']
+
+const TYPE_SPRING = { type: 'spring', bounce: 0, duration: 0.4 } as const
 
 type FinanceTabProps = {
   records: LifeRecord[]
@@ -125,38 +130,43 @@ export function FinanceTab({ records, error, onSave, onDelete }: FinanceTabProps
         <Card>
           <CardHeader>
             <CardTitle>记录收支</CardTitle>
-            <CardDescription>收入与支出分开记录,月度自动汇总。</CardDescription>
+            <CardDescription>收入与支出分开记录，月度自动汇总。</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-5 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant={type === 'expense' ? 'default' : 'secondary'}
-                onClick={() => {
-                  setType('expense')
-                  setCategory('餐饮')
-                }}
-                className="rounded-full"
-              >
-                支出
-              </Button>
-              <Button
-                type="button"
-                variant={type === 'income' ? 'default' : 'secondary'}
-                onClick={() => {
-                  setType('income')
-                  setCategory('工资')
-                }}
-                className="rounded-full"
-              >
-                收入
-              </Button>
-            </div>
-            {monthCount > 0 ? (
-              <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
-                本月已记录 {monthCount} 笔收支,建议每月底盘点一次。
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div className="glass-strong inline-flex items-center gap-1 rounded-full border border-hairline p-1">
+                {(['expense', 'income'] as const).map((item) => {
+                  const active = type === item
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => {
+                        setType(item)
+                        setCategory(item === 'expense' ? '餐饮' : '工资')
+                      }}
+                      className={`relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                        active ? 'text-white' : 'text-ink-2 hover:text-ink'
+                      }`}
+                    >
+                      {active ? (
+                        <motion.span
+                          layoutId="finance-type-pill"
+                          className="absolute inset-0 rounded-full bg-accent shadow-[inset_0_1px_0_rgb(255_255_255/0.3)]"
+                          transition={TYPE_SPRING}
+                        />
+                      ) : null}
+                      <span className="relative z-10">{item === 'expense' ? '支出' : '收入'}</span>
+                    </button>
+                  )
+                })}
               </div>
-            ) : null}
+              {monthCount > 0 ? (
+                <span className="rounded-full bg-sky-tint px-3 py-1 text-xs font-medium text-sky">
+                  本月已记录 {monthCount} 笔
+                </span>
+              ) : null}
+            </div>
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -165,29 +175,41 @@ export function FinanceTab({ records, error, onSave, onDelete }: FinanceTabProps
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="finance-amount">金额</Label>
-                  <Input id="finance-amount" type="number" step="0.01" min="0" placeholder="0.00" value={amount} onChange={(event) => setAmount(event.target.value)} />
+                  <Input
+                    id="finance-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="finance-category">分类</Label>
-                  <select
+                  <Select
                     id="finance-category"
-                    className="flex h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
                     value={category}
                     onChange={(event) => setCategory(event.target.value)}
                   >
                     {categories.map((item) => (
                       <option key={item}>{item}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="finance-note">备注</Label>
-                  <Input id="finance-note" value={note} placeholder="例如：日常采购、工资入账" onChange={(event) => setNote(event.target.value)} />
+                  <Input
+                    id="finance-note"
+                    value={note}
+                    placeholder="例如：日常采购、工资入账"
+                    onChange={(event) => setNote(event.target.value)}
+                  />
                 </div>
               </div>
 
               {error ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>
+                <div className="rounded-xl bg-red-tint px-3.5 py-2.5 text-sm text-red">{error}</div>
               ) : null}
 
               <div className="flex justify-end">
@@ -207,20 +229,39 @@ export function FinanceTab({ records, error, onSave, onDelete }: FinanceTabProps
         </CardHeader>
         <CardContent>
           {chartData.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
-              暂无收支数据,记录后即可查看月度趋势。
+            <div className="rounded-2xl border border-dashed border-hairline-strong bg-surface-2 p-6 text-sm text-ink-3">
+              暂无收支数据，记录后即可查看月度趋势。
             </div>
           ) : (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="income" name="收入" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" name="支出" fill="#f97316" radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="net" name="结余" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} />
+                <ComposedChart data={chartData} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--color-hairline)" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 12, fill: 'var(--color-ink-3)' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: 'var(--color-ink-3)' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={48}
+                  />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--color-hairline)' }} />
+                  <Bar dataKey="income" name="收入" fill="var(--color-emerald)" radius={[6, 6, 0, 0]} barSize={18} />
+                  <Bar dataKey="expense" name="支出" fill="var(--color-orange)" radius={[6, 6, 0, 0]} barSize={18} />
+                  <Line
+                    type="monotone"
+                    dataKey="net"
+                    name="结余"
+                    stroke="var(--color-violet)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: 'var(--color-violet)', strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>

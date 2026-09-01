@@ -1,32 +1,31 @@
 import { getAuthenticatedUser } from './_lib/auth'
+import { jsonResponse } from './_lib/http'
+import type { Env } from './index'
 
-function jsonResponse(data: unknown, init: ResponseInit = {}) {
-  return new Response(JSON.stringify(data), {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  })
-}
+export type RecordsMethod = 'GET' | 'POST' | 'DELETE'
 
-export async function onRequestGet({ request, env }: { request: Request; env: { DB: D1Database } }) {
+export async function handleRecords(request: Request, env: Env, method: RecordsMethod): Promise<Response> {
   const user = await getAuthenticatedUser(request, env)
   if (!user) {
     return jsonResponse({ message: '未授权' }, { status: 401 })
   }
 
-  const rows = (await env.DB.prepare(
-    'SELECT id, type, date, note, amount, category, weight, exercise_type AS exerciseType, duration, calories, created_at AS createdAt FROM records WHERE user_id = ? ORDER BY date DESC, created_at DESC LIMIT 200',
-  ).bind(user.id).all()) as { results?: Array<Record<string, unknown>> }
+  if (method === 'GET') {
+    const rows = (await env.DB.prepare(
+      'SELECT id, type, date, note, amount, category, weight, exercise_type AS exerciseType, duration, calories, created_at AS createdAt FROM records WHERE user_id = ? ORDER BY date DESC, created_at DESC LIMIT 200',
+    ).bind(user.id).all()) as { results?: Array<Record<string, unknown>> }
 
-  return jsonResponse({ records: rows.results ?? [] })
-}
+    return jsonResponse({ records: rows.results ?? [] })
+  }
 
-export async function onRequestPost({ request, env }: { request: Request; env: { DB: D1Database } }) {
-  const user = await getAuthenticatedUser(request, env)
-  if (!user) {
-    return jsonResponse({ message: '未授权' }, { status: 401 })
+  if (method === 'DELETE') {
+    const recordId = new URL(request.url).searchParams.get('id')
+    if (!recordId) {
+      return jsonResponse({ message: '缺少记录 ID' }, { status: 400 })
+    }
+
+    await env.DB.prepare('DELETE FROM records WHERE id = ? AND user_id = ?').bind(recordId, user.id).run()
+    return jsonResponse({ ok: true })
   }
 
   const body = (await request.json().catch(() => ({}))) as {
@@ -36,9 +35,6 @@ export async function onRequestPost({ request, env }: { request: Request; env: {
     amount?: number | string
     category?: string
     weight?: number | string
-    exerciseType?: string
-    duration?: number | string
-    calories?: number | string
   }
 
   const type = String(body.type ?? '').trim()
@@ -80,19 +76,4 @@ export async function onRequestPost({ request, env }: { request: Request; env: {
     .run()
 
   return jsonResponse({ ok: true, recordId })
-}
-
-export async function onRequestDelete({ request, env }: { request: Request; env: { DB: D1Database } }) {
-  const user = await getAuthenticatedUser(request, env)
-  if (!user) {
-    return jsonResponse({ message: '未授权' }, { status: 401 })
-  }
-
-  const recordId = new URL(request.url).searchParams.get('id')
-  if (!recordId) {
-    return jsonResponse({ message: '缺少记录 ID' }, { status: 400 })
-  }
-
-  await env.DB.prepare('DELETE FROM records WHERE id = ? AND user_id = ?').bind(recordId, user.id).run()
-  return jsonResponse({ ok: true })
 }

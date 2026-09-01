@@ -1,9 +1,14 @@
 name = "jazz-life-tracker"
+main = "./worker/index.ts"
 compatibility_date = "2025-08-23"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "./dist"
+
+# Workers Assets:生产环境由 ASSETS binding 提供 dist/ 静态资源
+[assets]
+directory = "./dist"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "jazz-life-tracker"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "c94fecb8-a703-46bb-9a7e-fcdc7367b80a"

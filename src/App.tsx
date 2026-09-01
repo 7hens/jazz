@@ -1,65 +1,41 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { Dumbbell, Loader2, LockKeyhole, LogOut, Scale, ShieldCheck, Wallet } from 'lucide-react'
 import { LoginCard } from './components/auth/LoginCard'
 import { ExerciseTab } from './components/tabs/ExerciseTab'
 import { FinanceTab } from './components/tabs/FinanceTab'
 import { WeightTab } from './components/tabs/WeightTab'
 import { Button } from './components/ui/button'
-import { todayIso } from './lib/date'
-import type { LifeRecord, RecordType, UserProfile } from './types'
-
-const DEV_USER = {
-  id: 'dev-user-1',
-  email: 'admin@life.local',
-  name: '私密用户',
-} as const
-
-const DEV_STORAGE_KEY = 'jazz-life-tracker-dev-user'
-const DEV_RECORDS_KEY = 'jazz-life-tracker-dev-records'
+import type { LifeRecord, UserProfile } from './types'
 
 type TabId = 'weight' | 'finance' | 'exercise'
 
-const TABS: Array<{ id: TabId; label: string; icon: ReactNode }> = [
-  { id: 'weight', label: '体重', icon: <Scale className="h-4 w-4" /> },
-  { id: 'finance', label: '财务', icon: <Wallet className="h-4 w-4" /> },
-  { id: 'exercise', label: '运动', icon: <Dumbbell className="h-4 w-4" /> },
+const TABS: Array<{ id: TabId; label: string; title: string; subtitle: string; icon: ReactNode }> = [
+  {
+    id: 'weight',
+    label: '体重',
+    title: '体重',
+    subtitle: '每周五记录一次，追踪变化趋势',
+    icon: <Scale className="h-4 w-4" />,
+  },
+  {
+    id: 'finance',
+    label: '财务',
+    title: '财务',
+    subtitle: '收支分记，月度自动汇总',
+    icon: <Wallet className="h-4 w-4" />,
+  },
+  {
+    id: 'exercise',
+    label: '运动',
+    title: '运动',
+    subtitle: '科学动作要领与建议',
+    icon: <Dumbbell className="h-4 w-4" />,
+  },
 ]
 
-function getDevRecords(): LifeRecord[] {
-  try {
-    const raw = window.localStorage.getItem(DEV_RECORDS_KEY)
-    if (!raw) {
-      const seed: LifeRecord[] = [
-        { id: 'seed-1', type: 'expense', date: '2026-08-20', amount: 68.5, category: '餐饮', note: '午餐和咖啡' },
-        { id: 'seed-2', type: 'weight', date: '2026-08-22', weight: 68.4, note: '晨间空腹' },
-      ]
-      window.localStorage.setItem(DEV_RECORDS_KEY, JSON.stringify(seed))
-      return seed
-    }
-    return JSON.parse(raw) as LifeRecord[]
-  } catch {
-    return []
-  }
-}
-
-function setDevRecords(records: LifeRecord[]) {
-  window.localStorage.setItem(DEV_RECORDS_KEY, JSON.stringify(records))
-}
-
-function isLocalDevFallback() {
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-}
-
-function getDevAuth(): { user: UserProfile | null; records: LifeRecord[] } {
-  const storedUser = window.localStorage.getItem(DEV_STORAGE_KEY)
-  if (!storedUser) return { user: null, records: getDevRecords() }
-  try {
-    const user = JSON.parse(storedUser) as UserProfile
-    return { user, records: getDevRecords() }
-  } catch {
-    return { user: null, records: getDevRecords() }
-  }
-}
+// 临界阻尼弹簧：tap 无回弹，页面/指示器平滑归位
+const SPRING = { type: 'spring', bounce: 0, duration: 0.45 } as const
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -67,8 +43,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<TabId>('weight')
   const [error, setError] = useState('')
-  const [email, setEmail] = useState('admin@life.local')
-  const [password, setPassword] = useState('ChangeMe123!')
+  const [token, setToken] = useState('')
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -76,12 +51,6 @@ function App() {
       try {
         const meResponse = await fetch('/api/me', { credentials: 'include' })
         if (!meResponse.ok) {
-          if (isLocalDevFallback()) {
-            const fallback = getDevAuth()
-            setUser(fallback.user)
-            setRecords(fallback.records)
-            return
-          }
           setUser(null)
           return
         }
@@ -93,13 +62,7 @@ function App() {
           setRecords(data.records)
         }
       } catch {
-        if (isLocalDevFallback()) {
-          const fallback = getDevAuth()
-          setUser(fallback.user)
-          setRecords(fallback.records)
-        } else {
-          setUser(null)
-        }
+        setUser(null)
       } finally {
         setLoading(false)
       }
@@ -108,11 +71,6 @@ function App() {
   }, [])
 
   async function fetchRecords() {
-    if (isLocalDevFallback()) {
-      const devRecords = getDevRecords()
-      setRecords(devRecords)
-      return devRecords
-    }
     const response = await fetch('/api/records', { credentials: 'include' })
     if (!response.ok) throw new Error('无法获取记录')
     const payload = (await response.json()) as { records: LifeRecord[] }
@@ -123,23 +81,11 @@ function App() {
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
-    if (isLocalDevFallback()) {
-      const credentialsOk = email.trim().toLowerCase() === DEV_USER.email && password === 'ChangeMe123!'
-      if (!credentialsOk) {
-        setError('登录失败')
-        return
-      }
-      const devUser = { ...DEV_USER, email: email.trim().toLowerCase() }
-      window.localStorage.setItem(DEV_STORAGE_KEY, JSON.stringify(devUser))
-      setUser(devUser)
-      setRecords(getDevRecords())
-      return
-    }
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ token }),
     })
     const payload = (await response.json().catch(() => ({ message: '登录失败' }))) as {
       message?: string
@@ -156,36 +102,12 @@ function App() {
   }
 
   async function handleLogout() {
-    if (isLocalDevFallback()) {
-      window.localStorage.removeItem(DEV_STORAGE_KEY)
-      window.localStorage.removeItem(DEV_RECORDS_KEY)
-      setUser(null)
-      setRecords([])
-      return
-    }
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
     setUser(null)
     setRecords([])
   }
 
   async function saveRecord(payload: Record<string, string | number | undefined>): Promise<boolean> {
-    if (isLocalDevFallback()) {
-      const type = String(payload.type) as RecordType
-      const next = [...getDevRecords()]
-      next.unshift({
-        id: `dev-${Date.now()}`,
-        type,
-        date: String(payload.date ?? todayIso()),
-        note: String(payload.note ?? ''),
-        amount: type === 'expense' || type === 'income' ? Number(payload.amount ?? 0) : undefined,
-        category: type === 'expense' || type === 'income' ? String(payload.category ?? '其他') : undefined,
-        weight: type === 'weight' ? Number(payload.weight ?? 0) : undefined,
-      })
-      setDevRecords(next)
-      setRecords(next)
-      setError('')
-      return true
-    }
     const response = await fetch('/api/records', {
       method: 'POST',
       credentials: 'include',
@@ -203,12 +125,6 @@ function App() {
   }
 
   async function deleteRecord(recordId: string) {
-    if (isLocalDevFallback()) {
-      const next = getDevRecords().filter((record) => record.id !== recordId)
-      setDevRecords(next)
-      setRecords(next)
-      return
-    }
     const response = await fetch(`/api/records?id=${recordId}`, { method: 'DELETE', credentials: 'include' })
     if (response.ok) {
       setRecords((current) => current.filter((record) => record.id !== recordId))
@@ -217,12 +133,14 @@ function App() {
     }
   }
 
+  const activeTabMeta = TABS.find((tab) => tab.id === activeTab) ?? TABS[0]
+
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-700">
-        <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>正在检查会话…</span>
+      <div className="flex min-h-screen items-center justify-center bg-canvas text-ink-2">
+        <div className="flex items-center gap-3 rounded-full border border-hairline bg-surface px-4 py-2 shadow-card">
+          <Loader2 className="h-4 w-4 animate-spin text-accent" />
+          <span className="text-sm">正在检查会话…</span>
         </div>
       </div>
     )
@@ -231,70 +149,144 @@ function App() {
   if (!user) {
     return (
       <LoginCard
-        email={email}
-        password={password}
+        token={token}
         error={error}
-        onEmailChange={setEmail}
-        onPasswordChange={setPassword}
+        onTokenChange={setToken}
         onSubmit={handleLogin}
       />
     )
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8fafc,_#edf2ff_35%,_#f8fafc)] p-4 text-slate-700 md:p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              私密生活管理
+    <MotionConfig reducedMotion="user">
+      <div className="relative min-h-screen bg-canvas text-ink">
+        <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(1200px_600px_at_50%_-120px,rgb(10_132_255/0.06),transparent)]" />
+
+        <header className="glass-strong sticky top-0 z-40 border-b border-hairline">
+          <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 md:px-6">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.35)]">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <span className="text-[15px] font-semibold tracking-tight">生活记录</span>
             </div>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">生活记录仪</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">
-              {user.email}
+            <div className="flex items-center gap-1.5">
+              <div className="hidden items-center gap-2 rounded-full bg-surface-2 px-3 py-1.5 text-sm text-ink-2 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-emerald" />
+                {user.name}
+              </div>
+              <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="退出登录">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              退出
-            </Button>
           </div>
         </header>
 
-        <nav className="flex gap-2">
-          {TABS.map((tab) => (
-            <Button
-              key={tab.id}
-              type="button"
-              variant={activeTab === tab.id ? 'default' : 'secondary'}
-              onClick={() => {
-                setActiveTab(tab.id)
-                setError('')
-              }}
-              className="rounded-full"
+        <main className="mx-auto max-w-5xl px-4 pb-32 pt-6 md:px-6 md:pb-16 md:pt-10">
+          {/* 桌面端分段控件 */}
+          <div className="mb-10 hidden justify-center md:flex">
+            <div className="glass-strong inline-flex items-center gap-1 rounded-full border border-hairline p-1 shadow-pop">
+              {TABS.map((tab) => {
+                const active = tab.id === activeTab
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id)
+                      setError('')
+                    }}
+                    className={`relative rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+                      active ? 'text-white' : 'text-ink-2 hover:text-ink'
+                    }`}
+                  >
+                    {active ? (
+                      <motion.span
+                        layoutId="tab-pill-desktop"
+                        className="absolute inset-0 rounded-full bg-accent shadow-[inset_0_1px_0_rgb(255_255_255/0.3)]"
+                        transition={SPRING}
+                      />
+                    ) : null}
+                    <span className="relative z-10 flex items-center gap-2">
+                      {tab.icon}
+                      {tab.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
             >
-              {tab.icon}
-              <span className="ml-2">{tab.label}</span>
-            </Button>
-          ))}
+              <div className="mb-6 flex items-end justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-semibold leading-tight tracking-tight md:text-4xl">
+                    {activeTabMeta.title}
+                  </h1>
+                  <p className="mt-1 text-sm text-ink-2 md:text-base">{activeTabMeta.subtitle}</p>
+                </div>
+              </div>
+
+              {activeTab === 'weight' ? (
+                <WeightTab records={records} error={error} onSave={saveRecord} onDelete={deleteRecord} />
+              ) : activeTab === 'finance' ? (
+                <FinanceTab records={records} error={error} onSave={saveRecord} onDelete={deleteRecord} />
+              ) : (
+                <ExerciseTab />
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          <footer className="mt-14 flex items-center justify-center gap-2 text-sm text-ink-3">
+            <LockKeyhole className="h-3.5 w-3.5" />
+            通过安全会话和 D1 数据隔离保护你的隐私。
+          </footer>
+        </main>
+
+        {/* 移动端底部 tab bar */}
+        <nav className="fixed inset-x-4 bottom-4 z-40 md:hidden">
+          <div className="glass-strong mx-auto flex max-w-md items-center justify-between rounded-full border border-hairline p-1.5 shadow-pop">
+            {TABS.map((tab) => {
+              const active = tab.id === activeTab
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    setError('')
+                  }}
+                  className="relative flex-1 rounded-full py-2"
+                >
+                  {active ? (
+                    <motion.span
+                      layoutId="tab-pill-mobile"
+                      className="absolute inset-0 rounded-full bg-accent shadow-[inset_0_1px_0_rgb(255_255_255/0.3)]"
+                      transition={SPRING}
+                    />
+                  ) : null}
+                  <span
+                    className={`relative z-10 flex flex-col items-center gap-0.5 text-xs font-medium transition-colors ${
+                      active ? 'text-white' : 'text-ink-2'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </nav>
-
-        {activeTab === 'weight' ? (
-          <WeightTab records={records} error={error} onSave={saveRecord} onDelete={deleteRecord} />
-        ) : activeTab === 'finance' ? (
-          <FinanceTab records={records} error={error} onSave={saveRecord} onDelete={deleteRecord} />
-        ) : (
-          <ExerciseTab />
-        )}
-
-        <footer className="flex items-center justify-center gap-2 pb-4 text-sm text-slate-500">
-          <LockKeyhole className="h-4 w-4" />
-          通过安全会话和 D1 数据隔离保护你的隐私。
-        </footer>
       </div>
-    </div>
+    </MotionConfig>
   )
 }
 

@@ -8,10 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint .",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
-    "pages:dev": "wrangler pages dev dist --compatibility-date=2025-08-23 --port 3000",
     "db:apply": "wrangler d1 execute jazz-life-tracker --local --file=./schema.sql",
-    "db:migrate": "wrangler d1 execute jazz-life-tracker --local --file=./migrations/2026-08-25-finance-types.sql",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "db:migrate": "for f in migrations/*.sql; do wrangler d1 execute jazz-life-tracker --local --file=\"$f\"; done",
+    "deploy": "npm run build && wrangler deploy dist/jazz_life_tracker"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.15",
@@ -19,12 +18,14 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.33.0",
+    "motion": "^13.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.2",
     "@cloudflare/workers-types": "^5.20260823.1",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/vite": "^4.3.3",
@@ -36,6 +37,6 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
-    "wrangler": "^4.125.0"
+    "wrangler": "^4.127.1"
   }
 }

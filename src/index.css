@@ -1,38 +1,158 @@
 @import 'tailwindcss';
 
-:root {
-  font-family: 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: #0f172a;
-  background-color: #f8fafc;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@custom-variant dark (&:where(prefers-color-scheme: dark));
+
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+    sans-serif;
+
+  /* 中性表面与文字 */
+  --color-canvas: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f5f7;
+  --color-surface-3: #eaecef;
+  --color-ink: #1d1d1f;
+  --color-ink-2: #6e6e73;
+  --color-ink-3: #a1a1a6;
+  --color-hairline: rgb(60 60 67 / 0.12);
+  --color-hairline-strong: rgb(60 60 67 / 0.22);
+
+  /* 主强调色（iOS 蓝） */
+  --color-accent: #0a84ff;
+  --color-accent-ink: #0071e3;
+  --color-accent-tint: rgb(10 132 255 / 0.12);
+
+  /* 语义色（图表 / 状态） */
+  --color-violet: #7c3aed;
+  --color-violet-tint: rgb(124 58 237 / 0.12);
+  --color-emerald: #10b981;
+  --color-emerald-tint: rgb(16 185 129 / 0.12);
+  --color-orange: #f97316;
+  --color-orange-tint: rgb(249 115 22 / 0.12);
+  --color-sky: #0ea5e9;
+  --color-sky-tint: rgb(14 165 233 / 0.12);
+  --color-amber: #f59e0b;
+  --color-amber-tint: rgb(245 158 11 / 0.12);
+  --color-pink: #f43f5e;
+  --color-pink-tint: rgb(244 63 94 / 0.12);
+  --color-red: #ff3b30;
+  --color-red-tint: rgb(255 59 48 / 0.12);
+
+  /* 阴影 */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.08);
+  --shadow-pop: 0 4px 16px -4px rgb(0 0 0 / 0.12), 0 20px 48px -16px rgb(0 0 0 / 0.18);
+
+  /* 圆角 */
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
 }
 
-html {
-  scroll-behavior: smooth;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: var(--color-accent-tint);
+  }
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: #f8fafc;
+/* 毛玻璃层：内容在其下滚动，浮层保持半透明 */
+@utility glass {
+  background-color: color-mix(in srgb, var(--color-surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
 }
 
-* {
-  box-sizing: border-box;
+@utility glass-strong {
+  background-color: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
 }
 
-button,
-input,
-select {
-  font: inherit;
+/* 暗色模式：token 覆盖即可，无需逐组件 dark: 类 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #000000;
+    --color-surface: #1c1c1e;
+    --color-surface-2: #262629;
+    --color-surface-3: #333336;
+    --color-ink: #f5f5f7;
+    --color-ink-2: #a1a1a6;
+    --color-ink-3: #6e6e73;
+    --color-hairline: rgb(255 255 255 / 0.12);
+    --color-hairline-strong: rgb(255 255 255 / 0.22);
+    --color-accent: #0a84ff;
+    --color-accent-ink: #64b5ff;
+    --color-accent-tint: rgb(10 132 255 / 0.2);
+
+    --color-violet: #a78bfa;
+    --color-violet-tint: rgb(167 139 250 / 0.16);
+    --color-emerald: #34d399;
+    --color-emerald-tint: rgb(52 211 153 / 0.16);
+    --color-orange: #fb923c;
+    --color-orange-tint: rgb(251 146 60 / 0.16);
+    --color-sky: #38bdf8;
+    --color-sky-tint: rgb(56 189 248 / 0.16);
+    --color-amber: #fbbf24;
+    --color-amber-tint: rgb(251 191 36 / 0.16);
+    --color-pink: #fb7185;
+    --color-pink-tint: rgb(251 113 133 / 0.16);
+    --color-red: #ff453a;
+    --color-red-tint: rgb(255 69 58 / 0.16);
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-pop: 0 8px 24px -8px rgb(0 0 0 / 0.5);
+  }
 }
 
-#root {
-  min-height: 100vh;
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong {
+    background-color: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
