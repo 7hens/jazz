@@ -22,7 +22,7 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
     return jsonResponse({ message: '令牌不正确' }, { status: 401 })
   }
 
-  // 认证不再需要密码/邮箱,users 仅作 records 的外键;返回唯一用户(无则建默认)
+  // 认证不再需要密码/邮箱,users 仅作 game_state 的外键;返回唯一用户(无则建默认)
   const user = await getSingleUser(env)
 
   return jsonResponse(
