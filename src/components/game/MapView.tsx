@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { LogOut, RotateCcw, Volume2, VolumeX, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
 import { LEVELS } from '../../data/levels'
@@ -87,12 +87,25 @@ export function MapView({ state, onPlay, onReset, onLogout, soundOn, onToggleSou
   const [menuOpen, setMenuOpen] = useState(false)
   const level = levelOfExp(state.exp)
 
+  // Escape 关闭菜单;a11y
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
   function closeMenu() {
     setMenuOpen(false)
   }
 
   return (
     <div className="min-h-screen text-ink">
+      {/* 全屏点击遮罩:放在 glass-strong header 之外,避免 header backdrop-filter 使其仅覆盖顶栏 */}
+      {menuOpen ? <div className="fixed inset-0 z-20" onClick={closeMenu} aria-hidden="true" /> : null}
+
       {/* 顶部状态条:星尘 / Lv / 声音开关 / 家长菜单 */}
       <header className="glass-strong sticky top-0 z-30 border-b border-hairline">
         <div className="mx-auto flex max-w-xl items-center gap-1.5 px-4 py-2.5">
@@ -118,35 +131,44 @@ export function MapView({ state, onPlay, onReset, onLogout, soundOn, onToggleSou
             {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5 text-ink-3" />}
           </Button>
           <div className="relative">
-            <Button variant="ghost" size="icon" aria-label="家长菜单" onClick={() => setMenuOpen((o) => !o)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="家长菜单"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
               <Wrench className="h-5 w-5" />
             </Button>
             {menuOpen ? (
-              <>
-                <div className="fixed inset-0 z-10" onClick={closeMenu} />
-                <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-2xl border border-hairline bg-surface p-1.5 shadow-pop">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeMenu()
-                      onReset()
-                    }}
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-surface-2"
-                  >
-                    <RotateCcw className="h-4 w-4 text-ink-3" /> 重置进度
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeMenu()
-                      onLogout()
-                    }}
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red transition-colors hover:bg-red-tint"
-                  >
-                    <LogOut className="h-4 w-4" /> 退出登录
-                  </button>
-                </div>
-              </>
+              <div
+                className="absolute right-0 top-full z-30 mt-2 w-48 rounded-2xl border border-hairline bg-surface p-1.5 shadow-pop"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeMenu()
+                    onReset()
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-surface-2"
+                >
+                  <RotateCcw className="h-4 w-4 text-ink-3" /> 重置进度
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeMenu()
+                    onLogout()
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red transition-colors hover:bg-red-tint"
+                >
+                  <LogOut className="h-4 w-4" /> 退出登录
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
