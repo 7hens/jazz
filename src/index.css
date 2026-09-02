@@ -13,6 +13,7 @@
   --color-canvas-2: #eaf6ff;
   --color-surface: #ffffff;
   --color-surface-2: #f2f8ff;
+  --color-surface-3: #dbe7f2; /* 锁定节点填充等三级表面 */
   --color-ink: #1f3a5f; /* 深蓝灰 */
   --color-ink-2: #5a7ba0;
   --color-ink-3: #8fb0d0;
@@ -104,6 +105,7 @@
     --color-canvas-2: #12294d;
     --color-surface: #14223d;
     --color-surface-2: #1b2e4f;
+    --color-surface-3: #2b3a52;
     --color-ink: #e8f1fb;
     --color-ink-2: #9fb8d4;
     --color-ink-3: #5e7fa6;
