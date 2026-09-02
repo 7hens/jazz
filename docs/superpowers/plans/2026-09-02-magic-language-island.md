@@ -121,17 +121,32 @@ export type UserProfile = { id: string; email: string; name: string }
 
 - [ ] **Step 3: 写计分测试(先红)**
 
-Write `src/game/scoring.test.ts`:
+Write `src/game/scoring.test.ts`(以最小 4 选项样板构造题目,逐条 `it()` 落地):
 ```ts
 import { describe, expect, it } from 'vitest'
 import type { Question } from '../types'
 import { runLevel, scoreAttempt, starsForRate } from './scoring'
 
-function listen(q: Partial<ListenChoiceQuestion>): Question {
-  return { kind: 'listen-choice', prompt: 'p', promptSpeak: 's', options: [...], answerId: 'a', ...q } as Question
+const OPTS = [
+  { id: 'a', text: 'a' },
+  { id: 'b', text: 'b' },
+  { id: 'c', text: 'c' },
+  { id: 'd', text: 'd' },
+]
+
+function listenQuestion(answerId: string): Question {
+  return { kind: 'listen-choice', prompt: '听一听', promptSpeak: '啊', options: OPTS, answerId }
 }
 ```
-(上面 helper 里 `options: [...]` 为占位,真正书写时用下述 4 项样板:`[{id:'a',text:'x'},{id:'b',text:'y'},{id:'c',text:'z'},{id:'d',text:'w'}]`。测试要点如下,逐条 `it()` 落地:)
+测试要点如下,逐条写独立 `it()`:
+- `scoreAttempt` 首对:`scoreAttempt(listenQuestion('a'), 'a', 1, 0)` → `{correct:true, points:10, streak:1}`。
+- 连击:prevStreak 3 → points 12(10+2),streak 4。
+- 二答对:attempt 2 → points 5,streak 0。
+- 两次错:attempt 2、selectedId 'b' → `{correct:false, points:0, streak:0}`。
+- 错误答案 attempt1:correct false、streak 0。
+- `starsForRate` 边界:1→3、0.9→3、0.8→2、0.7→2、0.6→1、0.5→1、0.49→0、0→0。
+- `runLevel` 6 题全首对:构造 `level`(6 个 listenQuestion 变体)与 6 条 `runs`(每条 `{question, selectedId: 正确, attempt: 1, prevStreak: i-1}`)→ rawScore = 60+10=70(第2题起每题+2,共 6 题 → 10+12+12+12+12+12=70)、rate=min(100, 70/60*100)=100、stars 3、maxStreak 6、firstTryCorrect 6。
+- `runLevel` 含一题二次对(错后二答):rate < 100;全错 → rate 0、stars 0。
 - `scoreAttempt` 首对:attempt 1、prevStreak 0 → `{correct:true, points:10, streak:1}`。
 - 连击:attempt 1、prevStreak 3 → points 12(10+2),streak 4。
 - 二答对:attempt 2 → points 5,streak 0(连击断)。
@@ -142,13 +157,26 @@ function listen(q: Partial<ListenChoiceQuestion>): Question {
 
 - [ ] **Step 4: 写进度合并测试(先红)**
 
-Write `src/game/state.test.ts`:
+Write `src/game/state.test.ts`(`LevelOutcome` 定义在 `./scoring`,`state.ts` import 它;用最小 outcome 工厂构造结算结果):
 ```ts
 import { describe, expect, it } from 'vitest'
-import type { GameState, LevelOutcome } from '../types'
+import type { GameState } from '../types'
+import { starsForRate, type LevelOutcome } from './scoring'
 import { applyResult, emptyGameState, kingdomForLevel, levelOfExp } from './state'
+
+function outcome(stars: 0 | 1 | 2 | 3, rawScore: number): LevelOutcome {
+  return { rawScore, baseMax: 60, rate: 0, stars, maxStreak: 0, firstTryCorrect: 0 }
+}
 ```
-(把 `LevelOutcome` 定义放 `scoring.ts`,`state.ts` import 它,types.ts 不重复。`applyResult` 用例:)
+`applyResult` 用例(每个独立 `it()`,用 `outcome(3, 60)` 等构造):
+- `emptyGameState()`:stars 0、exp 0、unlocked 1、levels `{}`、kingdom 三键全 0。
+- 首通 L1(3★):starDelta 60、expDelta 80、unlocked 变 2、kingdom.pinyin 3、state.levels[1].stars 3。
+- 复玩 L1 同 3★(再 apply 同 outcome):starDelta 0、expDelta 0、unlocked 不变。
+- 首通 2★ 后复玩 3★:starDelta 20(补差)。
+- 首通失败(0★):expDelta 0、starDelta 0、unlocked 不变、levels 无该关记录。
+- 通过 L10(混合关):kingdom 三键均不增加。
+- `levelOfExp(0)`→1、`(299)`→1、`(300)`→2、`(899)`→3。
+- `kingdomForLevel(1..4)`→'pinyin'、5..7→'hanzi'、8..9→'english'、10→null。
 - `emptyGameState()`:stars 0、exp 0、unlocked 1、levels `{}`、kingdom 三键全 0。
 - 首通 L1(3★、rawScore 60):starDelta 60、expDelta 80、unlocked 变 2、kingdom.pinyin +3、state.levels[1].stars 3。
 - 复玩 L1 同 3★:starDelta 0、expDelta 0、unlocked 不变。
