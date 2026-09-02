@@ -1,6 +1,6 @@
 import { handleLogin, handleLogout, handleMe } from './auth'
 import { jsonResponse } from './_lib/http'
-import { handleRecords, type RecordsMethod } from './records'
+import { handleGetGame, handlePutGame } from './game'
 
 export interface Env {
   DB: D1Database
@@ -32,10 +32,9 @@ export default {
       case '/api/me':
         if (method === 'GET') return handleMe(request, env)
         return methodNotAllowed()
-      case '/api/records':
-        if (method === 'GET' || method === 'POST' || method === 'DELETE') {
-          return handleRecords(request, env, method as RecordsMethod)
-        }
+      case '/api/game':
+        if (method === 'GET') return handleGetGame(request, env)
+        if (method === 'PUT') return handlePutGame(request, env)
         return methodNotAllowed()
       default:
         // 非 API 请求:生产环境由 Workers Assets 提供静态资源;dev 下 vite 已接管
