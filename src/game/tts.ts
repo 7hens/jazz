@@ -1,4 +1,8 @@
 // TTS 封装：文本转语音。无该语言语音时静默降级（返回 false），绝不抛错。
+//
+// 注意:speak 前先 synth.cancel() 打断前句。若某文本在极短时间内被连续请求两次
+// (如 React StrictMode 重放 effect),第二次 cancel 会丢掉第一次正在合成的 utterance
+// (speech-dispatcher 后端下实际无声)——调用方需自行去重(见 ListenChoice 的 saidRef)。
 
 function normLang(l: string): string {
   return l.toLowerCase().replace('_', '-')
