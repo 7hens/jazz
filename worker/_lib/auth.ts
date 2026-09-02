@@ -59,7 +59,9 @@ export async function getAuthenticatedUser(
 }
 
 export function buildCookieHeader(token: string, request: Request) {
-  const isSecure = !request.url.startsWith('http://localhost') && !request.url.startsWith('http://127.0.0.1')
+  // Secure 只看实际传输协议,不按主机名猜:http 上加 Secure 会被浏览器(非 localhost 安全上下文)
+  // 整体拒存 → dev 用局域网 IP(http://192.168.x.x:3000)访问时反复登出。仅 https 才带 Secure。
+  const isSecure = new URL(request.url).protocol === 'https:'
   const secureFlag = isSecure ? '; Secure' : ''
   // token 永不过期,cookie 载体给 10 年,到期只是重新输入一次
   return `${AUTH_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=315360000${secureFlag}`
