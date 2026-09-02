@@ -1,17 +1,4 @@
-// TTS 封装：文本转语音。中文语音缺失时静默降级（返回 false），绝不抛错。
-
-let voiceCache: SpeechSynthesisVoice[] | null = null
-
-function refreshVoices(): void {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
-  voiceCache = window.speechSynthesis.getVoices()
-}
-
-// 首次 getVoices() 常为空，需监听 voiceschanged 后缓存一次，避免首次 speak 误判为“无中文语音”。
-refreshVoices()
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  window.speechSynthesis.addEventListener('voiceschanged', refreshVoices)
-}
+// TTS 封装：文本转语音。无该语言语音时静默降级（返回 false），绝不抛错。
 
 function normLang(l: string): string {
   return l.toLowerCase().replace('_', '-')
@@ -20,16 +7,36 @@ function normLang(l: string): string {
 export function speak(text: string, lang = 'zh-CN'): boolean {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false
   const synth = window.speechSynthesis
-  const voices = voiceCache ?? synth.getVoices()
+  // 每次实时枚举,不用模块级 cache:Linux speech-dispatcher 后端语音列表加载晚,
+  // stale cache 会误判“无语音”。
+  const voices = synth.getVoices()
   const needle = normLang(lang)
-  const exact = voices.find((v) => normLang(v.lang) === needle) ?? null
-  // 无精确 zh-CN 语音但有其它 zh-* 语音时,退用该语音;仅当完全没有中文语音才静音降级
-  const fallback = !exact && lang.startsWith('zh') ? (voices.find((v) => normLang(v.lang).startsWith('zh')) ?? null) : null
-  const voice = exact ?? fallback
-  if (lang.startsWith('zh') && !voice) return false // 无中文语音 → 静音降级
+
+  // 1) 精确匹配请求语言(zh-CN / en-US 标准系统)
+  let voice = voices.find((v) => normLang(v.lang) === needle) ?? null
+
+  if (!voice) {
+    // 2) 中文请求:语音码可能是 espeak-ng 的 ISO 639-3 `cmn`(普通话)/`yue`(粤语),
+    //    而非 BCP-47 `zh-CN`。优先普通话 base voice(名字无 “+变体” 后缀)。
+    if (/^(zh|cmn|yue)(-|$)/i.test(lang)) {
+      voice =
+        voices.find((v) => /^cmn(-|$)/i.test(v.lang) && !v.name.includes('+')) ??
+        voices.find((v) => /^cmn(-|$)/i.test(v.lang)) ??
+        voices.find((v) => /^zh(-|$)/i.test(v.lang)) ??
+        voices.find((v) => /^yue(-|$)/i.test(v.lang)) ??
+        null
+    }
+    // 3) 其它语言:按主语言前缀匹配首可用语音(en-US → 任意 en-*)
+    if (!voice) {
+      const main = needle.split('-')[0]
+      voice = voices.find((v) => normLang(v.lang).split('-')[0] === main) ?? null
+    }
+  }
+
+  if (!voice) return false // 无该语言语音 → 静音降级(答题不阻断)
   const u = new SpeechSynthesisUtterance(text)
-  u.lang = voice?.lang ?? lang
-  if (voice) u.voice = voice
+  u.voice = voice
+  u.lang = voice.lang
   u.rate = 0.9
   synth.cancel()
   synth.speak(u)
