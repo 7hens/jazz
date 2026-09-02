@@ -6,7 +6,7 @@ import { MapView } from './components/game/MapView'
 import { LevelPlay } from './components/game/LevelPlay'
 import { LevelResult } from './components/game/LevelResult'
 import { LEVELS } from './data/levels'
-import { applyResult, emptyGameState } from './game/state'
+import { applyResult, emptyGameState, isValidGameState } from './game/state'
 import { runLevel, type LevelOutcome, type LevelRun } from './game/scoring'
 import { getSoundOn, setSoundOn } from './game/audio'
 import type { GameState, Level } from './types'
@@ -57,8 +57,9 @@ function App() {
     try {
       const g = await fetch('/api/game', { credentials: 'include' })
       if (g.ok) {
-        const { state: s } = (await g.json()) as { state: GameState | null }
-        if (s) setState(s)
+        const { state: s } = (await g.json()) as { state: unknown }
+        // 服务端只保证 JSON 语法,不保证结构;残缺 blob 退回空档(下次通关 PUT 覆盖坏档)
+        setState(isValidGameState(s) ? s : emptyGameState())
       }
     } catch {
       /* 忽略:不把已登录用户踢回登录 */

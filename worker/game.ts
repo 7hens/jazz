@@ -2,7 +2,7 @@ import { getAuthenticatedUser } from './_lib/auth'
 import { jsonResponse } from './_lib/http'
 import type { Env } from './index'
 
-const MAX_STATE_BYTES = 64 * 1024
+const MAX_STATE_BYTES = 64 * 1024 // 上限按 UTF-8 字节计
 
 export async function handleGetGame(request: Request, env: Env): Promise<Response> {
   const user = await getAuthenticatedUser(request, env)
@@ -26,7 +26,8 @@ export async function handlePutGame(request: Request, env: Env): Promise<Respons
     return jsonResponse({ message: '进度数据不合法' }, { status: 400 })
   }
   const raw = JSON.stringify(body.state)
-  if (raw.length > MAX_STATE_BYTES) {
+  // 测 UTF-8 字节数而非 UTF-16 码元数:中文存档若按 raw.length 会低估一半体积
+  if (new TextEncoder().encode(raw).length > MAX_STATE_BYTES) {
     return jsonResponse({ message: '进度数据过大' }, { status: 400 })
   }
   await env.DB.prepare(

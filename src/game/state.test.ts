@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LevelOutcome } from './scoring'
-import { applyResult, emptyGameState, kingdomForLevel, levelOfExp } from './state'
+import { applyResult, emptyGameState, isValidGameState, kingdomForLevel, levelOfExp } from './state'
 
 function outcome(stars: 0 | 1 | 2 | 3, rawScore: number): LevelOutcome {
   return { rawScore, baseMax: 60, rate: 0, stars, maxStreak: 0, firstTryCorrect: 0 }
@@ -75,6 +75,32 @@ describe('applyResult', () => {
     expect(res.state.stars).toBe(60)
     expect(res.state.levels[10]).toEqual({ stars: 3, bestScore: 60 })
     expect(res.state.kingdom).toEqual({ pinyin: 0, hanzi: 0, english: 0 })
+  })
+})
+
+describe('isValidGameState', () => {
+  it('空档(emptyGameState)与正常通关档均通过', () => {
+    const s = emptyGameState()
+    expect(isValidGameState(s)).toBe(true)
+    const progressed = applyResult(s, 1, outcome(3, 60)).state
+    expect(isValidGameState(progressed)).toBe(true)
+  })
+  it('非对象/缺 kingdom/stars 为字符串/unlocked 为负 → 拒绝', () => {
+    const valid = emptyGameState()
+    expect(isValidGameState(null)).toBe(false)
+    expect(isValidGameState({})).toBe(false)
+    const noKingdom = { ...valid }
+    delete (noKingdom as { kingdom?: unknown }).kingdom
+    expect(isValidGameState(noKingdom)).toBe(false)
+    expect(isValidGameState({ ...valid, stars: '60' })).toBe(false)
+    expect(isValidGameState({ ...valid, unlocked: -1 })).toBe(false)
+  })
+  it('缺失 updatedAt 可容忍;levels 非对象拒绝', () => {
+    const valid = emptyGameState()
+    const noUpdatedAt = JSON.parse(JSON.stringify(valid)) as Record<string, unknown>
+    delete noUpdatedAt.updatedAt
+    expect(isValidGameState(noUpdatedAt)).toBe(true)
+    expect(isValidGameState({ ...valid, levels: [] })).toBe(false)
   })
 })
 

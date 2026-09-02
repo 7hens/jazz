@@ -29,6 +29,20 @@ export function levelOfExp(exp: number): number {
   return Math.floor(exp / 300) + 1
 }
 
+/** 载入存档前的结构校验:杜绝残缺/畸形 blob 让 MapView 渲染崩溃。容忍缺失 updatedAt。 */
+export function isValidGameState(s: unknown): s is GameState {
+  if (typeof s !== 'object' || s === null || Array.isArray(s)) return false
+  const g = s as Record<string, unknown>
+  if (typeof g.stars !== 'number' || !Number.isFinite(g.stars)) return false
+  if (typeof g.exp !== 'number' || !Number.isFinite(g.exp)) return false
+  if (typeof g.unlocked !== 'number' || !Number.isInteger(g.unlocked) || g.unlocked < 1) return false
+  if (typeof g.levels !== 'object' || g.levels === null || Array.isArray(g.levels)) return false
+  const kingdom = g.kingdom
+  if (typeof kingdom !== 'object' || kingdom === null || Array.isArray(kingdom)) return false
+  const k = kingdom as Record<string, unknown>
+  return ['pinyin', 'hanzi', 'english'].every((key) => typeof k[key] === 'number' && Number.isFinite(k[key]))
+}
+
 const STAR_REWARDS: Record<number, number> = { 1: 20, 2: 40, 3: 60 }
 
 export function applyResult(

@@ -18,10 +18,12 @@
   --color-ink-2: #5a7ba0;
   --color-ink-3: #8fb0d0;
   --color-hairline: rgb(31 58 95 / 0.1);
+  --color-hairline-strong: rgb(31 58 95 / 0.22); /* 更强描边(outline 按钮等) */
 
   /* 王国/糖果强调 */
   --color-accent: #ff8a2a; /* 通用主强调(橙,大按钮) */
   --color-accent-tint: rgb(255 138 42 / 0.16);
+  --color-accent-ink: #c2410c; /* accent-tint 上的文字(深橙,保证可读) */
   --color-pinyin: #f59e0b; /* 拼音=橙 */
   --color-hanzi: #ef4444; /* 汉字=红 */
   --color-english: #3b82f6; /* 英语=蓝 */
@@ -110,9 +112,11 @@
     --color-ink-2: #9fb8d4;
     --color-ink-3: #5e7fa6;
     --color-hairline: rgb(255 255 255 / 0.14);
+    --color-hairline-strong: rgb(255 255 255 / 0.28);
 
     --color-accent: #ff9a45;
     --color-accent-tint: rgb(255 138 42 / 0.22);
+    --color-accent-ink: #ffc58a; /* 深色 accent-tint 上的浅橙文字 */
     --color-pinyin: #fbbf24;
     --color-hanzi: #f87171;
     --color-english: #60a5fa;

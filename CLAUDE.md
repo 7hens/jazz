@@ -21,7 +21,7 @@ npm install            # 安装依赖
 npm run dev            # 全栈本地运行(:3000):Vite dev server + workerd 内跑 worker + 本地 D1
 npm run build          # tsc -b && vite build → dist/client(前端)+ dist/jazz_life_tracker(worker 产物)
 npm run lint           # oxlint
-npm test               # vitest run:src/game/*.test.ts 纯逻辑单测
+npm test               # vitest run src/game/*.test.ts 纯逻辑单测
 npm run db:apply       # 将 schema.sql 应用到本地 D1(建表幂等来源)
 npm run db:migrate     # 循环执行 migrations/*.sql 下迁移(本地)
 npm run deploy         # npm run build && wrangler deploy dist/jazz_life_tracker

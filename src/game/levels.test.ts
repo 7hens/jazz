@@ -23,13 +23,29 @@ describe('题库数据完整性', () => {
           expect(ids).toContain(q.answerId)
         }
   })
-  it('match:left/right 等长、answerMap 覆盖全部 left 且值指向右列', () => {
+  it('listen-choice:正确答案卡的 speak 与 promptSpeak 一致', () => {
+    for (const l of LEVELS)
+      for (const q of l.questions)
+        if (q.kind === 'listen-choice') {
+          const answer = q.options.find((o) => o.id === q.answerId)!
+          expect(answer.speak).toBe(q.promptSpeak)
+        }
+  })
+  it('match:left/right 非空等长、answerMap 一一映射到右列且覆盖全部 left', () => {
     for (const l of LEVELS)
       for (const q of l.questions)
         if (q.kind === 'match') {
-          expect(q.left.length).toBe(q.right.length)
+          const leftIds = q.left.map((o) => o.id)
           const rightIds = q.right.map((o) => o.id)
-          for (const left of q.left) expect(rightIds).toContain(q.answerMap[left.id])
+          expect(q.left.length).toBe(q.right.length)
+          expect(q.left.length).toBeGreaterThan(0)
+          for (const leftId of leftIds) expect(rightIds).toContain(q.answerMap[leftId])
+          // 每个 left id 都是 answerMap 的 key
+          expect(Object.keys(q.answerMap).sort()).toEqual([...leftIds].sort())
+          // answerMap 的值唯一且恰好等于右列 id 集合(一一对应、不重不漏)
+          const mapped = Object.values(q.answerMap)
+          expect(mapped).toHaveLength(new Set(mapped).size)
+          expect(new Set(mapped)).toEqual(new Set(rightIds))
         }
   })
   it('发声素材带 speak(拼音/汉字/英语朗读类)', () => {

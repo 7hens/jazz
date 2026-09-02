@@ -10,6 +10,8 @@ function ac(): AudioContext | null {
     window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!Ctor) return null
   ctx ??= new Ctor()
+  // 浏览器自动播放策略下,新 AudioContext 常处于 suspended;播放前尝试恢复
+  if (ctx.state === 'suspended') void ctx.resume()
   return ctx
 }
 

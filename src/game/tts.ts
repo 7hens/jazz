@@ -22,10 +22,13 @@ export function speak(text: string, lang = 'zh-CN'): boolean {
   const synth = window.speechSynthesis
   const voices = voiceCache ?? synth.getVoices()
   const needle = normLang(lang)
-  const voice = voices.find((v) => normLang(v.lang) === needle) ?? null
+  const exact = voices.find((v) => normLang(v.lang) === needle) ?? null
+  // 无精确 zh-CN 语音但有其它 zh-* 语音时,退用该语音;仅当完全没有中文语音才静音降级
+  const fallback = !exact && lang.startsWith('zh') ? (voices.find((v) => normLang(v.lang).startsWith('zh')) ?? null) : null
+  const voice = exact ?? fallback
   if (lang.startsWith('zh') && !voice) return false // 无中文语音 → 静音降级
   const u = new SpeechSynthesisUtterance(text)
-  u.lang = lang
+  u.lang = voice?.lang ?? lang
   if (voice) u.voice = voice
   u.rate = 0.9
   synth.cancel()

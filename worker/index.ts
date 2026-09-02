@@ -37,7 +37,9 @@ export default {
         if (method === 'PUT') return handlePutGame(request, env)
         return methodNotAllowed()
       default:
-        // 非 API 请求:生产环境由 Workers Assets 提供静态资源;dev 下 vite 已接管
+        // 未匹配的 /api/*(拼错/遗留路径)一律 JSON 404,绝不落到静态资源
+        if (pathname.startsWith('/api/')) return notFound()
+        // 其余非 API 请求:生产环境由 Workers Assets 提供静态资源;dev 下 vite 已接管
         if (env.ASSETS) return env.ASSETS.fetch(request)
         return notFound()
     }

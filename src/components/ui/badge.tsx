@@ -7,9 +7,9 @@ const badgeVariants = cva('inline-flex items-center rounded-full px-2.5 py-1 tex
   variants: {
     variant: {
       default: 'bg-surface-2 text-ink-2',
-      secondary: 'bg-emerald-tint text-emerald',
-      purple: 'bg-violet-tint text-violet',
-      orange: 'bg-orange-tint text-orange',
+      secondary: 'bg-emerald/10 text-emerald',
+      purple: 'bg-violet/10 text-violet',
+      orange: 'bg-accent/10 text-accent',
     },
   },
   defaultVariants: {
