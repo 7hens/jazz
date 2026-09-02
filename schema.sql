@@ -6,18 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS records (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  type TEXT NOT NULL CHECK(type IN ('expense', 'income', 'weight')),
-  date TEXT NOT NULL,
-  note TEXT,
-  amount REAL,
-  category TEXT,
-  weight REAL,
-  exercise_type TEXT,
-  duration INTEGER,
-  calories INTEGER,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+-- 单档案游戏进度:每 user 一行,state 为整份 GameState JSON
+CREATE TABLE IF NOT EXISTS game_state (
+  user_id    TEXT PRIMARY KEY,
+  state      TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
