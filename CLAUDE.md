@@ -19,12 +19,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm install            # 安装依赖
 npm run dev            # 全栈本地运行(:3000):Vite dev server + workerd 内跑 worker + 本地 D1
-npm run build          # tsc -b && vite build → dist/client(前端)+ dist/jazz_life_tracker(worker 产物)
+npm run build          # tsc -b && vite build → 前端在 dist/client(worker 由部署时 wrangler 从源码打包)
 npm run lint           # oxlint
 npm test               # vitest run src/game/*.test.ts 纯逻辑单测
 npm run db:apply       # 将 schema.sql 应用到本地 D1(建表幂等来源)
 npm run db:migrate     # 循环执行 migrations/*.sql 下迁移(本地)
-npm run deploy         # npm run build && wrangler deploy dist/jazz_life_tracker
+npm run deploy         # npm run build && wrangler deploy(读 wrangler.toml:main 源码 + assets dist/client)
 ```
 
 无浏览器端测试框架;`npm test` 覆盖计分/进度纯函数与题库数据完整性(vitest,node 环境)。
@@ -33,7 +33,7 @@ npm run deploy         # npm run build && wrangler deploy dist/jazz_life_tracker
 
 ```bash
 npx wrangler d1 execute jazz-life-tracker --remote --file=./schema.sql   # 远程建表
-npm run deploy         # build + wrangler deploy dist/jazz_life_tracker
+npm run deploy         # build + wrangler deploy
 ```
 
 环境变量(生产):`ADMIN_TOKEN`(访问令牌,必填),在 Cloudflare **Workers** 控制台(`jazz-life-tracker` worker 的 Settings → Variables)设置,不再用 Pages 控制台。**本地** dev 从 `.dev.vars` 读取(已 gitignore,本地默认 `jazz-local-dev-token`);未配置时登录返回 401「未配置访问令牌」。更换令牌会使所有已存 cookie 失效。`wrangler.toml` 持有 worker 入口、D1 binding、assets 配置与 `database_id`。
@@ -60,7 +60,7 @@ npm run deploy         # build + wrangler deploy dist/jazz_life_tracker
 
 **dev 运行模型**:`@cloudflare/vite-plugin` 读 `wrangler.toml`(main/D1/assets),把 worker 跑在 Vite dev server 内的 workerd 环境。dev 下 `/api/*` 进 worker,其余请求由 Vite 接管(HMR)。D1 本地持久化与 `wrangler d1 --local` 共享 `.wrangler/state`。**没有 localStorage 回退模拟**,前后端始终同一套代码。
 
-**生产运行模型**:`vite build` 输出前端到 `dist/client/`、worker bundle 到 `dist/jazz_life_tracker/`(含生成的 `wrangler.json`,`assets` 指向 `../client`)。`wrangler deploy dist/jazz_life_tracker` 部署 worker + Assets,非 `/api` 请求由 worker 内 `env.ASSETS.fetch` 提供静态资源。
+**生产运行模型**:`wrangler deploy` 直接读 `wrangler.toml`——`main: ./worker/index.ts`(wrangler 现场打包源码)+ `assets: ./dist/client`(前端),非 `/api` 请求由 worker 内 `env.ASSETS.fetch` 提供静态资源。⚠️ 不要用 vite-plugin 生成的 `dist/jazz_life_tracker/` 做部署目录:它对相对 assets 路径解析会回退到该目录自身,把 `.dev.vars` 等 worker 产物当静态资源上传(曾致本地 token 泄露)。
 
 ### 数据模型(schema.sql)
 

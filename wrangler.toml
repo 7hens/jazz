@@ -3,9 +3,10 @@ main = "./worker/index.ts"
 compatibility_date = "2025-08-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Workers Assets:生产环境由 ASSETS binding 提供 dist/ 静态资源
+# Workers Assets:生产环境由 ASSETS binding 提供 dist/client/ 静态资源。
+# 注意:不要指向 ./dist——那会把 vite-plugin 的 worker 产物(含 .dev.vars 拷贝)也当静态资源上传。
 [assets]
-directory = "./dist"
+directory = "./dist/client"
 binding = "ASSETS"
 
 [[d1_databases]]
