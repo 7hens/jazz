@@ -27,6 +27,22 @@ function makeLevel(questions: Question[]): Level {
   return { id: 1, kingdom: 'pinyin', title: '第 1 关', questions }
 }
 
+function matchQuestion(): Question {
+  return {
+    kind: 'match',
+    prompt: '连一连',
+    left: [
+      { id: 'l1', text: 'l1' },
+      { id: 'l2', text: 'l2' },
+    ],
+    right: [
+      { id: 'r1', text: 'r1' },
+      { id: 'r2', text: 'r2' },
+    ],
+    answerMap: { l1: 'r1', l2: 'r2' },
+  }
+}
+
 describe('scoreAttempt', () => {
   it('首答正确: +10、连击 +1', () => {
     expect(scoreAttempt(listenQuestion('a'), 'a', 1, 0)).toEqual({ correct: true, points: 10, streak: 1 })
@@ -111,5 +127,19 @@ describe('runLevel', () => {
     expect(out.stars).toBe(0)
     expect(out.maxStreak).toBe(0)
     expect(out.firstTryCorrect).toBe(0)
+  })
+})
+
+describe('match 题', () => {
+  it('有效 left id(整组配对完成事件):+10、streak +1', () => {
+    expect(scoreAttempt(matchQuestion(), 'l1', 1, 0)).toEqual({ correct: true, points: 10, streak: 1 })
+  })
+
+  it('整组对无 +2 连击加成:prevStreak≥1 仍 points 10、streak 延续', () => {
+    expect(scoreAttempt(matchQuestion(), 'l1', 1, 3)).toEqual({ correct: true, points: 10, streak: 4 })
+  })
+
+  it('answerMap 之外的 id(整组错/未配对完成):0 分、streak 重置为 0', () => {
+    expect(scoreAttempt(matchQuestion(), 'r1', 1, 3)).toEqual({ correct: false, points: 0, streak: 0 })
   })
 })
