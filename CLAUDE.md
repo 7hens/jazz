@@ -31,35 +31,23 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 无浏览器端测试框架;`npm test` 覆盖词库数据完整性(words)、出题引擎(engine)、步序/完成判定/解锁(lesson)、结算/称号/合并(progress)。
 
-**发布**:走 `/release`(项目 skill)。本文件记录版本规范/铁律/事实,skill 内为可执行流水线 + 坑清单;发布行为改动时两处同步。版本规则:bug=patch / 新能力=minor / 破坏性=1.0.0 起 major;tag 只在「部署成功 + 冒烟通过」后打。
+**发布**:执行流水线(步骤/闸门/坑)走 `/release`(项目 skill);版本规范/铁律/事实在本文件「部署与版本发布」节。发布行为改动时,skill(可执行)与本节事实**两处同步**。
 
 ### 部署与版本发布(Cloudflare Workers + Assets)
 
-**环境映射**:生产 = **顶层默认 env**(worker 名 `jazz-life-tracker`,保持现自定义域名与 rollback 语义);预览 = `[env.preview]`(独立 D1 `jazz-life-tracker-preview`)。⚠️ wrangler 的 env 会派生独立 worker,故**禁止新增 `[env.production]`** —— 那会另起名 `jazz-life-tracker-production` 的 worker,脱离现域名与数据。
+**流水线执行走 `/release`(项目 skill,含闸门/回滚分支/坑)。本文件只留事实与铁律,不重复步骤。**
 
-```bash
-npm run deploy:preview # ① 预览冒烟:build + wrangler deploy --config wrangler.toml --env preview → 分配 *.workers.dev
-npm run deploy         # ② 生产:build + wrangler deploy --config wrangler.toml(默认 env,读 wrangler.toml main 源码 + assets dist/client)
-```
-
-> ⚠️ 所有 wrangler 命令一律显式 `--config wrangler.toml`:否则 vite-plugin 构建产物 `dist/jazz_life_tracker/wrangler.json`(旧配置,`definedEnvironments` 为空)会劫持配置解析 → env.preview 被无视、DB 绑定回落到生产库。此即 CLAUDE.md「勿用 dist/jazz_life_tracker 做部署」的另一面。
-
-**发布流水线(严格顺序)**:
-
-1. 有表结构变更先升库:preview 先 `npx wrangler d1 migrations apply --config wrangler.toml jazz-life-tracker-preview --env preview --remote` 验无错,再生产 `npx wrangler d1 migrations apply --config wrangler.toml jazz-life-tracker --remote`。
-2. 手写 `CHANGELOG.md`(新增/修复/变更各 ≤ 一行),提交。
-3. `npm run deploy` → 浏览器打开生产域名冒烟(登录 → 读写进度)确认无错。
-4. `npm version minor -m "chore(release): v%s"`(**0.1.0 起步**;bug=patch / 新能力=minor / 破坏性变更=1.0.0 起 major)。**部署或冒烟失败严禁 `npm version`**(防孤儿 tag)。
-5. `git push origin main --tags`(备份)。
-
-- **回滚 SOP**:代码/前端出错 → `wrangler rollback` 选上一正常部署(<10s,前后端同切)。**环境变量/绑定变更必须随 config 或 `--var` 一起 deploy 固化**,禁止 deploy 后登 Dashboard 手改(rollback 不恢复变量 → 旧代码读新变量白屏)。D1 数据坏 → **绝不回滚迁移文件**,hotfix 改代码适配或 SQL 修复。
-- **认证令牌**:生产 `wrangler secret put ADMIN_TOKEN`(默认 env);预览环境独立 secret `wrangler secret put ADMIN_TOKEN --env preview`(可同串)。**本地** dev 从 `.dev.vars` 读(已 gitignore,默认 `jazz-local-dev-token`);未配置时登录 401「未配置访问令牌」。更换令牌使已存 cookie 失效。`wrangler.toml` 持 worker 入口、D1 binding、assets、database_id 与 preview env。
+- **环境映射**:生产 = 顶层默认 env(worker `jazz-life-tracker`,现域名/rollback 语义);预览 = `[env.preview]`(独立 D1 `jazz-life-tracker-preview`)。**禁止新增 `[env.production]`**(wrangler env 派生独立 worker → 脱域名/数据)。
+- **命令**:`npm run deploy`(生产)/ `npm run deploy:preview`(预览)/ `npm run db:local`(本地迁移)。wrangler 一律显式 `--config wrangler.toml`,否则构建产物 `dist/jazz_life_tracker/wrangler.json` 劫持配置 → env 失效、DB 落生产库(详「生产运行模型」红线)。
+- **版本语义**:bug=patch / 新能力=minor / 破坏性=1.0.0 起 major(`0.1.0` 起步)。tag 仅在「部署成功 + 浏览器冒烟通过」后打:`npm version <level> -m "chore(release): v%s"` → `git push origin main --tags`。部署/冒烟失败**绝不 `npm version`**(孤儿 tag)。
+- **回滚**:代码/前端错 → `wrangler rollback --config wrangler.toml`(<10s,前后端同切);env/绑定错 → 随 config 或 `--var` deploy 固化,禁 Dashboard 手改(rollback 不恢复变量);D1 数据坏 → 绝不回滚迁移文件,hotfix 改代码或 SQL 修复。分支细节走 `/release`。
+- **认证令牌**:prod `ADMIN_TOKEN` 已是 secret,**勿覆盖**(同名覆盖 = 已存 cookie 全失效);preview 需独立 secret(`wrangler secret put ADMIN_TOKEN --config wrangler.toml --env preview`,随机值);本地 dev 读 `.dev.vars`(gitignore,默认 `jazz-local-dev-token`,未配则登录 401)。`wrangler.toml` 持 worker 入口、D1 binding、assets、database_id 与 preview env。
 
 ### 数据库迁移流程(规范模型)
 
 - 真源 = `migrations/` 数字前缀迁移,统一经 `wrangler d1 migrations apply` 执行并记录 `d1_migrations`(apply 幂等,已记录文件不重跑)。`schema.sql` 已下线。
 - `0001_init.sql` = **基线快照**(users + progress + user_settings 全量 `CREATE IF NOT EXISTS`,无 DROP):新环境一条命令建齐,旧库幂等对齐。此后表结构变更一律新增 `0002_xxx.sql` …,**不改 0001**;新字段须带 `DEFAULT`/可 `NULL`,保证万一回滚旧代码不崩。
-- **顺序(不可逆,先升库后升代码)**:本地 `npm run db:local`;线上 preview → 生产(命令见上节)。
+- **顺序(不可逆,先升库后升代码)**:本地 `npm run db:local`;线上 preview → 生产 apply 仅在发布时做,命令与闸门见 `/release` 步骤 2。
 - `migrations/archive/` = 旧 date 前缀迁移历史(game_state 建/拆、生活记录)已下线,不参与 apply,勿再加回。
 
 ## 架构
@@ -113,7 +101,7 @@ npm run deploy         # ② 生产:build + wrangler deploy --config wrangler.to
 - **改词库 / 加词**:只改 `src/data/words.ts`(加词遵循分类 id 段、`category` 归属、无重复文本)。发音文本由引擎按上节约定自动推导,**无需**在词条上存 `speak` 字段。
 - **改奖励 / 解锁 / 称号 / 出题**:先看 `src/game/*` 纯逻辑与其测试(引擎可注入 `rng` 保证测试确定性),再动 UI。
 - **主题 token**:天空糖果色系定义在 `src/index.css`,通用强调色 `accent`(橙)、完成/加成 `emerald`、错误 `red`、中性 `ink/surface/hairline`;拼音/汉字/英语王国色 token(`pinyin`/`hanzi`/`english`)仍在但当前 UI 未逐王国着色,改色/动效先看该文件。
-- 表结构变更 = 新增数字前缀迁移文件(见上「数据库迁移流程」),不改 0001 基线;本地 `npm run db:local` 验,线上 preview → 生产 apply
+- 表结构变更 = 新增数字前缀迁移文件(见上「数据库迁移流程」),不改 0001 基线;本地 `npm run db:local` 验;线上 apply 走 `/release` 步骤 2
 - UI 文案为中文,新增文案保持中文
 - 依赖精简、无路由库、无状态管理库 —— 新增功能保持同一简约风格
 - 生命周期:关卡制旧代码(worker/game.ts、`LevelPlay`/`LevelResult`/`MapView`、`src/game/scoring.ts`/`state.ts`/`levels.ts`、`src/data/levels.ts`)已删除;quiz 三组件与 `speech.ts` 的类型签名残留关卡制 `kingdom: KingdomKey | 'mixed'` 与 speech.ts 的 `mixed` 分支注释,WordLesson 实际只传三技能,`mixed` 分支不会走到;遗留 ui 基础组件(badge/select/chart-tooltip 等)暂无引用,保留待儿童主题复用
