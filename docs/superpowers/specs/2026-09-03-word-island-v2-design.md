@@ -283,3 +283,4 @@ unlockedId   = 从 1 起第一个未「全完成」的词 id(前面词必须已�
 | 全开步数多(每词 6 题)拉长 | 词间自洽即可,步短(每步 2 题);模块可关 |
 | listen 拼音朗读依赖 zh-CN 读汉字 | 沿用同音汉字约定(读 hanzi),Firefox 语音码修复已就位 |
 | 旧库 game_state 数据作废 | 迁移 DROP 前不做数据抢救;登录后自动空进度 |
+| settings 中途开启模块的语义缺口 | fullComplete/firstTargetId 相对「当前启用技能」判定:学习时某技能关闭、家长后续开启,先前已学词在新配置下重达完整 → 再触发词完成 +20,且 firstTargetId 回跳至更早词(重锁已学词)。默认 settings 恒定流程下正确,一期接受(仅家长渐进开启模块时出现)。二期修复:词表加 per-word 永久 bonus_granted 列(schema + worker + settleWord gate),解锁按 ever-enabled 技能判定 |
