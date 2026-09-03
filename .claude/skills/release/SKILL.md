@@ -10,6 +10,27 @@ description: Use when user asks to 发布 / release / 上线 / deploy to product
 顺序不可逆:**升库 → deploy → 浏览器冒烟(硬闸门)→ 通过后才 `npm version` → push**。
 闸门未被用户明示「通过」= 停在原地。折叠闸门 = 违反原则。
 
+### 流程总览（闸门决策）
+
+```mermaid
+flowchart TD
+    A["Preflight<br/>git 干净 · version==tag · CHANGELOG 已 commit"] -->|不过| A1["✋ 停,先补再发"]
+    A -->|过| B{"有迁移<br/>变更?"}
+    B -->|是| C["升库:preview → prod<br/>(先 preview 后 prod,绝不回滚)"]
+    B -->|否| D["npm run build"]
+    C --> D
+    D --> E["npm run deploy:preview<br/>记 URL;空库设 preview token"]
+    E --> F{"闸门①<br/>用户浏览器冒烟<br/>明确通过?"}
+    F -->|否| F1["✋ 停 → 修 → 重走 build → preview → ①"]
+    F1 --> D
+    F -->|是| G["npm run deploy 生产<br/>记 version id<br/>禁与 version 连写"]
+    G --> H{"闸门②<br/>生产读写确认?"}
+    H -->|否| H1["✋ 停 → 修/rollback → 重走 deploy → ②"]
+    H1 --> G
+    H -->|是| I["npm version minor<br/>(patch/minor/major)"]
+    I --> J["git push origin main --tags"]
+```
+
 ## 铁律(全命令遵守)
 
 - 每个 wrangler 命令**必带 `--config wrangler.toml`**,否则构建产物 `dist/jazz_life_tracker/wrangler.json` 劫持配置 → env 失效、DB 落生产库。
