@@ -1,12 +1,6 @@
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL DEFAULT '私密用户',
-  password_hash TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- 词库学习进度:每词一行,按 user_id 隔离
+-- v1 关卡制(game_state 整档)下线 → 词库行级 progress + user_settings。
+-- 幂等:重复执行安全(DROP IF EXISTS + CREATE IF NOT EXISTS)。
+DROP TABLE IF EXISTS game_state;
 CREATE TABLE IF NOT EXISTS progress (
   user_id   TEXT NOT NULL,
   word_id   INTEGER NOT NULL,
@@ -18,8 +12,6 @@ CREATE TABLE IF NOT EXISTS progress (
   PRIMARY KEY (user_id, word_id)
 );
 CREATE INDEX IF NOT EXISTS idx_progress_user ON progress(user_id);
-
--- 家长可配置的模块开关(单档案一行)
 CREATE TABLE IF NOT EXISTS user_settings (
   user_id        TEXT PRIMARY KEY,
   enable_pinyin  INTEGER NOT NULL DEFAULT 1,
