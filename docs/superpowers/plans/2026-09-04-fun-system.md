@@ -1284,7 +1284,7 @@ function fullCategories(progress: Record<number, WordProgress>, settings: UserSe
 }
 ```
 
-8. **settings 持久化 helper**(单点,含 earning/consecutive):
+8. **settings 持久化单点**:**改造现有 `saveSettings`(App.tsx:123-134)**——body 必须带全字段(否则家长开关会把 earned 清空),并抽出可复用 `persistSettings`:
 
 ```ts
 async function persistSettings(next: UserSettings) {
@@ -1300,6 +1300,9 @@ async function persistSettings(next: UserSettings) {
     })
   } catch { /* ignore */ }
 }
+
+// 家长设置面板沿用旧名(saveSettings 语义 = 全量持久化);SettingsPanel 的 onChange 调用点不变
+const saveSettings = persistSettings
 ```
 
 9. **`handleLessonComplete` 改写为异步结算**(替换现有同步实现):
@@ -1355,7 +1358,9 @@ async function handleLessonComplete() {
   if (newEarned.length > 0) {
     s1.earnedAchievements = Array.from(new Set([...s1.earnedAchievements, ...newEarned.map((a) => a.id)]))
   }
-  if (newlyComplete || newEarned.length > 0) await persistSettings(s1)
+  // 学习日/连续天数只要实际变化就落库(含重学首日),否则只在有实质推进时 persist
+  const dayChanged = s1.lastActiveDate !== settings.lastActiveDate || s1.consecutiveDays !== settings.consecutiveDays
+  if (newlyComplete || newEarned.length > 0 || dayChanged) await persistSettings(s1)
 
   setDoneInfo({ word: w, stepReward: gainRef.current.step, wordBonus: gainRef.current.bonus,
     extraReward: extra, luckyReward, achievements: newAchievements })
@@ -1366,7 +1371,7 @@ async function handleLessonComplete() {
 }
 ```
 
-> 口径:计数在扫描**前**累加(首个 perfect 词/马拉松当次即算);s1 先内存更新连续天数与 earned 再 persist 一次;非首通词达成的成就只入 earned 列表 + 奖励进挂起池(星尘在下次 eligible 首通 flush);`extra > 0` 只在 newlyComplete 路径非零,写词行单调、不刷星。
+> 口径:计数在扫描**前**累加(首个 perfect 词/马拉松当次即算);s1 先内存更新连续天数与 earned 再 persist 一次;非首通词达成的成就只入 earned 列表 + 奖励进挂起池(星尘在下次 eligible 首通 flush);`extra > 0` 只在 newlyComplete 路径非零,写词行单调、不刷星;重学首日也会推进 lastActiveDate 并落库(连续天数=任意词完成)。
 
 10. **resetProgress 清 fun**:现有 `resetProgress` 在 DELETE 后追加:
 
