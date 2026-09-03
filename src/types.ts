@@ -39,6 +39,7 @@ export type CategoryKey = 'shape' | 'food' | 'animal' | 'nature' | 'object'
 
 export type WordUnit = {
   id: number; emoji: string; pinyin: string; hanzi: string; english: string; category: CategoryKey
+  teaser?: string // 学完本词后灵灵引导语,暗示下一词(id+1)
 }
 
 export type WordProgress = {

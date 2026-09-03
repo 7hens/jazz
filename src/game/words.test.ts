@@ -42,3 +42,19 @@ describe('词库数据完整性', () => {
     expect(wordById(101)).toBeUndefined()
   })
 })
+
+describe('词库 teaser', () => {
+  it('每词 teaser 非空且长度上限 40', () => {
+    for (const w of WORDS) {
+      expect(typeof w.teaser, `${w.id} 缺 teaser`).toBe('string')
+      expect((w.teaser ?? '').length).toBeGreaterThan(0)
+      expect((w.teaser ?? '').length).toBeLessThanOrEqual(40)
+    }
+  })
+  it('相邻词 teaser 不逐字雷同(去标点后不同)', () => {
+    for (let i = 0; i + 1 < WORDS.length; i += 1) {
+      const clean = (s: string) => s.replace(/[\s，。！？、「」……,.!?]/g, '')
+      expect(clean(WORDS[i].teaser ?? '')).not.toBe(clean(WORDS[i + 1].teaser ?? ''))
+    }
+  })
+})
