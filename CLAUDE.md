@@ -31,6 +31,8 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 无浏览器端测试框架;`npm test` 覆盖词库数据完整性(words)、出题引擎(engine)、步序/完成判定/解锁(lesson)、结算/称号/合并(progress)。
 
+**发布**:走 `/release`(项目 skill)。本文件记录版本规范/铁律/事实,skill 内为可执行流水线 + 坑清单;发布行为改动时两处同步。版本规则:bug=patch / 新能力=minor / 破坏性=1.0.0 起 major;tag 只在「部署成功 + 冒烟通过」后打。
+
 ### 部署与版本发布(Cloudflare Workers + Assets)
 
 **环境映射**:生产 = **顶层默认 env**(worker 名 `jazz-life-tracker`,保持现自定义域名与 rollback 语义);预览 = `[env.preview]`(独立 D1 `jazz-life-tracker-preview`)。⚠️ wrangler 的 env 会派生独立 worker,故**禁止新增 `[env.production]`** —— 那会另起名 `jazz-life-tracker-production` 的 worker,脱离现域名与数据。
