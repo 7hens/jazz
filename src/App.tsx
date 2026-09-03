@@ -1,207 +1,235 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { MotionConfig } from 'motion/react'
 import { Loader2 } from 'lucide-react'
 import { LoginGate } from './components/login/LoginGate'
-import { MapView } from './components/game/MapView'
-import { LevelPlay } from './components/game/LevelPlay'
-import { LevelResult } from './components/game/LevelResult'
-import { LEVELS } from './data/levels'
-import { applyResult, emptyGameState, isValidGameState } from './game/state'
-import { runLevel, type LevelOutcome, type LevelRun } from './game/scoring'
+import { WordMapView } from './components/game/WordMapView'
+import { WordLesson } from './components/game/WordLesson'
+import { WordDone } from './components/game/WordDone'
+import { SettingsPanel } from './components/game/SettingsPanel'
+import { WORDS, wordById } from './data/words'
+import { emptyProgress, isValidWordProgress, settleWord, titleForStars } from './game/progress'
 import { getSoundOn, setSoundOn } from './game/audio'
-import type { GameState, Level } from './types'
+import type { SkillKey, UserSettings, WordProgress, WordUnit } from './types'
 
-type Screen = 'boot' | 'login' | 'map' | 'play' | 'result'
+type Screen = 'boot' | 'login' | 'map' | 'lesson' | 'done'
 
-type ResultInfo = {
-  levelId: number
-  title: string
-  outcome: LevelOutcome
-  starDelta: number
-  expDelta: number
-  unlockedNew: boolean
+type DoneInfo = {
+  word: WordUnit
+  stepReward: number // 本次会话(该词)累计技能步首过星尘
+  wordBonus: number  // 本次会话触发的整词加成(0 或 20)
+}
+
+function defaultSettings(): UserSettings {
+  const now = new Date().toISOString()
+  return { enablePinyin: true, enableHanzi: true, enableEnglish: true, updatedAt: now }
 }
 
 function App() {
   const [screen, setScreen] = useState<Screen>('boot')
-  const [state, setState] = useState<GameState>(() => emptyGameState())
+  const [progress, setProgress] = useState<Record<number, WordProgress>>({})
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings)
   const [token, setToken] = useState('')
   const [error, setError] = useState('')
   const [soundOn, setSound] = useState(() => getSoundOn())
-  const [activeLevel, setActiveLevel] = useState<Level | null>(null)
-  const [result, setResult] = useState<ResultInfo | null>(null)
-  const [playNonce, setPlayNonce] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [activeWord, setActiveWord] = useState<WordUnit | null>(null)
+  const [lessonKey, setLessonKey] = useState(0)
+  const [doneInfo, setDoneInfo] = useState<DoneInfo | null>(null)
+  const progressRef = useRef(progress)
+  const settingsRef = useRef(settings)
+  const gainRef = useRef({ step: 0, bonus: 0 })
+  const activeWordIdRef = useRef<number | null>(null)
+
+  progressRef.current = progress
+  settingsRef.current = settings
+
+  const totalStars = Object.values(progress).reduce((sum, p) => sum + p.starsEarned, 0)
+  const title = titleForStars(totalStars)
+
+  function syncProgress(next: Record<number, WordProgress>) {
+    setProgress(next)
+    progressRef.current = next
+  }
+
+  async function fetchAll() {
+    const [pg, st] = await Promise.all([
+      fetch('/api/progress', { credentials: 'include' }),
+      fetch('/api/settings', { credentials: 'include' }),
+    ])
+    const map: Record<number, WordProgress> = {}
+    if (pg.ok) {
+      const body = (await pg.json().catch(() => null)) as { progress?: unknown[] } | null
+      for (const raw of body?.progress ?? []) {
+        if (isValidWordProgress(raw)) map[(raw as WordProgress).wordId] = raw as WordProgress
+      }
+    }
+    syncProgress(map)
+    if (st.ok) {
+      const body = (await st.json().catch(() => null)) as { settings?: UserSettings } | null
+      if (body?.settings) {
+        const s = { ...defaultSettings(), ...body.settings }
+        setSettings(s)
+        settingsRef.current = s
+      }
+    }
+  }
 
   useEffect(() => {
     const boot = async () => {
       try {
         const me = await fetch('/api/me', { credentials: 'include' })
-        if (!me.ok) {
-          setScreen('login')
-          return
-        }
+        if (!me.ok) { setScreen('login'); return }
       } catch {
-        // 无法确认会话;交由登录门重试(登录本身会校验 token)
-        setError('网络连接异常,请重试')
         setScreen('login')
         return
       }
-      await loadGame()
+      try { await fetchAll() } catch { /* 保留默认 */ }
       setScreen('map')
     }
     void boot()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  /** 拉取进度;失败不阻断已登录用户进地图(保留内存中的默认/旧进度)。 */
-  async function loadGame() {
-    try {
-      const g = await fetch('/api/game', { credentials: 'include' })
-      if (g.ok) {
-        const { state: s } = (await g.json()) as { state: unknown }
-        // 服务端只保证 JSON 语法,不保证结构;残缺 blob 退回空档(下次通关 PUT 覆盖坏档)
-        setState(isValidGameState(s) ? s : emptyGameState())
-      }
-    } catch {
-      /* 忽略:不把已登录用户踢回登录 */
-    }
-  }
 
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     try {
       const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       })
       const p = (await res.json().catch(() => ({ message: '登录失败' }))) as { message?: string; user?: unknown }
-      if (!res.ok || !p.user) {
-        setError(p.message ?? '登录失败')
-        return
-      }
-    } catch {
-      setError('网络连接异常,请稍后重试')
-      return
-    }
+      if (!res.ok || !p.user) { setError(p.message ?? '登录失败'); return }
+    } catch { setError('网络连接异常,请稍后重试'); return }
     setToken('')
-    await loadGame()
+    try { await fetchAll() } catch { /* ignore */ }
     setScreen('map')
-  }
-
-  async function save(next: GameState) {
-    setState(next)
-    try {
-      await fetch('/api/game', {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state: next }),
-      })
-    } catch {
-      // 网络失败:保留内存进度,不阻塞玩法/结算 UI
-    }
   }
 
   async function logout() {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
-    } catch {
-      /* 忽略登出请求失败,前端仍回登录门 */
-    }
-    setState(emptyGameState())
-    setError('')
-    setActiveLevel(null)
-    setResult(null)
+    try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }) } catch { /* ignore */ }
+    syncProgress({})
+    setActiveWord(null)
+    setDoneInfo(null)
     setScreen('login')
   }
 
-  function resetProgress() {
-    if (!window.confirm('确定要重置全部闯关进度吗?此操作无法撤销。')) return
-    void save(emptyGameState())
+  async function resetProgress() {
+    if (!window.confirm('确定要重置全部学习进度吗?此操作无法撤销。')) return
+    try { await fetch('/api/progress', { method: 'DELETE', credentials: 'include' }) } catch { /* ignore */ }
+    syncProgress({})
   }
 
-  // ── play / result 接线 ────────────────────────────────
-  function startLevel(id: number) {
-    const lv = LEVELS.find((l) => l.id === id)
-    if (!lv) return
-    setActiveLevel(lv)
-    setResult(null)
-    setPlayNonce((n) => n + 1)
-    setScreen('play')
+  async function saveSettings(next: UserSettings) {
+    setSettings(next)
+    settingsRef.current = next
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: { enablePinyin: next.enablePinyin, enableHanzi: next.enableHanzi, enableEnglish: next.enableEnglish },
+        }),
+      })
+    } catch { /* ignore */ }
   }
 
-  function handleFinish(runs: LevelRun[]) {
-    if (!activeLevel) return
-    const outcome = runLevel(activeLevel, runs)
-    const applied = applyResult(state, activeLevel.id, outcome)
-    // 仅通关(≥1★)落库;失败不推进、不记录。
-    if (outcome.stars >= 1) void save(applied.state)
-    setResult({
-      levelId: activeLevel.id,
-      title: activeLevel.title,
-      outcome,
-      starDelta: applied.starDelta,
-      expDelta: applied.expDelta,
-      unlockedNew: applied.unlockedNew,
-    })
-    setScreen('result')
+  /** 进入词:重置本词会话增益 */
+  function startWord(id: number) {
+    const w = wordById(id)
+    if (!w) return
+    gainRef.current = { step: 0, bonus: 0 }
+    activeWordIdRef.current = id
+    setActiveWord(w)
+    setLessonKey((k) => k + 1)
+    setScreen('lesson')
+  }
+
+  /** 一步(2 题)全过:立即结算该技能并即时 PUT 该词单行 */
+  function handleStepPass(skill: SkillKey) {
+    const id = activeWordIdRef.current
+    if (id === null) return
+    const prev = progressRef.current[id] ?? emptyProgress(id)
+    const r = settleWord(id, prev, [{ skill, passed: true }], settingsRef.current)
+    syncProgress({ ...progressRef.current, [id]: r.next })
+    gainRef.current = {
+      step: gainRef.current.step + r.stepReward,
+      bonus: Math.max(gainRef.current.bonus, r.wordBonus),
+    }
+    void fetch('/api/progress', {
+      method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ progress: [r.next] }),
+    }).catch(() => {})
+  }
+
+  /** 全部技能步完成 → 展示本词结算 */
+  function handleLessonComplete() {
+    const w = activeWord
+    if (!w) return
+    setDoneInfo({ word: w, stepReward: gainRef.current.step, wordBonus: gainRef.current.bonus })
+    setScreen('done')
   }
 
   function exitToMap() {
-    setResult(null)
+    setActiveWord(null)
+    setDoneInfo(null)
     setScreen('map')
   }
 
-  function replayLevel() {
-    setPlayNonce((n) => n + 1)
-    setScreen('play')
+  function nextWord() {
+    if (!activeWord) return
+    const nextId = activeWord.id + 1
+    if (nextId > WORDS.length) { exitToMap(); return }
+    startWord(nextId)
   }
 
-  function nextLevel() {
-    if (result) startLevel(result.levelId + 1)
-  }
-
-  // ── 屏内容 ────────────────────────────────────────────
   let content: ReactNode
   if (screen === 'boot') {
-    content = (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-ink-3" />
-      </div>
-    )
+    content = <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-ink-3" /></div>
   } else if (screen === 'login') {
     content = <LoginGate error={error} onTokenChange={setToken} onSubmit={(e) => void login(e)} />
-  } else if (screen === 'play' && activeLevel) {
-    content = <LevelPlay key={playNonce} level={activeLevel} onFinish={handleFinish} onExit={exitToMap} />
-  } else if (screen === 'result' && result) {
+  } else if (screen === 'lesson' && activeWord) {
     content = (
-      <LevelResult
-        levelId={result.levelId}
-        title={result.title}
-        outcome={result.outcome}
-        starDelta={result.starDelta}
-        expDelta={result.expDelta}
-        unlockedNew={result.unlockedNew}
-        onAgain={replayLevel}
+      <WordLesson
+        key={lessonKey}
+        word={activeWord}
+        settings={settings}
+        onStepPass={handleStepPass}
+        onLessonComplete={handleLessonComplete}
+        onExit={exitToMap}
+      />
+    )
+  } else if (screen === 'done' && doneInfo) {
+    content = (
+      <WordDone
+        word={doneInfo.word}
+        stepReward={doneInfo.stepReward}
+        wordBonus={doneInfo.wordBonus}
+        totalStars={totalStars}
+        titleName={title.name}
+        nextId={doneInfo.word.id + 1}
+        isLastWord={doneInfo.word.id >= WORDS.length}
+        onNext={nextWord}
         onMap={exitToMap}
-        onNext={result.levelId < 10 ? nextLevel : undefined}
       />
     )
   } else {
     content = (
-      <MapView
-        state={state}
-        onPlay={startLevel}
-        onReset={resetProgress}
-        onLogout={() => void logout()}
-        soundOn={soundOn}
-        onToggleSound={() => {
-          setSoundOn(!soundOn)
-          setSound(!soundOn)
-        }}
-      />
+      <>
+        <WordMapView
+          words={progress}
+          totalStars={totalStars}
+          settings={settings}
+          soundOn={soundOn}
+          onToggleSound={() => { setSoundOn(!soundOn); setSound(!soundOn) }}
+          onPlay={startWord}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onLogout={() => void logout()}
+          onReset={() => void resetProgress()}
+        />
+        {settingsOpen ? (
+          <SettingsPanel settings={settings} onChange={(s) => void saveSettings(s)} onClose={() => setSettingsOpen(false)} />
+        ) : null}
+      </>
     )
   }
 

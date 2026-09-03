@@ -34,26 +34,6 @@ export type MatchQuestion = {
 
 export type Question = ListenChoiceQuestion | ChoiceQuestion | MatchQuestion
 
-export type Level = {
-  id: number
-  kingdom: KingdomKey | 'mixed'
-  title: string
-  questions: Question[]
-}
-
-export type LevelRecord = { stars: 0 | 1 | 2 | 3; bestScore: number }
-
-export type GameState = {
-  stars: number
-  exp: number
-  unlocked: number // 已解锁最大关卡号,1..11
-  levels: Record<number, LevelRecord>
-  kingdom: Record<KingdomKey, number>
-  updatedAt: string
-}
-
-export type UserProfile = { id: string; email: string; name: string }
-
 export type SkillKey = 'pinyin' | 'hanzi' | 'english'
 export type CategoryKey = 'shape' | 'food' | 'animal' | 'nature' | 'object'
 
