@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { ArrowRight, Home } from 'lucide-react'
 import { play } from '../../game/sfx'
 import { useEffect, useRef } from 'react'
+import { cn } from '../../lib/utils'
 import type { WordUnit } from '../../types'
 import { Button } from '../ui/button'
 
@@ -37,6 +38,10 @@ export function WordDone({
         >
           <p className="text-sm font-semibold uppercase tracking-widest text-ink-3">学习结算</p>
           <div className="mt-3 text-6xl" aria-hidden>{word.emoji}</div>
+          {/* 动态祝贺:整词首通 vs 复查再学(已完成词重学无整词加成) */}
+          <p className={cn('mt-3 text-sm font-bold', wordBonus > 0 ? 'text-emerald' : 'text-accent')}>
+            {wordBonus > 0 ? '太棒了,整词完成!' : '这一步完成啦!'}
+          </p>
           <h1 className="mt-2 text-2xl font-extrabold tracking-tight">{word.hanzi}</h1>
           <p className="text-sm text-ink-2">{word.pinyin} · {word.english}</p>
 
