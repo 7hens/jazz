@@ -4,15 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-「魔法语言岛」— 面向儿童的拼音/汉字/英语闯关游戏(自托管单机全栈)。孩子扮演「语言小魔法师」,线性闯过新手村 10 关,以星级/星尘/exp/魔法师等级获得正反馈。MVP 闭环:登录后单档案进度存服务端。技术栈:
+「魔法语言岛」v2 — 词库学习岛 — 面向儿童的拼音/汉字/英语学习游戏(自托管单机全栈)。孩子扮演「语言小魔法师」,按 5 大主题分类收集 100 个词的星尘:每词按家长设定的启用模块跑「拼音/汉字/英语」技能步(每步 2 题、每题 2 次作答机会),技能步首过 +30 星尘、整词(启用技能全完成)首通 +20 加成,星尘累计决定称号(语言初学者→…→语言大法师)。MVP 闭环:登录后单档案进度按「每词一行」存服务端。技术栈:
 
 - **前端**: React 19 + TypeScript + Vite(端口 3000)+ Tailwind 4(`@tailwindcss/vite` 插件)+ Shadcn 风格组件 + motion(动效)
 - **后端**: Cloudflare Workers(`worker/` 目录,手写路由),通过 `@cloudflare/vite-plugin` 在 Vite dev server 内嵌 workerd 运行
 - **数据库**: Cloudflare D1(binding 为 `DB`,本地 `--local` 存 SQLite 于 `.wrangler/state`)
 - **认证**: 单一访问令牌(env `ADMIN_TOKEN`,必填)。首次登录输入令牌后存 HttpOnly + SameSite=Lax cookie(`jazz_token`),令牌永不过期,之后每请求由服务端直接比对 env token
-- **发音**: 浏览器 `SpeechSynthesis`(zh-CN / en-US),无中文语音时静音降级;音效用 Web Audio 合成
+- **发音**: 浏览器 `SpeechSynthesis`;朗读文本一律 zh-CN(汉字)或 en-US(英文),无对应语音时静音降级;音效用 Web Audio 合成
 
-**明确不做**(MVP 范围外):商店/徽章/宠物/每日挑战、语音识别、汉字书写笔顺、BOSS 关、30/70 关扩展、多孩子档案、家长看板、PWA。
+**二期 backlog**(一期明确不做,设计已留口):绘画题型(题干大图 `promptEmoji` 现仅 Choice 用)、填空题型、复习/错词重练排程、离线可用。
+
+**真不做**(非目标):语音识别、汉字书写笔顺、多孩子档案、家长看板、商店/徽章/宠物/每日挑战、PWA、多人在线。
 
 ## 常用命令
 
@@ -21,13 +23,13 @@ npm install            # 安装依赖
 npm run dev            # 全栈本地运行(:3000):Vite dev server + workerd 内跑 worker + 本地 D1
 npm run build          # tsc -b && vite build → 前端在 dist/client(worker 由部署时 wrangler 从源码打包)
 npm run lint           # oxlint
-npm test               # vitest run src/game/*.test.ts 纯逻辑单测
+npm test               # vitest run src/**/*.test.ts(words/engine/lesson/progress 纯逻辑单测,node 环境)
 npm run db:apply       # 将 schema.sql 应用到本地 D1(建表幂等来源)
 npm run db:migrate     # 循环执行 migrations/*.sql 下迁移(本地)
 npm run deploy         # npm run build && wrangler deploy(读 wrangler.toml:main 源码 + assets dist/client)
 ```
 
-无浏览器端测试框架;`npm test` 覆盖计分/进度纯函数与题库数据完整性(vitest,node 环境)。
+无浏览器端测试框架;`npm test` 覆盖词库数据完整性(words)、出题引擎(engine)、步序/完成判定/解锁(lesson)、结算/称号/合并(progress)。
 
 ### 部署(Cloudflare Workers + Assets)
 
@@ -40,10 +42,10 @@ npm run deploy         # build + wrangler deploy
 
 ### 数据库迁移流程(幂等)
 
-- `schema.sql` 是**建表幂等来源**(全部 `CREATE TABLE IF NOT EXISTS`,**无 DROP**):新环境先 `npm run db:apply` 建出 `users` + `game_state` 两表。
-- `migrations/*.sql` 是**变更历史**(可含 DROP,但必须可重复执行):`npm run db:migrate` 用 `for` 循环逐文件执行。当前唯一迁移 `2026-09-02-game-state.sql`(`DROP TABLE IF EXISTS records` + `CREATE TABLE IF NOT EXISTS game_state`)本身幂等,重跑 `db:migrate` 安全。
+- `schema.sql` 是**建表幂等来源**(全部 `CREATE TABLE IF NOT EXISTS`,**无 DROP**):新环境先 `npm run db:apply` 建出 `users` + `progress` + `user_settings` 三表(注意:schema 已不含 `game_state`)。
+- `migrations/*.sql` 是**变更历史**(可含 DROP,但必须可重复执行):`npm run db:migrate` 用 `for` 循环逐文件执行。现有:`2026-09-02-game-state.sql`(历史,建 `game_state`)、`2026-09-03-word-progress.sql`(`DROP game_state` → `CREATE progress` + `user_settings`,词库行级化)。两者本身幂等,新库重跑也安全(09-02 建 game_state 会被 09-03 再 DROP)。
 - 涉及表结构变更:按 `npm run db:apply` → `npm run db:migrate` 顺序执行;远程用 `d1 execute --remote --file=`.
-- 旧的生活记录迁移(`2026-08-25-finance-types.sql`、`2026-09-01-token-auth.sql`)已随 `records` 表下线删除,勿再加回。
+- 旧的生活记录迁移(`2026-08-25-finance-types.sql`、`2026-09-01-token-auth.sql`)与 `game_state` 已下线删除,勿再加回。
 
 ## 架构
 
@@ -51,12 +53,13 @@ npm run deploy         # build + wrangler deploy
 
 `worker/index.ts` 是唯一 Worker 入口(`wrangler.toml` 的 `main`),`fetch` 内按 pathname + method 分发到 handler:
 
-- `worker/index.ts` — entry + 路由表(`/api/auth/login`、`/api/auth/logout`、`/api/me`、`/api/game`,其余路径走 `env.ASSETS.fetch`)
-- `worker/auth.ts` — `handleLogin`(POST,constant-time 比对 `env.ADMIN_TOKEN`,通过后设 `jazz_token` cookie,upsert 默认用户行)、`handleLogout`(清 cookie)、`handleMe`
-- `worker/game.ts` — `handleGetGame`(GET,读该 user 的 `game_state` 单行并 JSON.parse;无行返回 `{ state: null }`)、`handlePutGame`(PUT,body `{ state }` 整份覆盖 upsert;body 非对象或序列化后 > 64KB → 400)
-- `worker/_lib/auth.ts` — 共享认证工具:`getAuthenticatedUser()`、cookie 读写、constant-time 比较 `safeEqual`、默认用户 upsert;`worker/_lib/http.ts` — `jsonResponse` 辅助
+- `worker/index.ts` — entry + 路由表(`/api/auth/login` POST/GET、`/api/auth/logout` POST、`/api/me` GET、`/api/progress` GET/PUT/DELETE、`/api/settings` GET/PUT;未匹配的 `/api/*` 一律 JSON 404,其余非 API 请求走 `env.ASSETS.fetch`)
+- `worker/auth.ts` — `handleLogin`(POST,constant-time 比对 `env.ADMIN_TOKEN`,通过后设 `jazz_token` cookie,返回唯一用户)、`handleLogout`(清 cookie)、`handleMe`
+- `worker/progress.ts` — `handleGetProgress`(GET,读该 user 全部 progress 行)、`handlePutProgress`(PUT,body `{ progress: [...] }` 批量行级 upsert,`ON CONFLICT` 用 `MAX(...)` 只升不降;word_id 越界/单批 > 200 → 400)、`handleDeleteProgress`(DELETE,清空该 user 全部行)
+- `worker/settings.ts` — `handleGetSettings`(GET,读该 user 单行;无行返回默认三开)、`handlePutSettings`(PUT,upsert;拒绝三模块全关 → 400「至少保留一个学习模块」)
+- `worker/_lib/auth.ts` — 共享认证工具:`getAuthenticatedUser()`、cookie 读写、constant-time 比较 `safeEqual`、唯一用户读取/建行;`worker/_lib/http.ts` — `jsonResponse` 辅助
 
-**约定**:每个 handler 先调 `getAuthenticatedUser(request, env)`,未授权返回 401。所有查询按 `user_id` 绑定,实现用户隔离。worker 只存取 `game_state` 整行 JSON,不解析内容(校验仅限 body 大小上限)。路由无第三方库(无 itty-router 等),保持简约。
+**约定**:每个 handler 先调 `getAuthenticatedUser(request, env)`,未授权返回 401。所有查询按 `user_id` 绑定,实现用户隔离。worker 只做行级读写(progress 每词一行、settings 每 user 一行),**不解析**词库业务语义;星尘只升不降、加成只在首次由 worker 的 `MAX` 合并保证(幂等)。路由无第三方库(无 itty-router 等),保持简约。
 
 **dev 运行模型**:`@cloudflare/vite-plugin` 读 `wrangler.toml`(main/D1/assets),把 worker 跑在 Vite dev server 内的 workerd 环境。dev 下 `/api/*` 进 worker,其余请求由 Vite 接管(HMR)。D1 本地持久化与 `wrangler d1 --local` 共享 `.wrangler/state`。**没有 localStorage 回退模拟**,前后端始终同一套代码。
 
@@ -64,30 +67,38 @@ npm run deploy         # build + wrangler deploy
 
 ### 数据模型(schema.sql)
 
-表 `users` + `game_state`(`records`/`sessions` 已随生活记录与 token 认证下线):
+表 `users` + `progress` + `user_settings`(`game_state`/`records` 已随关卡制下线):
 
-- `users`:认证不校验密码/邮箱(列保留以免迁移),仅存默认用户单行作 `game_state` 外键;登录时 `INSERT OR IGNORE` 保证存在
-- `game_state`:每 user 一行,`state` 为整份 GameState JSON(`user_id TEXT PRIMARY KEY`)
+- `users`:认证不校验密码/邮箱(列保留以免迁移),仅存默认用户单行作外键;登录时按需 `INSERT`(取现有单行,无则建默认)
+- `progress`:每 user × 每词一行,`word_id` 1..100。列:`pinyin_completed`/`hanzi_completed`/`english_completed`(0/1)、`stars_earned`(只增不减,由 `MAX` 合并)、`updated_at`。主键 `(user_id, word_id)`,`idx_progress_user` 索引
+- `user_settings`:每 user 一行,`enable_pinyin`/`enable_hanzi`/`enable_english`(默认全 1)、`updated_at`
 
-GameState(前端 `src/types.ts`):`stars` 星尘(只按首通/最优星级发放一次)、`exp` 经验(每 300 升 1 级,等级不落库实时推导)、`unlocked` 已解锁最大关卡号(1..11)、`levels` 每关历史最优 `{stars, bestScore}`、`kingdom` 各王国累计已得星、`updatedAt`。
+前端类型(`src/types.ts`):`WordUnit`(`{ id, emoji, pinyin, hanzi, english, category }`,`id` 1..100)、`WordProgress`(`{ wordId, completed: Record<SkillKey, boolean>, starsEarned, updatedAt }`)、`UserSettings`(`{ enablePinyin/enableHanzi/enableEnglish, updatedAt }`)、`Question`(判别联合 `listen-choice` / `choice` / `match`)、`SkillKey` 与 `KingdomKey`(同为 `'pinyin' | 'hanzi' | 'english'`,quiz 组件沿用后者命名)、`CategoryKey`(`shape/food/animal/nature/object`)。服务端 GET 返回的 progress/settings 行不含 `updatedAt`(worker 序列化时省略),前端以 `isValidWordProgress` 校验 progress 行。
 
 ### 前端(状态机单页 App.tsx)
 
-- `src/App.tsx` — 重写:屏状态机 `boot → login → map → play → result`(无路由库)。认证判断 + 拉取/保存进度(`GET/PUT /api/game`),登录成功、结算落库只在**通关(≥1★)时整份 PUT 上报**;play/result 切换由 props 回调驱动
-- `src/components/login/` — 儿童版登录门 `LoginGate`(替代旧 `components/auth/LoginCard`)
-- `src/components/game/` — `MapView`(新手村 10 节点 + 状态条 + 家长入口/重置)、`LevelPlay`(答题/反馈/亮答案三阶段)、`LevelResult`(星级/星尘/exp 结算);`quiz/` 下 `Choice`/`ListenChoice`/`MatchGame` 三种题型组件 + `speech.ts`(发音语言推导)
-- `src/data/levels.ts` — 10 关定义与全部题目(静态 TS);关卡素材与发音约定见文件头注释
-- `src/game/*` — **纯逻辑**(可单测,无 React):`scoring.ts`(`scoreAttempt`/`starsForRate`/`runLevel`)、`state.ts`(`emptyGameState`/`levelOfExp`/`applyResult` 合并最优与奖励发放)、`tts.ts`(SpeechSynthesis 封装,静音降级)、`sfx.ts`(Web Audio 合成短音)、`audio.ts`(声音总开关 localStorage)
-- `src/components/ui/*` — Shadcn 风格基础组件(card/button/label/input/badge 等),基于 `class-variance-authority` + `tailwind-merge`
-- `src/types.ts` — `GameState` / `Level` / `Question`(判别联合:listen-choice / choice / match) / `KingdomKey` / `UserProfile`,与 D1 列对应
+- `src/App.tsx` — 屏状态机 `boot → login → map → lesson → done`(无路由库)。`boot` 先 `GET /api/me` 判登录态;登录成功后并行拉 `progress` + `settings`。进词 `startWord`;每技能步过 `handleStepPass` 立即结算该词单行并即时 `PUT /api/progress`(一行);全部技能完成进 `WordDone`;家长操作:退出、重置进度(`DELETE /api/progress`)、学习设置(`PUT /api/settings`)
+- `src/components/login/` — 儿童版登录门 `LoginGate`
+- `src/components/game/` — `WordMapView`(地图即主页:5 分类词格 + 目标词脉冲高亮 + 状态条 + 家长菜单)、`WordLesson`(技能步答题器:answering/feedback/reveal 三阶段,一步 2 题、错 1 次给第 2 次机会,再错重做整步)、`WordDone`(整词结算卡:技能步星尘块 + 整词加成块 + 动态祝贺标题 + 称号/星尘)、`SettingsPanel`(拼音/汉字/英语三模块开关,防全关);`quiz/` 下 `Choice`/`ListenChoice`/`MatchGame` 三种题型组件 + `speech.ts`(发音语言推导)
+- `src/data/words.ts` — 100 词静态词库,5 分类各 20 词:`shape` 基础形状 1-20、`food` 食物 21-40、`animal` 动物 41-60、`nature` 自然界 61-80、`object` 交通与物品 81-100;`wordById` 查词,`CATEGORY_LABELS` 分类名
+- `src/game/*` — **纯逻辑**(可单测,无 React):`engine.ts`(运行时出题:`textOf`/`speakOf`/`distractorsFor`/`makeChoice`/`makeListen`/`makeMatch`/`makeStepQuestions`)、`lesson.ts`(`SKILL_ORDER`/`enabledSkills`/`stepsFor`/`fullComplete`/`firstTargetId` 顺序解锁判定)、`progress.ts`(`emptyProgress`/`mergeProgress`/`settleWord` 每技能步首过 +30、整词首通 +20/`titleForStars` 称号档位)、`tts.ts`(SpeechSynthesis 封装,静音降级)、`sfx.ts`(Web Audio 合成短音)、`audio.ts`(声音总开关 localStorage)
+- `src/components/ui/*` — Shadcn 风格基础组件(button 等),基于 `class-variance-authority` + `tailwind-merge`
+- `src/types.ts` — 见上「数据模型」;`WordUnit` 等与 D1 行级列对应
 - 数据流:`fetch('/api/...', { credentials: 'include' })`
-- `src/game/*.test.ts` — vitest 单测(计分口径、进度合并、题库数据完整性)
+- `src/game/*.test.ts` — vitest 单测(`words.test` 词库数据完整性、`engine.test` 出题、`lesson.test` 步序、`progress.test` 结算/合并/称号)
+
+### 题型与发音约定(引擎生成,`src/game/engine.ts` + `quiz/speech.ts`)
+
+- 每技能步 2 题:**首题恒 `choice`**(题干大图 = 该词 emoji,由 UI 层 `promptEmoji` 传入,选项不放图);次题按技能概率生成变体——拼音 50% `listen-choice`/50% `choice`,汉字 50% `match`/50% `choice`,英语 33/33/33 `listen-choice`/`match`/`choice`。题/选项 id 按 `{wordId}-{步序号}-{题型标记}-{技能}-{i}` 生成,一步内全局唯一。
+- 干扰项 `distractorsFor`:同 category 优先,不足跨类兜底,并排除与目标词任何一门文本(拼音/汉字/英文)重复的词;选项数 `optionCountFor` = 词 id ≤ 20 给 3 项、> 20 给 4 项(即 2/3 干扰项)。`match` 左卡文字、右卡 emoji,配对经词引用对齐。
+- **朗读真相 = 卡面对应词的汉字或英文**:`speakOf(word, skill)` 返回英文词(english)或汉字(其余技能)——拼音选项卡面显示拼音文本但**朗读其对应汉字**(zh-CN 直读汉字稳定),汉字题卡面与朗读均为汉字,英语题朗读英文词(en-US)。speech.ts 按此定语言:english → en-US,其余 → zh-CN。选项可点读;`listen-choice` 进题自动朗读 `promptSpeak`;`match` 不朗读。
 
 ## 注意
 
-- **修改题库 / 关卡**:只改 `src/data/levels.ts`(含新增 `speak` 字段)。发音约定——拼音卡卡面显示拼音,`speak` 用**同音汉字**让 zh-CN 朗读;汉字卡直读汉字;英语卡 en-US 朗读词/字母。所有题/选项 id 全局唯一,前缀 `{关}-{关内题号}-{内容}`。
-- **主题 token**:天空糖果色系定义在 `src/index.css`,拼音/汉字/英语王国各有专属强调色(`pinyin`/`hanzi`/`english`),改色/动效先看该文件。
+- **改词库 / 加词**:只改 `src/data/words.ts`(加词遵循分类 id 段、`category` 归属、无重复文本)。发音文本由引擎按上节约定自动推导,**无需**在词条上存 `speak` 字段。
+- **改奖励 / 解锁 / 称号 / 出题**:先看 `src/game/*` 纯逻辑与其测试(引擎可注入 `rng` 保证测试确定性),再动 UI。
+- **主题 token**:天空糖果色系定义在 `src/index.css`,通用强调色 `accent`(橙)、完成/加成 `emerald`、错误 `red`、中性 `ink/surface/hairline`;拼音/汉字/英语王国色 token(`pinyin`/`hanzi`/`english`)仍在但当前 UI 未逐王国着色,改色/动效先看该文件。
 - 修改 schema 后需重新执行 `npm run db:apply`(本地)与远程 `d1 execute`
 - UI 文案为中文,新增文案保持中文
 - 依赖精简、无路由库、无状态管理库 —— 新增功能保持同一简约风格
-- 生命周期:`records` 相关旧代码(worker/records.ts、前端 tabs/dashboard、`src/data/exercises.ts`、`src/lib/date.ts`、`src/assets/hero.png`)已删除;遗留 ui 基础组件(badge/select/chart-tooltip 等)可能暂无引用,保留待儿童主题复用
+- 生命周期:关卡制旧代码(worker/game.ts、`LevelPlay`/`LevelResult`/`MapView`、`src/game/scoring.ts`/`state.ts`/`levels.ts`、`src/data/levels.ts`)已删除;quiz 三组件与 `speech.ts` 的类型签名残留关卡制 `kingdom: KingdomKey | 'mixed'` 与 speech.ts 的 `mixed` 分支注释,WordLesson 实际只传三技能,`mixed` 分支不会走到;遗留 ui 基础组件(badge/select/chart-tooltip 等)暂无引用,保留待儿童主题复用
