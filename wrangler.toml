@@ -13,3 +13,16 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "jazz-life-tracker"
 database_id = "c94fecb8-a703-46bb-9a7e-fcdc7367b80a"
+
+# ---- 环境映射(发布规范适配,2026-09-04)----
+# 生产 = 顶层默认 env(worker 名 jazz-life-tracker,保持现有自定义域名/rollback 语义),命令即 `wrangler deploy`。
+# ⚠️ 禁止新增 [env.production]:wrangler env 会派生第二个 worker(名 jazz-life-tracker-production),
+#    脱离现有域名与数据,等于另起炉灶。
+# 预览 = [env.preview],独立 D1,只用于上线前冒烟/迁移先验,不碰生产数据。
+
+[env.preview]
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "jazz-life-tracker-preview"
+database_id = "3de8a0a5-49a3-455b-b7dc-632d9774a127"

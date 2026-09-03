@@ -24,28 +24,41 @@ npm run dev            # 全栈本地运行(:3000):Vite dev server + workerd 内
 npm run build          # tsc -b && vite build → 前端在 dist/client(worker 由部署时 wrangler 从源码打包)
 npm run lint           # oxlint
 npm test               # vitest run src/**/*.test.ts(words/engine/lesson/progress 纯逻辑单测,node 环境)
-npm run db:apply       # 将 schema.sql 应用到本地 D1(建表幂等来源)
-npm run db:migrate     # 循环执行 migrations/*.sql 下迁移(本地)
-npm run deploy         # npm run build && wrangler deploy(读 wrangler.toml:main 源码 + assets dist/client)
+npm run db:local       # 本地 D1 应用 migrations/ 全部迁移(d1 migrations apply --local)
+npm run deploy         # npm run build && wrangler deploy(生产 = 默认 env)
+npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D1,冒烟用)
 ```
 
 无浏览器端测试框架;`npm test` 覆盖词库数据完整性(words)、出题引擎(engine)、步序/完成判定/解锁(lesson)、结算/称号/合并(progress)。
 
-### 部署(Cloudflare Workers + Assets)
+### 部署与版本发布(Cloudflare Workers + Assets)
+
+**环境映射**:生产 = **顶层默认 env**(worker 名 `jazz-life-tracker`,保持现自定义域名与 rollback 语义);预览 = `[env.preview]`(独立 D1 `jazz-life-tracker-preview`)。⚠️ wrangler 的 env 会派生独立 worker,故**禁止新增 `[env.production]`** —— 那会另起名 `jazz-life-tracker-production` 的 worker,脱离现域名与数据。
 
 ```bash
-npx wrangler d1 execute jazz-life-tracker --remote --file=./schema.sql   # 远程建表
-npm run deploy         # build + wrangler deploy
+npm run deploy:preview # ① 预览冒烟:build + wrangler deploy --config wrangler.toml --env preview → 分配 *.workers.dev
+npm run deploy         # ② 生产:build + wrangler deploy --config wrangler.toml(默认 env,读 wrangler.toml main 源码 + assets dist/client)
 ```
 
-环境变量(生产):`ADMIN_TOKEN`(访问令牌,必填),在 Cloudflare **Workers** 控制台(`jazz-life-tracker` worker 的 Settings → Variables)设置,不再用 Pages 控制台。**本地** dev 从 `.dev.vars` 读取(已 gitignore,本地默认 `jazz-local-dev-token`);未配置时登录返回 401「未配置访问令牌」。更换令牌会使所有已存 cookie 失效。`wrangler.toml` 持有 worker 入口、D1 binding、assets 配置与 `database_id`。
+> ⚠️ 所有 wrangler 命令一律显式 `--config wrangler.toml`:否则 vite-plugin 构建产物 `dist/jazz_life_tracker/wrangler.json`(旧配置,`definedEnvironments` 为空)会劫持配置解析 → env.preview 被无视、DB 绑定回落到生产库。此即 CLAUDE.md「勿用 dist/jazz_life_tracker 做部署」的另一面。
 
-### 数据库迁移流程(幂等)
+**发布流水线(严格顺序)**:
 
-- `schema.sql` 是**建表幂等来源**(全部 `CREATE TABLE IF NOT EXISTS`,**无 DROP**):新环境先 `npm run db:apply` 建出 `users` + `progress` + `user_settings` 三表(注意:schema 已不含 `game_state`)。
-- `migrations/*.sql` 是**变更历史**(可含 DROP,但必须可重复执行):`npm run db:migrate` 用 `for` 循环逐文件执行。现有:`2026-09-02-game-state.sql`(历史,建 `game_state`)、`2026-09-03-word-progress.sql`(`DROP game_state` → `CREATE progress` + `user_settings`,词库行级化)。两者本身幂等,新库重跑也安全(09-02 建 game_state 会被 09-03 再 DROP)。
-- 涉及表结构变更:按 `npm run db:apply` → `npm run db:migrate` 顺序执行;远程用 `d1 execute --remote --file=`.
-- 旧的生活记录迁移(`2026-08-25-finance-types.sql`、`2026-09-01-token-auth.sql`)与 `game_state` 已下线删除,勿再加回。
+1. 有表结构变更先升库:preview 先 `npx wrangler d1 migrations apply --config wrangler.toml jazz-life-tracker-preview --env preview --remote` 验无错,再生产 `npx wrangler d1 migrations apply --config wrangler.toml jazz-life-tracker --remote`。
+2. 手写 `CHANGELOG.md`(新增/修复/变更各 ≤ 一行),提交。
+3. `npm run deploy` → 浏览器打开生产域名冒烟(登录 → 读写进度)确认无错。
+4. `npm version minor -m "chore(release): v%s"`(**0.1.0 起步**;bug=patch / 新能力=minor / 破坏性变更=1.0.0 起 major)。**部署或冒烟失败严禁 `npm version`**(防孤儿 tag)。
+5. `git push origin main --tags`(备份)。
+
+- **回滚 SOP**:代码/前端出错 → `wrangler rollback` 选上一正常部署(<10s,前后端同切)。**环境变量/绑定变更必须随 config 或 `--var` 一起 deploy 固化**,禁止 deploy 后登 Dashboard 手改(rollback 不恢复变量 → 旧代码读新变量白屏)。D1 数据坏 → **绝不回滚迁移文件**,hotfix 改代码适配或 SQL 修复。
+- **认证令牌**:生产 `wrangler secret put ADMIN_TOKEN`(默认 env);预览环境独立 secret `wrangler secret put ADMIN_TOKEN --env preview`(可同串)。**本地** dev 从 `.dev.vars` 读(已 gitignore,默认 `jazz-local-dev-token`);未配置时登录 401「未配置访问令牌」。更换令牌使已存 cookie 失效。`wrangler.toml` 持 worker 入口、D1 binding、assets、database_id 与 preview env。
+
+### 数据库迁移流程(规范模型)
+
+- 真源 = `migrations/` 数字前缀迁移,统一经 `wrangler d1 migrations apply` 执行并记录 `d1_migrations`(apply 幂等,已记录文件不重跑)。`schema.sql` 已下线。
+- `0001_init.sql` = **基线快照**(users + progress + user_settings 全量 `CREATE IF NOT EXISTS`,无 DROP):新环境一条命令建齐,旧库幂等对齐。此后表结构变更一律新增 `0002_xxx.sql` …,**不改 0001**;新字段须带 `DEFAULT`/可 `NULL`,保证万一回滚旧代码不崩。
+- **顺序(不可逆,先升库后升代码)**:本地 `npm run db:local`;线上 preview → 生产(命令见上节)。
+- `migrations/archive/` = 旧 date 前缀迁移历史(game_state 建/拆、生活记录)已下线,不参与 apply,勿再加回。
 
 ## 架构
 
@@ -63,9 +76,9 @@ npm run deploy         # build + wrangler deploy
 
 **dev 运行模型**:`@cloudflare/vite-plugin` 读 `wrangler.toml`(main/D1/assets),把 worker 跑在 Vite dev server 内的 workerd 环境。dev 下 `/api/*` 进 worker,其余请求由 Vite 接管(HMR)。D1 本地持久化与 `wrangler d1 --local` 共享 `.wrangler/state`。**没有 localStorage 回退模拟**,前后端始终同一套代码。
 
-**生产运行模型**:`wrangler deploy` 直接读 `wrangler.toml`——`main: ./worker/index.ts`(wrangler 现场打包源码)+ `assets: ./dist/client`(前端),非 `/api` 请求由 worker 内 `env.ASSETS.fetch` 提供静态资源。⚠️ 不要用 vite-plugin 生成的 `dist/jazz_life_tracker/` 做部署目录:它对相对 assets 路径解析会回退到该目录自身,把 `.dev.vars` 等 worker 产物当静态资源上传(曾致本地 token 泄露)。
+**生产运行模型**:`wrangler deploy --config wrangler.toml` 读 `wrangler.toml`——`main: ./worker/index.ts`(wrangler 现场打包源码)+ `assets: ./dist/client`(前端),非 `/api` 请求由 worker 内 `env.ASSETS.fetch` 提供静态资源。⚠️ 两条红线:① 不要用 vite-plugin 生成的 `dist/jazz_life_tracker/` 做部署目录:它对相对 assets 路径解析会回退到该目录自身,把 `.dev.vars` 等 worker 产物当静态资源上传(曾致本地 token 泄露);② 部署/迁移命令**必须显式 `--config wrangler.toml`**,否则 wrangler 会重定向到构建产物 `dist/jazz_life_tracker/wrangler.json`(陈旧、无 `[env.preview]`),导致 env 失效、DB 绑定回落到生产库。
 
-### 数据模型(schema.sql)
+### 数据模型(migrations/0001_init.sql)
 
 表 `users` + `progress` + `user_settings`(`game_state`/`records` 已随关卡制下线):
 
@@ -98,7 +111,7 @@ npm run deploy         # build + wrangler deploy
 - **改词库 / 加词**:只改 `src/data/words.ts`(加词遵循分类 id 段、`category` 归属、无重复文本)。发音文本由引擎按上节约定自动推导,**无需**在词条上存 `speak` 字段。
 - **改奖励 / 解锁 / 称号 / 出题**:先看 `src/game/*` 纯逻辑与其测试(引擎可注入 `rng` 保证测试确定性),再动 UI。
 - **主题 token**:天空糖果色系定义在 `src/index.css`,通用强调色 `accent`(橙)、完成/加成 `emerald`、错误 `red`、中性 `ink/surface/hairline`;拼音/汉字/英语王国色 token(`pinyin`/`hanzi`/`english`)仍在但当前 UI 未逐王国着色,改色/动效先看该文件。
-- 修改 schema 后需重新执行 `npm run db:apply`(本地)与远程 `d1 execute`
+- 表结构变更 = 新增数字前缀迁移文件(见上「数据库迁移流程」),不改 0001 基线;本地 `npm run db:local` 验,线上 preview → 生产 apply
 - UI 文案为中文,新增文案保持中文
 - 依赖精简、无路由库、无状态管理库 —— 新增功能保持同一简约风格
 - 生命周期:关卡制旧代码(worker/game.ts、`LevelPlay`/`LevelResult`/`MapView`、`src/game/scoring.ts`/`state.ts`/`levels.ts`、`src/data/levels.ts`)已删除;quiz 三组件与 `speech.ts` 的类型签名残留关卡制 `kingdom: KingdomKey | 'mixed'` 与 speech.ts 的 `mixed` 分支注释,WordLesson 实际只传三技能,`mixed` 分支不会走到;遗留 ui 基础组件(badge/select/chart-tooltip 等)暂无引用,保留待儿童主题复用

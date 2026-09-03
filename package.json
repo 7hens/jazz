@@ -8,9 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint .",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
-    "db:apply": "wrangler d1 execute jazz-life-tracker --local --file=./schema.sql",
-    "db:migrate": "for f in migrations/*.sql; do wrangler d1 execute jazz-life-tracker --local --file=\"$f\"; done",
-    "deploy": "npm run build && wrangler deploy",
+    "db:local": "wrangler d1 migrations apply --config wrangler.toml jazz-life-tracker --local",
+    "deploy": "npm run build && wrangler deploy --config wrangler.toml",
+    "deploy:preview": "npm run build && wrangler deploy --config wrangler.toml --env preview",
     "test": "vitest run"
   },
   "dependencies": {

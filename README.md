@@ -13,7 +13,7 @@
 - **运行时出题引擎** —— [src/game/engine.ts](src/game/engine.ts):每技能步 2 题串行,题型按技能随机组合 —— 拼音 choice / listen-choice、汉字 choice / match、英语 choice / listen-choice / match(填空题型未做,见二期)。干扰项同分类优先、不足跨类兜底、排除与目标词任一文本重复者;选项数按词 id(≤20 给 3 项,其余 4 项);选项 / 题干带全局唯一 id,供 React 复用 key。
 - **学习单元步序与解锁**(纯逻辑,[src/game/lesson.ts](src/game/lesson.ts)):技能顺序 拼音→汉字→英语,`stepsFor` 按家长设置裁剪、全关时强制英语;词「全完成」= 启用技能全完成;解锁 = 自 1 起首个未完成词,全通则停在词 100 后。
 - **奖励结算与称号**(纯逻辑,[src/game/progress.ts](src/game/progress.ts)):技能步首过 +30、整词首通加成 +20、重学不重复发放(只升不降);称号 8 档阈值(0/300/1000/2500/5000/8000/12000);前端内存态字段级合并(`completed` 取 OR、`stars_earned` 取 MAX)。
-- **DB 行级进度** —— [schema.sql](schema.sql):`users`(单档案外键)+ `progress`(每 user × 每词一行,三技能完成位 + `stars_earned`)+ `user_settings`(三模块开关);[migrations/2026-09-03-word-progress.sql](migrations/2026-09-03-word-progress.sql) 幂等 DROP 旧 `game_state` 并建新表,可重复执行。
+- **DB 行级进度** —— [migrations/0001_init.sql](migrations/0001_init.sql) 基线快照:`users`(单档案外键)+ `progress`(每 user × 每词一行,三技能完成位 + `stars_earned`)+ `user_settings`(三模块开关),全量 `IF NOT EXISTS` 幂等;旧 date 前缀迁移(含 `game_state` 建/拆)已移入 [migrations/archive/](migrations/archive/),后续结构变更一律新增数字前缀迁移。
 - **后端 worker 路由** —— [worker/index.ts](worker/index.ts):`POST/GET /api/auth/login`、`GET /api/me`、`POST /api/auth/logout`(认证语义不变);`GET/PUT/DELETE /api/progress`(批量行级 upsert,`ON CONFLICT` 取 MAX 只升不降,word_id 1..100 + 单批 ≤200 校验)、`GET/PUT /api/settings`(upsert,防三模块全关 → 400)。旧整档 `/api/game` 与 `worker/game.ts` 已删除。
 - **前端单页状态机** —— [src/App.tsx](src/App.tsx):`boot → login → map(主页) → lesson → done`,无路由库;每步通过即时 PUT 单词行,家长可重置进度 / 退出 / 开声音 / 进学习设置。
 - **地图即主页** —— [src/components/game/WordMapView.tsx](src/components/game/WordMapView.tsx):5 分类词网格,词格状态 全完成 ✅ / 部分 🔄 / 目标词脉冲高亮 / 未解锁 🔒,顶部星尘 + 称号 + 声音开关 + 家长菜单,底部总进度。
@@ -61,12 +61,12 @@ npm run dev        # 全栈本地 :3000(Vite + workerd + 本地 D1)
 npm test           # 纯逻辑单测
 npm run lint       # oxlint
 npm run build      # tsc -b && vite build → 前端 dist/client
-npm run db:apply   # 本地 D1 建表(schema.sql)
-npm run db:migrate # 本地执行 migrations/*.sql
-npm run deploy     # build + wrangler deploy
+npm run db:local       # 本地 D1 应用全部迁移(migrations apply --local)
+npm run deploy         # build + wrangler deploy(生产 = 默认 env)
+npm run deploy:preview # build + wrangler deploy --env preview(独立 D1 冒烟)
 ```
 
-登录令牌:本地读 `.dev.vars`(`ADMIN_TOKEN`,默认 `jazz-local-dev-token`);生产在 Workers 控制台设 `ADMIN_TOKEN`。部署 / 迁移 / 架构细节见 [CLAUDE.md](CLAUDE.md)。
+登录令牌:本地读 `.dev.vars`(`ADMIN_TOKEN`,默认 `jazz-local-dev-token`);生产用 `wrangler secret put ADMIN_TOKEN`(预览 env 需 `--env preview` 另设),**禁止** Cloudflare Dashboard 手改变量。部署 / 迁移 / 发布流水线 / 架构细节见 [CLAUDE.md](CLAUDE.md)。
 
 ## 技术栈
 
