@@ -126,6 +126,20 @@ describe('附加不变量(防回归)', () => {
     expect(matches).toBeGreaterThan(0)
   })
 
+  it('一步内两题的 option-id 串集互不相交(-n- 步序号保证全局唯一)', () => {
+    for (const skill of ['pinyin', 'hanzi', 'english'] as const) {
+      for (let seed = 0; seed < 21; seed++) {
+        const [a, b] = makeStepQuestions(apple, skill, () => seed / 21)
+        const idsA = allOptions(a)
+        const idsB = allOptions(b)
+        expect(new Set(idsA).size).toBe(idsA.length)
+        expect(new Set(idsB).size).toBe(idsB.length)
+        const setA = new Set(idsA)
+        for (const id of idsB) expect(setA.has(id)).toBe(false)
+      }
+    }
+  })
+
   it('首题恒为 choice;次题题型落在技能概率分支集合内', () => {
     for (const skill of ['pinyin', 'hanzi', 'english'] as const) {
       const seen = new Set<string>()
