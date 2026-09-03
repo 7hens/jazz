@@ -6,6 +6,7 @@ import { WordMapView } from './components/game/WordMapView'
 import { WordLesson } from './components/game/WordLesson'
 import { WordDone } from './components/game/WordDone'
 import { SettingsPanel } from './components/game/SettingsPanel'
+import { ToastProvider } from './components/Toast'
 import { WORDS, wordById } from './data/words'
 import { emptyProgress, isValidWordProgress, settleWord, titleForStars } from './game/progress'
 import { getSoundOn, setSoundOn } from './game/audio'
@@ -236,7 +237,7 @@ function App() {
     )
   }
 
-  return <MotionConfig reducedMotion="user">{content}</MotionConfig>
+  return <ToastProvider><MotionConfig reducedMotion="user">{content}</MotionConfig></ToastProvider>
 }
 
 export default App
