@@ -53,3 +53,21 @@ export type GameState = {
 }
 
 export type UserProfile = { id: string; email: string; name: string }
+
+export type SkillKey = 'pinyin' | 'hanzi' | 'english'
+export type CategoryKey = 'shape' | 'food' | 'animal' | 'nature' | 'object'
+
+export type WordUnit = {
+  id: number; emoji: string; pinyin: string; hanzi: string; english: string; category: CategoryKey
+}
+
+export type WordProgress = {
+  wordId: number
+  completed: Record<SkillKey, boolean>
+  starsEarned: number
+  updatedAt: string
+}
+
+export type UserSettings = {
+  enablePinyin: boolean; enableHanzi: boolean; enableEnglish: boolean; updatedAt: string
+}
