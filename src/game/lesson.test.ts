@@ -3,7 +3,7 @@ import { WORDS } from '../data/words'
 import { firstTargetId, fullComplete, stepsFor } from './lesson'
 import type { UserSettings, WordProgress } from '../types'
 
-const allOn = (): UserSettings => ({ enablePinyin: true, enableHanzi: true, enableEnglish: true, updatedAt: '' })
+const allOn = (): UserSettings => ({ enablePinyin: true, enableHanzi: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })
 const p = (over: Partial<WordProgress> = {}): WordProgress => ({
   wordId: 1, completed: { pinyin: false, hanzi: false, english: false }, starsEarned: 0, updatedAt: '', ...over,
 })
@@ -18,7 +18,7 @@ describe('lesson 步序与完成', () => {
   })
 
   it('全关强制英语', () => {
-    expect(stepsFor({ enablePinyin: false, enableHanzi: false, enableEnglish: false, updatedAt: '' })).toEqual(['english'])
+    expect(stepsFor({ enablePinyin: false, enableHanzi: false, enableEnglish: false, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })).toEqual(['english'])
   })
 
   it('fullComplete 只看启用技能', () => {

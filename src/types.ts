@@ -49,5 +49,7 @@ export type WordProgress = {
 }
 
 export type UserSettings = {
-  enablePinyin: boolean; enableHanzi: boolean; enableEnglish: boolean; updatedAt: string
+  enablePinyin: boolean; enableHanzi: boolean; enableEnglish: boolean
+  earnedAchievements: string[]; consecutiveDays: number; lastActiveDate: string
+  updatedAt: string
 }

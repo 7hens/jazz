@@ -21,7 +21,10 @@ type DoneInfo = {
 
 function defaultSettings(): UserSettings {
   const now = new Date().toISOString()
-  return { enablePinyin: true, enableHanzi: true, enableEnglish: true, updatedAt: now }
+  return {
+    enablePinyin: true, enableHanzi: true, enableEnglish: true,
+    earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: now,
+  }
 }
 
 function App() {
