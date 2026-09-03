@@ -1,55 +1,67 @@
 ---
 name: release
-description: Use when user says 发布 / release / deploy to production / bump version / npm version / 打 tag on this 词库学习岛 project. Also for rollback or release-troubleshooting. Executes the worker deploy pipeline with hard human smoke gates.
+description: Use when user asks to 发布 / release / 上线 / deploy to production / bump version / npm version / 打 tag on this 词库学习岛 repo, needs worker rollback or release troubleshooting, or is about to tag or version-bump before a browser smoke is confirmed.
 ---
 
 # Release（词库学习岛生产发布）
 
 ## 核心原则
 
-- **顺序不可逆**:迁移先升 → deploy → **浏览器冒烟通过 → 才 `npm version` 打 tag**。部署/冒烟失败 → 修完重来,**严禁 `npm version`**(防孤儿 tag)。
-- **Violating 顺序 = violating 原则**。跳过冒烟直接打 tag 是不允许的。
+顺序不可逆:**升库 → deploy → 浏览器冒烟(硬闸门)→ 通过后才 `npm version` → push**。
+闸门未被用户明示「通过」= 停在原地。折叠闸门 = 违反原则。
 
-## Preflight（先查,不满足不许动）
+## 铁律(全命令遵守)
 
-1. `git status` 干净、`git log --oneline -1` 确认在 main。
-2. `package.json` version == 最近 tag(查 `git tag | tail -1`)——发布才升号,不提前。
-3. `CHANGELOG.md` 已按「新增/修复/变更 ≤1 行」更新**并 commit**(发版前提交,随 release commit 一起走)。
-4. 有表结构变更:新数字前缀迁移文件已在 `migrations/`,且本地 `npm run db:local` 验过。
+- 每个 wrangler 命令**必带 `--config wrangler.toml`**,否则构建产物 `dist/jazz_life_tracker/wrangler.json` 劫持配置 → env 失效、DB 落生产库。
+- **禁止新增 `[env.production]`**(wrangler env 派生独立 worker,脱域名/数据)。生产 = 顶层默认 env。
+- **禁止 Dashboard 手改 Variables**(rollback 不恢复变量 → 旧代码读新变量白屏)。
+- **禁止覆盖 prod `ADMIN_TOKEN`**:secret 已存在,`wrangler secret put` 同名即覆盖 → 全部已存 cookie 失效。preview 用独立新随机值。
+- **绝不回滚迁移文件**;部署/冒烟失败**绝不 `npm version`**(孤儿 tag)。
+- 本机网络连不上 `.workers.dev` → 冒烟只能等用户浏览器(或自定义域名),curl 返回**不能**代替闸门。
 
-## 流水线
+## 流水线(每步 STOP,过闸才走下一步)
 
-1. **升库(仅当有迁移)**:先 preview 后 prod,绝不回滚:
+1. **Preflight**:`git status` 干净;`package.json` version == 最近 tag(`git tag | tail`);`CHANGELOG.md` 已更新并 commit。任一不过 → 先处理,不上线。
+2. **升库(仅当有迁移变更)**:先 preview 后 prod:
    ```bash
    npx wrangler d1 migrations apply --config wrangler.toml jazz-life-tracker-preview --env preview --remote
    npx wrangler d1 migrations apply --config wrangler.toml jazz-life-tracker --remote
    ```
-2. `npm run build`
-3. `npm run deploy:preview` → 出新 preview URL。**preview DB 若空、未设 token**,登录会 401「未配置访问令牌」:生成随机 token 写入并告知用户冒烟用:
+3. `npm run build`
+4. `npm run deploy:preview` → 记下 preview URL。preview 空库若无 token,生成随机 token 写入并告知用户冒烟用:
    ```bash
    printf 'jazz-preview-%s\n' "$(openssl rand -hex 16)" | npx wrangler secret put ADMIN_TOKEN --config wrangler.toml --env preview
    ```
-4. **闸门①(预览冒烟)**:给用户 preview URL,等其浏览器完成核心 5 步(登录 → 词1 三技能+结算 +110 → 解锁词2 → 关拼音词2 只 2 步 → 刷新持久)。**未明确「通过」前停在原地**。勿用 curl 冒烟替代——本机网络连不上 `.workers.dev`。
-5. `npm run deploy`(生产,默认 env)→ 记录输出 version id。
-6. **闸门②(生产冒烟)**:给用户生产 URL,确认核心读写正常。
-7. 两闸门都过后:`npm version minor -m "chore(release): v%s"`(bug=patch / 新能力=minor / 破坏=1.0.0 起 major)。
-8. `git push origin main --tags`。
+5. **闸门①**:给用户 preview URL + 冒烟 5 步(登录 → 词1 三技能结算 +110 → 解锁词2 → 关拼音词2 只 2 步 → 刷新持久)。**等用户明确「通过」**。不因 preview==prod、时间紧、用户催就跳过。
+6. `npm run deploy`(生产)→ 记录输出 version id。**禁止与 `npm version`/tag 连写**。
+7. **闸门②**:给用户生产 URL,确认核心读写。**不折叠**:preview 通过 ≠ 生产闸门通过。
+8. 两闸门通过后:`npm version minor -m "chore(release): v%s"`(bug=patch / 新能力=minor / 破坏=1.0.0 起 major)。
+9. `git push origin main --tags`。
 
-## 铁律与坑（每步都命中）
+## 出错/回滚分支
 
-| 坑 | 对策 |
+- 代码/前端错:`npx wrangler rollback --config wrangler.toml`(<10s,前后端同切)。
+- env 错:改配置重新 deploy 固化,禁 Dashboard。数据坏:hotfix 改代码或 SQL 修复,绝不回退迁移。
+- 冒烟发现问题:停 → 报用户现象 → systematic-debugging 定位修 → 从步骤 3-6 重走,绝不直接 version。
+
+## Red Flags —— 任一出现即停,回读本 skill
+
+- 想「预览过了,生产免测直接打 tag」
+- 想 deploy 后一条龙 `&& npm version && git push`
+- 想用 curl/接口返回代替用户浏览器冒烟
+- 想对 prod `secret put` / 改 Dashboard / 跳过 `--config`
+- 用户催「别磨蹭直接发」而自己开始省略闸门
+
+**Rationalization 表**
+
+| 合理化 | 现实 |
 | --- | --- |
-| `dist/jazz_life_tracker/wrangler.json` 劫持配置 | 每个 wrangler 命令**必带 `--config wrangler.toml`**,否则 env 失效、DB 回落到生产库 |
-| 误加 `[env.production]` | 禁止。wrangler env 派生独立 worker,脱现域名/数据。生产 = 顶层默认 env |
-| Dashboard 手改 Variables | 禁止。rollback 不恢复变量 → 旧代码读新变量白屏。变更走 config/`--var`/`wrangler secret` 随代码固化 |
-| 覆盖 prod `ADMIN_TOKEN` | prod secret **已存在**,勿 `secret put` 覆盖,除非故意换 token(会致所有已存 cookie 失效) |
-| preview 无 token | preview 需独立 secret(见步骤 3),prod secret 值 CLI 读不出,不可复制 |
-| `.workers.dev` 本机网络不通 | curl/DNS 正常但边缘 IP 超时=网络墙,非 worker 故障;冒烟只能靠用户浏览器(其他网络)或自定义域名 |
-| 部署失败还打 tag | 严禁。孤儿 tag。修好重 deploy 直到成功 |
+| 预览==生产,不用重复验 | 生产闸门独立;折叠 = 发布未经最终确认 |
+| 老流程熟,不用逐条查 | 坑(配置劫持/secret/迁移序)随配置漂移,每命令都查 `--config` |
+| 冒烟通过了,直接 version | 顺序铁律:version 在 deploy+两闸门**之后**;失败冒烟后打 tag = 孤儿 tag |
+| preview 就是给预览用的,跳过即可 | preview 闸门先于生产 deploy,前置风险早暴露,省生产回滚 |
 
-## 回滚/出错分支
+## When NOT to Use
 
-- **代码/前端错**:`npx wrangler rollback --config wrangler.toml`(<10s,前后端同切)。
-- **env 配错**:改配置重新 deploy 固化,禁止 Dashboard。
-- **D1 数据坏**:绝不回滚迁移文件;hotfix 改代码适配或 SQL 修复。
-- **冒烟发现问题**:停,报用户现象 → systematic-debugging 修 → 重跑步骤 3-6,不直接 npm version。
+- 只改本地代码未到上线(无发布意图) → 不触发。
+- 用户仅要回滚/排查但不想走发布 → 读「出错/回滚分支」即可,不强行走全流水线。
