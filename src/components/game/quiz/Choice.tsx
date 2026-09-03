@@ -7,6 +7,7 @@ import { speakCard } from './speech'
 export type ChoiceProps = {
   prompt: string
   promptSpeak?: string
+  promptEmoji?: string
   kingdom: KingdomKey | 'mixed'
   options: BaseOption[]
   disabled?: boolean
@@ -59,6 +60,7 @@ function SpeakChip({ kingdom, text, label }: { kingdom: KingdomKey | 'mixed'; te
 export function Choice({
   prompt,
   promptSpeak,
+  promptEmoji,
   kingdom,
   options,
   disabled = false,
@@ -69,6 +71,11 @@ export function Choice({
 }: ChoiceProps) {
   return (
     <div className="space-y-5">
+      {promptEmoji ? (
+        <div className="flex justify-center pb-1" aria-hidden>
+          <span className="text-7xl leading-none drop-shadow-sm">{promptEmoji}</span>
+        </div>
+      ) : null}
       <div className="flex items-center justify-center gap-2 px-2">
         <p className="text-center text-lg font-bold leading-snug text-ink">{prompt}</p>
         {promptSpeak ? (
