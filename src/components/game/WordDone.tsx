@@ -11,6 +11,7 @@ export type WordDoneProps = {
   word: WordUnit
   stepReward: number
   wordBonus: number
+  extraReward?: number // 趣味额外奖励(连击池+幸运+成就),仅首通词非 0
   totalStars: number
   titleName: string
   nextId: number
@@ -20,7 +21,7 @@ export type WordDoneProps = {
 }
 
 export function WordDone({
-  word, stepReward, wordBonus, totalStars, titleName, nextId, isLastWord, onNext, onMap,
+  word, stepReward, wordBonus, extraReward, totalStars, titleName, nextId, isLastWord, onNext, onMap,
 }: WordDoneProps) {
   // 词级随机夸奖:useRef 惰性 init → 每次挂载随机一次,不随重渲染变
   const praise = useRef(getRandomPraise())
@@ -62,6 +63,13 @@ export function WordDone({
               </div>
             ) : null}
           </div>
+          {/* 趣味额外奖励:连击池 + 幸运 + 本词新成就,首通词才可能非 0 */}
+          {extraReward != null && extraReward > 0 ? (
+            <div className="mt-3 rounded-2xl border border-amber/50 bg-amber-100 px-4 py-2">
+              <p className="text-xs font-semibold text-ink-3">趣味额外奖励</p>
+              <p className="text-xl font-extrabold text-amber">+{extraReward}</p>
+            </div>
+          ) : null}
           <p className="mt-4 text-sm text-ink-2">星尘 {totalStars} · 称号 🎖 {titleName}</p>
 
           {/* 灵灵 teaser 气泡:有引导语才显示,暗示下一词 */}

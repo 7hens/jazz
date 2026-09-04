@@ -6,13 +6,20 @@ import { WordMapView } from './components/game/WordMapView'
 import { WordLesson } from './components/game/WordLesson'
 import { WordDone } from './components/game/WordDone'
 import { SettingsPanel } from './components/game/SettingsPanel'
+import { AchievementPopup } from './components/game/AchievementPopup'
+import { LuckyBonus } from './components/game/LuckyBonus'
 import { useToast } from './components/Toast'
 import { WORDS, wordById } from './data/words'
 import { emptyProgress, isValidWordProgress, settleWord, titleForStars } from './game/progress'
 import { getSoundOn, setSoundOn } from './game/audio'
-import { loadCombo, loadMaxCombo, nextCombo, saveCombo, saveMaxCombo, type AnswerKind } from './game/combo'
+import {
+  loadCombo, loadMaxCombo, nextCombo, comboBonus, saveCombo, saveMaxCombo, type AnswerKind,
+} from './game/combo'
 import { celebrate } from './game/confetti'
 import { getRandomPraise } from './game/praise'
+import { rollLucky, nextConsecutive, todayKey } from './game/fun'
+import { checkAchievements, type Achievement } from './game/achievements'
+import { fullComplete } from './game/lesson'
 import type { SkillKey, UserSettings, WordProgress, WordUnit } from './types'
 
 type Screen = 'boot' | 'login' | 'map' | 'lesson' | 'done'
@@ -21,6 +28,28 @@ type DoneInfo = {
   word: WordUnit
   stepReward: number // 本次会话(该词)累计技能步首过星尘
   wordBonus: number  // 本次会话触发的整词加成(0 或 20)
+  extraReward: number // 连击池 + 幸运 + 成就 本词追加合计(仅首通词非 0)
+  luckyReward: number
+  achievements: Achievement[]
+}
+
+// 当前设置下已 fullComplete 的词数 / 分类数(供成就扫描,词已完成即可,不含需追加的星尘)
+function fullWords(progress: Record<number, WordProgress>, settings: UserSettings): number {
+  return WORDS.filter((w) => fullComplete(progress[w.id], settings)).length
+}
+
+function fullCategories(progress: Record<number, WordProgress>, settings: UserSettings): number {
+  const byCat = new Map<string, WordUnit[]>()
+  for (const w of WORDS) {
+    const list = byCat.get(w.category) ?? []
+    list.push(w)
+    byCat.set(w.category, list)
+  }
+  let n = 0
+  for (const items of byCat.values()) {
+    if (items.every((w) => fullComplete(progress[w.id], settings))) n += 1
+  }
+  return n
 }
 
 function defaultSettings(): UserSettings {
@@ -45,11 +74,17 @@ function App() {
   const progressRef = useRef(progress)
   const settingsRef = useRef(settings)
   const gainRef = useRef({ step: 0, bonus: 0 })
+  // 词会话:eligible 捕获于 startWord(当时未 fullComplete);首答对才累计加成池;任何非首答断 perfect
+  const wordRunRef = useRef({ eligible: false, bonusPool: 0, perfect: true })
   const activeWordIdRef = useRef<number | null>(null)
   // 连击会话态:初值读 sessionStorage → 刷新保持;comboRef 防 handleAnswer 快速连答闭包旧值
   const [combo, setCombo] = useState(() => loadCombo())
   const comboRef = useRef(combo)
   const maxComboRef = useRef(loadMaxCombo())
+  const pendingBonusRef = useRef(0) // 非 eligible 词达成成就的挂起星尘,下次 eligible 首通 flush
+  const sessionRef = useRef({ firstCompleteToday: 0, perfectWords: 0 })
+  const [achQueue, setAchQueue] = useState<Achievement[]>([])
+  const [luckyOn, setLuckyOn] = useState(false)
   const { showToast } = useToast()
 
   progressRef.current = progress
@@ -130,26 +165,43 @@ function App() {
     if (!window.confirm('确定要重置全部学习进度吗?此操作无法撤销。')) return
     try { await fetch('/api/progress', { method: 'DELETE', credentials: 'include' }) } catch { /* ignore */ }
     syncProgress({})
+    // 清趣味会话态 + 趣味字段回默认(连击/最大连击/会话计数/挂起池/词会话)
+    saveCombo(0); saveMaxCombo(0)
+    comboRef.current = 0; setCombo(0); maxComboRef.current = 0
+    sessionRef.current = { firstCompleteToday: 0, perfectWords: 0 }
+    pendingBonusRef.current = 0
+    wordRunRef.current = { eligible: false, bonusPool: 0, perfect: true }
+    await persistSettings({ ...settingsRef.current, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '' })
   }
 
-  async function saveSettings(next: UserSettings) {
+  /** settings 全量整行持久化单点:三 enable + 趣味字段(earned/consecutive/lastActiveDate)整体 PUT。
+   *  部分 PUT 会触发 worker 对缺省趣味字段落默认 → 清空成就/连续天数,故 body 恒带全字段。 */
+  async function persistSettings(next: UserSettings) {
     setSettings(next)
     settingsRef.current = next
     try {
       await fetch('/api/settings', {
         method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          settings: { enablePinyin: next.enablePinyin, enableHanzi: next.enableHanzi, enableEnglish: next.enableEnglish },
+          settings: {
+            enablePinyin: next.enablePinyin, enableHanzi: next.enableHanzi, enableEnglish: next.enableEnglish,
+            earnedAchievements: next.earnedAchievements, consecutiveDays: next.consecutiveDays,
+            lastActiveDate: next.lastActiveDate,
+          },
         }),
       })
     } catch { /* ignore */ }
   }
+  // 家长设置面板沿用旧名(saveSettings 语义 = 全量持久化);SettingsPanel 的 onChange 调用点不变
+  const saveSettings = persistSettings
 
-  /** 进入词:重置本词会话增益 */
+  /** 进入词:重置本词会话增益;eligible = 该词在进入时尚未 fullComplete(当前 settings) */
   function startWord(id: number) {
     const w = wordById(id)
     if (!w) return
     gainRef.current = { step: 0, bonus: 0 }
+    const prev = progressRef.current[id] ?? emptyProgress(id)
+    wordRunRef.current = { eligible: !fullComplete(prev, settingsRef.current), bonusPool: 0, perfect: true }
     activeWordIdRef.current = id
     setActiveWord(w)
     setLessonKey((k) => k + 1)
@@ -176,8 +228,10 @@ function App() {
     showToast('success', getRandomPraise())
   }
 
-  /** 每题作答 → 更新连击会话态(ref 防快速连答闭包旧值)并持久化 */
+  /** 每题作答 → 更新连击会话态(ref 防快速连答闭包旧值)并持久化;eligible 词首答对累计加成池 */
   function handleAnswer(kind: AnswerKind) {
+    const run = wordRunRef.current
+    if (kind !== 'first') run.perfect = false
     const n = nextCombo(comboRef.current, kind)
     comboRef.current = n
     saveCombo(n)
@@ -186,19 +240,86 @@ function App() {
       maxComboRef.current = n
       saveMaxCombo(n)
     }
+    if (kind === 'first' && run.eligible) {
+      run.bonusPool += comboBonus(n)
+    }
   }
 
-  /** 全部技能步完成 → 展示本词结算 */
-  function handleLessonComplete() {
+  /** 全部技能步完成 → 异步结算:累计计数 → 推进学习日/连续天数 → 扫成就 → 追加星尘补 PUT → 弹层 */
+  async function handleLessonComplete() {
     const w = activeWord
     if (!w) return
-    setDoneInfo({ word: w, stepReward: gainRef.current.step, wordBonus: gainRef.current.bonus })
+    const run = wordRunRef.current
+    const settings = settingsRef.current
+    // progressRef 已在本词逐步 PUT 时推进到完成态(见 handleStepPass),不能用「当前行未完成」判首通;
+    // eligible 捕获于 startWord(当时未 fullComplete),且本函数只在全部启用技能步 pass 后触发 ⇒ 本次首次 full。
+    const rowNow = progressRef.current[w.id]
+    const newlyComplete = run.eligible && !!rowNow && fullComplete(rowNow, settings)
+
+    // —— 先累加本次首通/perfect(供扫描),再更新学习日(重学也算) ——
+    if (newlyComplete) {
+      if (run.perfect) sessionRef.current.perfectWords += 1
+      sessionRef.current.firstCompleteToday += 1
+    }
+    const today = todayKey()
+    const s1 = { ...settings, lastActiveDate: today,
+      consecutiveDays: nextConsecutive(settings.consecutiveDays, settings.lastActiveDate, today) }
+    const fullCount = fullWords(progressRef.current, s1)
+    const catDone = fullCategories(progressRef.current, s1)
+    const newEarned = checkAchievements({
+      completedWords: fullCount, categoryDone: catDone,
+      maxCombo: maxComboRef.current,
+      firstCompleteToday: sessionRef.current.firstCompleteToday,
+      perfectWords: sessionRef.current.perfectWords,
+      consecutiveDays: s1.consecutiveDays,
+      hour: new Date().getHours(), totalWords: WORDS.length,
+    }, s1.earnedAchievements)
+
+    // —— 星尘结算:eligible 首通才写词行;非 eligible 达成成就只入 earned + 奖励进挂起池 ——
+    let extra = 0
+    let luckyReward = 0
+    if (newlyComplete) {
+      extra += run.bonusPool
+      luckyReward = rollLucky()
+      extra += luckyReward
+      extra += newEarned.reduce((sum, a) => sum + a.reward, 0) + pendingBonusRef.current
+      pendingBonusRef.current = 0
+    } else {
+      pendingBonusRef.current += newEarned.reduce((sum, a) => sum + a.reward, 0)
+    }
+    const newAchievements = newlyComplete ? newEarned : []
+    if (extra > 0) {
+      const base = rowNow ?? emptyProgress(w.id)
+      const bumped: WordProgress = { ...base, starsEarned: base.starsEarned + extra, updatedAt: new Date().toISOString() }
+      syncProgress({ ...progressRef.current, [w.id]: bumped })
+      // 单调补 PUT(追加更高值;worker MAX 幂等,与逐步 PUT 乱序到达亦安全,不刷星)
+      void fetch('/api/progress', {
+        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ progress: [bumped] }),
+      }).catch(() => {})
+    }
+    if (newEarned.length > 0) {
+      s1.earnedAchievements = Array.from(new Set([...s1.earnedAchievements, ...newEarned.map((a) => a.id)]))
+    }
+    // 学习日/连续天数只要实际变化就落库(含重学首日);否则只在有实质推进时 persist
+    const dayChanged = s1.lastActiveDate !== settings.lastActiveDate || s1.consecutiveDays !== settings.consecutiveDays
+    if (newlyComplete || newEarned.length > 0 || dayChanged) await persistSettings(s1)
+    // 结算在网络等待期间被中止(用户从词卡返回地图)→ 不再导航到 done;词已完成,上述落库无害
+    if (activeWordIdRef.current !== w.id) return
+
+    setDoneInfo({ word: w, stepReward: gainRef.current.step, wordBonus: gainRef.current.bonus,
+      extraReward: extra, luckyReward, achievements: newAchievements })
+    if (newAchievements.length > 0) setAchQueue(newAchievements)
+    else if (luckyReward > 0) setLuckyOn(true)
     // 本次真正推进(整词首通或新增技能步)才放 word 级撒花;重学已完词不重复放
     if (gainRef.current.bonus > 0 || gainRef.current.step > 0) celebrate('word')
     setScreen('done')
   }
 
   function exitToMap() {
+    setAchQueue([])
+    setLuckyOn(false)
+    activeWordIdRef.current = null
     setActiveWord(null)
     setDoneInfo(null)
     setScreen('map')
@@ -206,6 +327,8 @@ function App() {
 
   function nextWord() {
     if (!activeWord) return
+    setAchQueue([])
+    setLuckyOn(false)
     const nextId = activeWord.id + 1
     if (nextId > WORDS.length) { exitToMap(); return }
     startWord(nextId)
@@ -225,23 +348,39 @@ function App() {
         combo={combo}
         onAnswer={handleAnswer}
         onStepPass={handleStepPass}
-        onLessonComplete={handleLessonComplete}
+        onLessonComplete={() => void handleLessonComplete()}
         onExit={exitToMap}
       />
     )
   } else if (screen === 'done' && doneInfo) {
     content = (
-      <WordDone
-        word={doneInfo.word}
-        stepReward={doneInfo.stepReward}
-        wordBonus={doneInfo.wordBonus}
-        totalStars={totalStars}
-        titleName={title.name}
-        nextId={doneInfo.word.id + 1}
-        isLastWord={doneInfo.word.id >= WORDS.length}
-        onNext={nextWord}
-        onMap={exitToMap}
-      />
+      <>
+        <WordDone
+          word={doneInfo.word}
+          stepReward={doneInfo.stepReward}
+          wordBonus={doneInfo.wordBonus}
+          extraReward={doneInfo.extraReward}
+          totalStars={totalStars}
+          titleName={title.name}
+          nextId={doneInfo.word.id + 1}
+          isLastWord={doneInfo.word.id >= WORDS.length}
+          onNext={nextWord}
+          onMap={exitToMap}
+        />
+        {/* 成就串行弹出:每次取 list[0],onDone 出队;队列空且本词有幸运才开幸运层 */}
+        {achQueue.length > 0 ? (
+          <AchievementPopup
+            list={achQueue}
+            onDone={() => {
+              const rest = achQueue.slice(1)
+              setAchQueue(rest)
+              if (rest.length === 0 && doneInfo.luckyReward > 0) setLuckyOn(true)
+            }}
+          />
+        ) : luckyOn ? (
+          <LuckyBonus amount={doneInfo.luckyReward} onDone={() => setLuckyOn(false)} />
+        ) : null}
+      </>
     )
   } else {
     content = (
