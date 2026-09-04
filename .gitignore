@@ -17,6 +17,7 @@ dist-ssr
 *.local
 .wrangler/
 .superpowers/
+.worktrees/
 
 # Editor directories and files
 .vscode/*
