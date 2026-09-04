@@ -45,10 +45,18 @@ export function createSettingsService(
 ): SettingsService {
   let snapshot: SettingsSnapshot = immutableSnapshot({ status: 'idle', data: defaultSettings() })
   const listeners = new Set<() => void>()
+  let mutationVersion = 0
+  let loadGeneration = 0
 
   function setSnapshot(next: SettingsSnapshot) {
     snapshot = immutableSnapshot(next)
     listeners.forEach(listener => listener())
+  }
+
+  function setMutation(next: SettingsSnapshot): number {
+    mutationVersion += 1
+    setSnapshot(next)
+    return mutationVersion
   }
 
   function report(error: unknown) {
@@ -63,15 +71,19 @@ export function createSettingsService(
       return () => listeners.delete(listener)
     },
     async load() {
+      const generation = ++loadGeneration
+      const startingMutationVersion = mutationVersion
       const previousData = snapshot.data
       setSnapshot({ status: 'loading', data: previousData })
       try {
         const remote = await api.getSettings()
+        if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
         setSnapshot({
           status: 'ready',
           data: { ...defaultSettings(), ...remote, earnedAchievements: [...remote.earnedAchievements] },
         })
       } catch (error) {
+        if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
         const message = errorMessage(error)
         setSnapshot({ status: 'error', data: previousData, error: message })
         report(error)
@@ -79,11 +91,11 @@ export function createSettingsService(
     },
     async save(next) {
       const previous = snapshot
-      setSnapshot({ status: 'ready', data: next })
+      const operationVersion = setMutation({ status: 'ready', data: next })
       try {
         await api.putSettings(next)
       } catch (error) {
-        setSnapshot(previous)
+        if (mutationVersion === operationVersion) setMutation(previous)
         report(error)
         throw error
       }

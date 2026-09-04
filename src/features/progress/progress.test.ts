@@ -106,6 +106,39 @@ describe('ProgressService', () => {
     expect(onError).toHaveBeenCalledWith('offline')
   })
 
+  it('does not let an older failed save roll back a newer successful save', async () => {
+    let rejectFirst!: (error: Error) => void
+    let resolveSecond!: () => void
+    const putProgress = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+      .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve }))
+    const service = createProgressService(fakeApi({ putProgress }), {
+      onUnauthorized: vi.fn(),
+      onError: vi.fn(),
+    })
+    service.seed([progress(1)])
+
+    const first = service.saveStep({
+      ...progress(1),
+      completed: { pinyin: true, hanzi: false, english: false },
+      starsEarned: 30,
+    })
+    const second = service.saveStep({
+      ...progress(1),
+      completed: { pinyin: false, hanzi: true, english: false },
+      starsEarned: 60,
+    })
+    resolveSecond()
+    await second
+    rejectFirst(new Error('first failed'))
+    await expect(first).rejects.toThrow('first failed')
+
+    expect(service.getSnapshot().data[1]).toMatchObject({
+      completed: { pinyin: true, hanzi: true, english: false },
+      starsEarned: 60,
+    })
+  })
+
   it('reports a load error while preserving the previously loaded data', async () => {
     const onError = vi.fn()
     const before = progress(1)
@@ -118,6 +151,36 @@ describe('ProgressService', () => {
 
     expect(service.getSnapshot()).toEqual({ status: 'error', data: { 1: before }, error: 'offline' })
     expect(onError).toHaveBeenCalledWith('offline')
+  })
+
+  it('ignores a stale successful load when progress is saved while it is pending', async () => {
+    let resolveLoad!: (rows: Awaited<ReturnType<ApiService['getProgress']>>) => void
+    const service = createProgressService(fakeApi({
+      getProgress: () => new Promise(resolve => { resolveLoad = resolve }),
+    }), { onUnauthorized: vi.fn(), onError: vi.fn() })
+
+    const loading = service.load()
+    await service.saveStep(progress(1, true, 90))
+    resolveLoad([])
+    await loading
+
+    expect(service.getSnapshot()).toMatchObject({ status: 'ready', data: { 1: progress(1, true, 90) } })
+  })
+
+  it('ignores a stale failed load when progress is saved while it is pending', async () => {
+    let rejectLoad!: (error: Error) => void
+    const onError = vi.fn()
+    const service = createProgressService(fakeApi({
+      getProgress: () => new Promise((_resolve, reject) => { rejectLoad = reject }),
+    }), { onUnauthorized: vi.fn(), onError })
+
+    const loading = service.load()
+    await service.saveStep(progress(1, true, 90))
+    rejectLoad(new Error('stale load failed'))
+    await loading
+
+    expect(service.getSnapshot()).toMatchObject({ status: 'ready', data: { 1: progress(1, true, 90) } })
+    expect(onError).not.toHaveBeenCalled()
   })
 
   it('calls onUnauthorized for API 401 errors without showing a generic error', async () => {
@@ -172,10 +235,34 @@ describe('ProgressService', () => {
     service.seed([before])
 
     const saving = service.saveAll({ 2: progress(2, true, 90) })
-    expect(service.getSnapshot().data).toEqual({ 2: progress(2, true, 90) })
+    expect(service.getSnapshot().data[2]).toEqual(progress(2, true, 90))
 
     await expect(saving).rejects.toThrow('offline')
     expect(service.getSnapshot().data).toEqual({ 1: before })
+  })
+
+  it('keeps monotonic completion and stars when saveAll receives regressive rows', async () => {
+    const service = createProgressService(fakeApi(), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([progress(1, true, 90)])
+
+    await service.saveAll({ 1: progress(1, false, 0) })
+
+    expect(service.getSnapshot().data[1]).toMatchObject({
+      completed: { pinyin: true, hanzi: true, english: true },
+      starsEarned: 90,
+    })
+  })
+
+  it('retains rows omitted from saveAll input', async () => {
+    const service = createProgressService(fakeApi(), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([progress(1, true, 90)])
+
+    await service.saveAll({ 2: progress(2, true, 60) })
+
+    expect(service.getSnapshot().data).toMatchObject({
+      1: progress(1, true, 90),
+      2: progress(2, true, 60),
+    })
   })
 
   it('notifies active subscribers once for each published snapshot', () => {

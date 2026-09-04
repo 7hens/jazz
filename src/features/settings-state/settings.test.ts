@@ -117,6 +117,28 @@ describe('SettingsService', () => {
     expect(onError).toHaveBeenCalledWith('offline')
   })
 
+  it('does not let an older failed save roll back a newer successful save', async () => {
+    let rejectFirst!: (error: Error) => void
+    let resolveSecond!: () => void
+    const putSettings = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+      .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve }))
+    const service = createSettingsService(fakeApi({ putSettings }), {
+      onUnauthorized: vi.fn(),
+      onError: vi.fn(),
+    })
+    const newest = settings({ enablePinyin: false, enableEnglish: false })
+
+    const first = service.save(settings({ enablePinyin: false }))
+    const second = service.save(newest)
+    resolveSecond()
+    await second
+    rejectFirst(new Error('first failed'))
+    await expect(first).rejects.toThrow('first failed')
+
+    expect(service.getSnapshot()).toEqual({ status: 'ready', data: newest })
+  })
+
   it('reports load errors while preserving data and routes 401 to onUnauthorized', async () => {
     const onUnauthorized = vi.fn()
     const onError = vi.fn()
@@ -129,6 +151,45 @@ describe('SettingsService', () => {
 
     expect(service.getSnapshot()).toEqual({ status: 'error', data: before, error: 'Session expired' })
     expect(onUnauthorized).toHaveBeenCalledOnce()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('ignores a stale successful load when settings are saved while it is pending', async () => {
+    let resolveLoad!: (value: Awaited<ReturnType<ApiService['getSettings']>>) => void
+    const service = createSettingsService(fakeApi({
+      getSettings: () => new Promise(resolve => { resolveLoad = resolve }),
+    }), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    const saved = settings({ enablePinyin: false })
+
+    const loading = service.load()
+    await service.save(saved)
+    resolveLoad({
+      enablePinyin: true,
+      enableHanzi: true,
+      enableEnglish: true,
+      earnedAchievements: [],
+      consecutiveDays: 0,
+      lastActiveDate: '',
+    })
+    await loading
+
+    expect(service.getSnapshot()).toEqual({ status: 'ready', data: saved })
+  })
+
+  it('ignores a stale failed load when settings are saved while it is pending', async () => {
+    let rejectLoad!: (error: Error) => void
+    const onError = vi.fn()
+    const service = createSettingsService(fakeApi({
+      getSettings: () => new Promise((_resolve, reject) => { rejectLoad = reject }),
+    }), { onUnauthorized: vi.fn(), onError })
+    const saved = settings({ enablePinyin: false })
+
+    const loading = service.load()
+    await service.save(saved)
+    rejectLoad(new Error('stale load failed'))
+    await loading
+
+    expect(service.getSnapshot()).toEqual({ status: 'ready', data: saved })
     expect(onError).not.toHaveBeenCalled()
   })
 
