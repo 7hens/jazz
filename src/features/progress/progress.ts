@@ -61,10 +61,11 @@ export function createProgressService(
   let snapshot: ProgressSnapshot = immutableSnapshot({ status: 'idle', data: {} })
   let settledSnapshot = snapshot
   const listeners = new Set<() => void>()
-  let mutationVersion = 0
-  let loadGeneration = 0
+  let nextCommandId = 0
+  let latestStateCommandId = 0
+  let latestUserMutationId = 0
   type SaveTransaction = {
-    snapshot: ProgressSnapshot
+    rows: WordProgress[]
     status: 'pending' | 'succeeded' | 'failed'
   }
   const saveTransactions: SaveTransaction[] = []
@@ -74,15 +75,16 @@ export function createProgressService(
     listeners.forEach(listener => listener())
   }
 
-  function setMutation(next: ProgressSnapshot): number {
-    mutationVersion += 1
-    setSnapshot(next)
-    return mutationVersion
+  function startCommand(isUserMutation: boolean): number {
+    const commandId = ++nextCommandId
+    latestStateCommandId = commandId
+    if (isUserMutation) latestUserMutationId = commandId
+    return commandId
   }
 
-  function setStableMutation(next: ProgressSnapshot) {
+  function setStableSnapshot(next: ProgressSnapshot) {
     saveTransactions.length = 0
-    setMutation(next)
+    setSnapshot(next)
     settledSnapshot = snapshot
   }
 
@@ -91,27 +93,45 @@ export function createProgressService(
     else callbacks.onError(errorMessage(error))
   }
 
+  function visibleSnapshot(): ProgressSnapshot {
+    let data = settledSnapshot.data
+    let hasVisibleSave = false
+    for (const transaction of saveTransactions) {
+      if (transaction.status === 'failed') continue
+      data = mergeRowsInto(data, transaction.rows)
+      hasVisibleSave = true
+    }
+    return hasVisibleSave ? { status: 'ready', data } : settledSnapshot
+  }
+
   function settleSave(transaction: SaveTransaction, status: 'succeeded' | 'failed') {
     if (!saveTransactions.includes(transaction)) return
     transaction.status = status
 
     while (saveTransactions[0]?.status !== 'pending' && saveTransactions.length > 0) {
       const settled = saveTransactions.shift()
-      if (settled?.status === 'succeeded') settledSnapshot = settled.snapshot
+      if (settled?.status === 'succeeded') {
+        settledSnapshot = immutableSnapshot({
+          status: 'ready',
+          data: mergeRowsInto(settledSnapshot.data, settled.rows),
+        })
+      }
     }
 
-    const visible = saveTransactions.findLast(candidate => candidate.status !== 'failed')?.snapshot
-      ?? settledSnapshot
-    if (snapshot !== visible) setMutation(visible)
+    setSnapshot(visibleSnapshot())
     if (saveTransactions.length === 0) settledSnapshot = snapshot
   }
 
-  async function persist(nextData: ProgressData, rows: WordProgress[]) {
-    setMutation({ status: 'ready', data: nextData })
-    const transaction: SaveTransaction = { snapshot, status: 'pending' }
+  async function persist(rows: WordProgress[]) {
+    startCommand(true)
+    const transaction: SaveTransaction = {
+      rows: rows.map(freezeProgress),
+      status: 'pending',
+    }
     saveTransactions.push(transaction)
+    setSnapshot(visibleSnapshot())
     try {
-      await api.putProgress(rows)
+      await api.putProgress(transaction.rows)
       settleSave(transaction, 'succeeded')
     } catch (error) {
       settleSave(transaction, 'failed')
@@ -127,38 +147,39 @@ export function createProgressService(
       return () => listeners.delete(listener)
     },
     async load() {
-      const generation = ++loadGeneration
-      const startingMutationVersion = mutationVersion
+      const commandId = startCommand(false)
       const previousData = snapshot.data
       setSnapshot({ status: 'loading', data: previousData })
       try {
         const rows = (await api.getProgress()).map(normalizeApiRow)
-        if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
-        setStableMutation({ status: 'ready', data: fromRows(rows) })
+        if (latestStateCommandId !== commandId) return
+        setStableSnapshot({ status: 'ready', data: fromRows(rows) })
       } catch (error) {
-        if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
+        if (latestStateCommandId !== commandId) return
         const message = errorMessage(error)
-        setStableMutation({ status: 'error', data: previousData, error: message })
+        setStableSnapshot({ status: 'error', data: previousData, error: message })
         report(error)
       }
     },
     seed(rows) {
-      setStableMutation({ status: 'ready', data: fromRows(rows) })
+      startCommand(true)
+      setStableSnapshot({ status: 'ready', data: fromRows(rows) })
     },
     async saveStep(next) {
       const current = snapshot.data[next.wordId]
       const merged = current ? mergeProgress(current, next) : next
-      await persist({ ...snapshot.data, [merged.wordId]: merged }, [merged])
+      await persist([merged])
     },
     async saveAll(next) {
       const data = mergeRowsInto(snapshot.data, Object.values(next))
-      await persist(data, Object.values(data))
+      const rows = Object.keys(next).flatMap(wordId => data[Number(wordId)] ? [data[Number(wordId)]] : [])
+      await persist(rows)
     },
     async resetAll() {
-      const startingMutationVersion = mutationVersion
+      const commandId = startCommand(false)
       try {
         await api.deleteProgress()
-        if (mutationVersion === startingMutationVersion) setStableMutation({ status: 'ready', data: {} })
+        if (latestUserMutationId <= commandId) setStableSnapshot({ status: 'ready', data: {} })
       } catch (error) {
         report(error)
         throw error

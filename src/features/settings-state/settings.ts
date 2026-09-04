@@ -46,10 +46,10 @@ export function createSettingsService(
   let snapshot: SettingsSnapshot = immutableSnapshot({ status: 'idle', data: defaultSettings() })
   let settledSnapshot = snapshot
   const listeners = new Set<() => void>()
-  let mutationVersion = 0
-  let loadGeneration = 0
+  let nextCommandId = 0
+  let latestStateCommandId = 0
   type SaveTransaction = {
-    snapshot: SettingsSnapshot
+    settings: UserSettings
     status: 'pending' | 'succeeded' | 'failed'
   }
   const saveTransactions: SaveTransaction[] = []
@@ -59,16 +59,27 @@ export function createSettingsService(
     listeners.forEach(listener => listener())
   }
 
-  function setMutation(next: SettingsSnapshot): number {
-    mutationVersion += 1
-    setSnapshot(next)
-    return mutationVersion
+  function startCommand(): number {
+    const commandId = ++nextCommandId
+    latestStateCommandId = commandId
+    return commandId
   }
 
-  function setStableMutation(next: SettingsSnapshot) {
+  function setStableSnapshot(next: SettingsSnapshot) {
     saveTransactions.length = 0
-    setMutation(next)
+    setSnapshot(next)
     settledSnapshot = snapshot
+  }
+
+  function visibleSnapshot(): SettingsSnapshot {
+    let data = settledSnapshot.data
+    let hasVisibleSave = false
+    for (const transaction of saveTransactions) {
+      if (transaction.status === 'failed') continue
+      data = transaction.settings
+      hasVisibleSave = true
+    }
+    return hasVisibleSave ? { status: 'ready', data } : settledSnapshot
   }
 
   function settleSave(transaction: SaveTransaction, status: 'succeeded' | 'failed') {
@@ -77,12 +88,12 @@ export function createSettingsService(
 
     while (saveTransactions[0]?.status !== 'pending' && saveTransactions.length > 0) {
       const settled = saveTransactions.shift()
-      if (settled?.status === 'succeeded') settledSnapshot = settled.snapshot
+      if (settled?.status === 'succeeded') {
+        settledSnapshot = immutableSnapshot({ status: 'ready', data: settled.settings })
+      }
     }
 
-    const visible = saveTransactions.findLast(candidate => candidate.status !== 'failed')?.snapshot
-      ?? settledSnapshot
-    if (snapshot !== visible) setMutation(visible)
+    setSnapshot(visibleSnapshot())
     if (saveTransactions.length === 0) settledSnapshot = snapshot
   }
 
@@ -98,30 +109,30 @@ export function createSettingsService(
       return () => listeners.delete(listener)
     },
     async load() {
-      const generation = ++loadGeneration
-      const startingMutationVersion = mutationVersion
+      const commandId = startCommand()
       const previousData = snapshot.data
       setSnapshot({ status: 'loading', data: previousData })
       try {
         const remote = await api.getSettings()
-        if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
-        setStableMutation({
+        if (latestStateCommandId !== commandId) return
+        setStableSnapshot({
           status: 'ready',
           data: { ...defaultSettings(), ...remote, earnedAchievements: [...remote.earnedAchievements] },
         })
       } catch (error) {
-        if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
+        if (latestStateCommandId !== commandId) return
         const message = errorMessage(error)
-        setStableMutation({ status: 'error', data: previousData, error: message })
+        setStableSnapshot({ status: 'error', data: previousData, error: message })
         report(error)
       }
     },
     async save(next) {
-      setMutation({ status: 'ready', data: next })
-      const transaction: SaveTransaction = { snapshot, status: 'pending' }
+      startCommand()
+      const transaction: SaveTransaction = { settings: freezeSettings(next), status: 'pending' }
       saveTransactions.push(transaction)
+      setSnapshot(visibleSnapshot())
       try {
-        await api.putSettings(next)
+        await api.putSettings(transaction.settings)
         settleSave(transaction, 'succeeded')
       } catch (error) {
         settleSave(transaction, 'failed')

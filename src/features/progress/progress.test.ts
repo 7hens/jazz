@@ -170,6 +170,58 @@ describe('ProgressService', () => {
     expect(service.getSnapshot()).toEqual({ status: 'ready', data: { 1: base } })
   })
 
+  it('removes failed word A when a later save for word B succeeds first', async () => {
+    let rejectFirst!: (error: Error) => void
+    let resolveSecond!: () => void
+    const putProgress = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+      .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve }))
+    const service = createProgressService(fakeApi({ putProgress }), {
+      onUnauthorized: vi.fn(),
+      onError: vi.fn(),
+    })
+    const stableA = progress(1)
+    service.seed([stableA])
+
+    const savingA = service.saveStep(progress(1, true, 30))
+    const savingB = service.saveStep(progress(2, true, 60))
+    resolveSecond()
+    await savingB
+    rejectFirst(new Error('A failed'))
+    await expect(savingA).rejects.toThrow('A failed')
+
+    expect(service.getSnapshot().data).toEqual({
+      1: stableA,
+      2: progress(2, true, 60),
+    })
+  })
+
+  it('removes failed word A when it rejects before a later word B save succeeds', async () => {
+    let rejectFirst!: (error: Error) => void
+    let resolveSecond!: () => void
+    const putProgress = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+      .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve }))
+    const service = createProgressService(fakeApi({ putProgress }), {
+      onUnauthorized: vi.fn(),
+      onError: vi.fn(),
+    })
+    const stableA = progress(1)
+    service.seed([stableA])
+
+    const savingA = service.saveStep(progress(1, true, 30))
+    const savingB = service.saveStep(progress(2, true, 60))
+    rejectFirst(new Error('A failed'))
+    await expect(savingA).rejects.toThrow('A failed')
+    resolveSecond()
+    await savingB
+
+    expect(service.getSnapshot().data).toEqual({
+      1: stableA,
+      2: progress(2, true, 60),
+    })
+  })
+
   it('reports a load error while preserving the previously loaded data', async () => {
     const onError = vi.fn()
     const before = progress(1)
@@ -260,6 +312,29 @@ describe('ProgressService', () => {
       1: progress(1, true, 90),
       2: progress(2, true, 60),
     })
+  })
+
+  it('clears progress when a reset starts during a load and GET resolves first', async () => {
+    let resolveLoad!: (rows: Awaited<ReturnType<ApiService['getProgress']>>) => void
+    let resolveDelete!: () => void
+    const service = createProgressService(fakeApi({
+      getProgress: () => new Promise(resolve => { resolveLoad = resolve }),
+      deleteProgress: () => new Promise<void>(resolve => { resolveDelete = resolve }),
+    }), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([progress(1, true, 90)])
+
+    const loading = service.load()
+    const resetting = service.resetAll()
+    resolveLoad([{
+      wordId: 2,
+      completed: { pinyin: true, hanzi: true, english: true },
+      starsEarned: 60,
+    }])
+    await loading
+    resolveDelete()
+    await resetting
+
+    expect(service.getSnapshot()).toEqual({ status: 'ready', data: {} })
   })
 
   it('keeps local progress and rejects when DELETE fails', async () => {
