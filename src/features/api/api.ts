@@ -1,14 +1,13 @@
 import { ApiError } from '@/shared/api-error'
-import type { ApiService, User } from '@/shared/services/api'
-import type { UserSettings, WordProgress } from '@/types'
+import type { ApiService, ApiUserSettings, ApiWordProgress, User } from '@/shared/services/api'
 
 type JsonObject = Record<string, unknown>
 type Validator<T> = (payload: unknown) => payload is T
 
 type UserResponse = { user: User }
 type LoginResponse = { ok: true; user: User }
-type ProgressResponse = { progress: WordProgress[] }
-type SettingsResponse = { settings: UserSettings }
+type ProgressResponse = { progress: ApiWordProgress[] }
+type SettingsResponse = { settings: ApiUserSettings }
 type OkResponse = { ok: true }
 
 function isObject(value: unknown): value is JsonObject {
@@ -22,8 +21,8 @@ function isUser(value: unknown): value is User {
     && typeof value.name === 'string'
 }
 
-function isWordProgress(value: unknown): value is WordProgress {
-  if (!isObject(value) || typeof value.wordId !== 'number' || !Number.isInteger(value.wordId)) return false
+function isWordProgress(value: unknown): value is ApiWordProgress {
+  if (!isObject(value) || typeof value.wordId !== 'number' || !Number.isInteger(value.wordId) || value.wordId < 1 || value.wordId > 100) return false
   if (!isObject(value.completed) || typeof value.starsEarned !== 'number' || !Number.isFinite(value.starsEarned)) return false
 
   return typeof value.completed.pinyin === 'boolean'
@@ -31,7 +30,7 @@ function isWordProgress(value: unknown): value is WordProgress {
     && typeof value.completed.english === 'boolean'
 }
 
-function isSettings(value: unknown): value is UserSettings {
+function isSettings(value: unknown): value is ApiUserSettings {
   if (!isObject(value)) return false
 
   return typeof value.enablePinyin === 'boolean'

@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, expectTypeOf, it, vi } from 'vitest'
+import type { ApiService, ApiUserSettings, ApiWordProgress } from '@/shared/services/api'
+import type { UserSettings, WordProgress } from '@/types'
 import { createHttpApiService } from './api'
 
 const user = { id: 'u', email: 'e', name: 'n' }
@@ -32,6 +34,13 @@ const workerSettings = {
 }
 
 describe('HTTP API service', () => {
+  it('exposes timestamp-free Worker shapes for GET responses', () => {
+    expectTypeOf<ApiService['getProgress']>().returns.toEqualTypeOf<Promise<ApiWordProgress[]>>()
+    expectTypeOf<ApiService['getSettings']>().returns.toEqualTypeOf<Promise<ApiUserSettings>>()
+    expectTypeOf<ApiWordProgress>().toEqualTypeOf<Omit<WordProgress, 'updatedAt'>>()
+    expectTypeOf<ApiUserSettings>().toEqualTypeOf<Omit<UserSettings, 'updatedAt'>>()
+  })
+
   it('sends credentials for me', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ user }), { status: 200 }))
 
@@ -100,6 +109,17 @@ describe('HTTP API service', () => {
 
     await expect(createHttpApiService(fetcher).getSettings()).resolves.toEqual(workerSettings)
     expect(fetcher).toHaveBeenCalledWith('/api/settings', { credentials: 'include' })
+  })
+
+  it.each([0, 101])('rejects a progress response with out-of-range word ID %s', async (wordId) => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      progress: [{ ...workerProgress[0], wordId }],
+    }), { status: 200 }))
+
+    await expect(createHttpApiService(fetcher).getProgress()).rejects.toMatchObject({
+      status: 200,
+      message: 'Invalid API response',
+    })
   })
 
   it('serializes settings without the client-only updatedAt field', async () => {
