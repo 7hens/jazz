@@ -6,6 +6,7 @@ import { firstTargetId, fullComplete } from '../../game/lesson'
 import { titleForStars } from '../../game/progress'
 import { cn } from '../../lib/utils'
 import { play } from '../../game/sfx'
+import { LingLing } from './LingLing'
 import type { CategoryKey, UserSettings, WordProgress } from '../../types'
 import { Button } from '../ui/button'
 
@@ -110,6 +111,8 @@ export function WordMapView({
             已全完成 {doneCount}/100 · 当前称号 🎖{title.name}
           </p>
         </section>
+
+        <LingLing completedWords={doneCount} />
 
         {target > WORDS.length ? (
           <div className="mb-6 rounded-2xl border border-emerald/40 bg-emerald/10 px-4 py-3 text-center text-sm font-bold text-emerald">
