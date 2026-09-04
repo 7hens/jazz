@@ -139,6 +139,37 @@ describe('ProgressService', () => {
     })
   })
 
+  it('returns to the persisted base when overlapping saves both fail newest first', async () => {
+    let rejectFirst!: (error: Error) => void
+    let rejectSecond!: (error: Error) => void
+    const putProgress = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectSecond = reject }))
+    const service = createProgressService(fakeApi({ putProgress }), {
+      onUnauthorized: vi.fn(),
+      onError: vi.fn(),
+    })
+    const base = progress(1)
+    service.seed([base])
+
+    const first = service.saveStep({
+      ...progress(1),
+      completed: { pinyin: true, hanzi: false, english: false },
+      starsEarned: 30,
+    })
+    const second = service.saveStep({
+      ...progress(1),
+      completed: { pinyin: false, hanzi: true, english: false },
+      starsEarned: 60,
+    })
+    rejectSecond(new Error('second failed'))
+    await expect(second).rejects.toThrow('second failed')
+    rejectFirst(new Error('first failed'))
+    await expect(first).rejects.toThrow('first failed')
+
+    expect(service.getSnapshot()).toEqual({ status: 'ready', data: { 1: base } })
+  })
+
   it('reports a load error while preserving the previously loaded data', async () => {
     const onError = vi.fn()
     const before = progress(1)
@@ -211,6 +242,24 @@ describe('ProgressService', () => {
     resolveDelete()
     await resetting
     expect(service.getSnapshot()).toEqual({ status: 'ready', data: {} })
+  })
+
+  it('does not let an older reset completion clear progress saved afterward', async () => {
+    let resolveDelete!: () => void
+    const service = createProgressService(fakeApi({
+      deleteProgress: () => new Promise<void>(resolve => { resolveDelete = resolve }),
+    }), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([progress(1, true, 90)])
+
+    const resetting = service.resetAll()
+    await service.saveStep(progress(2, true, 60))
+    resolveDelete()
+    await resetting
+
+    expect(service.getSnapshot().data).toMatchObject({
+      1: progress(1, true, 90),
+      2: progress(2, true, 60),
+    })
   })
 
   it('keeps local progress and rejects when DELETE fails', async () => {

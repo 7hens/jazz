@@ -139,6 +139,28 @@ describe('SettingsService', () => {
     expect(service.getSnapshot()).toEqual({ status: 'ready', data: newest })
   })
 
+  it('returns to the persisted base when overlapping saves both fail newest first', async () => {
+    let rejectFirst!: (error: Error) => void
+    let rejectSecond!: (error: Error) => void
+    const putSettings = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject }))
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectSecond = reject }))
+    const service = createSettingsService(fakeApi({ putSettings }), {
+      onUnauthorized: vi.fn(),
+      onError: vi.fn(),
+    })
+    const base = service.getSnapshot()
+
+    const first = service.save(settings({ enablePinyin: false }))
+    const second = service.save(settings({ enablePinyin: false, enableEnglish: false }))
+    rejectSecond(new Error('second failed'))
+    await expect(second).rejects.toThrow('second failed')
+    rejectFirst(new Error('first failed'))
+    await expect(first).rejects.toThrow('first failed')
+
+    expect(service.getSnapshot()).toEqual(base)
+  })
+
   it('reports load errors while preserving data and routes 401 to onUnauthorized', async () => {
     const onUnauthorized = vi.fn()
     const onError = vi.fn()

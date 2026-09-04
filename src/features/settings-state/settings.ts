@@ -44,9 +44,15 @@ export function createSettingsService(
   callbacks: SettingsServiceCallbacks,
 ): SettingsService {
   let snapshot: SettingsSnapshot = immutableSnapshot({ status: 'idle', data: defaultSettings() })
+  let settledSnapshot = snapshot
   const listeners = new Set<() => void>()
   let mutationVersion = 0
   let loadGeneration = 0
+  type SaveTransaction = {
+    snapshot: SettingsSnapshot
+    status: 'pending' | 'succeeded' | 'failed'
+  }
+  const saveTransactions: SaveTransaction[] = []
 
   function setSnapshot(next: SettingsSnapshot) {
     snapshot = immutableSnapshot(next)
@@ -57,6 +63,27 @@ export function createSettingsService(
     mutationVersion += 1
     setSnapshot(next)
     return mutationVersion
+  }
+
+  function setStableMutation(next: SettingsSnapshot) {
+    saveTransactions.length = 0
+    setMutation(next)
+    settledSnapshot = snapshot
+  }
+
+  function settleSave(transaction: SaveTransaction, status: 'succeeded' | 'failed') {
+    if (!saveTransactions.includes(transaction)) return
+    transaction.status = status
+
+    while (saveTransactions[0]?.status !== 'pending' && saveTransactions.length > 0) {
+      const settled = saveTransactions.shift()
+      if (settled?.status === 'succeeded') settledSnapshot = settled.snapshot
+    }
+
+    const visible = saveTransactions.findLast(candidate => candidate.status !== 'failed')?.snapshot
+      ?? settledSnapshot
+    if (snapshot !== visible) setMutation(visible)
+    if (saveTransactions.length === 0) settledSnapshot = snapshot
   }
 
   function report(error: unknown) {
@@ -78,24 +105,26 @@ export function createSettingsService(
       try {
         const remote = await api.getSettings()
         if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
-        setSnapshot({
+        setStableMutation({
           status: 'ready',
           data: { ...defaultSettings(), ...remote, earnedAchievements: [...remote.earnedAchievements] },
         })
       } catch (error) {
         if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
         const message = errorMessage(error)
-        setSnapshot({ status: 'error', data: previousData, error: message })
+        setStableMutation({ status: 'error', data: previousData, error: message })
         report(error)
       }
     },
     async save(next) {
-      const previous = snapshot
-      const operationVersion = setMutation({ status: 'ready', data: next })
+      setMutation({ status: 'ready', data: next })
+      const transaction: SaveTransaction = { snapshot, status: 'pending' }
+      saveTransactions.push(transaction)
       try {
         await api.putSettings(next)
+        settleSave(transaction, 'succeeded')
       } catch (error) {
-        if (mutationVersion === operationVersion) setMutation(previous)
+        settleSave(transaction, 'failed')
         report(error)
         throw error
       }

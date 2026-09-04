@@ -59,9 +59,15 @@ export function createProgressService(
   callbacks: ProgressServiceCallbacks,
 ): ProgressService {
   let snapshot: ProgressSnapshot = immutableSnapshot({ status: 'idle', data: {} })
+  let settledSnapshot = snapshot
   const listeners = new Set<() => void>()
   let mutationVersion = 0
   let loadGeneration = 0
+  type SaveTransaction = {
+    snapshot: ProgressSnapshot
+    status: 'pending' | 'succeeded' | 'failed'
+  }
+  const saveTransactions: SaveTransaction[] = []
 
   function setSnapshot(next: ProgressSnapshot) {
     snapshot = immutableSnapshot(next)
@@ -74,18 +80,41 @@ export function createProgressService(
     return mutationVersion
   }
 
+  function setStableMutation(next: ProgressSnapshot) {
+    saveTransactions.length = 0
+    setMutation(next)
+    settledSnapshot = snapshot
+  }
+
   function report(error: unknown) {
     if (error instanceof ApiError && error.status === 401) callbacks.onUnauthorized()
     else callbacks.onError(errorMessage(error))
   }
 
+  function settleSave(transaction: SaveTransaction, status: 'succeeded' | 'failed') {
+    if (!saveTransactions.includes(transaction)) return
+    transaction.status = status
+
+    while (saveTransactions[0]?.status !== 'pending' && saveTransactions.length > 0) {
+      const settled = saveTransactions.shift()
+      if (settled?.status === 'succeeded') settledSnapshot = settled.snapshot
+    }
+
+    const visible = saveTransactions.findLast(candidate => candidate.status !== 'failed')?.snapshot
+      ?? settledSnapshot
+    if (snapshot !== visible) setMutation(visible)
+    if (saveTransactions.length === 0) settledSnapshot = snapshot
+  }
+
   async function persist(nextData: ProgressData, rows: WordProgress[]) {
-    const previous = snapshot
-    const operationVersion = setMutation({ status: 'ready', data: nextData })
+    setMutation({ status: 'ready', data: nextData })
+    const transaction: SaveTransaction = { snapshot, status: 'pending' }
+    saveTransactions.push(transaction)
     try {
       await api.putProgress(rows)
+      settleSave(transaction, 'succeeded')
     } catch (error) {
-      if (mutationVersion === operationVersion) setMutation(previous)
+      settleSave(transaction, 'failed')
       report(error)
       throw error
     }
@@ -105,16 +134,16 @@ export function createProgressService(
       try {
         const rows = (await api.getProgress()).map(normalizeApiRow)
         if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
-        setSnapshot({ status: 'ready', data: fromRows(rows) })
+        setStableMutation({ status: 'ready', data: fromRows(rows) })
       } catch (error) {
         if (generation !== loadGeneration || mutationVersion !== startingMutationVersion) return
         const message = errorMessage(error)
-        setSnapshot({ status: 'error', data: previousData, error: message })
+        setStableMutation({ status: 'error', data: previousData, error: message })
         report(error)
       }
     },
     seed(rows) {
-      setMutation({ status: 'ready', data: fromRows(rows) })
+      setStableMutation({ status: 'ready', data: fromRows(rows) })
     },
     async saveStep(next) {
       const current = snapshot.data[next.wordId]
@@ -126,9 +155,10 @@ export function createProgressService(
       await persist(data, Object.values(data))
     },
     async resetAll() {
+      const startingMutationVersion = mutationVersion
       try {
         await api.deleteProgress()
-        setMutation({ status: 'ready', data: {} })
+        if (mutationVersion === startingMutationVersion) setStableMutation({ status: 'ready', data: {} })
       } catch (error) {
         report(error)
         throw error
