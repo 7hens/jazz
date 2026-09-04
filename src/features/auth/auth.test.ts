@@ -27,6 +27,14 @@ function fakeApi(overrides: Partial<ApiService> = {}): ApiService {
 }
 
 describe('AuthService', () => {
+  it('exposes a frozen initial checking snapshot', () => {
+    const initial = createAuthService(fakeApi()).getSnapshot()
+
+    expect(Object.isFrozen(initial)).toBe(true)
+    expect(() => { (initial as { status: string }).status = 'anonymous' }).toThrow(TypeError)
+    expect(initial).toEqual({ status: 'checking' })
+  })
+
   it('maps a 401 check to anonymous', async () => {
     const auth = createAuthService(fakeApi({
       me: async () => { throw new ApiError(401, 'Unauthorized') },

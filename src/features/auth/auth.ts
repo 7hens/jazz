@@ -17,7 +17,7 @@ function immutableSnapshot(next: AuthSnapshot): AuthSnapshot {
 }
 
 export function createAuthService(api: ApiService): AuthService {
-  let snapshot: AuthSnapshot = { status: 'checking' }
+  let snapshot: AuthSnapshot = immutableSnapshot({ status: 'checking' })
   const listeners = new Set<() => void>()
 
   function setSnapshot(next: AuthSnapshot) {
