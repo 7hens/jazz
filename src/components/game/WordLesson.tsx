@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -45,9 +45,12 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
   const [revealId, setRevealId] = useState<string | null>(null)
   const [wrongId, setWrongId] = useState<string | null>(null)
   const [correctId, setCorrectId] = useState<string | null>(null)
-  const [comboBurst, setComboBurst] = useState<{ text: string; className: string } | null>(null)
+  const [comboBurst, setComboBurst] = useState<{ key: number; text: string; className: string } | null>(null)
   const prevCombo = useRef(combo)
+  const burstSeq = useRef(0)
   const timerRef = useRef<number | null>(null)
+  // 稳定引用 → ComboDisplay 挂载期 1s timer 不被父级重渲染重置
+  const clearBurst = useCallback(() => setComboBurst(null), [])
 
   const skill = steps[stepIndex]
   const q: Question = questions[qIndex]
@@ -61,7 +64,7 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
     [],
   )
 
-  // combo 升高且越过阈值 → 弹字 1s;combo 回落(断连)→ 立即收起;combo===10 撒花
+  // combo 升高且越过阈值 → 弹字(1s 自隐由 ComboDisplay 挂载期内部计时,连答不再续命);combo 回落(断连)→ 立即收起;combo===10 撒花
   useEffect(() => {
     const prev = prevCombo.current
     prevCombo.current = combo
@@ -70,10 +73,10 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
       return
     }
     if (!crossedLevel(prev, combo)) return
-    setComboBurst(comboText(combo))
+    const { text, className } = comboText(combo)
+    burstSeq.current += 1
+    setComboBurst({ key: burstSeq.current, text, className })
     if (combo === 10) celebrate('combo10')
-    const t = window.setTimeout(() => setComboBurst(null), 1000)
-    return () => window.clearTimeout(t)
   }, [combo])
 
   // step/round 变化 → 重新出题并复位
@@ -239,8 +242,17 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
             </motion.div>
           </AnimatePresence>
 
-          {/* 连击阈值弹字(1s 自隐) */}
-          <AnimatePresence>{comboBurst ? <ComboDisplay {...comboBurst} /> : null}</AnimatePresence>
+          {/* 连击阈值弹字(每次跨阈值递增 key 强制重挂载 → 独立 1s 自隐) */}
+          <AnimatePresence>
+            {comboBurst ? (
+              <ComboDisplay
+                key={comboBurst.key}
+                text={comboBurst.text}
+                className={comboBurst.className}
+                onDone={clearBurst}
+              />
+            ) : null}
+          </AnimatePresence>
 
           {/* 反馈徽标 */}
           <div className="flex min-h-[52px] items-center justify-center pt-3">

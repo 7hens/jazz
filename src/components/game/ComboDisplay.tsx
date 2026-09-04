@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { motion } from 'motion/react'
 import { cn } from '../../lib/utils'
 
@@ -16,7 +17,12 @@ export function comboText(combo: number): { text: string; className: string } {
   return { text: hit.text, className: hit.className }
 }
 
-export function ComboDisplay({ text, className }: { text: string; className: string }) {
+export function ComboDisplay({ text, className, onDone }: { text: string; className: string; onDone: () => void }) {
+  // 1s 自隐归属组件:挂载即计时,独立于后续 combo 变化(不因连答续命)
+  useEffect(() => {
+    const t = window.setTimeout(onDone, 1000)
+    return () => window.clearTimeout(t)
+  }, [onDone])
   return (
     <motion.p
       initial={{ opacity: 0, y: -20 }}
