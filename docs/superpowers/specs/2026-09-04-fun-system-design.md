@@ -160,7 +160,6 @@ ALTER TABLE user_settings ADD COLUMN last_active_date     TEXT NOT NULL DEFAULT 
 - **奖励发放**:扫描出的新成就奖励并入本次结算词行(含非 eligible 重学词——即时并入该词行,成就一次性、无刷星);连击池 bonusPool 与幸运仅 eligible 首通词并入;`grand_master` 等只在第 100 词首通时达成,天然落在末词行。
 - **计数在扫描前累加**:本词 perfect(含重学完美)先计入 `perfectWords`,本词 eligible 首通先计入 `firstCompleteToday`,再扫(首个 perfect 词/马拉松当次即触发)。
 - 展示:结算后顺序弹 `AchievementPopup`(emoji + 名 + 描述 + `+奖励`),每个 200 粒子撒花;与幸运弹层排队,不重叠于 WordDone 操作按钮。
-- 展示:结算后顺序弹 `AchievementPopup`(emoji + 名 + 描述 + `+奖励`),每个 200 粒子撒花;与幸运弹层排队,不重叠于 WordDone 操作按钮。
 
 ## 8. 词间过渡文案(teaser)
 
