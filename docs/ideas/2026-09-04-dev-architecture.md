@@ -3,6 +3,7 @@
 > **版本**：v4.0（合并 v3.0 评审意见与 v2.0 修订）
 > **适用项目**：魔法语言岛 / 魔法成长乐园
 > **核心架构**：三层（shared → features → app），服务注册表解耦，Entry 组件模式
+> **状态**：⚠️ 目标态提案，非当前代码事实源。所描述的 shared/features/app 三层 + 服务注册表 + IndexedDB/mock API 与现行结构（`worker/` + D1 + 单页 App.tsx 状态机）**不同**。事实源 = `CLAUDE.md`「架构」节 + 源码。
 
 ## 1. 架构总览
 

@@ -33,13 +33,20 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 **发布**:执行流水线(步骤/闸门/坑)走 `/release`(项目 skill);版本规范/铁律/事实在本文件「部署与版本发布」节。发布行为改动时,skill(可执行)与本节事实**两处同步**。
 
+### 需求与版本管理(流转视图,详则见 `docs/ideas/2026-09-04-feature-management.md`)
+
+- 想法 → `docs/IDEAS.md`(停车场,先入池不承诺);排期/拒绝 → 本文件「二期 backlog」/「真不做」(超 ~10 条或含拆解时拆出 `docs/BACKLOG.md`)。
+- 立项详设(需求详档唯一位置)→ `docs/superpowers/specs/`;当前迭代执行 → `docs/superpowers/plans/` + `.superpowers/sdd/`(一次一个,完成即走 `/release`)。
+- 提案/规范文档 → `docs/ideas/<YYYY-MM-DD>-<topic>.md`(日期前缀,命名与 specs 同构)。
+- 历史 → 根 `CHANGELOG.md`(只追加)。发布命令/闸门一律指向 `/release`,本文件零重复。
+
 ### 部署与版本发布(Cloudflare Workers + Assets)
 
 **流水线执行走 `/release`(项目 skill,含闸门/回滚分支/坑)。本文件只留事实与铁律,不重复步骤。**
 
 - **环境映射**:生产 = 顶层默认 env(worker `jazz-life-tracker`,现域名/rollback 语义);预览 = `[env.preview]`(独立 D1 `jazz-life-tracker-preview`)。**禁止新增 `[env.production]`**(wrangler env 派生独立 worker → 脱域名/数据)。
 - **命令**:`npm run deploy`(生产)/ `npm run deploy:preview`(预览)/ `npm run db:local`(本地迁移)。wrangler 一律显式 `--config wrangler.toml`,否则构建产物 `dist/jazz_life_tracker/wrangler.json` 劫持配置 → env 失效、DB 落生产库(详「生产运行模型」红线)。
-- **版本语义**:bug=patch / 新能力=minor / 破坏性=1.0.0 起 major(`0.1.0` 起步)。tag 仅在「部署成功 + 浏览器冒烟通过」后打:`npm version <level> -m "chore(release): v%s"` → `git push origin main --tags`。部署/冒烟失败**绝不 `npm version`**(孤儿 tag)。
+- **版本语义**:bug=patch / 新能力=minor / 破坏性=1.0.0 起 major(`0.1.0` 起步)。判破坏性:删/重命名字段·表·API 路由、改字段类型不可自动转换 = major;新增表、新字段(带 `DEFAULT` 或可 `NULL`)、新增 API 路由 = 向下兼容 → minor。tag 仅在「部署成功 + 浏览器冒烟通过」后打:`npm version <level> -m "chore(release): v%s"` → `git push origin main --tags`。部署/冒烟失败**绝不 `npm version`**(孤儿 tag)。
 - **回滚**:代码/前端错 → `wrangler rollback --config wrangler.toml`(<10s,前后端同切);env/绑定错 → 随 config 或 `--var` deploy 固化,禁 Dashboard 手改(rollback 不恢复变量);D1 数据坏 → 绝不回滚迁移文件,hotfix 改代码或 SQL 修复。分支细节走 `/release`。
 - **认证令牌**:prod `ADMIN_TOKEN` 已是 secret,**勿覆盖**(同名覆盖 = 已存 cookie 全失效);preview 需独立 secret(`wrangler secret put ADMIN_TOKEN --config wrangler.toml --env preview`,随机值);本地 dev 读 `.dev.vars`(gitignore,默认 `jazz-local-dev-token`,未配则登录 401)。`wrangler.toml` 持 worker 入口、D1 binding、assets、database_id 与 preview env。
 
