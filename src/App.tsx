@@ -6,10 +6,13 @@ import { WordMapView } from './components/game/WordMapView'
 import { WordLesson } from './components/game/WordLesson'
 import { WordDone } from './components/game/WordDone'
 import { SettingsPanel } from './components/game/SettingsPanel'
-import { ToastProvider } from './components/Toast'
+import { useToast } from './components/Toast'
 import { WORDS, wordById } from './data/words'
 import { emptyProgress, isValidWordProgress, settleWord, titleForStars } from './game/progress'
 import { getSoundOn, setSoundOn } from './game/audio'
+import { loadCombo, loadMaxCombo, nextCombo, saveCombo, saveMaxCombo, type AnswerKind } from './game/combo'
+import { celebrate } from './game/confetti'
+import { getRandomPraise } from './game/praise'
 import type { SkillKey, UserSettings, WordProgress, WordUnit } from './types'
 
 type Screen = 'boot' | 'login' | 'map' | 'lesson' | 'done'
@@ -43,6 +46,11 @@ function App() {
   const settingsRef = useRef(settings)
   const gainRef = useRef({ step: 0, bonus: 0 })
   const activeWordIdRef = useRef<number | null>(null)
+  // 连击会话态:初值读 sessionStorage → 刷新保持;comboRef 防 handleAnswer 快速连答闭包旧值
+  const [combo, setCombo] = useState(() => loadCombo())
+  const comboRef = useRef(combo)
+  const maxComboRef = useRef(loadMaxCombo())
+  const { showToast } = useToast()
 
   progressRef.current = progress
   settingsRef.current = settings
@@ -163,6 +171,21 @@ function App() {
       method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ progress: [r.next] }),
     }).catch(() => {})
+    // 一步(2 题)全过:轻庆祝 + 夸奖 toast(每步一次,非每题)
+    celebrate('step')
+    showToast('success', getRandomPraise())
+  }
+
+  /** 每题作答 → 更新连击会话态(ref 防快速连答闭包旧值)并持久化 */
+  function handleAnswer(kind: AnswerKind) {
+    const n = nextCombo(comboRef.current, kind)
+    comboRef.current = n
+    saveCombo(n)
+    setCombo(n)
+    if (n > maxComboRef.current) {
+      maxComboRef.current = n
+      saveMaxCombo(n)
+    }
   }
 
   /** 全部技能步完成 → 展示本词结算 */
@@ -197,6 +220,8 @@ function App() {
         key={lessonKey}
         word={activeWord}
         settings={settings}
+        combo={combo}
+        onAnswer={handleAnswer}
         onStepPass={handleStepPass}
         onLessonComplete={handleLessonComplete}
         onExit={exitToMap}
@@ -237,7 +262,8 @@ function App() {
     )
   }
 
-  return <ToastProvider><MotionConfig reducedMotion="user">{content}</MotionConfig></ToastProvider>
+  // ToastProvider 已上移到 main.tsx 包 <App/>(App 内 handleStepPass 亦需 useToast)
+  return <MotionConfig reducedMotion="user">{content}</MotionConfig>
 }
 
 export default App

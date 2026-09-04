@@ -5,7 +5,10 @@ import { cn } from '../../lib/utils'
 import { makeStepQuestions } from '../../game/engine'
 import { play } from '../../game/sfx'
 import { stepsFor } from '../../game/lesson'
+import { celebrate } from '../../game/confetti'
+import type { AnswerKind } from '../../game/combo'
 import type { Question, SkillKey, UserSettings, WordUnit } from '../../types'
+import { ComboDisplay, comboText } from './ComboDisplay'
 import { Button } from '../ui/button'
 import { Choice } from './quiz/Choice'
 import { ListenChoice } from './quiz/ListenChoice'
@@ -14,6 +17,8 @@ import { MatchGame } from './quiz/MatchGame'
 export type WordLessonProps = {
   word: WordUnit
   settings: UserSettings
+  combo: number
+  onAnswer: (kind: AnswerKind) => void
   onStepPass: (skill: SkillKey) => void
   onLessonComplete: () => void
   onExit: () => void
@@ -23,7 +28,13 @@ const SKILL_LABEL: Record<SkillKey, string> = { pinyin: '拼音', hanzi: '汉字
 
 const CORRECT_DELAY_MS = 650
 
-export function WordLesson({ word, settings, onStepPass, onLessonComplete, onExit }: WordLessonProps) {
+// 连击阈值(与 combo.ts 星级无关,纯展示档位);跨过任一档即弹字
+const COMBO_HITS = [1, 2, 3, 5, 8, 10]
+function crossedLevel(prev: number, next: number): boolean {
+  return COMBO_HITS.some((h) => prev < h && next >= h)
+}
+
+export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLessonComplete, onExit }: WordLessonProps) {
   const steps = stepsFor(settings)
   const [stepIndex, setStepIndex] = useState(0)
   const [round, setRound] = useState(0) // 失败重建同步
@@ -34,6 +45,8 @@ export function WordLesson({ word, settings, onStepPass, onLessonComplete, onExi
   const [revealId, setRevealId] = useState<string | null>(null)
   const [wrongId, setWrongId] = useState<string | null>(null)
   const [correctId, setCorrectId] = useState<string | null>(null)
+  const [comboBurst, setComboBurst] = useState<{ text: string; className: string } | null>(null)
+  const prevCombo = useRef(combo)
   const timerRef = useRef<number | null>(null)
 
   const skill = steps[stepIndex]
@@ -47,6 +60,21 @@ export function WordLesson({ word, settings, onStepPass, onLessonComplete, onExi
     },
     [],
   )
+
+  // combo 升高且越过阈值 → 弹字 1s;combo 回落(断连)→ 立即收起;combo===10 撒花
+  useEffect(() => {
+    const prev = prevCombo.current
+    prevCombo.current = combo
+    if (combo <= prev) {
+      setComboBurst(null)
+      return
+    }
+    if (!crossedLevel(prev, combo)) return
+    setComboBurst(comboText(combo))
+    if (combo === 10) celebrate('combo10')
+    const t = window.setTimeout(() => setComboBurst(null), 1000)
+    return () => window.clearTimeout(t)
+  }, [combo])
 
   // step/round 变化 → 重新出题并复位
   useEffect(() => {
@@ -93,7 +121,8 @@ export function WordLesson({ word, settings, onStepPass, onLessonComplete, onExi
   function handleAnswer(selectedId: string) {
     if (!q || phase !== 'answering') return
     if (q.kind === 'match') {
-      // MatchGame 只在全部配对成功时 onComplete;整组对 = 该题一次通过
+      // MatchGame 只在全部配对成功时 onComplete;整组对 = 该题一次通过(attempt 恒 1)
+      onAnswer('first')
       play('correct')
       setCorrectId(q.left[0]?.id ?? '')
       setPhase('feedback')
@@ -101,18 +130,22 @@ export function WordLesson({ word, settings, onStepPass, onLessonComplete, onExi
       return
     }
     const correct = selectedId === q.answerId
+    const firstTry = attempt === 1
     if (correct) {
+      onAnswer(firstTry ? 'first' : 'retry')
       play('correct')
       setCorrectId(selectedId)
       setWrongId(null)
       setPhase('feedback')
       later(goNextQuestion, CORRECT_DELAY_MS)
     } else if (attempt === 1) {
+      onAnswer('wrong')
       play('wrong')
       setWrongId(selectedId)
       setAttempt(2)
     } else {
       // 两次均错 → 步失败,重做整步
+      onAnswer('wrong')
       play('wrong')
       setWrongId(selectedId)
       setRevealId(q.answerId)
@@ -205,6 +238,9 @@ export function WordLesson({ word, settings, onStepPass, onLessonComplete, onExi
               {renderQuestion(q)}
             </motion.div>
           </AnimatePresence>
+
+          {/* 连击阈值弹字(1s 自隐) */}
+          <AnimatePresence>{comboBurst ? <ComboDisplay {...comboBurst} /> : null}</AnimatePresence>
 
           {/* 反馈徽标 */}
           <div className="flex min-h-[52px] items-center justify-center pt-3">
