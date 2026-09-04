@@ -114,11 +114,11 @@ ALTER TABLE user_settings ADD COLUMN last_active_date     TEXT NOT NULL DEFAULT 
 
 | 场景 | 连击计数 | 加成池累计 | 幸运 | 成就扫描 | 星尘入行 |
 |---|---|---|---|---|---|
-| eligible 词完成 | ✓ | ✓ | ✓ 10% | ✓ | ✓ |
-| 非 eligible 词完成(重学) | ✓(显示) | ✗ 丢弃 | ✗ | ✓ | ✗(见下) |
+| eligible 词完成 | ✓ | ✓ | ✓ 10% | ✓ | ✓(连击池+幸运+成就) |
+| 非 eligible 词完成(重学) | ✓(显示) | ✗ 丢弃 | ✗ | ✓ | 仅一次性成就奖励(见下),连击池/幸运不发 |
 
 - 连击跨词持续(sessionStorage,刷新保持、关浏览器归零),答错即 `resetCombo`,与词属性无关。
-- 重学词:夸奖/特效照给(正反馈),但**不产生新星尘** → 无刷星、称号经济与一期一致。
+- 重学词:夸奖/特效照给(正反馈);连击池与幸运**不产生新星尘**;一次性成就若达成则即时入行。
 - **成就扫描即发(R5 裁定,无挂起池)**:成就一次性(earned 持久集,不重发)→ 非刷星源,可安全即时发奖。成就扫描在每次词 done 点执行(含重学,此时可能新达成 early_bird/perfect 等无需首通的成就);**任何**词完成(含非 eligible 重学)扫到的新成就,奖励即时并入当前词行统一补 PUT(单调,worker MAX 幂等;弹层照常展示)。连击池与幸运仅 eligible 首通词计入。
 
 ### 6.4 结算编排(改动 [App.tsx](../../../src/App.tsx) `handleLessonComplete`)
@@ -140,7 +140,7 @@ ALTER TABLE user_settings ADD COLUMN last_active_date     TEXT NOT NULL DEFAULT 
 
 ### 7.1 判定口径
 - **perfect 词**:本词当时启用的全部技能步题目全部**首答即对**,无二次作答、无整步重做;随引擎注入 rng。
-- 会话级字段:`maxCombo`(本会话最大连击)、`firstCompleteWordsToday`(本会话首通词数)。
+- 会话级字段:`maxCombo`(本会话最大连击)、`firstCompleteToday`(本会话首通词数,代码字段名)。
 - 持久字段(settings):`earnedAchievements`;`consecutiveDays`/`lastActiveDate` 仅「坚持者」用。
 
 ### 7.2 成就集(本期可实现,均不依赖绘画/复习)
@@ -158,7 +158,8 @@ ALTER TABLE user_settings ADD COLUMN last_active_date     TEXT NOT NULL DEFAULT 
 
 - **扫描时机**:词 done 结算点(所有成就都在该点判一次,`earned` 集含已达成则不重发)。
 - **奖励发放**:扫描出的新成就奖励并入本次结算词行(含非 eligible 重学词——即时并入该词行,成就一次性、无刷星);连击池 bonusPool 与幸运仅 eligible 首通词并入;`grand_master` 等只在第 100 词首通时达成,天然落在末词行。
-- **触发检测的上下文**:需在 done 前完成(见 §6.4)。重学词只扫「是否已达」,不发星。
+- **计数在扫描前累加**:本词 perfect(含重学完美)先计入 `perfectWords`,本词 eligible 首通先计入 `firstCompleteToday`,再扫(首个 perfect 词/马拉松当次即触发)。
+- 展示:结算后顺序弹 `AchievementPopup`(emoji + 名 + 描述 + `+奖励`),每个 200 粒子撒花;与幸运弹层排队,不重叠于 WordDone 操作按钮。
 - 展示:结算后顺序弹 `AchievementPopup`(emoji + 名 + 描述 + `+奖励`),每个 200 粒子撒花;与幸运弹层排队,不重叠于 WordDone 操作按钮。
 
 ## 8. 词间过渡文案(teaser)

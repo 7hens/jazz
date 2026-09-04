@@ -1371,7 +1371,7 @@ async function handleLessonComplete() {
 }
 ```
 
-> 口径:计数在扫描**前**累加(首个 perfect 词/马拉松当次即算);s1 先内存更新连续天数与 earned 再 persist 一次;非首通词达成的成就只入 earned 列表 + 奖励进挂起池(星尘在下次 eligible 首通 flush);`extra > 0` 只在 newlyComplete 路径非零,写词行单调、不刷星;重学首日也会推进 lastActiveDate 并落库(连续天数=任意词完成)。
+> 口径(含 **R5 修订**):计数在扫描**前**累加——`perfectWords` 任何 perfect done(含重学)都计,`firstCompleteToday` 仅 eligible 首通。s1 先内存更新连续天数与 earned 再 persist 一次。**成就是一次性(earned 集)⇒ 扫描即发、无挂起池**:任何 done(含重学)扫到的新成就奖励即时并入当前词行;连击池 bonusPool 与幸运仅 newlyComplete(eligible 首通)并入。`extra > 0` 即对该词行做单调补 PUT(worker MAX 幂等);重学首日也会推进 lastActiveDate 并落库(连续天数=任意词完成)。
 
 10. **resetProgress 清 fun**:现有 `resetProgress` 在 DELETE 后追加:
 
