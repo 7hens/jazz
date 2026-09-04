@@ -1,6 +1,6 @@
 import { ApiError } from '@/shared/api-error'
 import type { ApiService, SettingsService, SettingsSnapshot } from '@/shared/services'
-import type { UserSettings } from '@/types'
+import type { UserSettings } from '@/shared/types'
 
 export interface SettingsServiceCallbacks {
   onUnauthorized(): void

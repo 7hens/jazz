@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/shared/api-error'
 import type { ApiService } from '@/shared/services'
-import type { UserSettings } from '@/types'
+import type { UserSettings } from '@/shared/types'
 import { createSettingsService, defaultSettings } from './settings'
 
 function settings(overrides: Partial<UserSettings> = {}): UserSettings {

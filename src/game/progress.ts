@@ -1,5 +1,5 @@
 // src/game/progress.ts
-import type { SkillKey, UserSettings, WordProgress } from '../types'
+import type { SkillKey, UserSettings, WordProgress } from '@/shared/types'
 import { fullComplete } from './lesson'
 
 const ALL_SKILLS: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']

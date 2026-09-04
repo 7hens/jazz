@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptyProgress, isValidWordProgress, mergeProgress, settleWord, titleForStars } from './progress'
 import { fullComplete } from './lesson'
-import type { UserSettings, WordProgress } from '../types'
+import type { UserSettings, WordProgress } from '@/shared/types'
 
 const allOn = (): UserSettings => ({ enablePinyin: true, enableHanzi: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })
 

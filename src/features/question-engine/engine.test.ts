@@ -1,8 +1,30 @@
-// src/game/engine.test.ts
 import { describe, expect, it } from 'vitest'
-import { WORDS } from '../data/words'
-import { distractorsFor, makeStepQuestions, optionCountFor, speakOf, textOf } from './engine'
-import type { MatchQuestion, Question, WordUnit } from '../types'
+import { WORDS, createVocabularyService } from '@/features/vocabulary'
+import { createQuestionEngineService, optionCountFor, speakOf, textOf } from './engine'
+import type { MatchQuestion, Question, WordUnit } from '@/shared/types'
+
+const { distractorsFor, makeStepQuestions } = createQuestionEngineService(createVocabularyService())
+
+it('uses the injected vocabulary to build question options', () => {
+  const words: WordUnit[] = [
+    { id: 1, emoji: '🎯', pinyin: 'mù biāo', hanzi: '目标', english: 'target', category: 'shape' },
+    { id: 2, emoji: '1️⃣', pinyin: 'yī', hanzi: '一', english: 'one', category: 'shape' },
+    { id: 3, emoji: '2️⃣', pinyin: 'èr', hanzi: '二', english: 'two', category: 'shape' },
+  ]
+  const vocabulary = {
+    getAllWords: () => words,
+    wordById: (id: number) => words.find(word => word.id === id),
+  }
+  const service = createQuestionEngineService(vocabulary)
+
+  const [question] = service.makeStepQuestions(words[0], 'english', () => 0.9)
+
+  expect(question.kind).toBe('choice')
+  if (question.kind !== 'choice') throw new Error('Expected a choice question')
+  expect(new Set(question.options.map(option => option.text))).toEqual(
+    new Set(['target', 'one', 'two']),
+  )
+})
 
 function allOptions(q: Question): string[] {
   if (q.kind === 'match') return [...q.left.map((o) => o.id), ...q.right.map((o) => o.id)]

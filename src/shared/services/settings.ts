@@ -1,4 +1,4 @@
-import type { UserSettings } from '../../types'
+import type { UserSettings } from '../types'
 import type { LoadState } from '../load-state'
 import type { ReactiveService } from '../useServiceSnapshot'
 

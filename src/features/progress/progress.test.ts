@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/shared/api-error'
 import type { ApiService } from '@/shared/services'
-import type { WordProgress } from '@/types'
+import type { WordProgress } from '@/shared/types'
 import { createProgressService } from './progress'
 
 function progress(wordId: number, completed = false, starsEarned = 0): WordProgress {

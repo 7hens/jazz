@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 import { Volume2 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
-import type { BaseOption, KingdomKey } from '../../../types'
+import type { BaseOption, KingdomKey } from '@/shared/types'
 import { speakCard } from './speech'
 
 export type ChoiceProps = {

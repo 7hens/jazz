@@ -1,5 +1,5 @@
-import type { SkillKey, UserSettings, WordProgress } from '../types'
-import { WORDS } from '../data/words'
+import { WORDS } from '@/features/vocabulary'
+import type { SkillKey, UserSettings, WordProgress } from '@/shared/types'
 
 export const SKILL_ORDER: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
 

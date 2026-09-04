@@ -1,6 +1,6 @@
 import { ApiError } from '@/shared/api-error'
 import type { ApiService, ApiWordProgress, ProgressData, ProgressService, ProgressSnapshot } from '@/shared/services'
-import type { WordProgress } from '@/types'
+import type { WordProgress } from '@/shared/types'
 import { isValidWordProgress, mergeProgress } from '@/game/progress'
 
 export interface ProgressServiceCallbacks {

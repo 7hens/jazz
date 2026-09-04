@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { LogOut, RotateCcw, Volume2, VolumeX, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
-import { CATEGORY_LABELS, WORDS } from '../../data/words'
+import { CATEGORY_LABELS, WORDS } from '@/features/vocabulary'
 import { firstTargetId, fullComplete } from '../../game/lesson'
 import { titleForStars } from '../../game/progress'
 import { cn } from '../../lib/utils'
 import { play } from '../../game/sfx'
 import { LingLing } from './LingLing'
-import type { CategoryKey, UserSettings, WordProgress } from '../../types'
+import type { CategoryKey, UserSettings, WordProgress } from '@/shared/types'
 import { Button } from '../ui/button'
 
 export type WordMapViewProps = {

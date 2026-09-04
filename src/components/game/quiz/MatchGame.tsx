@@ -4,7 +4,7 @@ import { Check, Volume2 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import { play } from '../../../game/sfx'
 import { speakCard } from './speech'
-import type { BaseOption, KingdomKey } from '../../../types'
+import type { BaseOption, KingdomKey } from '@/shared/types'
 
 type MatchGameProps = {
   prompt: string

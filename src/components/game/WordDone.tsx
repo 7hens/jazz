@@ -4,7 +4,7 @@ import { play } from '../../game/sfx'
 import { getRandomPraise } from '../../game/praise'
 import { useEffect, useRef } from 'react'
 import { cn } from '../../lib/utils'
-import type { WordUnit } from '../../types'
+import type { WordUnit } from '@/shared/types'
 import { Button } from '../ui/button'
 
 export type WordDoneProps = {

@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import { SKILL_ORDER } from '../../game/lesson'
 import { cn } from '../../lib/utils'
-import type { SkillKey, UserSettings } from '../../types'
+import type { SkillKey, UserSettings } from '@/shared/types'
 import { Button } from '../ui/button'
 
 export type SettingsPanelProps = {

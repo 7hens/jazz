@@ -11,7 +11,9 @@ it('registers every currently available service', () => {
   expect(registry.has('api')).toBe(true)
   expect(registry.has('auth')).toBe(true)
   expect(registry.has('progress')).toBe(true)
+  expect(registry.has('question-engine')).toBe(true)
   expect(registry.has('settings-state')).toBe(true)
+  expect(registry.has('vocabulary')).toBe(true)
 })
 
 it('preserves registered service instances when called again', () => {
@@ -20,7 +22,9 @@ it('preserves registered service instances when called again', () => {
     api: registry.get('api'),
     auth: registry.get('auth'),
     progress: registry.get('progress'),
+    questionEngine: registry.get('question-engine'),
     settings: registry.get('settings-state'),
+    vocabulary: registry.get('vocabulary'),
   }
 
   bootstrap()
@@ -28,7 +32,9 @@ it('preserves registered service instances when called again', () => {
   expect(registry.get('api')).toBe(first.api)
   expect(registry.get('auth')).toBe(first.auth)
   expect(registry.get('progress')).toBe(first.progress)
+  expect(registry.get('question-engine')).toBe(first.questionEngine)
   expect(registry.get('settings-state')).toBe(first.settings)
+  expect(registry.get('vocabulary')).toBe(first.vocabulary)
 })
 
 it('marks auth anonymous when a state service receives an unauthorized response', async () => {

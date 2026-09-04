@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import type { ApiService, ApiUserSettings, ApiWordProgress } from '@/shared/services/api'
-import type { UserSettings, WordProgress } from '@/types'
+import type { UserSettings, WordProgress } from '@/shared/types'
 import { createHttpApiService } from './api'
 
 const user = { id: 'u', email: 'e', name: 'n' }

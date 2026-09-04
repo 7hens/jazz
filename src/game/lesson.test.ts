@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { WORDS } from '../data/words'
+import { WORDS } from '@/features/vocabulary'
 import { firstTargetId, fullComplete, stepsFor } from './lesson'
-import type { UserSettings, WordProgress } from '../types'
+import type { UserSettings, WordProgress } from '@/shared/types'
 
 const allOn = (): UserSettings => ({ enablePinyin: true, enableHanzi: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })
 const p = (over: Partial<WordProgress> = {}): WordProgress => ({

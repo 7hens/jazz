@@ -1,4 +1,4 @@
-import type { UserSettings, WordProgress } from '../../types'
+import type { UserSettings, WordProgress } from '../types'
 
 export interface User {
   id: string

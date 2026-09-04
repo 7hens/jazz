@@ -9,7 +9,7 @@ import { SettingsPanel } from './components/game/SettingsPanel'
 import { AchievementPopup } from './components/game/AchievementPopup'
 import { LuckyBonus } from './components/game/LuckyBonus'
 import { useToast } from './components/Toast'
-import { WORDS, wordById } from './data/words'
+import { WORDS, wordById } from './features/vocabulary'
 import { emptyProgress, isValidWordProgress, settleWord, titleForStars } from './game/progress'
 import { getSoundOn, setSoundOn } from './game/audio'
 import {
@@ -20,7 +20,7 @@ import { getRandomPraise } from './game/praise'
 import { rollLucky, nextConsecutive, todayKey } from './game/fun'
 import { checkAchievements, type Achievement } from './game/achievements'
 import { fullComplete } from './game/lesson'
-import type { SkillKey, UserSettings, WordProgress, WordUnit } from './types'
+import type { SkillKey, UserSettings, WordProgress, WordUnit } from './shared/types'
 
 type Screen = 'boot' | 'login' | 'map' | 'lesson' | 'done'
 

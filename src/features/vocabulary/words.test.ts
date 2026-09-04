@@ -1,7 +1,6 @@
-// src/game/words.test.ts
 import { describe, expect, it } from 'vitest'
-import { CATEGORY_LABELS, WORDS, wordById } from '../data/words'
-import type { CategoryKey } from '../types'
+import type { CategoryKey } from '@/shared/types'
+import { CATEGORY_LABELS, WORDS, wordById } from './words'
 
 const CATS = Object.keys(CATEGORY_LABELS) as CategoryKey[]
 
