@@ -81,7 +81,7 @@ function App() {
   const [combo, setCombo] = useState(() => loadCombo())
   const comboRef = useRef(combo)
   const maxComboRef = useRef(loadMaxCombo())
-  const pendingBonusRef = useRef(0) // 非 eligible 词达成成就的挂起星尘,下次 eligible 首通 flush
+  const runSeqRef = useRef(0) // 词会话单调序号:进入/离开词自增 → 结算 await 后可判别「已离词」放弃导航
   const sessionRef = useRef({ firstCompleteToday: 0, perfectWords: 0 })
   const [achQueue, setAchQueue] = useState<Achievement[]>([])
   const [luckyOn, setLuckyOn] = useState(false)
@@ -165,11 +165,11 @@ function App() {
     if (!window.confirm('确定要重置全部学习进度吗?此操作无法撤销。')) return
     try { await fetch('/api/progress', { method: 'DELETE', credentials: 'include' }) } catch { /* ignore */ }
     syncProgress({})
-    // 清趣味会话态 + 趣味字段回默认(连击/最大连击/会话计数/挂起池/词会话)
+    // 清趣味会话态 + 趣味字段回默认(连击/最大连击/会话计数/词会话)
     saveCombo(0); saveMaxCombo(0)
     comboRef.current = 0; setCombo(0); maxComboRef.current = 0
     sessionRef.current = { firstCompleteToday: 0, perfectWords: 0 }
-    pendingBonusRef.current = 0
+    runSeqRef.current += 1
     wordRunRef.current = { eligible: false, bonusPool: 0, perfect: true }
     await persistSettings({ ...settingsRef.current, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '' })
   }
@@ -199,6 +199,7 @@ function App() {
   function startWord(id: number) {
     const w = wordById(id)
     if (!w) return
+    runSeqRef.current += 1
     gainRef.current = { step: 0, bonus: 0 }
     const prev = progressRef.current[id] ?? emptyProgress(id)
     wordRunRef.current = { eligible: !fullComplete(prev, settingsRef.current), bonusPool: 0, perfect: true }
@@ -245,22 +246,21 @@ function App() {
     }
   }
 
-  /** 全部技能步完成 → 异步结算:累计计数 → 推进学习日/连续天数 → 扫成就 → 追加星尘补 PUT → 弹层 */
+  /** 全部技能步完成 → 异步结算:累计计数 → 推进学习日/连续天数 → 扫成就(扫描即发)→ 追加星尘补 PUT → 弹层 */
   async function handleLessonComplete() {
     const w = activeWord
     if (!w) return
     const run = wordRunRef.current
     const settings = settingsRef.current
+    const seq = runSeqRef.current
     // progressRef 已在本词逐步 PUT 时推进到完成态(见 handleStepPass),不能用「当前行未完成」判首通;
     // eligible 捕获于 startWord(当时未 fullComplete),且本函数只在全部启用技能步 pass 后触发 ⇒ 本次首次 full。
     const rowNow = progressRef.current[w.id]
     const newlyComplete = run.eligible && !!rowNow && fullComplete(rowNow, settings)
 
-    // —— 先累加本次首通/perfect(供扫描),再更新学习日(重学也算) ——
-    if (newlyComplete) {
-      if (run.perfect) sessionRef.current.perfectWords += 1
-      sessionRef.current.firstCompleteToday += 1
-    }
+    // —— 先累计计数(供扫描):perfect 任意完成(含重学完美)都算;firstCompleteToday 仅 eligible 首通 ——
+    if (run.perfect) sessionRef.current.perfectWords += 1
+    if (newlyComplete) sessionRef.current.firstCompleteToday += 1
     const today = todayKey()
     const s1 = { ...settings, lastActiveDate: today,
       consecutiveDays: nextConsecutive(settings.consecutiveDays, settings.lastActiveDate, today) }
@@ -275,24 +275,21 @@ function App() {
       hour: new Date().getHours(), totalWords: WORDS.length,
     }, s1.earnedAchievements)
 
-    // —— 星尘结算:eligible 首通才写词行;非 eligible 达成成就只入 earned + 奖励进挂起池 ——
+    // —— 扫描即发(无挂起池):成就一次性(earned 持久集)→ 任何词完成(含重学)扫到的新成就 reward 即时并入本词行;
+    //    连击池 bonusPool + 幸运 rollLucky 仅 eligible 首通累计/掷 ——
     let extra = 0
     let luckyReward = 0
     if (newlyComplete) {
       extra += run.bonusPool
       luckyReward = rollLucky()
       extra += luckyReward
-      extra += newEarned.reduce((sum, a) => sum + a.reward, 0) + pendingBonusRef.current
-      pendingBonusRef.current = 0
-    } else {
-      pendingBonusRef.current += newEarned.reduce((sum, a) => sum + a.reward, 0)
     }
-    const newAchievements = newlyComplete ? newEarned : []
+    extra += newEarned.reduce((sum, a) => sum + a.reward, 0)
     if (extra > 0) {
       const base = rowNow ?? emptyProgress(w.id)
       const bumped: WordProgress = { ...base, starsEarned: base.starsEarned + extra, updatedAt: new Date().toISOString() }
       syncProgress({ ...progressRef.current, [w.id]: bumped })
-      // 单调补 PUT(追加更高值;worker MAX 幂等,与逐步 PUT 乱序到达亦安全,不刷星)
+      // 单调补 PUT(追加更高值;worker MAX 幂等,与逐步 PUT 乱序到达亦安全;成就一次性,无刷星)
       void fetch('/api/progress', {
         method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ progress: [bumped] }),
@@ -304,12 +301,12 @@ function App() {
     // 学习日/连续天数只要实际变化就落库(含重学首日);否则只在有实质推进时 persist
     const dayChanged = s1.lastActiveDate !== settings.lastActiveDate || s1.consecutiveDays !== settings.consecutiveDays
     if (newlyComplete || newEarned.length > 0 || dayChanged) await persistSettings(s1)
-    // 结算在网络等待期间被中止(用户从词卡返回地图)→ 不再导航到 done;词已完成,上述落库无害
-    if (activeWordIdRef.current !== w.id) return
+    // 结算期间已离词(退出→重进同一词也算,runSeq 单调递增)→ 放弃导航;词已完成,上述落库无害
+    if (seq !== runSeqRef.current) return
 
     setDoneInfo({ word: w, stepReward: gainRef.current.step, wordBonus: gainRef.current.bonus,
-      extraReward: extra, luckyReward, achievements: newAchievements })
-    if (newAchievements.length > 0) setAchQueue(newAchievements)
+      extraReward: extra, luckyReward, achievements: newEarned })
+    if (newEarned.length > 0) setAchQueue(newEarned)
     else if (luckyReward > 0) setLuckyOn(true)
     // 本次真正推进(整词首通或新增技能步)才放 word 级撒花;重学已完词不重复放
     if (gainRef.current.bonus > 0 || gainRef.current.step > 0) celebrate('word')
@@ -317,9 +314,9 @@ function App() {
   }
 
   function exitToMap() {
+    runSeqRef.current += 1
     setAchQueue([])
     setLuckyOn(false)
-    activeWordIdRef.current = null
     setActiveWord(null)
     setDoneInfo(null)
     setScreen('map')

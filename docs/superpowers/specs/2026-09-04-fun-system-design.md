@@ -119,13 +119,13 @@ ALTER TABLE user_settings ADD COLUMN last_active_date     TEXT NOT NULL DEFAULT 
 
 - 连击跨词持续(sessionStorage,刷新保持、关浏览器归零),答错即 `resetCombo`,与词属性无关。
 - 重学词:夸奖/特效照给(正反馈),但**不产生新星尘** → 无刷星、称号经济与一期一致。
-- **成就奖励挂起池**:成就扫描在每次词 done 点执行(含重学,此时可能新达成 early_bird/perfect 等无需首通的成就)。凡在**非 eligible** 词上达成的,奖励计入前端「待入账池」、弹层照常展示,在**下一次 eligible 词首通**结算时并入该词行统一 PUT(见 §6.4/§7.2)。该池不持久化(会话内),最坏情况=奖励晚一个首通词入账,不丢。
+- **成就扫描即发(R5 裁定,无挂起池)**:成就一次性(earned 持久集,不重发)→ 非刷星源,可安全即时发奖。成就扫描在每次词 done 点执行(含重学,此时可能新达成 early_bird/perfect 等无需首通的成就);**任何**词完成(含非 eligible 重学)扫到的新成就,奖励即时并入当前词行统一补 PUT(单调,worker MAX 幂等;弹层照常展示)。连击池与幸运仅 eligible 首通词计入。
 
 ### 6.4 结算编排(改动 [App.tsx](../../../src/App.tsx) `handleLessonComplete`)
 一期为逐技能步即时 PUT。追加奖励统一在**词 done 前一次结算**:
 1. WordLesson 逐步 `onStepPass` → 逐 PUT(一期原样,保证中途退出不丢)。
 2. 步进过程中逐答对累计连击加成池(eligible 词才累计)。
-3. `handleLessonComplete`(同步完成全部技能步后)→ 计算:perfect 判定 → 扫成就(含 flush 挂起的无上下文成就)→ 掷幸运。
+3. `handleLessonComplete`(同步完成全部技能步后)→ 计算:perfect 判定 → 扫成就(新达成即发)→ 掷幸运。
 4. 若追加池 > 0:对该词行做**一次补 PUT**(单调更高值,服务端 MAX 幂等),同时 `syncProgress` 更新本地。
 5. 再 `setDoneInfo` + `setScreen('done')` → WordDone 拿到含追加的最终数字(避免渲染快照过期)。
 
@@ -157,7 +157,7 @@ ALTER TABLE user_settings ADD COLUMN last_active_date     TEXT NOT NULL DEFAULT 
 | `grand_master` | 大法师 | 100 词全完成 | 1000 |
 
 - **扫描时机**:词 done 结算点(所有成就都在该点判一次,`earned` 集含已达成则不重发)。
-- **奖励发放**:扫描出的新成就奖励并入本次结算词行;若本次为非 eligible(重学)词,奖励进**挂起池**,下次 eligible 词首通时并入(§6.3);`grand_master` 等只在第 100 词首通时达成,天然落在末词行。
+- **奖励发放**:扫描出的新成就奖励并入本次结算词行(含非 eligible 重学词——即时并入该词行,成就一次性、无刷星);连击池 bonusPool 与幸运仅 eligible 首通词并入;`grand_master` 等只在第 100 词首通时达成,天然落在末词行。
 - **触发检测的上下文**:需在 done 前完成(见 §6.4)。重学词只扫「是否已达」,不发星。
 - 展示:结算后顺序弹 `AchievementPopup`(emoji + 名 + 描述 + `+奖励`),每个 200 粒子撒花;与幸运弹层排队,不重叠于 WordDone 操作按钮。
 
