@@ -193,6 +193,8 @@ function App() {
     const w = activeWord
     if (!w) return
     setDoneInfo({ word: w, stepReward: gainRef.current.step, wordBonus: gainRef.current.bonus })
+    // 本次真正推进(整词首通或新增技能步)才放 word 级撒花;重学已完词不重复放
+    if (gainRef.current.bonus > 0 || gainRef.current.step > 0) celebrate('word')
     setScreen('done')
   }
 

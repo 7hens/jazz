@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { ArrowRight, Home } from 'lucide-react'
 import { play } from '../../game/sfx'
+import { getRandomPraise } from '../../game/praise'
 import { useEffect, useRef } from 'react'
 import { cn } from '../../lib/utils'
 import type { WordUnit } from '../../types'
@@ -21,6 +22,8 @@ export type WordDoneProps = {
 export function WordDone({
   word, stepReward, wordBonus, totalStars, titleName, nextId, isLastWord, onNext, onMap,
 }: WordDoneProps) {
+  // 词级随机夸奖:useRef 惰性 init → 每次挂载随机一次,不随重渲染变
+  const praise = useRef(getRandomPraise())
   const playedRef = useRef(false)
   useEffect(() => {
     if (playedRef.current) return
@@ -38,9 +41,9 @@ export function WordDone({
         >
           <p className="text-sm font-semibold uppercase tracking-widest text-ink-3">学习结算</p>
           <div className="mt-3 text-6xl" aria-hidden>{word.emoji}</div>
-          {/* 动态祝贺:整词首通 vs 复查再学(已完成词重学无整词加成) */}
+          {/* 动态祝贺:随机夸奖 + 整词首通 vs 复查再学(已完成词重学无整词加成) */}
           <p className={cn('mt-3 text-sm font-bold', wordBonus > 0 ? 'text-emerald' : 'text-accent')}>
-            {wordBonus > 0 ? '太棒了,整词完成!' : '这一步完成啦!'}
+            {wordBonus > 0 ? `${praise.current} 整词完成!` : `${praise.current} 这一步完成啦!`}
           </p>
           <h1 className="mt-2 text-2xl font-extrabold tracking-tight">{word.hanzi}</h1>
           <p className="text-sm text-ink-2">{word.pinyin} · {word.english}</p>
@@ -60,6 +63,14 @@ export function WordDone({
             ) : null}
           </div>
           <p className="mt-4 text-sm text-ink-2">星尘 {totalStars} · 称号 🎖 {titleName}</p>
+
+          {/* 灵灵 teaser 气泡:有引导语才显示,暗示下一词 */}
+          {word.teaser ? (
+            <div className="mt-5 flex items-start gap-3 rounded-2xl border border-hairline bg-surface-2 px-4 py-3 text-left">
+              <span className="text-3xl" aria-hidden>🦊</span>
+              <p className="text-sm leading-relaxed text-ink-2">{word.teaser}</p>
+            </div>
+          ) : null}
 
           <div className="mt-6 space-y-2.5">
             {!isLastWord ? (
