@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { MotionConfig } from 'motion/react'
 import { Loader2 } from 'lucide-react'
-import { LoginGate } from './components/login/LoginGate'
+import { LoginGate } from './features/auth/LoginGate'
 import { WordMapView } from './components/game/WordMapView'
 import { WordLesson } from './components/game/WordLesson'
 import { WordDone } from './components/game/WordDone'
