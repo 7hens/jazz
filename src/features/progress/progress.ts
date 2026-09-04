@@ -62,8 +62,9 @@ export function createProgressService(
   let settledSnapshot = snapshot
   const listeners = new Set<() => void>()
   let nextCommandId = 0
-  let latestStateCommandId = 0
+  let latestLoadCommandId = 0
   let latestUserMutationId = 0
+  let successfulResetLoadCutoff = 0
   type SaveTransaction = {
     rows: WordProgress[]
     status: 'pending' | 'succeeded' | 'failed'
@@ -77,9 +78,14 @@ export function createProgressService(
 
   function startCommand(isUserMutation: boolean): number {
     const commandId = ++nextCommandId
-    latestStateCommandId = commandId
     if (isUserMutation) latestUserMutationId = commandId
     return commandId
+  }
+
+  function canPublishLoad(commandId: number): boolean {
+    return latestLoadCommandId === commandId
+      && latestUserMutationId <= commandId
+      && successfulResetLoadCutoff < commandId
   }
 
   function setStableSnapshot(next: ProgressSnapshot) {
@@ -148,14 +154,15 @@ export function createProgressService(
     },
     async load() {
       const commandId = startCommand(false)
+      latestLoadCommandId = commandId
       const previousData = snapshot.data
       setSnapshot({ status: 'loading', data: previousData })
       try {
         const rows = (await api.getProgress()).map(normalizeApiRow)
-        if (latestStateCommandId !== commandId) return
+        if (!canPublishLoad(commandId)) return
         setStableSnapshot({ status: 'ready', data: fromRows(rows) })
       } catch (error) {
-        if (latestStateCommandId !== commandId) return
+        if (!canPublishLoad(commandId)) return
         const message = errorMessage(error)
         setStableSnapshot({ status: 'error', data: previousData, error: message })
         report(error)
@@ -179,8 +186,11 @@ export function createProgressService(
       const commandId = startCommand(false)
       try {
         await api.deleteProgress()
+        // DELETE wins over every GET that was already in flight when it settled.
+        successfulResetLoadCutoff = Math.max(successfulResetLoadCutoff, nextCommandId)
         if (latestUserMutationId <= commandId) setStableSnapshot({ status: 'ready', data: {} })
       } catch (error) {
+        if (snapshot.status === 'loading') setSnapshot(visibleSnapshot())
         report(error)
         throw error
       }

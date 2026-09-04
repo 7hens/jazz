@@ -337,6 +337,59 @@ describe('ProgressService', () => {
     expect(service.getSnapshot()).toEqual({ status: 'ready', data: {} })
   })
 
+  it('restores stable progress after a reset fails and lets an earlier GET settle', async () => {
+    let resolveLoad!: (rows: Awaited<ReturnType<ApiService['getProgress']>>) => void
+    let rejectDelete!: (error: Error) => void
+    const before = progress(1, true, 90)
+    const service = createProgressService(fakeApi({
+      getProgress: () => new Promise(resolve => { resolveLoad = resolve }),
+      deleteProgress: () => new Promise<void>((_resolve, reject) => { rejectDelete = reject }),
+    }), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([before])
+
+    const loading = service.load()
+    const resetting = service.resetAll()
+    rejectDelete(new Error('delete failed'))
+    await expect(resetting).rejects.toThrow('delete failed')
+
+    expect(service.getSnapshot()).toEqual({ status: 'ready', data: { 1: before } })
+
+    resolveLoad([{
+      wordId: 2,
+      completed: { pinyin: true, hanzi: true, english: true },
+      starsEarned: 60,
+    }])
+    await loading
+
+    expect(service.getSnapshot()).toMatchObject({
+      status: 'ready',
+      data: { 2: { wordId: 2, starsEarned: 60 } },
+    })
+  })
+
+  it('does not let a GET started during reset repopulate after DELETE succeeds first', async () => {
+    let resolveLoad!: (rows: Awaited<ReturnType<ApiService['getProgress']>>) => void
+    let resolveDelete!: () => void
+    const service = createProgressService(fakeApi({
+      getProgress: () => new Promise(resolve => { resolveLoad = resolve }),
+      deleteProgress: () => new Promise<void>(resolve => { resolveDelete = resolve }),
+    }), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([progress(1, true, 90)])
+
+    const resetting = service.resetAll()
+    const loading = service.load()
+    resolveDelete()
+    await resetting
+    resolveLoad([{
+      wordId: 1,
+      completed: { pinyin: true, hanzi: true, english: true },
+      starsEarned: 90,
+    }])
+    await loading
+
+    expect(service.getSnapshot()).toEqual({ status: 'ready', data: {} })
+  })
+
   it('keeps local progress and rejects when DELETE fails', async () => {
     const onError = vi.fn()
     const before = progress(1, true, 90)
