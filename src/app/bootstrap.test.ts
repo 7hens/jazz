@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { registry } from '@/shared/registry'
 import {
   AchievementService,
   ApiService,
@@ -15,7 +14,7 @@ import {
   ToastService,
   VocabularyService,
 } from '@/shared/services'
-import type { ServiceToken } from '@/shared/services/token'
+import { registry, type ServiceToken } from '@/shared/services/manager'
 import { bootstrap } from './bootstrap'
 
 const ALL_TOKENS: readonly ServiceToken<unknown>[] = [

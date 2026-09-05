@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { registry } from './registry'
-import { ApiService } from './services'
-import { useService } from './useService'
+import { ApiService } from './index'
+import { registry, useService } from './manager'
 
 beforeEach(() => registry.clear())
 

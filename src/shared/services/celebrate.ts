@@ -1,4 +1,4 @@
-import type { ServiceToken } from './token'
+import type { ServiceToken } from './manager'
 
 export type CelebrateLevel = 'step' | 'word' | 'achievement' | 'combo10'
 

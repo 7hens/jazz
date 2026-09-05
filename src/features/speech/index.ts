@@ -1,4 +1,4 @@
-import { registry } from '@/shared/registry'
+import { registry } from '@/shared/services/manager'
 import { SpeechService } from '@/shared/services'
 
 export { createSpeechService } from './speech'

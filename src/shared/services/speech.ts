@@ -1,4 +1,4 @@
-import type { ServiceToken } from './token'
+import type { ServiceToken } from './manager'
 
 export interface SpeechService {
   speak(text: string, lang?: string): boolean

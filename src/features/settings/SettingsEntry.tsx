@@ -1,6 +1,5 @@
 import { SettingsService } from '@/shared/services'
-import { useService } from '@/shared/useService'
-import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
+import { useService, useServiceSnapshot } from '@/shared/services/manager'
 import type { UserSettings } from '@/shared/types'
 import { SettingsPanel } from './SettingsPanel'
 

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { expect, it } from 'vitest'
-import { useServiceSnapshot, type ReactiveService } from './useServiceSnapshot'
+import { useServiceSnapshot, type ReactiveService } from './manager'
 
 it('rerenders when a service snapshot changes', () => {
   let value = 0

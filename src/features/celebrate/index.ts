@@ -1,4 +1,4 @@
-import { registry } from '@/shared/registry'
+import { registry } from '@/shared/services/manager'
 import { CelebrateService } from '@/shared/services'
 import type { CelebrateLevel } from '@/shared/services'
 

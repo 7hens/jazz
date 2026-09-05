@@ -11,7 +11,6 @@ import { createSettingsService } from '@/features/settings-state'
 import { createSpeechService } from '@/features/speech'
 import { createToastService } from '@/features/toast'
 import { createVocabularyService } from '@/features/vocabulary'
-import { registry } from '@/shared/registry'
 import {
   AchievementService,
   ApiService,
@@ -27,7 +26,7 @@ import {
   ToastService,
   VocabularyService,
 } from '@/shared/services'
-import type { ServiceToken } from '@/shared/services/token'
+import { registry, type ServiceToken } from '@/shared/services/manager'
 
 // 幂等守卫只做 has 存在性,故按 ServiceToken<unknown> 拓宽,避开异构联合的泛型推断。
 const ALL_SERVICE_TOKENS: readonly ServiceToken<unknown>[] = [

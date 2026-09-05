@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { registry } from '@/shared/registry'
+import { registry } from '@/shared/services/manager'
 import { SettingsService } from '@/shared/services'
 import type { UserSettings } from '@/shared/types'
 import { SettingsEntry } from './SettingsEntry'

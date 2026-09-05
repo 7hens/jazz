@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '@/shared/utils'
 import type { ToastService, ToastType } from '@/shared/services'
-import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
+import { useServiceSnapshot } from '@/shared/services/manager'
 
 const TYPE_STYLE: Record<ToastType, string> = {
   success: 'border-emerald/40 bg-emerald/10 text-emerald',

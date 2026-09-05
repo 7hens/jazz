@@ -1,6 +1,5 @@
-import type { ReactiveService } from '../useServiceSnapshot'
 import type { User } from './api'
-import type { ServiceToken } from './token'
+import type { ReactiveService, ServiceToken } from './manager'
 
 export type AuthSnapshot =
   | { status: 'checking' }
