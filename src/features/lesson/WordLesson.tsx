@@ -15,9 +15,9 @@ import type {
 import { stepsFor } from './lesson'
 import { ComboDisplay, comboText } from './ComboDisplay'
 import { Button } from '@/shared/ui/button'
-import { Choice } from './quiz/Choice'
-import { ListenChoice } from './quiz/ListenChoice'
-import { MatchGame } from './quiz/MatchGame'
+import { Choice } from '@/shared/ui/quiz/Choice'
+import { ListenChoice } from '@/shared/ui/quiz/ListenChoice'
+import { MatchGame } from '@/shared/ui/quiz/MatchGame'
 
 export type WordLessonProps = {
   word: WordUnit
