@@ -1,9 +1,11 @@
 export const SERVICE_KEYS = {
   API: 'api',
+  ACHIEVEMENTS: 'achievements',
   AUDIO: 'audio',
   AUTH: 'auth',
   CELEBRATE: 'celebrate',
   COMBO: 'combo',
+  LUCKY_BONUS: 'lucky-bonus',
   PROGRESS: 'progress',
   QUESTION_ENGINE: 'question-engine',
   SETTINGS: 'settings-state',

@@ -1,26 +1,11 @@
-// 隐藏成就(纯数据 + 扫描)。状态由 App 在词结算点装配;不重发由 earned 集保证。
+// 隐藏成就:纯数据 + 扫描。状态由上层在词结算点装配;不重发由 earned 集保证。
 
-export type AchievementState = {
-  completedWords: number
-  categoryDone: number
-  maxCombo: number
-  firstCompleteToday: number
-  perfectWords: number
-  consecutiveDays: number
-  hour: number
-  totalWords: number
-}
+import type { Achievement, AchievementService, AchievementState } from '@/shared/services'
 
-export type Achievement = {
-  id: string
-  name: string
-  description: string
-  emoji: string
-  reward: number
-  check: (s: AchievementState) => boolean
-}
+// 内部目录项比共享契约多携带 check 判定,不入服务返回面。
+type AchievementDef = Achievement & { check: (s: AchievementState) => boolean }
 
-export const ACHIEVEMENTS: readonly Achievement[] = [
+export const ACHIEVEMENTS: readonly AchievementDef[] = [
   { id: 'perfect_word', name: '完美主义', description: '一个词全部题目首答就对', emoji: '💎', reward: 50,
     check: (s) => s.perfectWords >= 1 },
   { id: 'combo_15', name: '连击王者', description: '连击达到 15', emoji: '⚡', reward: 50,
@@ -39,7 +24,11 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     check: (s) => s.completedWords >= s.totalWords },
 ]
 
-export function checkAchievements(state: AchievementState, earned: string[]): Achievement[] {
+export function checkAchievements(state: AchievementState, earned: readonly string[]): Achievement[] {
   const earnedSet = new Set(earned)
   return ACHIEVEMENTS.filter((a) => !earnedSet.has(a.id) && a.check(state))
+}
+
+export function createAchievementService(): AchievementService {
+  return { scan: checkAchievements }
 }

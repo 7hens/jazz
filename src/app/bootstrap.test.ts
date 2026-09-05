@@ -8,11 +8,13 @@ afterEach(() => vi.unstubAllGlobals())
 it('registers every currently available service', () => {
   bootstrap()
 
+  expect(registry.has('achievements')).toBe(true)
   expect(registry.has('api')).toBe(true)
   expect(registry.has('audio')).toBe(true)
   expect(registry.has('auth')).toBe(true)
   expect(registry.has('celebrate')).toBe(true)
   expect(registry.has('combo')).toBe(true)
+  expect(registry.has('lucky-bonus')).toBe(true)
   expect(registry.has('progress')).toBe(true)
   expect(registry.has('question-engine')).toBe(true)
   expect(registry.has('settings-state')).toBe(true)
@@ -24,11 +26,13 @@ it('registers every currently available service', () => {
 it('preserves registered service instances when called again', () => {
   bootstrap()
   const first = {
+    achievements: registry.get('achievements'),
     api: registry.get('api'),
     audio: registry.get('audio'),
     auth: registry.get('auth'),
     celebrate: registry.get('celebrate'),
     combo: registry.get('combo'),
+    luckyBonus: registry.get('lucky-bonus'),
     progress: registry.get('progress'),
     questionEngine: registry.get('question-engine'),
     settings: registry.get('settings-state'),
@@ -39,11 +43,13 @@ it('preserves registered service instances when called again', () => {
 
   bootstrap()
 
+  expect(registry.get('achievements')).toBe(first.achievements)
   expect(registry.get('api')).toBe(first.api)
   expect(registry.get('audio')).toBe(first.audio)
   expect(registry.get('auth')).toBe(first.auth)
   expect(registry.get('celebrate')).toBe(first.celebrate)
   expect(registry.get('combo')).toBe(first.combo)
+  expect(registry.get('lucky-bonus')).toBe(first.luckyBonus)
   expect(registry.get('progress')).toBe(first.progress)
   expect(registry.get('question-engine')).toBe(first.questionEngine)
   expect(registry.get('settings-state')).toBe(first.settings)

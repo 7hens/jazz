@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ACHIEVEMENTS, checkAchievements, type AchievementState } from './achievements'
+import type { AchievementState } from '@/shared/services'
+import { ACHIEVEMENTS, checkAchievements, createAchievementService } from './achievements'
 
 const base = (): AchievementState => ({
   completedWords: 0, categoryDone: 0, maxCombo: 0, firstCompleteToday: 0,
@@ -31,5 +32,15 @@ describe('成就集', () => {
     expect(checkAchievements({ ...base(), categoryDone: 1 }, []).map((a) => a.id)).toContain('collector')
     expect(checkAchievements({ ...base(), consecutiveDays: 7 }, []).map((a) => a.id)).toContain('dedicated')
     expect(checkAchievements({ ...base(), completedWords: 50 }, []).map((a) => a.id)).not.toContain('grand_master')
+  })
+})
+
+describe('成就服务', () => {
+  it('scan 单调:同 earned 集不重发', () => {
+    const svc = createAchievementService()
+    const s: AchievementState = { ...base(), completedWords: 100, perfectWords: 1 }
+    const first = svc.scan(s, [])
+    expect(first.length).toBeGreaterThan(0)
+    expect(svc.scan(s, first.map((a) => a.id))).toHaveLength(0)
   })
 })

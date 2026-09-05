@@ -4,8 +4,8 @@ import { Loader2 } from 'lucide-react'
 import { LoginGate } from './features/auth/LoginGate'
 import { WordMapView } from './components/game/WordMapView'
 import { SettingsPanel } from './components/game/SettingsPanel'
-import { AchievementPopup } from './components/game/AchievementPopup'
-import { LuckyBonus } from './components/game/LuckyBonus'
+import { AchievementPopup, checkAchievements, type Achievement } from './features/achievements'
+import { LuckyBonus, rollLucky } from './features/lucky-bonus'
 import { useToast } from './features/toast'
 import { WORDS, wordById } from './features/vocabulary'
 import {
@@ -22,8 +22,7 @@ import { getSoundOn, setSoundOn } from './features/audio'
 import {
   loadCombo, loadMaxCombo, nextCombo, comboBonus, saveCombo, saveMaxCombo, type AnswerKind,
 } from './features/combo'
-import { rollLucky, nextConsecutive, todayKey } from './game/fun'
-import { checkAchievements, type Achievement } from './game/achievements'
+import { nextConsecutive, todayKey } from './game/fun'
 import { useService } from './shared/useService'
 import type { SkillKey, UserSettings, WordProgress, WordUnit } from './shared/types'
 
@@ -383,6 +382,7 @@ function App() {
         {achQueue.length > 0 ? (
           <AchievementPopup
             list={achQueue}
+            celebrate={celebrateService.play}
             onDone={() => {
               const rest = achQueue.slice(1)
               setAchQueue(rest)

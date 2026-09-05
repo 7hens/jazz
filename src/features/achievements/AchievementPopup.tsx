@@ -1,13 +1,19 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
-import { celebrate } from '../../features/celebrate'
-import type { Achievement } from '../../game/achievements'
+import type { Achievement, CelebrateLevel } from '@/shared/services'
 
-export function AchievementPopup({ list, onDone }: { list: Achievement[]; onDone: () => void }) {
+type Props = {
+  list: readonly Achievement[]
+  onDone: () => void
+  // 由组合层注入(旧 App 经 bootstrap 的 celebrate 服务传入);不传则静默(测试/纯预览)。
+  celebrate?: (level: CelebrateLevel) => void
+}
+
+export function AchievementPopup({ list, onDone, celebrate }: Props) {
   const a = list[0]
   useEffect(() => {
     if (!a) { onDone(); return }
-    celebrate('achievement')
+    if (typeof celebrate === 'function') celebrate('achievement')
     const t = window.setTimeout(() => onDone(), 2600)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps

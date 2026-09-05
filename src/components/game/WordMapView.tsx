@@ -5,7 +5,7 @@ import { CATEGORY_LABELS, WORDS } from '@/features/vocabulary'
 import { firstTargetId, fullComplete, titleForStars } from '@/features/lesson'
 import { cn } from '../../lib/utils'
 import { play } from '../../features/audio'
-import { LingLing } from './LingLing'
+import { LingLing } from '@/features/lingling'
 import type { CategoryKey, UserSettings, WordProgress } from '@/shared/types'
 import { Button } from '../ui/button'
 

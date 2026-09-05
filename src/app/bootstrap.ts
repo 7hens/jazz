@@ -1,8 +1,10 @@
+import { createAchievementService } from '@/features/achievements'
 import { createHttpApiService } from '@/features/api'
 import { createAudioService } from '@/features/audio'
 import { createAuthService } from '@/features/auth'
 import { createCelebrateService } from '@/features/celebrate'
 import { createComboService } from '@/features/combo'
+import { createLuckyBonusService } from '@/features/lucky-bonus'
 import { createProgressService } from '@/features/progress'
 import { createQuestionEngineService } from '@/features/question-engine'
 import { createSettingsService } from '@/features/settings-state'
@@ -13,11 +15,13 @@ import { registry } from '@/shared/registry'
 import { SERVICE_KEYS } from '@/shared/services'
 
 const CURRENT_SERVICE_KEYS = [
+  SERVICE_KEYS.ACHIEVEMENTS,
   SERVICE_KEYS.API,
   SERVICE_KEYS.AUDIO,
   SERVICE_KEYS.AUTH,
   SERVICE_KEYS.CELEBRATE,
   SERVICE_KEYS.COMBO,
+  SERVICE_KEYS.LUCKY_BONUS,
   SERVICE_KEYS.PROGRESS,
   SERVICE_KEYS.QUESTION_ENGINE,
   SERVICE_KEYS.SETTINGS,
@@ -35,9 +39,11 @@ export function bootstrap(): void {
   const auth = createAuthService(api)
   registry.register(SERVICE_KEYS.AUTH, auth)
 
+  registry.register(SERVICE_KEYS.ACHIEVEMENTS, createAchievementService())
   registry.register(SERVICE_KEYS.AUDIO, createAudioService())
   registry.register(SERVICE_KEYS.CELEBRATE, createCelebrateService())
   registry.register(SERVICE_KEYS.COMBO, createComboService())
+  registry.register(SERVICE_KEYS.LUCKY_BONUS, createLuckyBonusService())
   registry.register(SERVICE_KEYS.SPEECH, createSpeechService())
   const toast = createToastService()
   registry.register(SERVICE_KEYS.TOAST, toast)

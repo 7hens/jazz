@@ -1,7 +1,5 @@
-// 趣味系统纯工具:本地日 / 连续天数 / 幸运 / 灵灵档位。时间与 rng 可注入便于单测。
-
-export const LUCKY_RATE = 0.1
-export const LUCKY_AMOUNT = 50
+// 本地日 / 连续天数纯工具。时间可注入便于单测。
+// 幸运骰与灵灵档位已迁 src/features/{lucky-bonus,lingling};此处只留日期。
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -20,19 +18,4 @@ export function nextConsecutive(prev: number, lastDate: string, today: string): 
   if (lastDate === today) return prev
   if (shiftDate(today, -1) === lastDate) return prev + 1
   return 1
-}
-
-export function rollLucky(rng: () => number = Math.random): number {
-  return rng() < LUCKY_RATE ? LUCKY_AMOUNT : 0
-}
-
-export type LingLingStage = 0 | 1 | 2 | 3 | 4
-
-export function lingLingStage(completedWords: number, totalWords = 100): LingLingStage {
-  const pct = completedWords / totalWords
-  if (pct < 0.1) return 0
-  if (pct < 0.3) return 1
-  if (pct < 0.5) return 2
-  if (pct < 0.8) return 3
-  return 4
 }
