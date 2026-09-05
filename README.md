@@ -5,7 +5,7 @@
 > **当前状态**:`v0.1.0`(词库学习岛一期)已发布(2026-09-04,见 [CHANGELOG.md](CHANGELOG.md));当前 main 已并入趣味系统(fun)+ 前端架构重构(3 层 feature-slice),全量单测 / lint / build 通过,待浏览器验收与部署(发布前置见 [docs/PLAN.md](docs/PLAN.md) `P0`)。
 > **玩法设计(权威)**:[docs/superpowers/specs/2026-09-03-word-island-v2-design.md](docs/superpowers/specs/2026-09-03-word-island-v2-design.md)
 > **趣味系统设计**:[docs/superpowers/specs/2026-09-04-fun-system-design.md](docs/superpowers/specs/2026-09-04-fun-system-design.md)
-> **前端架构重构(权威,取代 `docs/ideas/2026-09-04-dev-architecture.md`)**:[docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md](docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md)
+> **前端架构重构(权威设计定稿)**:[docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md](docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md) · 操作规范见 [docs/frontend-dev-standard.md](docs/frontend-dev-standard.md)
 > **工程细节(命令 / 架构 / 数据模型 / 约定)**:[CLAUDE.md](CLAUDE.md)
 
 ## 已实现功能

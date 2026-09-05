@@ -36,7 +36,7 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 - 需求/任务统一入 `docs/PLAN.md`(P0-P2 前缀;当前迭代 / 想法池 / 坚决不做)。新想法先入「想法池」一行占位,**禁止直接开工**;确认不做 → 移「坚决不做」留痕防反复。
 - 立项详设(需求详档唯一位置)→ `docs/superpowers/specs/`;当前迭代 = **feature 轨(聚合新能力,兼容→minor / 破坏→major)+ hotfix 轨(基于已发 tag 修 bug→patch)** 并行,轨内各 plan 走 `plans/` + `.superpowers/sdd/`,轨就绪即走 `/release`。
-- 提案/规范文档 → `docs/ideas/<YYYY-MM-DD>-<topic>.md`(日期前缀,命名与 specs 同构)。
+- 规范文档(活标准,跨迭代沿用)→ `docs/` 根(如 `docs/frontend-dev-standard.md`),与源码事实同步。`docs/ideas/` 已废:新想法先入 PLAN 想法池,立项详设直接入 specs,不再产中间提案档。
 - 历史 → 根 `CHANGELOG.md`(只追加)。发布命令/闸门一律指向 `/release`,本文件零重复。复盘三问(孩子真玩到没 / 想法池增删几条 / 最后悔做哪个)答案追加至最新发布条目末。
 - **分支模型**:唯一长命分支 = `main`(开发主干 + 发版起点)。其余全短命:大 plan 自开 topic 分支 + worktree,成即合 main 即删;hotfix 临时分支从已发 tag 出,发完合回 main 即删。禁常驻 feature/hotfix 长命线。tag 长存不删(hotfix 锚点 + 回滚真相源)。
 - 版本号只表影响面(语义见「版本语义」),P 只表何时做,两轴独立。想法池 P2 升 P1/当前,须满足其一:孩子实际受阻 / 家长明确诉求 / 技术债阻塞 / 明确复玩价值。
@@ -89,7 +89,7 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 ### 前端(3 层:`shared/features/app`,`src/architecture.test.ts` 守边界)
 
-**事实源**:本重构设计定稿 = `docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md`(原始提案 `docs/ideas/2026-09-04-dev-architecture.md` 已被取代)。铁律(测试强制):
+**事实源**:本重构设计定稿 = `docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md`;操作细则 = `docs/frontend-dev-standard.md`。铁律(测试强制):
 
 - `src/shared/` — 无上层依赖的契约、纯逻辑与中性基础件:`types.ts`、`words.ts`(100 词词库 + `CATEGORY_LABELS`/`WORDS`/`wordById`)、`progress-rules.ts`(`SKILL_ORDER`/`enabledSkills`/`fullComplete`/`firstTargetId`/`titleForStars`,lesson 与主页共用)、`services/*`、`registry.ts`、`useService.ts` + `useServiceSnapshot.ts`、`utils.ts`(`cn`)、`api-error.ts`/`load-state.ts`、`ui/`(button/card/input/label/badge/select/chart-tooltip,`cva` + `tailwind-merge` 中性视觉基础件,features 可引)
 - `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。业务分区:`auth`(登录门)、`archipelago`(群岛主页 `HomeEntry`/`ArchipelagoView`)、`lesson`(答题/结算/称号:`LessonEntry` + `WordLesson`/`WordDone`/`ComboDisplay`/`quiz/` 三题型 + `lesson.ts`/`progress.ts`/`settlement.ts`/`praise.ts`)、`settings`(学习设置面板)、`question-engine`(运行时出题)、`progress`/`settings-state`/`vocabulary`/`api`/`audio`/`speech`/`combo`/`toast`/`celebrate`/`achievements`/`lucky-bonus`/`lingling`(服务工厂 + 必要组件)
