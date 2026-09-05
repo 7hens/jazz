@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type {
+  AchievementService,
   AudioService,
   CelebrateService,
   ComboService,
+  LuckyBonusService,
   ProgressData,
   ProgressService,
   QuestionEngineService,
@@ -18,6 +20,7 @@ import { getRandomPraise } from './praise'
 import { emptyProgress, settleWord, titleForStars } from './progress'
 import {
   coordinateSettlement,
+  type SettlementAchievement,
   type SettlementResult,
   type SettlementSession,
 } from './settlement'
@@ -28,7 +31,14 @@ export type LessonEntryProps = {
   wordId: number
   onExit: () => void
   onNextWord: () => void
+  // app 组合层可选:整词结算的成就/幸运奖励入队(供成就弹层与幸运层展示)。
+  onCelebrate?: (celebration: LessonCelebration) => void
 }
+
+export type LessonCelebration = Readonly<{
+  achievements: readonly SettlementAchievement[]
+  luckyReward: number
+}>
 
 type LessonSessionProps = LessonEntryProps & {
   word: WordUnit
@@ -38,6 +48,8 @@ type LessonSessionProps = LessonEntryProps & {
   comboValue: number
   progress: ProgressService
   settings: SettingsService
+  achievements: AchievementService
+  lucky: LuckyBonusService
   questionEngine: QuestionEngineService
   combo: ComboService
   audio: AudioService
@@ -64,6 +76,7 @@ function LessonSession({
   wordId,
   onExit,
   onNextWord,
+  onCelebrate,
   word,
   words,
   progressData,
@@ -71,6 +84,8 @@ function LessonSession({
   comboValue,
   progress,
   settings,
+  achievements,
+  lucky,
   questionEngine,
   combo,
   audio,
@@ -145,10 +160,15 @@ function LessonSession({
     }, {
       progress,
       settings,
-      // Task 10 supplies the reward-rule services and app-owned overlay queue.
-      achievements: { scan: () => [] },
-      lucky: { roll: () => 0 },
-      overlays: { enqueue: () => undefined },
+      achievements: { scan: achievements.scan },
+      lucky: { roll: lucky.roll },
+      overlays: {
+        enqueue: (found, luckyReward) => {
+          if (found.length > 0 || luckyReward > 0) {
+            onCelebrate?.({ achievements: found, luckyReward })
+          }
+        },
+      },
     })
 
     setSession(result.session)
@@ -201,11 +221,13 @@ function LessonSession({
   )
 }
 
-export function LessonEntry({ wordId, onExit, onNextWord }: LessonEntryProps) {
+export function LessonEntry({ wordId, onExit, onNextWord, onCelebrate }: LessonEntryProps) {
   const vocabulary = useService('vocabulary')
   const questionEngine = useService('question-engine')
   const progress = useService('progress')
   const settings = useService('settings-state')
+  const achievements = useService('achievements')
+  const lucky = useService('lucky-bonus')
   const combo = useService('combo')
   const audio = useService('audio')
   const speech = useService('speech')
@@ -225,6 +247,7 @@ export function LessonEntry({ wordId, onExit, onNextWord }: LessonEntryProps) {
       wordId={wordId}
       onExit={onExit}
       onNextWord={onNextWord}
+      onCelebrate={onCelebrate}
       word={word}
       words={vocabulary.getAllWords()}
       progressData={progressSnapshot.data}
@@ -232,6 +255,8 @@ export function LessonEntry({ wordId, onExit, onNextWord }: LessonEntryProps) {
       comboValue={comboSnapshot.combo}
       progress={progress}
       settings={settings}
+      achievements={achievements}
+      lucky={lucky}
       questionEngine={questionEngine}
       combo={combo}
       audio={audio}

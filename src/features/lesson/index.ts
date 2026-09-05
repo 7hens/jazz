@@ -1,5 +1,5 @@
 export { LessonEntry } from './LessonEntry'
-export type { LessonEntryProps } from './LessonEntry'
+export type { LessonCelebration, LessonEntryProps } from './LessonEntry'
 export { WordDone } from './WordDone'
 export type { WordDoneProps } from './WordDone'
 export { WordLesson } from './WordLesson'

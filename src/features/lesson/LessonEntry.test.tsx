@@ -2,9 +2,11 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/registry'
 import type {
+  AchievementService,
   AudioService,
   CelebrateService,
   ComboService,
+  LuckyBonusService,
   ProgressService,
   QuestionEngineService,
   SettingsService,
@@ -103,6 +105,8 @@ it('renders the first enabled skill using only registered service composition', 
     show: () => 1,
     dismiss: () => undefined,
   }
+  const achievements: AchievementService = { scan: () => [] }
+  const lucky: LuckyBonusService = { roll: () => 0 }
 
   registry.register('vocabulary', vocabulary)
   registry.register('question-engine', questionEngine)
@@ -113,6 +117,8 @@ it('renders the first enabled skill using only registered service composition', 
   registry.register('speech', speech)
   registry.register('celebrate', celebrate)
   registry.register('toast', toast)
+  registry.register('achievements', achievements)
+  registry.register('lucky-bonus', lucky)
 
   render(<LessonEntry wordId={1} onExit={vi.fn()} onNextWord={vi.fn()} />)
 
