@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/registry'
 import type { AudioService, ComboService, ProgressService, SettingsService } from '@/shared/services'
 import type { UserSettings } from '@/shared/types'
+import { createVocabularyService } from '@/features/vocabulary'
 import { HomeEntry } from './HomeEntry'
 import viewSource from './ArchipelagoView.tsx?raw'
 
@@ -57,6 +58,7 @@ function registerServices() {
     unlock: vi.fn(),
   }
   registry.register('progress', progress)
+  registry.register('vocabulary', createVocabularyService())
   registry.register('settings-state', settingsService)
   registry.register('combo', combo)
   registry.register('audio', audio)

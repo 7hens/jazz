@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CATEGORY_LABELS, WORDS } from '@/shared/words'
+import { CATEGORY_LABELS } from '@/shared/words'
 import { firstTargetId, fullComplete, titleForStars } from '@/shared/progress-rules'
 import { useService } from '@/shared/useService'
 import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
@@ -15,6 +15,7 @@ export type HomeEntryProps = {
 
 export function HomeEntry({ lingling, onEnterLesson, onOpenSettings, onLogout }: HomeEntryProps) {
   const progress = useService('progress')
+  const vocabulary = useService('vocabulary')
   const settingsService = useService('settings-state')
   const combo = useService('combo')
   const audio = useService('audio')
@@ -25,11 +26,12 @@ export function HomeEntry({ lingling, onEnterLesson, onOpenSettings, onLogout }:
 
   const words = progressSnap.data
   const settings = settingsSnap.data
+  const catalog = vocabulary.getAllWords()
 
   const totalStars = Object.values(words).reduce((sum, p) => sum + p.starsEarned, 0)
   const title = titleForStars(totalStars)
-  const doneCount = WORDS.filter((w) => fullComplete(words[w.id], settings)).length
-  const target = firstTargetId(words, settings, WORDS)
+  const doneCount = catalog.filter((w) => fullComplete(words[w.id], settings)).length
+  const target = firstTargetId(words, settings, catalog)
 
   async function resetProgress() {
     if (!window.confirm('确定要重置全部学习进度吗?此操作无法撤销。')) return
@@ -46,7 +48,7 @@ export function HomeEntry({ lingling, onEnterLesson, onOpenSettings, onLogout }:
 
   return (
     <ArchipelagoView
-      catalog={WORDS}
+      catalog={catalog}
       categoryLabels={CATEGORY_LABELS}
       words={words}
       doneCount={doneCount}
