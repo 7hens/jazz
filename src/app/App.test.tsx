@@ -20,6 +20,7 @@ import {
 } from '@/shared/services'
 import type {
   AuthSnapshot,
+  BasicsProgressRow,
   BasicsProgressSnapshot,
   ChoiceQuestion,
   ComboSnapshot,
@@ -28,6 +29,7 @@ import type {
   ToastData,
   User,
   UserSettings,
+  WordProgress,
   WordUnit,
 } from '@/shared/services'
 import { createProgressRulesService } from '@/features/lesson'
@@ -42,6 +44,14 @@ const settings: UserSettings = {
   earnedAchievements: [],
   consecutiveDays: 0,
   lastActiveDate: '',
+  updatedAt: '2026-09-05T00:00:00.000Z',
+}
+
+// 老用户进度:词 1 已有一行(未整词完成,仍可进词课);任何 progress 有行即不触发冷启动小测。
+const partialRow: WordProgress = {
+  wordId: 1,
+  completed: { pinyin: false, hanzi: false, english: false },
+  starsEarned: 0,
   updatedAt: '2026-09-05T00:00:00.000Z',
 }
 
@@ -194,13 +204,15 @@ function registerAll() {
   const basicsLoad = vi.fn(async () => {
     basicsStore.publish({ status: 'ready', data: basicsStore.getSnapshot().data })
   })
+  const basicsRecord = vi.fn(async () => undefined)
+  const basicsSaveAll = vi.fn(async (_rows: readonly BasicsProgressRow[]) => {})
   const basics: BasicsService = {
     getSnapshot: basicsStore.getSnapshot,
     subscribe: basicsStore.subscribe,
     load: basicsLoad,
-    recordAnswer: async () => undefined,
+    recordAnswer: basicsRecord,
     markTaught: async () => undefined,
-    saveAll: async () => undefined,
+    saveAll: basicsSaveAll,
   }
   const foundation: FoundationService = {
     unitsFor: () => [],
@@ -223,19 +235,50 @@ function registerAll() {
   registry.register(FoundationService, foundation)
   registry.register(BasicsService, basics)
 
-  return { auth, authStore, check, progressLoad, settingsLoad, basicsLoad, celebrate, play: audio.play }
+  return {
+    auth,
+    authStore,
+    check,
+    progressLoad,
+    settingsLoad,
+    basicsLoad,
+    basicsRecord,
+    basicsSaveAll,
+    celebrate,
+    play: audio.play,
+    progressStore,
+    settingsStore,
+    basicsStore,
+  }
 }
 
-/** 挂载后立即显示群岛主页(登录 + 并行加载完成)。 */
-async function renderAuthenticatedHome() {
+/** 认证登录;fresh 不预置 progress 行(→触发冷启动小测),默认预置 1 行 = 老用户(→直达群岛)。 */
+function mountApp(opts: { returning?: boolean } = {}) {
   const svc = registerAll()
   svc.check.mockImplementation((): Promise<undefined> => {
     svc.authStore.publish({ status: 'authenticated', user })
     return Promise.resolve(undefined)
   })
-  render(<App />)
+  if (opts.returning !== false) {
+    svc.progressStore.publish({ status: 'idle', data: { 1: partialRow } })
+  }
+  const utils = render(<App />)
+  return { svc, ...utils }
+}
+
+/** 老用户直达群岛(登录 + 并行加载完成,主页标题出现)。 */
+async function renderAuthenticatedHome() {
+  const { svc } = mountApp({ returning: true })
   await waitFor(() => expect(screen.getByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument())
   return svc
+}
+
+/** 点当前小测题首个选项(题面 shuffle 随机;对错都推进,故任选即可)。 */
+function clickAnyOption(container: HTMLElement) {
+  const grid = Array.from(container.querySelectorAll('div.grid')).find((el) => el.querySelectorAll('button').length > 0)
+  expect(grid, '应存在选项 grid').toBeTruthy()
+  const btn = grid!.querySelectorAll('button')[0] as HTMLElement
+  fireEvent.click(btn)
 }
 
 beforeEach(() => registry.clear())
@@ -249,13 +292,14 @@ describe('App 路由', () => {
     expect(await screen.findByRole('button', { name: /进入魔法岛/ })).toBeInTheDocument()
   })
 
-  it('boot → home:认证成功后加载 progress/settings 并显示主页', async () => {
+  it('boot → home(老用户):认证成功后加载 progress/settings 并直达主页,不弹小测', async () => {
     const svc = await renderAuthenticatedHome()
 
     expect(await screen.findByText(/收集 100 个词的星尘/)).toBeInTheDocument()
     await waitFor(() => expect(svc.progressLoad).toHaveBeenCalled())
     await waitFor(() => expect(svc.settingsLoad).toHaveBeenCalled())
     await waitFor(() => expect(svc.basicsLoad).toHaveBeenCalled())
+    expect(screen.queryByRole('heading', { name: '魔法入门小测' })).not.toBeInTheDocument()
   })
 
   it('401 → login:会话转为匿名后回到登录门', async () => {
@@ -283,5 +327,53 @@ describe('App 路由', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '完成' }))
     expect(await screen.findByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()
+  })
+})
+
+describe('App 冷启动诊断', () => {
+  it('fresh 零进度 → 登录后进小测,不进群岛', async () => {
+    mountApp({ returning: false })
+
+    expect(await screen.findByRole('heading', { name: '魔法入门小测' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '收集 100 个词的星尘' })).not.toBeInTheDocument()
+  })
+
+  it('fresh 跳过小测 → 回群岛,会话内不再弹(空基础/空进度空转 publish 也不重弹)', async () => {
+    const { svc } = mountApp({ returning: false })
+
+    await screen.findByRole('heading', { name: '魔法入门小测' })
+    fireEvent.click(screen.getByRole('button', { name: '跳过小测' }))
+
+    expect(await screen.findByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()
+
+    act(() => { svc.progressStore.publish({ status: 'ready', data: {} }) })
+    act(() => { svc.basicsStore.publish({ status: 'ready', data: {} }) })
+    expect(screen.queryByRole('heading', { name: '魔法入门小测' })).not.toBeInTheDocument()
+  })
+
+  it('fresh 答完小测 → saveAll 写基线,回群岛', async () => {
+    vi.useFakeTimers()
+    try {
+      const { svc, container } = mountApp({ returning: false })
+      await act(async () => {})
+
+      expect(screen.getByRole('heading', { name: '魔法入门小测' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '开始' }))
+
+      for (let i = 0; i < 6; i++) {
+        clickAnyOption(container)
+        act(() => { vi.advanceTimersByTime(700) })
+      }
+
+      expect(screen.getByRole('button', { name: '开始游戏' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '开始游戏' }))
+
+      expect(svc.basicsSaveAll).toHaveBeenCalledTimes(1)
+      const rows = svc.basicsSaveAll.mock.calls[0][0] as readonly BasicsProgressRow[]
+      expect(rows.length).toBeGreaterThan(0)
+      expect(screen.getByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
