@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { Check, Volume2 } from 'lucide-react'
-import { cn } from '../../../lib/utils'
-import { play } from '../../../features/audio'
-import { speakCard } from './speech'
+import { cn } from '@/lib/utils'
+import type { AudioCue } from '@/shared/services'
+import { speakCard, type Speak } from './speech'
 import type { BaseOption, KingdomKey } from '@/shared/types'
 
 type MatchGameProps = {
@@ -12,11 +12,22 @@ type MatchGameProps = {
   right: BaseOption[]
   answerMap: Record<string, string>
   kingdom: KingdomKey | 'mixed'
+  playSound: (cue: AudioCue) => void
+  speak: Speak
   /** 全部配对成功时触发,传任一正确 left id(语义上整题 +10)。 */
   onComplete: (leftId: string) => void
 }
 
-export function MatchGame({ prompt, left, right, answerMap, kingdom, onComplete }: MatchGameProps) {
+export function MatchGame({
+  prompt,
+  left,
+  right,
+  answerMap,
+  kingdom,
+  playSound,
+  speak,
+  onComplete,
+}: MatchGameProps) {
   const [selL, setSelL] = useState<string | null>(null)
   const [selR, setSelR] = useState<string | null>(null)
   const [matched, setMatched] = useState<Record<string, string>>({})
@@ -42,10 +53,10 @@ export function MatchGame({ prompt, left, right, answerMap, kingdom, onComplete 
         setDone(true)
         onComplete(left[0]?.id ?? '')
       } else {
-        play('tap')
+        playSound('tap')
       }
     } else {
-      play('wrong')
+      playSound('wrong')
       setSelL(null)
       setSelR(null)
       setMismatch([l, r])
@@ -111,13 +122,13 @@ export function MatchGame({ prompt, left, right, answerMap, kingdom, onComplete 
             aria-label={`朗读 ${o.text}`}
             onClick={(e) => {
               e.stopPropagation()
-              speakCard(kingdom, speakText)
+              speakCard(speak, kingdom, speakText)
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 e.stopPropagation()
-                speakCard(kingdom, speakText)
+                speakCard(speak, kingdom, speakText)
               }
             }}
             className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/75 text-accent shadow-card transition-transform hover:scale-110"

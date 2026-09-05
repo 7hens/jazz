@@ -3,23 +3,28 @@ import { MotionConfig } from 'motion/react'
 import { Loader2 } from 'lucide-react'
 import { LoginGate } from './features/auth/LoginGate'
 import { WordMapView } from './components/game/WordMapView'
-import { WordLesson } from './components/game/WordLesson'
-import { WordDone } from './components/game/WordDone'
 import { SettingsPanel } from './components/game/SettingsPanel'
 import { AchievementPopup } from './components/game/AchievementPopup'
 import { LuckyBonus } from './components/game/LuckyBonus'
 import { useToast } from './features/toast'
 import { WORDS, wordById } from './features/vocabulary'
-import { emptyProgress, isValidWordProgress, settleWord, titleForStars } from './game/progress'
+import {
+  emptyProgress,
+  fullComplete,
+  getRandomPraise,
+  isValidWordProgress,
+  settleWord,
+  titleForStars,
+  WordDone,
+  WordLesson,
+} from './features/lesson'
 import { getSoundOn, setSoundOn } from './features/audio'
 import {
   loadCombo, loadMaxCombo, nextCombo, comboBonus, saveCombo, saveMaxCombo, type AnswerKind,
 } from './features/combo'
-import { celebrate } from './features/celebrate'
-import { getRandomPraise } from './game/praise'
 import { rollLucky, nextConsecutive, todayKey } from './game/fun'
 import { checkAchievements, type Achievement } from './game/achievements'
-import { fullComplete } from './game/lesson'
+import { useService } from './shared/useService'
 import type { SkillKey, UserSettings, WordProgress, WordUnit } from './shared/types'
 
 type Screen = 'boot' | 'login' | 'map' | 'lesson' | 'done'
@@ -61,6 +66,10 @@ function defaultSettings(): UserSettings {
 }
 
 function App() {
+  const audioService = useService('audio')
+  const celebrateService = useService('celebrate')
+  const questionEngine = useService('question-engine')
+  const speechService = useService('speech')
   const [screen, setScreen] = useState<Screen>('boot')
   const [progress, setProgress] = useState<Record<number, WordProgress>>({})
   const [settings, setSettings] = useState<UserSettings>(defaultSettings)
@@ -225,7 +234,7 @@ function App() {
       body: JSON.stringify({ progress: [r.next] }),
     }).catch(() => {})
     // 一步(2 题)全过:轻庆祝 + 夸奖 toast(每步一次,非每题)
-    celebrate('step')
+    celebrateService.play('step')
     showToast('success', getRandomPraise())
   }
 
@@ -309,7 +318,7 @@ function App() {
     if (newEarned.length > 0) setAchQueue(newEarned)
     else if (luckyReward > 0) setLuckyOn(true)
     // 本次真正推进(整词首通或新增技能步)才放 word 级撒花;重学已完词不重复放
-    if (gainRef.current.bonus > 0 || gainRef.current.step > 0) celebrate('word')
+    if (gainRef.current.bonus > 0 || gainRef.current.step > 0) celebrateService.play('word')
     setScreen('done')
   }
 
@@ -343,6 +352,10 @@ function App() {
         word={activeWord}
         settings={settings}
         combo={combo}
+        makeQuestions={questionEngine.makeStepQuestions}
+        playSound={audioService.play}
+        speak={speechService.speak}
+        celebrate={celebrateService.play}
         onAnswer={handleAnswer}
         onStepPass={handleStepPass}
         onLessonComplete={() => void handleLessonComplete()}
@@ -361,6 +374,8 @@ function App() {
           titleName={title.name}
           nextId={doneInfo.word.id + 1}
           isLastWord={doneInfo.word.id >= WORDS.length}
+          getPraise={getRandomPraise}
+          playSound={audioService.play}
           onNext={nextWord}
           onMap={exitToMap}
         />

@@ -1,4 +1,3 @@
-// src/game/progress.ts
 import type { SkillKey, UserSettings, WordProgress } from '@/shared/types'
 import { fullComplete } from './lesson'
 

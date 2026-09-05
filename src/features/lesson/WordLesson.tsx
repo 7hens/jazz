@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
-import { cn } from '../../lib/utils'
-import { makeStepQuestions } from '@/features/question-engine'
-import { play } from '../../features/audio'
-import { stepsFor } from '../../game/lesson'
-import { celebrate } from '../../features/celebrate'
-import type { AnswerKind } from '../../features/combo'
+import { cn } from '@/lib/utils'
+import type { AnswerKind, AudioCue, CelebrateLevel, Rng } from '@/shared/services'
 import type { Question, SkillKey, UserSettings, WordUnit } from '@/shared/types'
+import { stepsFor } from './lesson'
 import { ComboDisplay, comboText } from './ComboDisplay'
-import { Button } from '../ui/button'
+import { Button } from '@/components/ui/button'
 import { Choice } from './quiz/Choice'
 import { ListenChoice } from './quiz/ListenChoice'
 import { MatchGame } from './quiz/MatchGame'
@@ -18,6 +15,10 @@ export type WordLessonProps = {
   word: WordUnit
   settings: UserSettings
   combo: number
+  makeQuestions: (word: WordUnit, skill: SkillKey, rng?: Rng) => Question[]
+  playSound: (cue: AudioCue) => void
+  speak: (text: string, language?: string) => boolean
+  celebrate: (level: CelebrateLevel) => void
   onAnswer: (kind: AnswerKind) => void
   onStepPass: (skill: SkillKey) => void
   onLessonComplete: () => void
@@ -34,11 +35,23 @@ function crossedLevel(prev: number, next: number): boolean {
   return COMBO_HITS.some((h) => prev < h && next >= h)
 }
 
-export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLessonComplete, onExit }: WordLessonProps) {
+export function WordLesson({
+  word,
+  settings,
+  combo,
+  makeQuestions,
+  playSound,
+  speak,
+  celebrate,
+  onAnswer,
+  onStepPass,
+  onLessonComplete,
+  onExit,
+}: WordLessonProps) {
   const steps = stepsFor(settings)
   const [stepIndex, setStepIndex] = useState(0)
   const [round, setRound] = useState(0) // 失败重建同步
-  const [questions, setQuestions] = useState<Question[]>(() => makeStepQuestions(word, steps[0], Math.random))
+  const [questions, setQuestions] = useState<Question[]>(() => makeQuestions(word, steps[0], Math.random))
   const [qIndex, setQIndex] = useState(0)
   const [attempt, setAttempt] = useState<1 | 2>(1)
   const [phase, setPhase] = useState<'answering' | 'feedback' | 'reveal'>('answering')
@@ -77,12 +90,12 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
     burstSeq.current += 1
     setComboBurst({ key: burstSeq.current, text, className })
     if (combo === 10) celebrate('combo10')
-  }, [combo])
+  }, [celebrate, combo])
 
   // step/round 变化 → 重新出题并复位
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect
-    setQuestions(makeStepQuestions(word, steps[stepIndex], Math.random))
+    setQuestions(makeQuestions(word, steps[stepIndex], Math.random))
     setQIndex(0)
     setAttempt(1)
     setPhase('answering')
@@ -126,7 +139,7 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
     if (q.kind === 'match') {
       // MatchGame 只在全部配对成功时 onComplete;整组对 = 该题一次通过(attempt 恒 1)
       onAnswer('first')
-      play('correct')
+      playSound('correct')
       setCorrectId(q.left[0]?.id ?? '')
       setPhase('feedback')
       later(goNextQuestion, CORRECT_DELAY_MS)
@@ -136,20 +149,20 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
     const firstTry = attempt === 1
     if (correct) {
       onAnswer(firstTry ? 'first' : 'retry')
-      play('correct')
+      playSound('correct')
       setCorrectId(selectedId)
       setWrongId(null)
       setPhase('feedback')
       later(goNextQuestion, CORRECT_DELAY_MS)
     } else if (attempt === 1) {
       onAnswer('wrong')
-      play('wrong')
+      playSound('wrong')
       setWrongId(selectedId)
       setAttempt(2)
     } else {
       // 两次均错 → 步失败,重做整步
       onAnswer('wrong')
-      play('wrong')
+      playSound('wrong')
       setWrongId(selectedId)
       setRevealId(q.answerId)
       setPhase('reveal')
@@ -172,6 +185,7 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
             prompt={question.prompt}
             promptSpeak={question.promptSpeak}
             options={question.options}
+            speak={speak}
             {...shared}
           />
         )
@@ -182,6 +196,7 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
             prompt={question.prompt}
             promptEmoji={word.emoji}
             options={question.options}
+            speak={speak}
             {...shared}
           />
         )
@@ -193,6 +208,8 @@ export function WordLesson({ word, settings, combo, onAnswer, onStepPass, onLess
             right={question.right}
             answerMap={question.answerMap}
             kingdom={skill}
+            playSound={playSound}
+            speak={speak}
             onComplete={handleAnswer}
           />
         )

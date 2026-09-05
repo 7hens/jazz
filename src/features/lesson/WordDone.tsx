@@ -1,11 +1,10 @@
 import { motion } from 'motion/react'
 import { ArrowRight, Home } from 'lucide-react'
-import { play } from '../../features/audio'
-import { getRandomPraise } from '../../game/praise'
 import { useEffect, useRef } from 'react'
-import { cn } from '../../lib/utils'
+import { cn } from '@/lib/utils'
+import type { AudioCue } from '@/shared/services'
 import type { WordUnit } from '@/shared/types'
-import { Button } from '../ui/button'
+import { Button } from '@/components/ui/button'
 
 export type WordDoneProps = {
   word: WordUnit
@@ -16,21 +15,24 @@ export type WordDoneProps = {
   titleName: string
   nextId: number
   isLastWord: boolean
+  getPraise: () => string
+  playSound: (cue: AudioCue) => void
   onNext: () => void
   onMap: () => void
 }
 
 export function WordDone({
-  word, stepReward, wordBonus, extraReward, totalStars, titleName, nextId, isLastWord, onNext, onMap,
+  word, stepReward, wordBonus, extraReward, totalStars, titleName, nextId, isLastWord,
+  getPraise, playSound, onNext, onMap,
 }: WordDoneProps) {
   // 词级随机夸奖:useRef 惰性 init → 每次挂载随机一次,不随重渲染变
-  const praise = useRef(getRandomPraise())
+  const praise = useRef(getPraise())
   const playedRef = useRef(false)
   useEffect(() => {
     if (playedRef.current) return
     playedRef.current = true
-    play(wordBonus > 0 ? 'victory' : 'correct')
-  }, [wordBonus])
+    playSound(wordBonus > 0 ? 'victory' : 'correct')
+  }, [playSound, wordBonus])
 
   return (
     <div className="min-h-screen text-ink">
@@ -82,7 +84,7 @@ export function WordDone({
 
           <div className="mt-6 space-y-2.5">
             {!isLastWord ? (
-              <Button size="lg" className="w-full" onClick={() => { void play('tap'); onNext() }}>
+              <Button size="lg" className="w-full" onClick={() => { playSound('tap'); onNext() }}>
                 下一词 · {nextId} 号 <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (

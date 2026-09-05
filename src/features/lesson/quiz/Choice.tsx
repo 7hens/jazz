@@ -1,8 +1,8 @@
 import { motion } from 'motion/react'
 import { Volume2 } from 'lucide-react'
-import { cn } from '../../../lib/utils'
+import { cn } from '@/lib/utils'
 import type { BaseOption, KingdomKey } from '@/shared/types'
-import { speakCard } from './speech'
+import { speakCard, type Speak } from './speech'
 
 export type ChoiceProps = {
   prompt: string
@@ -17,6 +17,7 @@ export type ChoiceProps = {
   correctId?: string | null
   /** 本次答错的 option id(红标 + 抖动) */
   wrongId?: string | null
+  speak: Speak
   onAnswer: (id: string) => void
 }
 
@@ -33,7 +34,17 @@ function cardCls(disabled: boolean, reveal: boolean, correct: boolean, wrong: bo
   return 'border-hairline bg-surface text-ink hover:border-accent/60 hover:shadow-card'
 }
 
-function SpeakChip({ kingdom, text, label }: { kingdom: KingdomKey | 'mixed'; text: string; label: string }) {
+function SpeakChip({
+  kingdom,
+  text,
+  label,
+  speak,
+}: {
+  kingdom: KingdomKey | 'mixed'
+  text: string
+  label: string
+  speak: Speak
+}) {
   return (
     <span
       role="button"
@@ -41,13 +52,13 @@ function SpeakChip({ kingdom, text, label }: { kingdom: KingdomKey | 'mixed'; te
       aria-label={label}
       onClick={(e) => {
         e.stopPropagation()
-        speakCard(kingdom, text)
+        speakCard(speak, kingdom, text)
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           e.stopPropagation()
-          speakCard(kingdom, text)
+          speakCard(speak, kingdom, text)
         }
       }}
       className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/75 text-accent shadow-card transition-transform hover:scale-110 active:scale-95"
@@ -67,6 +78,7 @@ export function Choice({
   revealId = null,
   correctId = null,
   wrongId = null,
+  speak,
   onAnswer,
 }: ChoiceProps) {
   return (
@@ -81,7 +93,7 @@ export function Choice({
         {promptSpeak ? (
           <button
             type="button"
-            onClick={() => speakCard(kingdom, promptSpeak)}
+            onClick={() => speakCard(speak, kingdom, promptSpeak)}
             aria-label="朗读题目"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2 transition-colors hover:bg-accent-tint hover:text-accent"
           >
@@ -119,7 +131,7 @@ export function Choice({
                 </span>
               ) : null}
               <span className={cn('font-bold leading-tight', o.emoji ? 'text-[15px]' : 'text-xl')}>{o.text}</span>
-              {o.speak ? <SpeakChip kingdom={kingdom} text={o.speak} label={`朗读 ${o.text}`} /> : null}
+              {o.speak ? <SpeakChip kingdom={kingdom} text={o.speak} label={`朗读 ${o.text}`} speak={speak} /> : null}
             </motion.button>
           )
         })}

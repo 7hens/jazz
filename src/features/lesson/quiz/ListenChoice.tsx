@@ -9,7 +9,7 @@ export type ListenChoiceProps = Omit<ChoiceProps, 'promptSpeak'> & {
   promptSpeak: string
 }
 
-export function ListenChoice({ promptSpeak, kingdom, options, onAnswer, ...rest }: ListenChoiceProps) {
+export function ListenChoice({ promptSpeak, kingdom, options, onAnswer, speak, ...rest }: ListenChoiceProps) {
   // 进题自动朗读一次(promptSpeak)。React StrictMode 开发模式会重放 effect(setup→cleanup→setup),
   // 若不拦,第二次 speak 会先 cancel 掉第一次正在合成的 utterance,speech-dispatcher 后端下该句
   // 直接丢失 → 无声。ref 去重保证同一组件实例只自动读一次;每题按 key 重挂载 → 新实例 → 新题仍会读。
@@ -17,8 +17,8 @@ export function ListenChoice({ promptSpeak, kingdom, options, onAnswer, ...rest 
   useEffect(() => {
     if (saidRef.current) return
     saidRef.current = true
-    speakCard(kingdom, promptSpeak)
-  }, [kingdom, promptSpeak])
+    speakCard(speak, kingdom, promptSpeak)
+  }, [kingdom, promptSpeak, speak])
 
   return (
     <div className="space-y-5">
@@ -27,7 +27,7 @@ export function ListenChoice({ promptSpeak, kingdom, options, onAnswer, ...rest 
           type="button"
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => speakCard(kingdom, promptSpeak)}
+          onClick={() => speakCard(speak, kingdom, promptSpeak)}
           aria-label="再听一遍"
           className="flex h-20 w-20 items-center justify-center rounded-full bg-accent text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_8px_24px_-12px_rgb(0_0_0/0.4)]"
         >
@@ -37,6 +37,7 @@ export function ListenChoice({ promptSpeak, kingdom, options, onAnswer, ...rest 
       <Choice
         kingdom={kingdom}
         options={options}
+        speak={speak}
         onAnswer={onAnswer}
         {...rest}
       />

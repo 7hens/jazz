@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { LogOut, RotateCcw, Volume2, VolumeX, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
 import { CATEGORY_LABELS, WORDS } from '@/features/vocabulary'
-import { firstTargetId, fullComplete } from '../../game/lesson'
-import { titleForStars } from '../../game/progress'
+import { firstTargetId, fullComplete, titleForStars } from '@/features/lesson'
 import { cn } from '../../lib/utils'
 import { play } from '../../features/audio'
 import { LingLing } from './LingLing'
@@ -36,7 +35,7 @@ export function WordMapView({
   onReset,
 }: WordMapViewProps) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const target = firstTargetId(words, settings)
+  const target = firstTargetId(words, settings, WORDS)
   const title = titleForStars(totalStars)
   const doneCount = WORDS.filter((w) => fullComplete(words[w.id], settings)).length
 

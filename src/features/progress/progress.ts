@@ -1,11 +1,35 @@
 import { ApiError } from '@/shared/api-error'
 import type { ApiService, ApiWordProgress, ProgressData, ProgressService, ProgressSnapshot } from '@/shared/services'
 import type { WordProgress } from '@/shared/types'
-import { isValidWordProgress, mergeProgress } from '@/game/progress'
 
 export interface ProgressServiceCallbacks {
   onUnauthorized(): void
   onError(message: string): void
+}
+
+const ALL_SKILLS = ['pinyin', 'hanzi', 'english'] as const
+
+function isValidWordProgress(value: unknown): value is WordProgress {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const progress = value as Record<string, unknown>
+  if (typeof progress.wordId !== 'number' || !Number.isInteger(progress.wordId) || progress.wordId < 1) return false
+  const completed = progress.completed as Record<string, unknown> | null
+  if (typeof completed !== 'object' || completed === null) return false
+  if (!ALL_SKILLS.every(skill => typeof completed[skill] === 'boolean')) return false
+  return typeof progress.starsEarned === 'number' && Number.isFinite(progress.starsEarned)
+}
+
+function mergeProgress(local: WordProgress, remote: WordProgress): WordProgress {
+  return {
+    wordId: local.wordId,
+    completed: {
+      pinyin: local.completed.pinyin || remote.completed.pinyin,
+      hanzi: local.completed.hanzi || remote.completed.hanzi,
+      english: local.completed.english || remote.completed.english,
+    },
+    starsEarned: Math.max(local.starsEarned, remote.starsEarned),
+    updatedAt: new Date().toISOString(),
+  }
 }
 
 function errorMessage(error: unknown): string {

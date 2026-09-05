@@ -1,4 +1,3 @@
-import { WORDS } from '@/features/vocabulary'
 import type { SkillKey, UserSettings, WordProgress } from '@/shared/types'
 
 export const SKILL_ORDER: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
@@ -17,9 +16,13 @@ export function fullComplete(p: WordProgress | undefined, settings: UserSettings
   return enabledSkills(settings).every((s) => p.completed[s])
 }
 
-export function firstTargetId(words: Record<number, WordProgress>, settings: UserSettings): number {
-  for (const w of WORDS) {
+export function firstTargetId(
+  words: Record<number, WordProgress>,
+  settings: UserSettings,
+  vocabulary: readonly { id: number }[],
+): number {
+  for (const w of vocabulary) {
     if (!fullComplete(words[w.id], settings)) return w.id
   }
-  return WORDS.length + 1
+  return vocabulary.length + 1
 }
