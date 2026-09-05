@@ -29,7 +29,6 @@ const LETTER_CONFUSABLES: readonly string[][] = [
   ['b', 'd', 'p', 'q'], ['m', 'n'], ['u', 'v', 'w'], ['c', 'e', 'o'], ['i', 'l', 'j'],
   ['a', 'd', 'g'], ['f', 't'], ['s', 'z'], ['h', 'k'], ['g', 'y'],
 ]
-const TONE_NAMES: Record<string, string> = { ton1: '一声', ton2: '二声', ton3: '三声', ton4: '四声', ton0: '轻声' }
 
 // —— 目录素材(单元 → 选项文本/点读/锚点 emoji)——
 type OptRef = { text: string; speak: string; emoji: string }
@@ -40,7 +39,7 @@ function letterRefOf(ch: string): OptRef {
 function pinyinRefOf(sym: string, isTone: boolean): OptRef {
   if (isTone) {
     const u = PINYIN_TONES.find((t) => t.symbol === sym)
-    return { text: TONE_NAMES[sym], speak: u?.anchorHanzi ?? '', emoji: u?.anchorEmoji ?? '' }
+    return { text: u?.label ?? sym, speak: u?.anchorHanzi ?? '', emoji: u?.anchorEmoji ?? '' }
   }
   const ini = PINYIN_INITIALS.find((i) => i.symbol === sym)
   const fin = PINYIN_FINALS.find((f) => f.symbol === sym)
@@ -60,7 +59,7 @@ function candidatesFor(unitKey: string, size: number): string[] {
     const rest = ENGLISH_LETTERS.map((e) => e.symbol).filter((c) => c !== target && !group.includes(c))
     group = [...group, ...rest]
   } else if (isTone) {
-    group = Object.keys(TONE_NAMES).filter((t) => t !== target)
+    group = PINYIN_TONES.map((t) => t.symbol).filter((s) => s !== target)
   } else if (INIT_GROUP[target] !== undefined) {
     const same = PINYIN_INITIALS.map((i) => i.symbol).filter((s) => s !== target && INIT_GROUP[s] === INIT_GROUP[target])
     const rest = PINYIN_INITIALS.map((i) => i.symbol).filter((s) => s !== target && !same.includes(s))
@@ -84,15 +83,18 @@ function optionId(unitKey: string, marker: 'c' | 'l', i: number): string {
 export function questionForUnit(unitKey: string, rng: Rng = defaultRng()): TeachQuestion | null {
   const isEnglish = unitKey.startsWith('english:')
   const isTone = unitKey.startsWith('pinyin:ton')
-  const isInitial = !isTone && !isEnglish && PINYIN_INITIALS.some((i) => i.symbol === unitKey.slice('pinyin:'.length))
+  const targetSym = isEnglish ? unitKey.slice(8) : unitKey.slice('pinyin:'.length)
+  const toneUnit = isTone ? PINYIN_TONES.find((t) => t.symbol === targetSym) : undefined
+  // 多音节声调锚点(如轻声「mào zi」)不指向唯一声调,不出题,避免歧义。
+  const toneUsable = toneUnit !== undefined && !toneUnit.anchorPinyin.includes(' ')
+  const isInitial = !isTone && !isEnglish && PINYIN_INITIALS.some((i) => i.symbol === targetSym)
   const valid = isEnglish
-    ? /^[a-z]$/.test(unitKey.slice(8)) && ENGLISH_LETTERS.some((e) => e.symbol === unitKey.slice(8))
+    ? /^[a-z]$/.test(targetSym) && ENGLISH_LETTERS.some((e) => e.symbol === targetSym)
     : isTone
-      ? Object.hasOwn(TONE_NAMES, unitKey.slice('pinyin:'.length))
-      : isInitial || PINYIN_FINALS.some((f) => f.symbol === unitKey.slice('pinyin:'.length))
+      ? toneUsable
+      : isInitial || PINYIN_FINALS.some((f) => f.symbol === targetSym)
   if (!valid) return null
 
-  const targetSym = isEnglish ? unitKey.slice(8) : unitKey.slice('pinyin:'.length)
   const pick = shuffle([targetSym, ...candidatesFor(unitKey, 2)], rng)
   const marker: 'c' | 'l' = isEnglish ? 'l' : 'c'
   const options: BaseOption[] = pick.map((sym, i) => {
@@ -107,9 +109,8 @@ export function questionForUnit(unitKey: string, rng: Rng = defaultRng()): Teach
   const anchor = pinyinRefOf(targetSym, isTone)
   const label = anchor.speak // 锚点汉字(读「包」等)
   const hanziDisplay = label || targetSym
-  const toneAnchorPinyin = PINYIN_TONES.find((t) => t.symbol === targetSym)?.anchorPinyin
   const prompt = isTone
-    ? `「${toneAnchorPinyin ?? targetSym}」是第几声?`
+    ? `「${toneUnit?.anchorPinyin ?? targetSym}」是第几声?`
     : isInitial
       ? `「${hanziDisplay}」开头的声母是哪个?`
       : `「${hanziDisplay}」里的韵母是哪个?`

@@ -27,6 +27,25 @@ describe('questionForUnit', () => {
     expect(ans?.text).toBe('一声')
   })
 
+  it('轻声 ton0 为多音节锚点,返回 null 避免歧义', () => {
+    expect(questionForUnit('pinyin:ton0')).toBeNull()
+  })
+
+  it('ch/r/s 锚点词首即该声母,题干诚实不误导', () => {
+    const cases: Array<[string, string]> = [
+      ['pinyin:ch', '车'],
+      ['pinyin:r', '日'],
+      ['pinyin:s', '伞'],
+    ]
+    for (const [key, hanzi] of cases) {
+      const q = questionForUnit(key)
+      expect(q).not.toBeNull()
+      if (!q) return
+      if (q.kind !== 'choice') throw new Error(`${key} 应为 choice`)
+      expect(q.prompt).toContain(hanzi)
+    }
+  })
+
   it('英语字母题 = listen-choice,听字母名选大写字母,干扰含近形优先', () => {
     const q = questionForUnit('english:a')
     expect(q?.kind).toBe('listen-choice')
