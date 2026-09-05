@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 import { ArrowRight, Home } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { cn } from '@/shared/utils'
+import { cn } from '@/shared/ui/utils'
 import type { AudioCue, WordUnit } from '@/shared/services'
 import { Button } from '@/shared/ui/button'
 

@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { Volume2 } from 'lucide-react'
-import { cn } from '@/shared/utils'
+import { cn } from '@/shared/ui/utils'
 import type { BaseOption, SkillKey } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 

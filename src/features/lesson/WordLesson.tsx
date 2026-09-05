@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
-import { cn } from '@/shared/utils'
+import { cn } from '@/shared/ui/utils'
 import type {
   AnswerKind,
   AudioCue,

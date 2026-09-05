@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
-import { cn } from '@/shared/utils'
+import { cn } from '@/shared/ui/utils'
 
 const LEVELS: ReadonlyArray<{ threshold: number; text: string; className: string }> = [
   { threshold: 1, text: '🔥 太棒了!', className: 'text-orange-500' },

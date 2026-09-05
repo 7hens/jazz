@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { cn } from '@/shared/utils'
+import { cn } from '@/shared/ui/utils'
 import type { SkillKey, UserSettings } from '@/shared/services'
 import { Button } from '@/shared/ui/button'
 

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { cn } from '@/shared/utils'
+import { cn } from '@/shared/ui/utils'
 import type { ToastService, ToastType } from '@/shared/services'
 import { useServiceSnapshot } from '@/shared/services/core'
 
