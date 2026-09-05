@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import type { ApiService, ApiUserSettings, ApiWordProgress } from '@/shared/services/api'
-import type { UserSettings, WordProgress } from '@/shared/services'
+import type { ApiBasicsProgressRow, BasicsProgressRow, UserSettings, WordProgress } from '@/shared/services'
 import { createHttpApiService } from './api'
 
 const user = { id: 'u', email: 'e', name: 'n' }
@@ -32,11 +32,25 @@ const workerSettings = {
   consecutiveDays: 3,
   lastActiveDate: '2026-09-04',
 }
+const basicsRows: BasicsProgressRow[] = [{
+  unitKey: 'pinyin:b',
+  state: 'known',
+  correctStreak: 2,
+  taughtCount: 3,
+  updatedAt: '2026-09-04T00:00:00.000Z',
+}]
+const workerBasicsRows = [{
+  unitKey: 'pinyin:b',
+  state: 'known',
+  correctStreak: 2,
+  taughtCount: 3,
+}]
 
 describe('HTTP API service', () => {
   it('exposes timestamp-free Worker shapes for GET responses', () => {
     expectTypeOf<ApiService['getProgress']>().returns.toEqualTypeOf<Promise<ApiWordProgress[]>>()
     expectTypeOf<ApiService['getSettings']>().returns.toEqualTypeOf<Promise<ApiUserSettings>>()
+    expectTypeOf<ApiService['getBasicsProgress']>().returns.toEqualTypeOf<Promise<ApiBasicsProgressRow[]>>()
     expectTypeOf<ApiWordProgress>().toEqualTypeOf<Omit<WordProgress, 'updatedAt'>>()
     expectTypeOf<ApiUserSettings>().toEqualTypeOf<Omit<UserSettings, 'updatedAt'>>()
   })
@@ -141,6 +155,46 @@ describe('HTTP API service', () => {
           lastActiveDate: '2026-09-04',
         },
       }),
+    })
+  })
+
+  it('returns basics rows from the Worker envelope', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ rows: workerBasicsRows }), { status: 200 }))
+
+    await expect(createHttpApiService(fetcher).getBasicsProgress()).resolves.toEqual(workerBasicsRows)
+    expect(fetcher).toHaveBeenCalledWith('/api/basics-progress', { credentials: 'include' })
+  })
+
+  it('serializes basics rows under the existing envelope', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+    await createHttpApiService(fetcher).putBasicsProgress(basicsRows)
+
+    expect(fetcher).toHaveBeenCalledWith('/api/basics-progress', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: basicsRows }),
+    })
+  })
+
+  it('throws ApiError when the basics PUT is not ok', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ message: 'boom' }), { status: 500 }))
+
+    await expect(createHttpApiService(fetcher).putBasicsProgress(basicsRows)).rejects.toMatchObject({
+      status: 500,
+      message: 'boom',
+    })
+  })
+
+  it('rejects a basics response with a malformed row', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      rows: [{ ...workerBasicsRows[0], state: 'mastered' }],
+    }), { status: 200 }))
+
+    await expect(createHttpApiService(fetcher).getBasicsProgress()).rejects.toMatchObject({
+      status: 200,
+      message: 'Invalid API response',
     })
   })
 

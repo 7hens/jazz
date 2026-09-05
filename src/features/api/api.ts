@@ -1,4 +1,5 @@
 import { ApiError } from '@/shared/services'
+import type { ApiBasicsProgressRow } from '@/shared/services'
 import type { ApiService, ApiUserSettings, ApiWordProgress, User } from '@/shared/services/api'
 
 type JsonObject = Record<string, unknown>
@@ -9,6 +10,7 @@ type LoginResponse = { ok: true; user: User }
 type ProgressResponse = { progress: ApiWordProgress[] }
 type SettingsResponse = { settings: ApiUserSettings }
 type OkResponse = { ok: true }
+type BasicsProgressResponse = { rows: ApiBasicsProgressRow[] }
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -57,6 +59,18 @@ function isProgressResponse(value: unknown): value is ProgressResponse {
 
 function isSettingsResponse(value: unknown): value is SettingsResponse {
   return isObject(value) && isSettings(value.settings)
+}
+
+function isBasicsRow(value: unknown): value is ApiBasicsProgressRow {
+  return isObject(value)
+    && typeof value.unitKey === 'string'
+    && (value.state === 'learning' || value.state === 'known')
+    && typeof value.correctStreak === 'number' && Number.isFinite(value.correctStreak)
+    && typeof value.taughtCount === 'number' && Number.isFinite(value.taughtCount)
+}
+
+function isBasicsProgressResponse(value: unknown): value is BasicsProgressResponse {
+  return isObject(value) && Array.isArray(value.rows) && value.rows.every(isBasicsRow)
 }
 
 function isOkResponse(value: unknown): value is OkResponse {
@@ -136,6 +150,15 @@ export function createHttpApiService(fetcher: typeof fetch = fetch): ApiService 
             lastActiveDate,
           },
         }),
+      }, isOkResponse)
+    },
+    async getBasicsProgress() {
+      return (await request('/api/basics-progress', {}, isBasicsProgressResponse)).rows
+    },
+    async putBasicsProgress(rows) {
+      await request('/api/basics-progress', {
+        method: 'PUT',
+        body: JSON.stringify({ rows }),
       }, isOkResponse)
     },
   }

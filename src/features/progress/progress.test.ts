@@ -29,6 +29,8 @@ function fakeApi(overrides: Partial<ApiService> = {}): ApiService {
       lastActiveDate: '',
     }),
     putSettings: async () => undefined,
+    getBasicsProgress: async () => [],
+    putBasicsProgress: async () => undefined,
     ...overrides,
   }
 }
