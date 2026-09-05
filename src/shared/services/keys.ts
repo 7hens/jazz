@@ -1,9 +1,14 @@
 export const SERVICE_KEYS = {
   API: 'api',
+  AUDIO: 'audio',
   AUTH: 'auth',
+  CELEBRATE: 'celebrate',
+  COMBO: 'combo',
   PROGRESS: 'progress',
   QUESTION_ENGINE: 'question-engine',
   SETTINGS: 'settings-state',
+  SPEECH: 'speech',
+  TOAST: 'toast',
   VOCABULARY: 'vocabulary',
 } as const
 

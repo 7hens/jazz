@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
-import { celebrate } from '../../game/confetti'
+import { celebrate } from '../../features/celebrate'
 import type { Achievement } from '../../game/achievements'
 
 export function AchievementPopup({ list, onDone }: { list: Achievement[]; onDone: () => void }) {

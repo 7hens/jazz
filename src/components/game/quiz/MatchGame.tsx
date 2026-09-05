@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { Check, Volume2 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
-import { play } from '../../../game/sfx'
+import { play } from '../../../features/audio'
 import { speakCard } from './speech'
 import type { BaseOption, KingdomKey } from '@/shared/types'
 

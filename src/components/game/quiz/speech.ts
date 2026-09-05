@@ -1,4 +1,4 @@
-import { speak } from '../../../game/tts'
+import { speak } from '../../../features/speech'
 import type { KingdomKey } from '@/shared/types'
 
 // 发音语言推导:英语王国一律 en-US;mixed(第 10 关)按朗读文本字符集判定

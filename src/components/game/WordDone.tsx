@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { ArrowRight, Home } from 'lucide-react'
-import { play } from '../../game/sfx'
+import { play } from '../../features/audio'
 import { getRandomPraise } from '../../game/praise'
 import { useEffect, useRef } from 'react'
 import { cn } from '../../lib/utils'
