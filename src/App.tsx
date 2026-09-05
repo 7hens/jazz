@@ -2,14 +2,16 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { MotionConfig } from 'motion/react'
 import { Loader2 } from 'lucide-react'
 import { LoginGate } from './features/auth/LoginGate'
-import { WordMapView } from './components/game/WordMapView'
-import { SettingsPanel } from './components/game/SettingsPanel'
+import { ArchipelagoView } from './features/archipelago'
+import { SettingsPanel } from './features/settings'
 import { AchievementPopup, checkAchievements, type Achievement } from './features/achievements'
 import { LuckyBonus, rollLucky } from './features/lucky-bonus'
 import { useToast } from './features/toast'
-import { WORDS, wordById } from './features/vocabulary'
+import { CATEGORY_LABELS, WORDS, wordById } from './features/vocabulary'
+import { LingLing } from './features/lingling'
 import {
   emptyProgress,
+  firstTargetId,
   fullComplete,
   getRandomPraise,
   isValidWordProgress,
@@ -100,6 +102,7 @@ function App() {
 
   const totalStars = Object.values(progress).reduce((sum, p) => sum + p.starsEarned, 0)
   const title = titleForStars(totalStars)
+  const doneCount = WORDS.filter((w) => fullComplete(progress[w.id], settings)).length
 
   function syncProgress(next: Record<number, WordProgress>) {
     setProgress(next)
@@ -397,13 +400,19 @@ function App() {
   } else {
     content = (
       <>
-        <WordMapView
+        <ArchipelagoView
+          catalog={WORDS}
+          categoryLabels={CATEGORY_LABELS}
           words={progress}
+          doneCount={doneCount}
           totalStars={totalStars}
-          settings={settings}
+          titleName={title.name}
+          target={firstTargetId(progress, settings, WORDS)}
+          isComplete={(row) => fullComplete(row, settings)}
           soundOn={soundOn}
+          lingling={<LingLing completedWords={doneCount} />}
+          onPlayWord={(id) => { audioService.play('tap'); startWord(id) }}
           onToggleSound={() => { setSoundOn(!soundOn); setSound(!soundOn) }}
-          onPlay={startWord}
           onOpenSettings={() => setSettingsOpen(true)}
           onLogout={() => void logout()}
           onReset={() => void resetProgress()}

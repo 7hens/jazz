@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { LogOut, RotateCcw, Volume2, VolumeX, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
-import { CATEGORY_LABELS, WORDS } from '@/features/vocabulary'
-import { firstTargetId, fullComplete, titleForStars } from '@/features/lesson'
-import { cn } from '../../lib/utils'
-import { play } from '../../features/audio'
-import { LingLing } from '@/features/lingling'
-import type { CategoryKey, UserSettings, WordProgress } from '@/shared/types'
-import { Button } from '../ui/button'
+import { cn } from '@/lib/utils'
+import type { CategoryKey, WordProgress, WordUnit } from '@/shared/types'
+import { Button } from '@/components/ui/button'
 
-export type WordMapViewProps = {
+export type ArchipelagoViewProps = {
+  catalog: readonly WordUnit[]
+  categoryLabels: Record<CategoryKey, string>
   words: Record<number, WordProgress>
+  doneCount: number
   totalStars: number
-  settings: UserSettings
+  titleName: string
+  target: number
+  isComplete: (row: WordProgress | undefined) => boolean
   soundOn: boolean
+  lingling?: ReactNode
+  onPlayWord: (wordId: number) => void
   onToggleSound: () => void
-  onPlay: (wordId: number) => void
   onOpenSettings: () => void
   onLogout: () => void
   onReset: () => void
@@ -23,21 +25,24 @@ export type WordMapViewProps = {
 
 const CATEGORY_ORDER: CategoryKey[] = ['shape', 'food', 'animal', 'nature', 'object']
 
-export function WordMapView({
+export function ArchipelagoView({
+  catalog,
+  categoryLabels,
   words,
+  doneCount,
   totalStars,
-  settings,
+  titleName,
+  target,
+  isComplete,
   soundOn,
+  lingling,
+  onPlayWord,
   onToggleSound,
-  onPlay,
   onOpenSettings,
   onLogout,
   onReset,
-}: WordMapViewProps) {
+}: ArchipelagoViewProps) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const target = firstTargetId(words, settings, WORDS)
-  const title = titleForStars(totalStars)
-  const doneCount = WORDS.filter((w) => fullComplete(words[w.id], settings)).length
 
   useEffect(() => {
     if (!menuOpen) return
@@ -61,7 +66,7 @@ export function WordMapView({
             <span aria-hidden>⭐</span>{totalStars}
           </span>
           <span className="rounded-full border border-hairline bg-surface/80 px-2.5 py-1 text-sm font-semibold shadow-card">
-            🎖{title.name}
+            🎖{titleName}
           </span>
           <Button variant="ghost" size="icon" aria-label={soundOn ? '关闭声音' : '开启声音'} onClick={onToggleSound}>
             {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5 text-ink-3" />}
@@ -107,30 +112,30 @@ export function WordMapView({
           <p className="text-sm font-semibold text-accent">魔法语言岛 · 词库王国</p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight">收集 100 个词的星尘</h1>
           <p className="mx-auto mt-1 max-w-xs text-sm text-ink-2">
-            已全完成 {doneCount}/100 · 当前称号 🎖{title.name}
+            已全完成 {doneCount}/100 · 当前称号 🎖{titleName}
           </p>
         </section>
 
-        <LingLing completedWords={doneCount} />
+        {lingling}
 
-        {target > WORDS.length ? (
+        {target > catalog.length ? (
           <div className="mb-6 rounded-2xl border border-emerald/40 bg-emerald/10 px-4 py-3 text-center text-sm font-bold text-emerald">
             🎉 太棒了,100 词全部学完!
           </div>
         ) : null}
 
         {CATEGORY_ORDER.map((cat) => {
-          const items = WORDS.filter((w) => w.category === cat)
-          const doneInCat = items.filter((w) => fullComplete(words[w.id], settings)).length
+          const items = catalog.filter((w) => w.category === cat)
+          const doneInCat = items.filter((w) => isComplete(words[w.id])).length
           return (
             <section key={cat} className="mb-7">
               <div className="mb-2.5 flex items-baseline justify-between">
-                <h2 className="text-sm font-bold">{CATEGORY_LABELS[cat]}</h2>
+                <h2 className="text-sm font-bold">{categoryLabels[cat]}</h2>
                 <span className="text-xs font-semibold text-ink-3">{doneInCat}/{items.length}</span>
               </div>
               <div className="grid grid-cols-5 gap-2">
                 {items.map((w) => {
-                  const isDone = fullComplete(words[w.id], settings)
+                  const done = isComplete(words[w.id])
                   const isTarget = w.id === target
                   const locked = w.id > target
                   return (
@@ -139,7 +144,7 @@ export function WordMapView({
                       type="button"
                       aria-label={`词 ${w.id} ${w.hanzi}${locked ? ',未解锁' : ''}`}
                       disabled={locked}
-                      onClick={() => { if (!locked) { void play('tap'); onPlay(w.id) } }}
+                      onClick={() => { if (!locked) onPlayWord(w.id) }}
                       whileHover={locked ? undefined : { y: -2, scale: 1.04 }}
                       whileTap={locked ? undefined : { scale: 0.94 }}
                       animate={isTarget ? { scale: [1, 1.05, 1] } : { scale: 1 }}
@@ -148,7 +153,7 @@ export function WordMapView({
                         'relative flex aspect-square flex-col items-center justify-center rounded-2xl border-2 transition-colors',
                         locked
                           ? 'border-hairline bg-surface-2 opacity-45'
-                          : isDone
+                          : done
                             ? 'border-emerald/50 bg-emerald/10'
                             : isTarget
                               ? 'border-accent bg-accent/10 ring-2 ring-accent/25'
@@ -156,8 +161,8 @@ export function WordMapView({
                       )}
                     >
                       <span className="text-2xl leading-none" aria-hidden>{locked ? '🔒' : w.emoji}</span>
-                      <span className={cn('mt-0.5 text-[11px] font-semibold', isDone ? 'text-emerald' : 'text-ink-2')}>
-                        {isDone ? '✓' : isTarget ? '开始' : `${w.id}`}
+                      <span className={cn('mt-0.5 text-[11px] font-semibold', done ? 'text-emerald' : 'text-ink-2')}>
+                        {done ? '✓' : isTarget ? '开始' : `${w.id}`}
                       </span>
                     </motion.button>
                   )
