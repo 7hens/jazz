@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
 import { cn } from '@/shared/ui/utils'
@@ -31,6 +31,11 @@ export type WordLessonProps = {
   onStepPass: (skill: SkillKey) => void
   onLessonComplete: () => void
   onExit: () => void
+  /** 步前教学门插槽(可选,缺省零行为):step 进入时 judge 判定,true 则暂以 render 替代题卡;cont() 放行进该步。 */
+  stepGate?: {
+    judge(word: WordUnit, skill: SkillKey): boolean
+    render(ctx: { word: WordUnit; skill: SkillKey; cont(): void }): ReactNode
+  }
 }
 
 const SKILL_LABEL: Record<SkillKey, string> = { pinyin: '拼音', hanzi: '汉字', english: '英语' }
@@ -55,9 +60,14 @@ export function WordLesson({
   onStepPass,
   onLessonComplete,
   onExit,
+  stepGate,
 }: WordLessonProps) {
   const steps = stepsFor(settings)
   const [stepIndex, setStepIndex] = useState(0)
+  // 步前教学门:仅步进入时判定一次(round 重试/换题不重判)。惰性吸收首步,避免 mount 后闪题。
+  const [gate, setGate] = useState<{ skill: SkillKey; stepIndex: number } | null>(() =>
+    stepGate && stepGate.judge(word, steps[0]) ? { skill: steps[0], stepIndex: 0 } : null,
+  )
   const [round, setRound] = useState(0) // 失败重建同步
   const [questions, setQuestions] = useState<Question[]>(() => makeQuestions(word, steps[0], Math.random))
   const [qIndex, setQIndex] = useState(0)
@@ -100,8 +110,9 @@ export function WordLesson({
     if (combo === 10) celebrate('combo10')
   }, [celebrate, combo])
 
-  // step/round 变化 → 重新出题并复位
+  // step/round/gate 变化 → 重新出题并复位(门开时不装:等 cont 放行后同一批次落地再装)
   useEffect(() => {
+    if (gate) return
     // oxlint-disable-next-line react/set-state-in-effect
     setQuestions(makeQuestions(word, steps[stepIndex], Math.random))
     setQIndex(0)
@@ -110,7 +121,7 @@ export function WordLesson({
     setRevealId(null)
     setWrongId(null)
     setCorrectId(null)
-  }, [word, stepIndex, round]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [word, stepIndex, round, gate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function later(fn: () => void, ms: number) {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current)
@@ -120,13 +131,29 @@ export function WordLesson({
     }, ms)
   }
 
+  // 步推进统一收敛处:nextIndex 带门判定(门只在此判定,换题/round 重试不重判)。
+  function enterStep(nextIndex: number) {
+    const nextSkill = steps[nextIndex]
+    if (stepGate && stepGate.judge(word, nextSkill)) {
+      setGate({ skill: nextSkill, stepIndex: nextIndex })
+    } else {
+      setStepIndex(nextIndex)
+    }
+  }
+
+  // 门内放行:先把 stepIndex 落到门所在步,再清 gate(同一 React 批次 → effect 以新步 + 门关装题)。
+  const cont = () => {
+    if (gate) setStepIndex(gate.stepIndex)
+    setGate(null)
+  }
+
   function stepPassed() {
     onStepPass(skill)
     if (isLastStep) {
       onLessonComplete()
       return
     }
-    setStepIndex((i) => i + 1) // 触发 effect 换题
+    enterStep(stepIndex + 1) // 触发 effect 换题(带门判定)
   }
 
   function goNextQuestion() {
@@ -222,6 +249,27 @@ export function WordLesson({
           />
         )
     }
+  }
+
+  // 门开时以 gate 帧整块替代「题卡 + 反馈 + 按钮」;cont 放行后由装题 effect 复位该步状态。
+  if (gate) {
+    return (
+      <div className="min-h-screen text-ink">
+        <header className="glass-strong sticky top-0 z-30 border-b border-hairline">
+          <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-4">
+            <Button variant="ghost" size="icon" onClick={onExit} aria-label="返回地图">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <span className="truncate text-[15px] font-bold">
+              {word.emoji} {word.hanzi} · {SKILL_LABEL[gate.skill]}
+            </span>
+          </div>
+        </header>
+        <main className="mx-auto max-w-xl px-4 pb-24 pt-5">
+          {stepGate?.render({ word, skill: gate.skill, cont })}
+        </main>
+      </div>
+    )
   }
 
   return (

@@ -5,8 +5,10 @@ import {
   AchievementService,
   AudioService,
   AuthService,
+  BasicsService,
   CelebrateService,
   ComboService,
+  FoundationService,
   LuckyBonusService,
   ProgressRulesService,
   ProgressService,
@@ -18,6 +20,7 @@ import {
 } from '@/shared/services'
 import type {
   AuthSnapshot,
+  BasicsProgressSnapshot,
   ChoiceQuestion,
   ComboSnapshot,
   ProgressSnapshot,
@@ -186,6 +189,24 @@ function registerAll() {
   const achievements: AchievementService = { scan: () => [] }
   const lucky: LuckyBonusService = { roll: () => 0 }
 
+  // 基础教学门:测试沿用旧行为 —— 空单元列表 → stepGate.judge 恒 false,词课不进教学门。
+  const basicsStore = createStore<BasicsProgressSnapshot>({ status: 'idle', data: {} })
+  const basicsLoad = vi.fn(async () => {
+    basicsStore.publish({ status: 'ready', data: basicsStore.getSnapshot().data })
+  })
+  const basics: BasicsService = {
+    getSnapshot: basicsStore.getSnapshot,
+    subscribe: basicsStore.subscribe,
+    load: basicsLoad,
+    recordAnswer: async () => undefined,
+    markTaught: async () => undefined,
+    saveAll: async () => undefined,
+  }
+  const foundation: FoundationService = {
+    unitsFor: () => [],
+    needFor: () => 'none',
+  }
+
   registry.register(AuthService, auth)
   registry.register(ProgressService, progress)
   registry.register(SettingsService, settingsService)
@@ -199,8 +220,10 @@ function registerAll() {
   registry.register(AchievementService, achievements)
   registry.register(LuckyBonusService, lucky)
   registry.register(ProgressRulesService, createProgressRulesService())
+  registry.register(FoundationService, foundation)
+  registry.register(BasicsService, basics)
 
-  return { auth, authStore, check, progressLoad, settingsLoad, celebrate, play: audio.play }
+  return { auth, authStore, check, progressLoad, settingsLoad, basicsLoad, celebrate, play: audio.play }
 }
 
 /** 挂载后立即显示群岛主页(登录 + 并行加载完成)。 */
@@ -232,6 +255,7 @@ describe('App 路由', () => {
     expect(await screen.findByText(/收集 100 个词的星尘/)).toBeInTheDocument()
     await waitFor(() => expect(svc.progressLoad).toHaveBeenCalled())
     await waitFor(() => expect(svc.settingsLoad).toHaveBeenCalled())
+    await waitFor(() => expect(svc.basicsLoad).toHaveBeenCalled())
   })
 
   it('401 → login:会话转为匿名后回到登录门', async () => {

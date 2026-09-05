@@ -1,15 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MotionConfig } from 'motion/react'
 import { Loader2 } from 'lucide-react'
 import { AchievementPopup } from '@/features/achievements'
 import { AuthEntry } from '@/features/auth'
 import { HomeEntry } from '@/features/archipelago'
+import { FoundationStepGate } from '@/features/foundation'
 import { LingLing } from '@/features/lingling'
 import { LessonEntry, type LessonCelebration } from '@/features/lesson'
 import { LuckyBonus } from '@/features/lucky-bonus'
 import { SettingsEntry } from '@/features/settings'
-import { AuthService, CelebrateService, ProgressService, SettingsService } from '@/shared/services'
-import type { Achievement } from '@/shared/services'
+import {
+  AudioService,
+  AuthService,
+  BasicsService,
+  CelebrateService,
+  FoundationService,
+  ProgressService,
+  SettingsService,
+  SpeechService,
+} from '@/shared/services'
+import type { Achievement, SkillKey, WordUnit } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { useAppState } from './useAppState'
 import { useCompletedWords } from './useCompletedWords'
@@ -34,7 +44,12 @@ export default function App() {
   const progress = useService(ProgressService)
   const settingsService = useService(SettingsService)
   const celebrateService = useService(CelebrateService)
+  const foundation = useService(FoundationService)
+  const basics = useService(BasicsService)
+  const speech = useService(SpeechService)
+  const audio = useService(AudioService)
   const authSnap = useServiceSnapshot(auth)
+  const basicsSnap = useServiceSnapshot(basics)
 
   const { phase, currentWordId, actions } = useAppState()
   const completedWords = useCompletedWords()
@@ -55,6 +70,7 @@ export default function App() {
     actions.exitToHome()
     void progress.load()
     void settingsService.load()
+    void basics.load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authSnap])
 
@@ -76,6 +92,30 @@ export default function App() {
     setCelebration({ achievements: info.achievements, luckyReward: info.luckyReward })
   }
 
+  // 词课步前教学门:data 为熟度快照(ready 前兜底空表 → judge 按「未评估→mandatory」走首词首步补教一次即收敛)。
+  // render 的 key 使 gate 跨词/跨技能切换时重挂 TeachOverlay。
+  const data = basicsSnap.data ?? {}
+  const stepGate = useMemo(
+    () => ({
+      judge: (w: WordUnit, s: SkillKey) =>
+        s !== 'hanzi' && foundation.needFor(foundation.unitsFor(w.id, s), data) !== 'none',
+      render: (ctx: { word: WordUnit; skill: SkillKey; cont: () => void }) => (
+        <FoundationStepGate
+          key={`${ctx.word.id}-${ctx.skill}`}
+          word={ctx.word}
+          skill={ctx.skill}
+          data={data}
+          foundation={foundation}
+          basics={basics}
+          speak={speech.speak}
+          playSound={audio.play}
+          onContinue={ctx.cont}
+        />
+      ),
+    }),
+    [foundation, basics, data, speech, audio],
+  )
+
   let content
   if (authSnap.status === 'checking') {
     content = <BootScreen />
@@ -88,6 +128,7 @@ export default function App() {
         onExit={actions.exitToHome}
         onNextWord={actions.nextWord}
         onCelebrate={handleLessonCelebration}
+        stepGate={stepGate}
       />
     )
   } else if (phase === 'settings') {
