@@ -3,7 +3,7 @@ import { LogOut, RotateCcw, Volume2, VolumeX, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/utils'
 import type { CategoryKey, WordProgress, WordUnit } from '@/shared/types'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 
 export type ArchipelagoViewProps = {
   catalog: readonly WordUnit[]

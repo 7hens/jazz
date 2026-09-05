@@ -91,11 +91,9 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 **事实源**:本重构设计定稿 = `docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md`(原始提案 `docs/ideas/2026-09-04-dev-architecture.md` 已被取代)。铁律(测试强制):
 
-- `src/shared/` — 无上层依赖的契约与纯逻辑:`types.ts`、`words.ts`(100 词词库 + `CATEGORY_LABELS`/`WORDS`/`wordById`)、`progress-rules.ts`(`SKILL_ORDER`/`enabledSkills`/`fullComplete`/`firstTargetId`/`titleForStars`,lesson 与主页共用)、`services/*`、`registry.ts`、`useService.ts` + `useServiceSnapshot.ts`、`utils.ts`(`cn`)、`api-error.ts`/`load-state.ts`
+- `src/shared/` — 无上层依赖的契约、纯逻辑与中性基础件:`types.ts`、`words.ts`(100 词词库 + `CATEGORY_LABELS`/`WORDS`/`wordById`)、`progress-rules.ts`(`SKILL_ORDER`/`enabledSkills`/`fullComplete`/`firstTargetId`/`titleForStars`,lesson 与主页共用)、`services/*`、`registry.ts`、`useService.ts` + `useServiceSnapshot.ts`、`utils.ts`(`cn`)、`api-error.ts`/`load-state.ts`、`ui/`(button/card/input/label/badge/select/chart-tooltip,`cva` + `tailwind-merge` 中性视觉基础件,features 可引)
 - `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。业务分区:`auth`(登录门)、`archipelago`(群岛主页 `HomeEntry`/`ArchipelagoView`)、`lesson`(答题/结算/称号:`LessonEntry` + `WordLesson`/`WordDone`/`ComboDisplay`/`quiz/` 三题型 + `lesson.ts`/`progress.ts`/`settlement.ts`/`praise.ts`)、`settings`(学习设置面板)、`question-engine`(运行时出题)、`progress`/`settings-state`/`vocabulary`/`api`/`audio`/`speech`/`combo`/`toast`/`celebrate`/`achievements`/`lucky-bonus`/`lingling`(服务工厂 + 必要组件)
 - `src/app/` — composition root:`bootstrap.ts`(**唯一生产 `registry.register` 点**)、`App.tsx`(登录态驱动 + 页面状态路由 + 跨 feature 组装;答题/结算/奖励/持久化规则不落 app)、`useAppState.ts`(phase 状态机)、`useCompletedWords.ts`、`ErrorBoundary.tsx`。`src/main.tsx` = HTML 入口(`bootstrap()` + `ToastProvider` + `<App/>`)
-- `src/components/ui/*` — 中性视觉基础件(button/card/input/label/badge/select/chart-tooltip,`cva` + `tailwind-merge`),非业务逻辑,features 可引;不参与 feature 边界
-
 **取用纪律**:`useService()` 仅允许在 page feature 的 `<Name>Entry.tsx` 与 `app/` 组装 hooks 内调用;服务实例经 `registry` 注册后由 `useService(key)` 取、`useServiceSnapshot(service)` 订阅(`getSnapshot` 须返稳定引用)。跨 feature 的纯规则/词库放 shared,跨 feature 的组件在 app 组装传 props。数据流:`fetch('/api/...', { credentials: 'include' })`,封装在各 feature service。
 
 ### 题型与发音约定(引擎生成,`src/features/question-engine/engine.ts` + `src/features/lesson/quiz/speech.ts`)
@@ -112,4 +110,4 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 - 表结构变更 = 新增数字前缀迁移文件(见上「数据库迁移流程」),不改 0001 基线;本地 `npm run db:local` 验;线上 apply 走 `/release` 步骤 2
 - UI 文案为中文,新增文案保持中文
 - 依赖精简、无路由库、无状态管理库 —— 新增功能保持同一简约风格
-- 生命周期:关卡制旧代码(worker/game.ts、`LevelPlay`/`LevelResult`/`MapView`、`src/game/*`、`src/components/game|login/`、`src/data/`)已删除/已迁 feature;quiz 三组件与 `quiz/speech.ts` 的类型签名残留关卡制 `kingdom: KingdomKey | 'mixed'` 与 `mixed` 分支注释,WordLesson 实际只传三技能,`mixed` 分支不会走到;`src/components/ui/` 中 button/card/input/label 已被 feature 复用,badge/select/chart-tooltip 暂无引用,保留待儿童主题复用
+- 生命周期:关卡制旧代码(worker/game.ts、`LevelPlay`/`LevelResult`/`MapView`、`src/game/*`、`src/components/game|login/`、`src/data/`)已删除/已迁 feature;quiz 三组件与 `quiz/speech.ts` 的类型签名残留关卡制 `kingdom: KingdomKey | 'mixed'` 与 `mixed` 分支注释,WordLesson 实际只传三技能,`mixed` 分支不会走到;`src/shared/ui/` 中 button/card/input/label 已被 feature 复用,badge/select/chart-tooltip 暂无引用,保留待儿童主题复用

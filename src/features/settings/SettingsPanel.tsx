@@ -1,7 +1,7 @@
 import { X } from 'lucide-react'
 import { cn } from '@/shared/utils'
 import type { SkillKey, UserSettings } from '@/shared/types'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 
 export type SettingsPanelProps = {
   settings: UserSettings

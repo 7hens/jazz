@@ -21,7 +21,7 @@
 
 ### 前端架构备忘
 
-`src/shared/`(契约 + 纯逻辑,无上层依赖)→ `src/features/<f>/`(自包含模块,公共面 = `index.ts`)→ `src/app/`(composition root:页面状态路由 + 跨 feature 组装)。中性视觉件 `src/components/ui/*` 供 features 复用。详见架构 spec 与 [CLAUDE.md](CLAUDE.md)。
+`src/shared/`(契约 + 纯逻辑,无上层依赖)→ `src/features/<f>/`(自包含模块,公共面 = `index.ts`)→ `src/app/`(composition root:页面状态路由 + 跨 feature 组装)。中性视觉件 `src/shared/ui/*` 供 features 复用。详见架构 spec 与 [CLAUDE.md](CLAUDE.md)。
 
 ### 质量状态
 

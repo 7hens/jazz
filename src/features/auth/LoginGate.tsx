@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
-import { Button } from '../../components/ui/button'
-import { Card } from '../../components/ui/card'
-import { Input } from '../../components/ui/input'
-import { Label } from '../../components/ui/label'
+import { Button } from '../../shared/ui/button'
+import { Card } from '../../shared/ui/card'
+import { Input } from '../../shared/ui/input'
+import { Label } from '../../shared/ui/label'
 
 type Props = {
   error: string

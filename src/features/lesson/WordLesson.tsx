@@ -6,7 +6,7 @@ import type { AnswerKind, AudioCue, CelebrateLevel, Rng } from '@/shared/service
 import type { Question, SkillKey, UserSettings, WordUnit } from '@/shared/types'
 import { stepsFor } from './lesson'
 import { ComboDisplay, comboText } from './ComboDisplay'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/shared/ui/button'
 import { Choice } from './quiz/Choice'
 import { ListenChoice } from './quiz/ListenChoice'
 import { MatchGame } from './quiz/MatchGame'

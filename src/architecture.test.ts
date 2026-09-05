@@ -9,7 +9,7 @@ const rawFiles = import.meta.glob('./**/*.{ts,tsx}', {
 
 /**
  * 3 层架构铁律:
- *  - shared(类型/契约/纯逻辑)不得 import features|app;
+ *  - shared(类型/契约/纯逻辑/中性基础件 ui)不得 import features|app;
  *  - features 内部互相独立:不得 import 其它 feature 或 app;
  *  - 跨 feature 纯规则一律放 shared,组件跨 feature 只在 app 组装;
  *  - useService 仅限页面入口(features/<f>/<Name>Entry.tsx)与 app 组装层;
