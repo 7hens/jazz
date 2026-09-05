@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { registry } from '@/shared/services/manager'
+import { registry } from '@/shared/services/core'
 import { ToastService } from '@/shared/services'
 import { ToastContainer } from './ToastContainer'
 import { ToastContext } from './toast-context'

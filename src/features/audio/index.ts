@@ -1,4 +1,4 @@
-import { registry } from '@/shared/services/manager'
+import { registry } from '@/shared/services/core'
 import { AudioService } from '@/shared/services'
 import type { AudioCue } from '@/shared/services'
 

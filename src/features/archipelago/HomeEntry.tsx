@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { AudioService, ComboService, ProgressService, SettingsService, VocabularyService } from '@/shared/services'
 import { CATEGORY_LABELS } from '@/shared/words'
 import { firstTargetId, fullComplete, titleForStars } from '@/shared/progress-rules'
-import { useService, useServiceSnapshot } from '@/shared/services/manager'
+import { useService, useServiceSnapshot } from '@/shared/services/core'
 import type { WordProgress } from '@/shared/types'
 import { ArchipelagoView } from './ArchipelagoView'
 

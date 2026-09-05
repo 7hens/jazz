@@ -10,7 +10,7 @@ import { LuckyBonus } from '@/features/lucky-bonus'
 import { SettingsEntry } from '@/features/settings'
 import { AuthService, CelebrateService, ProgressService, SettingsService } from '@/shared/services'
 import type { Achievement } from '@/shared/services'
-import { useService, useServiceSnapshot } from '@/shared/services/manager'
+import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { useAppState } from './useAppState'
 import { useCompletedWords } from './useCompletedWords'
 

@@ -1,5 +1,5 @@
 import type { UserSettings, WordProgress } from '../types'
-import type { ServiceToken } from './manager'
+import type { ServiceToken } from './core'
 
 export interface User {
   id: string

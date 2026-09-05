@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { AuthService } from '@/shared/services'
-import { useService, useServiceSnapshot } from '@/shared/services/manager'
+import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { LoginGate } from './LoginGate'
 
 export function AuthEntry() {

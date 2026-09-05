@@ -1,5 +1,5 @@
 import type { WordUnit } from '../types'
-import type { ServiceToken } from './manager'
+import type { ServiceToken } from './core'
 
 export interface VocabularyService {
   getAllWords(): readonly WordUnit[]

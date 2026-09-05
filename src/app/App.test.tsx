@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registry } from '@/shared/services/manager'
+import { registry } from '@/shared/services/core'
 import {
   AchievementService,
   AudioService,

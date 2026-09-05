@@ -1,6 +1,6 @@
 import { ProgressService, SettingsService, VocabularyService } from '@/shared/services'
 import { fullComplete } from '@/shared/progress-rules'
-import { useService, useServiceSnapshot } from '@/shared/services/manager'
+import { useService, useServiceSnapshot } from '@/shared/services/core'
 
 /** 当前设置下已整词完成的词数(app 级组装:给 LingLing 等跨 feature 展示用)。 */
 export function useCompletedWords(): number {

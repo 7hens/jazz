@@ -1,4 +1,4 @@
-import type { ServiceToken } from './manager'
+import type { ServiceToken } from './core'
 
 export type ToastType = 'success' | 'error' | 'info'
 

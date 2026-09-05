@@ -14,7 +14,7 @@ import {
   VocabularyService,
 } from '@/shared/services'
 import type { SkillKey, UserSettings, WordUnit } from '@/shared/types'
-import { useService, useServiceSnapshot } from '@/shared/services/manager'
+import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { fullComplete } from './lesson'
 import { getRandomPraise } from './praise'
 import { emptyProgress, settleWord, titleForStars } from './progress'

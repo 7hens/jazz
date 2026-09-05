@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registry } from '@/shared/services/manager'
+import { registry } from '@/shared/services/core'
 import { AudioService, ComboService, ProgressService, SettingsService, VocabularyService } from '@/shared/services'
 import type { UserSettings } from '@/shared/types'
 import { createVocabularyService } from '@/features/vocabulary'

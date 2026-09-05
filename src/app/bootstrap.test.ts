@@ -14,7 +14,7 @@ import {
   ToastService,
   VocabularyService,
 } from '@/shared/services'
-import { registry, type ServiceToken } from '@/shared/services/manager'
+import { registry, type ServiceToken } from '@/shared/services/core'
 import { bootstrap } from './bootstrap'
 
 const ALL_TOKENS: readonly ServiceToken<unknown>[] = [

@@ -1,6 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { registry } from '@/shared/services/manager'
+import { registry } from '@/shared/services/core'
 import { AuthService } from '@/shared/services'
 import { AuthEntry } from './AuthEntry'
 

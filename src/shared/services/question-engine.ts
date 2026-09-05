@@ -6,7 +6,7 @@ import type {
   SkillKey,
   WordUnit,
 } from '../types'
-import type { ServiceToken } from './manager'
+import type { ServiceToken } from './core'
 
 export type Rng = () => number
 

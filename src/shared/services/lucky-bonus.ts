@@ -1,5 +1,5 @@
 import type { Rng } from './question-engine'
-import type { ServiceToken } from './manager'
+import type { ServiceToken } from './core'
 
 export interface LuckyBonusService {
   roll(rng?: Rng): number

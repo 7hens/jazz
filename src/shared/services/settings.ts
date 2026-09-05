@@ -1,6 +1,6 @@
 import type { UserSettings } from '../types'
 import type { LoadState } from '../load-state'
-import type { ReactiveService, ServiceToken } from './manager'
+import type { ReactiveService, ServiceToken } from './core'
 
 export type SettingsSnapshot = LoadState<UserSettings>
 

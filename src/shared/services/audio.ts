@@ -1,4 +1,4 @@
-import type { ServiceToken } from './manager'
+import type { ServiceToken } from './core'
 
 export type AudioCue = 'correct' | 'wrong' | 'streak' | 'victory' | 'tap'
 
