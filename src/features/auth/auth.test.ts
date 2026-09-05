@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ApiError } from '@/shared/api-error'
+import { ApiError } from '@/shared/services'
 import type { ApiService, User } from '@/shared/services'
 import { createAuthService } from './auth'
 

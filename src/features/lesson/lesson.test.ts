@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { firstTargetId, fullComplete, stepsFor } from './lesson'
-import type { UserSettings, WordProgress } from '@/shared/types'
+import type { UserSettings, WordProgress } from '@/shared/services'
 
 const allOn = (): UserSettings => ({ enablePinyin: true, enableHanzi: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })
 const p = (over: Partial<WordProgress> = {}): WordProgress => ({

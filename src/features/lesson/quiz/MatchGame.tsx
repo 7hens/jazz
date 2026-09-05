@@ -4,14 +4,14 @@ import { Check, Volume2 } from 'lucide-react'
 import { cn } from '@/shared/utils'
 import type { AudioCue } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
-import type { BaseOption, KingdomKey } from '@/shared/types'
+import type { BaseOption, SkillKey } from '@/shared/services'
 
 type MatchGameProps = {
   prompt: string
   left: BaseOption[]
   right: BaseOption[]
   answerMap: Record<string, string>
-  kingdom: KingdomKey | 'mixed'
+  skill: SkillKey
   playSound: (cue: AudioCue) => void
   speak: Speak
   /** 全部配对成功时触发,传任一正确 left id(语义上整题 +10)。 */
@@ -23,7 +23,7 @@ export function MatchGame({
   left,
   right,
   answerMap,
-  kingdom,
+  skill,
   playSound,
   speak,
   onComplete,
@@ -122,13 +122,13 @@ export function MatchGame({
             aria-label={`朗读 ${o.text}`}
             onClick={(e) => {
               e.stopPropagation()
-              speakCard(speak, kingdom, speakText)
+              speakCard(speak, skill, speakText)
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 e.stopPropagation()
-                speakCard(speak, kingdom, speakText)
+                speakCard(speak, skill, speakText)
               }
             }}
             className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/75 text-accent shadow-card transition-transform hover:scale-110"

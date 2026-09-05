@@ -19,6 +19,12 @@ export interface ReactiveService<T> {
   subscribe(listener: () => void): () => void
 }
 
+/** 数据快照态:loading/ready/error 一律携带 data(idle·loading 读旧值),UI 可即时渲染。 */
+export type LoadState<T> =
+  | { status: 'idle' | 'loading'; data: T }
+  | { status: 'ready'; data: T }
+  | { status: 'error'; data: T; error: string }
+
 // key = 服务 token(Symbol),value = 实例。泛型经 token 的幽灵品牌回推实例类型。
 const services = new Map<object, unknown>()
 

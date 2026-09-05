@@ -1,4 +1,5 @@
-import type { SkillKey, UserSettings, WordProgress } from './types'
+import type { SkillKey, WordProgress } from './services/progress'
+import type { UserSettings } from './services/settings'
 
 // 进阶规则(完成判定/目标词/称号档位):lesson、archipelago 与 app 组装共用,
 // 且只依赖 shared 类型,故放在 shared;feature 间禁止编译期 import。

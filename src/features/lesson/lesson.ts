@@ -1,4 +1,4 @@
-import type { SkillKey, UserSettings } from '@/shared/types'
+import type { SkillKey, UserSettings } from '@/shared/services'
 import { enabledSkills } from '@/shared/progress-rules'
 
 // 进阶判定与目标词规则已上移 shared/progress-rules(lesson、archipelago 共用)。

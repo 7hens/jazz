@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/services/core'
 import { SettingsService } from '@/shared/services'
-import type { UserSettings } from '@/shared/types'
+import type { UserSettings } from '@/shared/services'
 import { SettingsEntry } from './SettingsEntry'
 import panelSource from './SettingsPanel.tsx?raw'
 

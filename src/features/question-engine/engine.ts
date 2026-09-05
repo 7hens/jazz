@@ -1,8 +1,14 @@
 import type { QuestionEngineService, Rng } from '@/shared/services/question-engine'
 import type { VocabularyService } from '@/shared/services/vocabulary'
 import type {
-  BaseOption, ChoiceQuestion, ListenChoiceQuestion, MatchQuestion, Question, SkillKey, WordUnit,
-} from '@/shared/types'
+  BaseOption,
+  ChoiceQuestion,
+  ListenChoiceQuestion,
+  MatchQuestion,
+  Question,
+  SkillKey,
+  WordUnit,
+} from '@/shared/services'
 
 export type { Rng } from '@/shared/services/question-engine'
 

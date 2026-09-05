@@ -1,4 +1,4 @@
-import { ApiError } from '@/shared/api-error'
+import { ApiError } from '@/shared/services'
 import type { ApiService, ApiUserSettings, ApiWordProgress, User } from '@/shared/services/api'
 
 type JsonObject = Record<string, unknown>

@@ -3,7 +3,7 @@ import { AudioService, ComboService, ProgressService, SettingsService, Vocabular
 import { CATEGORY_LABELS } from '@/shared/words'
 import { firstTargetId, fullComplete, titleForStars } from '@/shared/progress-rules'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
-import type { WordProgress } from '@/shared/types'
+import type { WordProgress } from '@/shared/services'
 import { ArchipelagoView } from './ArchipelagoView'
 
 export type HomeEntryProps = {

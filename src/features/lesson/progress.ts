@@ -1,4 +1,4 @@
-import type { SkillKey, UserSettings, WordProgress } from '@/shared/types'
+import type { SkillKey, UserSettings, WordProgress } from '@/shared/services'
 import { fullComplete } from './lesson'
 
 const ALL_SKILLS: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']

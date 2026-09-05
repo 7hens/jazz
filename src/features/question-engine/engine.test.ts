@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createVocabularyService } from '@/features/vocabulary'
 import { WORDS } from '@/shared/words'
 import { createQuestionEngineService, optionCountFor, speakOf, textOf } from './engine'
-import type { MatchQuestion, Question, WordUnit } from '@/shared/types'
+import type { MatchQuestion, Question, WordUnit } from '@/shared/services'
 
 const { distractorsFor, makeStepQuestions } = createQuestionEngineService(createVocabularyService())
 

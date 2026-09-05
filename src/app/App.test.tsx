@@ -17,13 +17,15 @@ import {
 } from '@/shared/services'
 import type {
   AuthSnapshot,
+  ChoiceQuestion,
   ComboSnapshot,
   ProgressSnapshot,
   SettingsSnapshot,
   ToastData,
   User,
+  UserSettings,
+  WordUnit,
 } from '@/shared/services'
-import type { ChoiceQuestion, UserSettings, WordUnit } from '@/shared/types'
 import App from './App'
 
 const user: User = { id: 'u', email: '', name: '' }

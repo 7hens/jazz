@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { cn } from '@/shared/utils'
-import type { SkillKey, UserSettings } from '@/shared/types'
+import { SKILL_ORDER } from '@/shared/progress-rules'
+import type { SkillKey, UserSettings } from '@/shared/services'
 import { Button } from '@/shared/ui/button'
 
 export type SettingsPanelProps = {
@@ -9,7 +10,6 @@ export type SettingsPanelProps = {
   onClose: () => void
 }
 
-const SKILL_ORDER: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
 const LABELS: Record<SkillKey, string> = { pinyin: '拼音', hanzi: '汉字', english: '英语' }
 
 function keyFor(skill: SkillKey): 'enablePinyin' | 'enableHanzi' | 'enableEnglish' {

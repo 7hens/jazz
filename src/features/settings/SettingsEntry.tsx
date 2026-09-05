@@ -1,6 +1,6 @@
 import { SettingsService } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
-import type { UserSettings } from '@/shared/types'
+import type { UserSettings } from '@/shared/services'
 import { SettingsPanel } from './SettingsPanel'
 
 export type SettingsEntryProps = {

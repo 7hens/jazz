@@ -1,10 +1,12 @@
 // 服务契约统一出口。服务接口与同名 token 一体:普通导出同时带 type(接口)与 value(token),
 // 因此消费者既可 `import type { ProgressService }` 仅作类型,也可 `import { ProgressService }`
 // 作为注册/取用 key。纯数据/快照类型仍走 `export type`,不占 value 空间。
+// 数据类随其服务契约文件归属(WordUnit→vocabulary、WordProgress/SkillKey→progress、
+// UserSettings→settings、Question 族→question-engine、ApiError→api),统一经本 barrel 流出。
 export type { Achievement, AchievementState } from './achievements'
 export { AchievementService } from './achievements'
 export type { ApiUserSettings, ApiWordProgress, User } from './api'
-export { ApiService } from './api'
+export { ApiError, ApiService } from './api'
 export type { AudioCue } from './audio'
 export { AudioService } from './audio'
 export type { AuthSnapshot } from './auth'
@@ -14,14 +16,23 @@ export { CelebrateService } from './celebrate'
 export type { AnswerKind, ComboSnapshot } from './combo'
 export { ComboService } from './combo'
 export { LuckyBonusService } from './lucky-bonus'
-export type { ProgressData, ProgressSnapshot } from './progress'
+export type { ProgressData, ProgressSnapshot, SkillKey, WordProgress } from './progress'
 export { ProgressService } from './progress'
-export type { Rng } from './question-engine'
+export type {
+  BaseOption,
+  ChoiceQuestion,
+  ListenChoiceQuestion,
+  MatchQuestion,
+  Question,
+  QuestionKind,
+  Rng,
+} from './question-engine'
 export { QuestionEngineService } from './question-engine'
-export type { SettingsSnapshot } from './settings'
+export type { SettingsSnapshot, UserSettings } from './settings'
 export { SettingsService } from './settings'
 export { SpeechService } from './speech'
 export type { ToastData, ToastType } from './toast'
 export { ToastService } from './toast'
+export type { CategoryKey, WordUnit } from './vocabulary'
 export { VocabularyService } from './vocabulary'
-export type { LoadState } from '../load-state'
+export type { LoadState } from './core'

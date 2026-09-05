@@ -1,4 +1,4 @@
-import { ApiError } from '@/shared/api-error'
+import { ApiError } from '@/shared/services'
 import type { ApiService, AuthService, AuthSnapshot } from '@/shared/services'
 
 function toError(error: unknown): Error {

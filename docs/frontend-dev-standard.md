@@ -43,7 +43,8 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 
 ## 4 服务系统
 
-- 接口:`shared/services/<name>.ts`,**一文件一接口**;接口与同名 token const **一体**(token = `Symbol('<Name>') as ServiceToken<XService>`;`ServiceToken` 幽灵品牌类型与 `registry`/`useService`/`useServiceSnapshot` 注册·取用·订阅机制收 `services/core.ts` 一文件):接口占 type 空间、token 占 value 空间,`services/index.ts` 统一出口,`import { XService }` 一个 import 同时拿类型与注册/取用 key。无集中 keys/map 映射。
+- 接口:`shared/services/<name>.ts`,**一文件一接口**;接口与同名 token const **一体**(token = `Symbol('<Name>') as ServiceToken<XService>`;`ServiceToken` 幽灵品牌类型与 `registry`/`useService`/`useServiceSnapshot` 注册·取用·订阅机制 + 快照态 `LoadState` 收 `services/core.ts` 一文件):接口占 type 空间、token 占 value 空间,`services/index.ts` 统一出口,`import { XService }` 一个 import 同时拿类型与注册/取用 key。无集中 keys/map 映射。
+- **数据类随契约归属**:每个数据类由管理它的服务契约文件定义并持有(WordUnit/CategoryKey→`vocabulary.ts`、WordProgress/SkillKey→`progress.ts`、UserSettings→`settings.ts`、Question 族/BaseOption→`question-engine.ts`、ApiError/User/Api*→`api.ts`),consumer 经 `services/index.ts` barrel 引入;无集中 `types.ts`。跨契约的 type-only 引用经 barrel 或直接相对路径(仅 shared 内部),随 `verbatimModuleSyntax` 一律 `import type`,type-only 环构建期擦除。
 - 实现:`features/<f>/`,工厂**构造函数注入依赖**,不自行查注册表。
 - 注册:`app/bootstrap.ts` 是**唯一**生产注册点(`main.tsx` 调 `bootstrap()`),按依赖顺序分层,`registry.register(XService, impl)`;测试各自 register fake 并以 `registry.clear()` 清理。
 - 取用:`useService(XService)`(同名 token 当 key);响应式服务状态订阅用 `useServiceSnapshot(service)`(`getSnapshot` 须返稳定引用)。

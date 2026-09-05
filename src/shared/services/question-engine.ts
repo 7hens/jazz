@@ -1,12 +1,43 @@
-import type {
-  ChoiceQuestion,
-  ListenChoiceQuestion,
-  MatchQuestion,
-  Question,
-  SkillKey,
-  WordUnit,
-} from '../types'
 import type { ServiceToken } from './core'
+import type { SkillKey } from './progress'
+import type { WordUnit } from './vocabulary'
+
+/** 题型判别:听音选图 / 看图选题 / 配对。 */
+export type QuestionKind = 'listen-choice' | 'choice' | 'match'
+
+/** 选项共用形状:text 为卡面文本,emoji/speak 可空(朗读文本另由 speakOf 推导)。 */
+export type BaseOption = {
+  id: string
+  text: string
+  emoji?: string
+  speak?: string
+}
+
+export type ListenChoiceQuestion = {
+  kind: 'listen-choice'
+  prompt: string
+  promptSpeak: string
+  options: BaseOption[]
+  answerId: string
+}
+
+export type ChoiceQuestion = {
+  kind: 'choice'
+  prompt: string
+  speak?: string
+  options: BaseOption[]
+  answerId: string
+}
+
+export type MatchQuestion = {
+  kind: 'match'
+  prompt: string
+  left: BaseOption[]
+  right: BaseOption[]
+  answerMap: Record<string, string>
+}
+
+export type Question = ListenChoiceQuestion | ChoiceQuestion | MatchQuestion
 
 export type Rng = () => number
 

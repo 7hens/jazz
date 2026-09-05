@@ -14,7 +14,7 @@ import {
   ToastService,
   VocabularyService,
 } from '@/shared/services'
-import type { ChoiceQuestion, UserSettings, WordUnit } from '@/shared/types'
+import type { ChoiceQuestion, UserSettings, WordUnit } from '@/shared/services'
 import { LessonEntry } from './LessonEntry'
 import wordLessonSource from './WordLesson.tsx?raw'
 

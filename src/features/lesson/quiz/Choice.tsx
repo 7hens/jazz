@@ -1,14 +1,14 @@
 import { motion } from 'motion/react'
 import { Volume2 } from 'lucide-react'
 import { cn } from '@/shared/utils'
-import type { BaseOption, KingdomKey } from '@/shared/types'
+import type { BaseOption, SkillKey } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 
 export type ChoiceProps = {
   prompt: string
   promptSpeak?: string
   promptEmoji?: string
-  kingdom: KingdomKey | 'mixed'
+  skill: SkillKey
   options: BaseOption[]
   disabled?: boolean
   /** 两次答错后亮出的正确答案 option id */
@@ -35,12 +35,12 @@ function cardCls(disabled: boolean, reveal: boolean, correct: boolean, wrong: bo
 }
 
 function SpeakChip({
-  kingdom,
+  skill,
   text,
   label,
   speak,
 }: {
-  kingdom: KingdomKey | 'mixed'
+  skill: SkillKey
   text: string
   label: string
   speak: Speak
@@ -52,13 +52,13 @@ function SpeakChip({
       aria-label={label}
       onClick={(e) => {
         e.stopPropagation()
-        speakCard(speak, kingdom, text)
+        speakCard(speak, skill, text)
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           e.stopPropagation()
-          speakCard(speak, kingdom, text)
+          speakCard(speak, skill, text)
         }
       }}
       className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/75 text-accent shadow-card transition-transform hover:scale-110 active:scale-95"
@@ -72,7 +72,7 @@ export function Choice({
   prompt,
   promptSpeak,
   promptEmoji,
-  kingdom,
+  skill,
   options,
   disabled = false,
   revealId = null,
@@ -93,7 +93,7 @@ export function Choice({
         {promptSpeak ? (
           <button
             type="button"
-            onClick={() => speakCard(speak, kingdom, promptSpeak)}
+            onClick={() => speakCard(speak, skill, promptSpeak)}
             aria-label="朗读题目"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2 transition-colors hover:bg-accent-tint hover:text-accent"
           >
@@ -131,7 +131,7 @@ export function Choice({
                 </span>
               ) : null}
               <span className={cn('font-bold leading-tight', o.emoji ? 'text-[15px]' : 'text-xl')}>{o.text}</span>
-              {o.speak ? <SpeakChip kingdom={kingdom} text={o.speak} label={`朗读 ${o.text}`} speak={speak} /> : null}
+              {o.speak ? <SpeakChip skill={skill} text={o.speak} label={`朗读 ${o.text}`} speak={speak} /> : null}
             </motion.button>
           )
         })}

@@ -1,6 +1,5 @@
-import { ApiError } from '@/shared/api-error'
-import type { ApiService, ApiWordProgress, ProgressData, ProgressService, ProgressSnapshot } from '@/shared/services'
-import type { WordProgress } from '@/shared/types'
+import { ApiError } from '@/shared/services'
+import type { ApiService, ApiWordProgress, ProgressData, ProgressService, ProgressSnapshot, WordProgress } from '@/shared/services'
 
 export interface ProgressServiceCallbacks {
   onUnauthorized(): void

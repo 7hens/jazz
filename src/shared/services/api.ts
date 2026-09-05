@@ -1,5 +1,17 @@
-import type { UserSettings, WordProgress } from '../types'
 import type { ServiceToken } from './core'
+import type { WordProgress } from './progress'
+import type { UserSettings } from './settings'
+
+/** Api 层错误:携带 HTTP status,由各 fetch 封装 catch 后抛出。 */
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
 
 export interface User {
   id: string

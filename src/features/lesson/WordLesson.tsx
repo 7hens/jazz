@@ -2,8 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
 import { cn } from '@/shared/utils'
-import type { AnswerKind, AudioCue, CelebrateLevel, Rng } from '@/shared/services'
-import type { Question, SkillKey, UserSettings, WordUnit } from '@/shared/types'
+import type {
+  AnswerKind,
+  AudioCue,
+  CelebrateLevel,
+  Question,
+  Rng,
+  SkillKey,
+  UserSettings,
+  WordUnit,
+} from '@/shared/services'
 import { stepsFor } from './lesson'
 import { ComboDisplay, comboText } from './ComboDisplay'
 import { Button } from '@/shared/ui/button'
@@ -171,7 +179,7 @@ export function WordLesson({
 
   function renderQuestion(question: Question) {
     const shared = {
-      kingdom: skill,
+      skill,
       disabled: phase !== 'answering',
       revealId,
       correctId,
@@ -207,7 +215,7 @@ export function WordLesson({
             left={question.left}
             right={question.right}
             answerMap={question.answerMap}
-            kingdom={skill}
+            skill={skill}
             playSound={playSound}
             speak={speak}
             onComplete={handleAnswer}

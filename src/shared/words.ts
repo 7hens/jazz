@@ -1,4 +1,4 @@
-import type { CategoryKey, WordUnit } from './types'
+import type { CategoryKey, WordUnit } from './services/vocabulary'
 
 export const CATEGORY_LABELS: Record<CategoryKey, string> = {
   shape: '基础形状',

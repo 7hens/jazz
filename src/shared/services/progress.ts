@@ -1,6 +1,15 @@
-import type { WordProgress } from '../types'
-import type { LoadState } from '../load-state'
-import type { ReactiveService, ServiceToken } from './core'
+import type { LoadState, ReactiveService, ServiceToken } from './core'
+
+/** 技能键(与王国键同值):拼音/汉字/英语三学习模块。 */
+export type SkillKey = 'pinyin' | 'hanzi' | 'english'
+
+/** 每词学习进度(每 user × 每词一行,updatedAt 为前端本地时间戳)。 */
+export type WordProgress = {
+  wordId: number
+  completed: Record<SkillKey, boolean>
+  starsEarned: number
+  updatedAt: string
+}
 
 export type ProgressData = Record<number, WordProgress>
 export type ProgressSnapshot = LoadState<ProgressData>

@@ -1,5 +1,4 @@
-import type { ProgressData, ProgressService, Rng, SettingsService } from '@/shared/services'
-import type { UserSettings, WordProgress, WordUnit } from '@/shared/types'
+import type { ProgressData, ProgressService, Rng, SettingsService, UserSettings, WordProgress, WordUnit } from '@/shared/services'
 import { fullComplete } from './lesson'
 
 export type SettlementSession = Readonly<{

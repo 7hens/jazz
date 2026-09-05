@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { UserSettings, WordProgress, WordUnit } from '@/shared/types'
+import type { UserSettings, WordProgress, WordUnit } from '@/shared/services'
 import { coordinateSettlement, type SettlementServices } from './settlement'
 
 const word: WordUnit = {

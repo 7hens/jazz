@@ -1,6 +1,15 @@
-import type { UserSettings } from '../types'
-import type { LoadState } from '../load-state'
-import type { ReactiveService, ServiceToken } from './core'
+import type { LoadState, ReactiveService, ServiceToken } from './core'
+
+/** 每 user 学习设置(启用模块 + 趣味字段)。 */
+export type UserSettings = {
+  enablePinyin: boolean
+  enableHanzi: boolean
+  enableEnglish: boolean
+  earnedAchievements: string[]
+  consecutiveDays: number
+  lastActiveDate: string
+  updatedAt: string
+}
 
 export type SettingsSnapshot = LoadState<UserSettings>
 
