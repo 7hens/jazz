@@ -8,6 +8,7 @@ import {
   CelebrateService,
   ComboService,
   LuckyBonusService,
+  ProgressRulesService,
   ProgressService,
   QuestionEngineService,
   SettingsService,
@@ -26,6 +27,7 @@ import type {
   UserSettings,
   WordUnit,
 } from '@/shared/services'
+import { createProgressRulesService } from '@/features/lesson'
 import App from './App'
 
 const user: User = { id: 'u', email: '', name: '' }
@@ -196,6 +198,7 @@ function registerAll() {
   registry.register(ToastService, toast)
   registry.register(AchievementService, achievements)
   registry.register(LuckyBonusService, lucky)
+  registry.register(ProgressRulesService, createProgressRulesService())
 
   return { auth, authStore, check, progressLoad, settingsLoad, celebrate, play: audio.play }
 }

@@ -10,9 +10,9 @@
 
 ## 已实现功能
 
-- **100 词词库** —— [src/shared/words.ts](src/shared/words.ts):id 1..100 即解锁顺序,5 分类各 20 词(基础形状 / 食物 / 动物 / 自然界 / 交通与物品),`wordById` / `CATEGORY_LABELS` 供查词与分区标题;数据完整性由单测拦截(数量 / id 连续 / 文本唯一 / 分类基数 / 拼音笔误)。
+- **100 词词库** —— [src/features/vocabulary/words.ts](src/features/vocabulary/words.ts)(语义属主 vocabulary):id 1..100 即解锁顺序,5 分类各 20 词(基础形状 / 食物 / 动物 / 自然界 / 交通与物品),`WORDS` / `wordById` 供查词、`CATEGORY_LABELS`(shared/services/vocabulary)供分区标题;数据完整性由单测拦截(数量 / id 连续 / 文本唯一 / 分类基数 / 拼音笔误)。
 - **运行时出题引擎** —— [src/features/question-engine/engine.ts](src/features/question-engine/engine.ts):每技能步 2 题串行,题型按技能随机组合 —— 拼音 choice / listen-choice、汉字 choice / match、英语 choice / listen-choice / match(填空题型未做,见 [PLAN 想法池](docs/PLAN.md))。干扰项同分类优先、不足跨类兜底、排除与目标词任一文本重复者;选项数按词 id(≤20 给 3 项,其余 4 项);选项 / 题干带全局唯一 id,供 React 复用 key。引擎可注入 `rng` 保证测试确定性。
-- **步序 / 解锁 / 奖励 / 称号(纯逻辑)** —— 跨 feature 规则在 [src/shared/progress-rules.ts](src/shared/progress-rules.ts)(`SKILL_ORDER` / `enabledSkills` / `fullComplete` / `firstTargetId` / `titleForStars`),步序裁剪与结算在 [src/features/lesson/](src/features/lesson/):技能顺序 拼音→汉字→英语,`stepsFor` 全关时强制英语;词「全完成」= 启用技能全完成;技能步首过 +30、整词首通加成 +20、重学不重复发放(只升不降);称号 8 档阈值(0/300/1000/2500/5000/8000/12000)。
+- **步序 / 解锁 / 奖励 / 称号(纯逻辑)** —— 进阶/称号规则在 [src/features/lesson/progress-rules.ts](src/features/lesson/progress-rules.ts)(语义属主 lesson,`SKILL_ORDER` / `enabledSkills` / `fullComplete` / `firstTargetId` / `titleForStars`,跨 feature 经 `ProgressRulesService` 透传),步序裁剪与结算在 [src/features/lesson/](src/features/lesson/):技能顺序 拼音→汉字→英语,`stepsFor` 全关时强制英语;词「全完成」= 启用技能全完成;技能步首过 +30、整词首通加成 +20、重学不重复发放(只升不降);称号 8 档阈值(0/300/1000/2500/5000/8000/12000)。
 - **DB 行级进度** —— [migrations/0001_init.sql](migrations/0001_init.sql) 基线快照(`users` 单档案外键 + `progress` 每 user × 每词一行 + `user_settings` 三模块开关),[migrations/0002_fun.sql](migrations/0002_fun.sql) 增列趣味字段(`earned_achievements` / `consecutive_days` / `last_active_date`);后续结构变更一律新增数字前缀迁移,不改基线。
 - **后端 worker 路由** —— [worker/index.ts](worker/index.ts):`POST/GET /api/auth/login`、`GET /api/me`、`POST /api/auth/logout`;`GET/PUT/DELETE /api/progress`(批量行级 upsert,`ON CONFLICT` 取 MAX 只升不降,word_id 1..100 + 单批 ≤200 校验)、`GET/PUT /api/settings`(upsert,防三模块全关 → 400)。
 - **前端 3 层架构**(shared / features / app,无路由库):主页 [src/features/archipelago/HomeEntry.tsx](src/features/archipelago/HomeEntry.tsx)(地图 = 5 分类词格 + 目标词脉冲高亮 + 星尘/称号 + 家长菜单)、答题器 [src/features/lesson/LessonEntry.tsx](src/features/lesson/LessonEntry.tsx)(2 次作答机会 + 反馈 + 亮答案;步内任一题两次均错 → 该步重做;`match` 一次性通过;整词结算卡 + 首通祝贺 + 下一词)、学习设置 [src/features/settings/](src/features/settings/)(三开关即时 PUT,气密防全关)、登录门 [src/features/auth/](src/features/auth/);跨 feature 组装在 [src/app/](src/app/)。边界纪律由 [src/architecture.test.ts](src/architecture.test.ts) 强制(feature 间禁编译期互引、`useService` 仅页面入口与 app、服务注册唯一入口 `app/bootstrap.ts`)。
@@ -25,7 +25,7 @@
 
 ### 质量状态
 
-- 全量 `npm test`(vitest,jsdom)31 个测试文件 / 163 用例全绿,覆盖词库完整性、出题引擎、步序/解锁/结算/称号、各 feature 服务与组件、`architecture.test.ts` 3 层边界;`tsc -b`、`npm run lint`(oxlint)通过。
+- 全量 `npm test`(vitest,jsdom)30 个测试文件 / 163 用例全绿,覆盖词库完整性、出题引擎、步序/解锁/结算/称号、各 feature 服务与组件、`architecture.test.ts` 3 层边界;`tsc -b`、`npm run lint`(oxlint)通过。
 - 关卡制旧代码与单层组件(levels / MapView / WordMapView / WordLesson / WordDone / SettingsPanel 旧址 / `src/game/*` / `src/components/*` 旧布局)已删除或迁入 feature 目录,无残留引用。
 
 ## 待办与需求池

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryKey } from '@/shared/services'
-import { CATEGORY_LABELS, WORDS, wordById } from './words'
+import { CATEGORY_LABELS } from '@/shared/services'
+import { WORDS, wordById } from './words'
 
 const CATS = Object.keys(CATEGORY_LABELS) as CategoryKey[]
 

@@ -1,11 +1,11 @@
 import { X } from 'lucide-react'
 import { cn } from '@/shared/utils'
-import { SKILL_ORDER } from '@/shared/progress-rules'
 import type { SkillKey, UserSettings } from '@/shared/services'
 import { Button } from '@/shared/ui/button'
 
 export type SettingsPanelProps = {
   settings: UserSettings
+  skillOrder: readonly SkillKey[]
   onChange: (next: UserSettings) => void
   onClose: () => void
 }
@@ -16,11 +16,11 @@ function keyFor(skill: SkillKey): 'enablePinyin' | 'enableHanzi' | 'enableEnglis
   return ('enable' + skill[0].toUpperCase() + skill.slice(1)) as 'enablePinyin' | 'enableHanzi' | 'enableEnglish'
 }
 
-export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ settings, skillOrder, onChange, onClose }: SettingsPanelProps) {
   function toggle(skill: SkillKey) {
     const key = keyFor(skill)
     // 防全关:若正在关闭的项是当前唯一开启项,拒绝(保持选中)。
-    if (settings[key] && SKILL_ORDER.every((s) => s === skill || !settings[keyFor(s)])) return
+    if (settings[key] && skillOrder.every((s) => s === skill || !settings[keyFor(s)])) return
     onChange({ ...settings, [key]: !settings[key], updatedAt: new Date().toISOString() })
   }
 
@@ -35,7 +35,7 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
           </Button>
         </div>
         <div className="space-y-3">
-          {SKILL_ORDER.map((skill) => {
+          {skillOrder.map((skill) => {
             const on = settings[keyFor(skill)]
             return (
               <button

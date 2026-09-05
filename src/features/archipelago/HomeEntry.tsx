@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
-import { AudioService, ComboService, ProgressService, SettingsService, VocabularyService } from '@/shared/services'
-import { CATEGORY_LABELS } from '@/shared/words'
-import { firstTargetId, fullComplete, titleForStars } from '@/shared/progress-rules'
+import { AudioService, CATEGORY_LABELS, ComboService, ProgressService, ProgressRulesService, SettingsService, VocabularyService } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import type { WordProgress } from '@/shared/services'
 import { ArchipelagoView } from './ArchipelagoView'
@@ -19,6 +17,7 @@ export function HomeEntry({ lingling, onEnterLesson, onOpenSettings, onLogout }:
   const settingsService = useService(SettingsService)
   const combo = useService(ComboService)
   const audio = useService(AudioService)
+  const rules = useService(ProgressRulesService)
 
   const progressSnap = useServiceSnapshot(progress)
   const settingsSnap = useServiceSnapshot(settingsService)
@@ -29,9 +28,9 @@ export function HomeEntry({ lingling, onEnterLesson, onOpenSettings, onLogout }:
   const catalog = vocabulary.getAllWords()
 
   const totalStars = Object.values(words).reduce((sum, p) => sum + p.starsEarned, 0)
-  const title = titleForStars(totalStars)
-  const doneCount = catalog.filter((w) => fullComplete(words[w.id], settings)).length
-  const target = firstTargetId(words, settings, catalog)
+  const title = rules.titleForStars(totalStars)
+  const doneCount = catalog.filter((w) => rules.fullComplete(words[w.id], settings)).length
+  const target = rules.firstTargetId(words, settings, catalog)
 
   async function resetProgress() {
     if (!window.confirm('确定要重置全部学习进度吗?此操作无法撤销。')) return
@@ -55,7 +54,7 @@ export function HomeEntry({ lingling, onEnterLesson, onOpenSettings, onLogout }:
       totalStars={totalStars}
       titleName={title.name}
       target={target}
-      isComplete={(row: WordProgress | undefined) => fullComplete(row, settings)}
+      isComplete={(row: WordProgress | undefined) => rules.fullComplete(row, settings)}
       soundOn={soundOn}
       lingling={lingling}
       onPlayWord={(wordId) => { audio.play('tap'); onEnterLesson(wordId) }}

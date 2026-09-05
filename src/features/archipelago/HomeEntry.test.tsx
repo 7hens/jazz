@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/services/core'
-import { AudioService, ComboService, ProgressService, SettingsService, VocabularyService } from '@/shared/services'
+import { AudioService, ComboService, ProgressRulesService, ProgressService, SettingsService, VocabularyService } from '@/shared/services'
 import type { UserSettings } from '@/shared/services'
+import { createProgressRulesService } from '@/features/lesson'
 import { createVocabularyService } from '@/features/vocabulary'
 import { HomeEntry } from './HomeEntry'
 import viewSource from './ArchipelagoView.tsx?raw'
@@ -62,6 +63,7 @@ function registerServices() {
   registry.register(SettingsService, settingsService)
   registry.register(ComboService, combo)
   registry.register(AudioService, audio)
+  registry.register(ProgressRulesService, createProgressRulesService())
   return { progress, settingsService, combo, audio, resetAll, saveSettings, resetCombo, play }
 }
 

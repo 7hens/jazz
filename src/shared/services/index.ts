@@ -18,6 +18,7 @@ export { ComboService } from './combo'
 export { LuckyBonusService } from './lucky-bonus'
 export type { ProgressData, ProgressSnapshot, SkillKey, WordProgress } from './progress'
 export { ProgressService } from './progress'
+export { ProgressRulesService } from './progress-rules'
 export type {
   BaseOption,
   ChoiceQuestion,
@@ -34,5 +35,5 @@ export { SpeechService } from './speech'
 export type { ToastData, ToastType } from './toast'
 export { ToastService } from './toast'
 export type { CategoryKey, WordUnit } from './vocabulary'
-export { VocabularyService } from './vocabulary'
+export { CATEGORY_LABELS, VocabularyService } from './vocabulary'
 export type { LoadState } from './core'

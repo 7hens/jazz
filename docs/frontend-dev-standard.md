@@ -19,7 +19,7 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 铁律(测试强制):
 
 - feature 间**禁编译期 import**;feature 不 import app;shared 不 import 任何上层。
-- 被跨 feature 消费的纯规则/词库 → `shared/words.ts`、`shared/progress-rules.ts`;运行时行为 → 服务;禁止留在单 feature 内。
+- 领域词库/规则按**语义属主**落 feature(词库 → `features/vocabulary/words.ts`、进阶/称号规则 → `features/lesson/progress-rules.ts`),跨 feature 消费经 shared 契约服务流出(`VocabularyService` / `ProgressRulesService` 无状态透传,工厂在属主 feature,契约 + token 在 `shared/services/`);运行时行为 → 服务。shared root 不再堆宽松领域文件,只留契约/中性基础件/机制。
 - app 不含业务规则(答题/结算/奖励/持久化),Page 组件属 feature。
 - 中性视觉基础件在 `shared/ui/`(button/card/input/label/badge/select/chart-tooltip,features 可引);业务 UI 归各自 feature。
 
@@ -29,10 +29,10 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 | :-- | :-- | :-- | :-- |
 | 服务型 | `<name>.ts` 工厂 `create<Name>Service` + shared 接口 | 走接口 | 无 |
 | 页面型 | `<Name>Entry.tsx` + 纯 UI 子组件 | — | 必有 |
-| 数据+逻辑 | 自含数据/规则,不跨 feature | 不暴露 | 可无 |
+| 数据+逻辑 | 自含数据/规则;被跨 feature 消费时配无状态透传服务 | 经 shared 契约服务(`VocabularyService`/`ProgressRulesService`) | 可无 |
 | 纯 UI | props 接收一切 | — | 无 |
 
-规则:凡被其它 feature 消费的纯逻辑/数据,必须上升为 shared 纯规则或服务;只在单 feature 内用则留本地。
+规则:凡被其它 feature 消费的领域数据/规则,按语义属主落 feature,并由该 feature 以 shared 契约服务(无状态透传)或 shared 常量流出;只在单 feature 内用则留本地,不必上升。纯 shared 规则仅留给真正中立、无属主的基础逻辑。
 
 ## 3 Entry 与组装
 
@@ -110,5 +110,5 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 - 命名合规;feature 有 `index.ts` 且只导公共 API;一律 `@/` 别名。
 - 纯 UI 不 useService;Entry 是 feature 内唯一 useService;app 组装 hook 例外。
 - 接口在 `shared/services/`;实现走工厂;注册仅在 bootstrap。
-- feature 零跨引用;改词库只动 `shared/words.ts`,改规则先看对应纯逻辑与其测试。
+- feature 零跨引用;改词库只动 `features/vocabulary/words.ts`,改进阶/称号规则看 `features/lesson/progress-rules.ts` 与其测试,跨 feature 侧只经服务。
 - 纯逻辑有单测;`tsc -b` / `lint` / `test` 全绿。

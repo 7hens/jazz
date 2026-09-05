@@ -1,8 +1,7 @@
-import type { SkillKey, WordProgress } from './services/progress'
-import type { UserSettings } from './services/settings'
+import type { ProgressRulesService, SkillKey, UserSettings, WordProgress } from '@/shared/services'
 
-// 进阶规则(完成判定/目标词/称号档位):lesson、archipelago 与 app 组装共用,
-// 且只依赖 shared 类型,故放在 shared;feature 间禁止编译期 import。
+// 进阶规则(完成判定/目标词/称号档位),语义属主 = lesson(lesson 内部结算/步序直接引用;
+// 跨 feature 消费走 ProgressRulesService 透传,见 createProgressRulesService)。
 export const SKILL_ORDER: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
 
 export function enabledSkills(settings: UserSettings): SkillKey[] {
@@ -45,4 +44,15 @@ export function titleForStars(total: number): { name: string; level: number } {
     }
   }
   return { name, level }
+}
+
+/** 规则门面(无状态透传,与 VocabularyService 同款):跨 feature 取用经 bootstrap 注册。 */
+export function createProgressRulesService(): ProgressRulesService {
+  return {
+    skillOrder: () => SKILL_ORDER,
+    enabledSkills,
+    fullComplete,
+    firstTargetId,
+    titleForStars,
+  }
 }

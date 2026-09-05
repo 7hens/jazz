@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/services/core'
-import { SettingsService } from '@/shared/services'
+import { ProgressRulesService, SettingsService } from '@/shared/services'
 import type { UserSettings } from '@/shared/services'
+import { createProgressRulesService } from '@/features/lesson'
 import { SettingsEntry } from './SettingsEntry'
 import panelSource from './SettingsPanel.tsx?raw'
 
@@ -29,6 +30,7 @@ function registerSettings() {
     save,
   }
   registry.register(SettingsService, settingsService)
+  registry.register(ProgressRulesService, createProgressRulesService())
   return { settingsService, save }
 }
 

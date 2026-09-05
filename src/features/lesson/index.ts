@@ -4,6 +4,7 @@ export { WordDone } from './WordDone'
 export type { WordDoneProps } from './WordDone'
 export { WordLesson } from './WordLesson'
 export type { WordLessonProps } from './WordLesson'
+export { createProgressRulesService } from './progress-rules'
 export { enabledSkills, firstTargetId, fullComplete, SKILL_ORDER, stepsFor } from './lesson'
 export {
   emptyProgress,

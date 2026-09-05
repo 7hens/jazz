@@ -3,8 +3,8 @@ import { fullComplete } from './lesson'
 
 const ALL_SKILLS: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
 
-// 称号档位已上移 shared/progress-rules(lesson、archipelago 共用)。
-export { titleForStars } from '@/shared/progress-rules'
+// 称号档位在 lesson 内 ./progress-rules(语义属主;内部结算/称号消费直引)。
+export { titleForStars } from './progress-rules'
 
 export function emptyProgress(wordId: number): WordProgress {
   return {

@@ -5,6 +5,7 @@ import { createAuthService } from '@/features/auth'
 import { createCelebrateService } from '@/features/celebrate'
 import { createComboService } from '@/features/combo'
 import { createLuckyBonusService } from '@/features/lucky-bonus'
+import { createProgressRulesService } from '@/features/lesson'
 import { createProgressService } from '@/features/progress'
 import { createQuestionEngineService } from '@/features/question-engine'
 import { createSettingsService } from '@/features/settings-state'
@@ -19,6 +20,7 @@ import {
   CelebrateService,
   ComboService,
   LuckyBonusService,
+  ProgressRulesService,
   ProgressService,
   QuestionEngineService,
   SettingsService,
@@ -37,6 +39,7 @@ const ALL_SERVICE_TOKENS: readonly ServiceToken<unknown>[] = [
   CelebrateService,
   ComboService,
   LuckyBonusService,
+  ProgressRulesService,
   ProgressService,
   QuestionEngineService,
   SettingsService,
@@ -73,4 +76,5 @@ export function bootstrap(): void {
   const vocabulary = createVocabularyService()
   registry.register(VocabularyService, vocabulary)
   registry.register(QuestionEngineService, createQuestionEngineService(vocabulary))
+  registry.register(ProgressRulesService, createProgressRulesService())
 }

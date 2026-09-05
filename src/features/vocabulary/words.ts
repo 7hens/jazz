@@ -1,12 +1,4 @@
-import type { CategoryKey, WordUnit } from './services/vocabulary'
-
-export const CATEGORY_LABELS: Record<CategoryKey, string> = {
-  shape: '基础形状',
-  food: '食物',
-  animal: '动物',
-  nature: '自然界',
-  object: '交通与物品',
-}
+import type { WordUnit } from '@/shared/services/vocabulary'
 
 export const WORDS: WordUnit[] = [
   // shape 1-20

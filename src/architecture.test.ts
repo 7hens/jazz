@@ -11,7 +11,9 @@ const rawFiles = import.meta.glob('./**/*.{ts,tsx}', {
  * 3 层架构铁律:
  *  - shared(类型/契约/纯逻辑/中性基础件 ui)不得 import features|app;
  *  - features 内部互相独立:不得 import 其它 feature 或 app;
- *  - 跨 feature 纯规则一律放 shared,组件跨 feature 只在 app 组装;
+ *  - 跨 feature 消费的纯规则/词库按语义属主落 feature,经 shared 契约服务流出
+ *    (词库 features/vocabulary/words.ts、进阶规则 features/lesson/progress-rules.ts +
+ *    ProgressRulesService 透传);组件跨 feature 只在 app 组装;
  *  - useService 仅限页面入口(features/<f>/<Name>Entry.tsx)与 app 组装层;
  *  - 生产注册唯一入口 = app/bootstrap.ts(测试用 fake 自行 register + clear)。
  */
