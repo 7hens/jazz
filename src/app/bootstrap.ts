@@ -4,7 +4,7 @@ import { createAudioService } from '@/features/audio'
 import { createAuthService } from '@/features/auth'
 import { createCelebrateService } from '@/features/celebrate'
 import { createComboService } from '@/features/combo'
-import { createFoundationService } from '@/features/foundation'
+import { createBasicsService, createFoundationService } from '@/features/foundation'
 import { createLuckyBonusService } from '@/features/lucky-bonus'
 import { createProgressRulesService } from '@/features/lesson'
 import { createProgressService } from '@/features/progress'
@@ -29,6 +29,7 @@ import {
   ToastService,
   VocabularyService,
   FoundationService,
+  BasicsService,
 } from '@/shared/services'
 import { registry, type ServiceToken } from '@/shared/services/core'
 
@@ -49,6 +50,7 @@ const ALL_SERVICE_TOKENS: readonly ServiceToken<unknown>[] = [
   ToastService,
   VocabularyService,
   FoundationService,
+  BasicsService,
 ]
 
 export function bootstrap(): void {
@@ -81,4 +83,5 @@ export function bootstrap(): void {
   registry.register(QuestionEngineService, createQuestionEngineService(vocabulary))
   registry.register(ProgressRulesService, createProgressRulesService())
   registry.register(FoundationService, createFoundationService(vocabulary))
+  registry.register(BasicsService, createBasicsService(api, callbacks))
 }
