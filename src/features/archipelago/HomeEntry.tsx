@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { AudioService, ComboService, ProgressService, SettingsService, VocabularyService } from '@/shared/services'
 import { CATEGORY_LABELS } from '@/shared/words'
 import { firstTargetId, fullComplete, titleForStars } from '@/shared/progress-rules'
 import { useService } from '@/shared/useService'
@@ -14,11 +15,11 @@ export type HomeEntryProps = {
 }
 
 export function HomeEntry({ lingling, onEnterLesson, onOpenSettings, onLogout }: HomeEntryProps) {
-  const progress = useService('progress')
-  const vocabulary = useService('vocabulary')
-  const settingsService = useService('settings-state')
-  const combo = useService('combo')
-  const audio = useService('audio')
+  const progress = useService(ProgressService)
+  const vocabulary = useService(VocabularyService)
+  const settingsService = useService(SettingsService)
+  const combo = useService(ComboService)
+  const audio = useService(AudioService)
 
   const progressSnap = useServiceSnapshot(progress)
   const settingsSnap = useServiceSnapshot(settingsService)

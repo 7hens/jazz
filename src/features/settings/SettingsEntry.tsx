@@ -1,3 +1,4 @@
+import { SettingsService } from '@/shared/services'
 import { useService } from '@/shared/useService'
 import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
 import type { UserSettings } from '@/shared/types'
@@ -8,7 +9,7 @@ export type SettingsEntryProps = {
 }
 
 export function SettingsEntry({ onClose }: SettingsEntryProps) {
-  const settingsService = useService('settings-state')
+  const settingsService = useService(SettingsService)
   const snapshot = useServiceSnapshot(settingsService)
   const settings = snapshot.data
 

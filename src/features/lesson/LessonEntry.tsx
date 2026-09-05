@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import type {
+import type { ProgressData } from '@/shared/services'
+import {
   AchievementService,
   AudioService,
   CelebrateService,
   ComboService,
   LuckyBonusService,
-  ProgressData,
   ProgressService,
   QuestionEngineService,
   SettingsService,
   SpeechService,
   ToastService,
+  VocabularyService,
 } from '@/shared/services'
 import type { SkillKey, UserSettings, WordUnit } from '@/shared/types'
 import { useService } from '@/shared/useService'
@@ -222,17 +223,17 @@ function LessonSession({
 }
 
 export function LessonEntry({ wordId, onExit, onNextWord, onCelebrate }: LessonEntryProps) {
-  const vocabulary = useService('vocabulary')
-  const questionEngine = useService('question-engine')
-  const progress = useService('progress')
-  const settings = useService('settings-state')
-  const achievements = useService('achievements')
-  const lucky = useService('lucky-bonus')
-  const combo = useService('combo')
-  const audio = useService('audio')
-  const speech = useService('speech')
-  const celebrate = useService('celebrate')
-  const toast = useService('toast')
+  const vocabulary = useService(VocabularyService)
+  const questionEngine = useService(QuestionEngineService)
+  const progress = useService(ProgressService)
+  const settings = useService(SettingsService)
+  const achievements = useService(AchievementService)
+  const lucky = useService(LuckyBonusService)
+  const combo = useService(ComboService)
+  const audio = useService(AudioService)
+  const speech = useService(SpeechService)
+  const celebrate = useService(CelebrateService)
+  const toast = useService(ToastService)
   const progressSnapshot = useServiceSnapshot(progress)
   const settingsSnapshot = useServiceSnapshot(settings)
   const comboSnapshot = useServiceSnapshot(combo)

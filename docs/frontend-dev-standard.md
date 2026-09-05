@@ -43,10 +43,10 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 
 ## 4 服务系统
 
-- 接口:`shared/services/<name>.ts`,**一文件一接口**;key 与类型映射集中 `keys.ts` / `map.ts`。
+- 接口:`shared/services/<name>.ts`,**一文件一接口**;接口与同名 token const **一体**(token = `Symbol('<Name>') as ServiceToken<XService>`,定义于 `services/token.ts`):接口占 type 空间、token 占 value 空间,`services/index.ts` 统一出口,`import { XService }` 一个 import 同时拿类型与注册/取用 key。无集中 keys/map 映射。
 - 实现:`features/<f>/`,工厂**构造函数注入依赖**,不自行查注册表。
-- 注册:`app/bootstrap.ts` 是**唯一**生产注册点(`main.tsx` 调 `bootstrap()`),按依赖顺序分层;测试各自 register fake 并以 `registry.clear()` 清理。
-- 取用:`useService(key)`(经 `registry` 订阅注册);响应式服务状态订阅用 `useServiceSnapshot(service)`(`getSnapshot` 须返稳定引用)。
+- 注册:`app/bootstrap.ts` 是**唯一**生产注册点(`main.tsx` 调 `bootstrap()`),按依赖顺序分层,`registry.register(XService, impl)`;测试各自 register fake 并以 `registry.clear()` 清理。
+- 取用:`useService(XService)`(同名 token 当 key);响应式服务状态订阅用 `useServiceSnapshot(service)`(`getSnapshot` 须返稳定引用)。
 - 测试:纯逻辑直调;服务直调工厂(注入 fake 依赖 / rng);Entry 用 fake 注册后渲染断言组装。
 
 ## 5 命名
@@ -58,7 +58,7 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 | Entry | `<Name>Entry.tsx` | `LessonEntry.tsx` |
 | 逻辑文件 | camelCase.ts | `engine.ts` / `progress-rules.ts` |
 | 服务工厂 | `create<Name>Service` | `createWebSpeechService` |
-| 服务 key 常量 | `keys.ts` 内 UPPER_SNAKE | `SERVICE_KEYS.PROGRESS` |
+| 服务 token | 与接口同名的 `const XService`(`Symbol`) | `ProgressService` |
 | 词库 / 全局常量 | UPPER_SNAKE | `WORDS` |
 | 测试 | `<name>.test.ts` / `.test.tsx`,与被测同目录 | `engine.test.ts` |
 
@@ -85,11 +85,11 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 
 ## 10 新增 / 删除 feature
 
-**新增服务型**:① `shared/services/<name>.ts` 写接口 → ② 登记 `keys.ts` / `map.ts` / `services/index.ts` → ③ `features/<name>/` 实现工厂 + `index.ts` → ④ `app/bootstrap.ts` 按依赖顺序注册。
+**新增服务型**:① `shared/services/<name>.ts` 写接口 + 同名 token const → ② `services/index.ts` 加导出(服务名普通导出 = 接口 + token;纯数据/快照 `export type`)→ ③ `features/<name>/` 实现工厂 + `index.ts` → ④ `app/bootstrap.ts` 按依赖顺序注册 + 把 token 加入幂等守卫数组。
 
 **新增页面型**:① `features/<name>/` 建目录 + `<Name>Entry.tsx` + 纯 UI 子组件 + `index.ts` → ② app 接状态路由 / 组装。
 
-**删除**:① grep 全仓引用 → ② 移除 app 路由 / 组装 → ③ 服务型同时移除接口、keys / map / index 登记与 bootstrap 注册 → ④ 删目录 → ⑤ `npm test && npx tsc -b && npm run lint` 全绿。
+**删除**:① grep 全仓引用 → ② 移除 app 路由 / 组装 → ③ 服务型同时移除接口+token、index 导出与 bootstrap 注册/守卫 → ④ 删目录 → ⑤ `npm test && npx tsc -b && npm run lint` 全绿。
 
 ## 11 反模式速查
 

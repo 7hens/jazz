@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/registry'
-import type { SettingsService } from '@/shared/services'
+import { SettingsService } from '@/shared/services'
 import type { UserSettings } from '@/shared/types'
 import { SettingsEntry } from './SettingsEntry'
 import panelSource from './SettingsPanel.tsx?raw'
@@ -28,7 +28,7 @@ function registerSettings() {
     load: vi.fn(async () => undefined),
     save,
   }
-  registry.register('settings-state', settingsService)
+  registry.register(SettingsService, settingsService)
   return { settingsService, save }
 }
 

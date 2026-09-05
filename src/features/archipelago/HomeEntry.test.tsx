@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/registry'
-import type { AudioService, ComboService, ProgressService, SettingsService } from '@/shared/services'
+import { AudioService, ComboService, ProgressService, SettingsService, VocabularyService } from '@/shared/services'
 import type { UserSettings } from '@/shared/types'
 import { createVocabularyService } from '@/features/vocabulary'
 import { HomeEntry } from './HomeEntry'
@@ -57,11 +57,11 @@ function registerServices() {
     play,
     unlock: vi.fn(),
   }
-  registry.register('progress', progress)
-  registry.register('vocabulary', createVocabularyService())
-  registry.register('settings-state', settingsService)
-  registry.register('combo', combo)
-  registry.register('audio', audio)
+  registry.register(ProgressService, progress)
+  registry.register(VocabularyService, createVocabularyService())
+  registry.register(SettingsService, settingsService)
+  registry.register(ComboService, combo)
+  registry.register(AudioService, audio)
   return { progress, settingsService, combo, audio, resetAll, saveSettings, resetCombo, play }
 }
 

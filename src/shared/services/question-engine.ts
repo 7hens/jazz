@@ -6,6 +6,7 @@ import type {
   SkillKey,
   WordUnit,
 } from '../types'
+import type { ServiceToken } from './token'
 
 export type Rng = () => number
 
@@ -19,3 +20,5 @@ export interface QuestionEngineService {
   makeMatch(word: WordUnit, skill: SkillKey, rng: Rng, step?: number): MatchQuestion
   makeStepQuestions(word: WordUnit, skill: SkillKey, rng?: Rng): Question[]
 }
+
+export const QuestionEngineService = Symbol('QuestionEngineService') as unknown as ServiceToken<QuestionEngineService>

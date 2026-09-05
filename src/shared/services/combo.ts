@@ -1,3 +1,5 @@
+import type { ServiceToken } from './token'
+
 export type AnswerKind = 'first' | 'retry' | 'wrong'
 
 export type ComboSnapshot = Readonly<{
@@ -12,3 +14,5 @@ export interface ComboService {
   reset(): void
   getBonus(): number
 }
+
+export const ComboService = Symbol('ComboService') as unknown as ServiceToken<ComboService>

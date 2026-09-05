@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
+import { AuthService } from '@/shared/services'
 import { useService } from '@/shared/useService'
 import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
 import { LoginGate } from './LoginGate'
 
 export function AuthEntry() {
-  const auth = useService('auth')
+  const auth = useService(AuthService)
   const snapshot = useServiceSnapshot(auth)
   const [token, setToken] = useState('')
 

@@ -1,7 +1,6 @@
 import { registry } from './registry'
-import type { ServiceKey } from './services/keys'
-import type { ServiceMap } from './services/map'
+import type { ServiceToken } from './services/token'
 
-export function useService<K extends ServiceKey>(key: K): ServiceMap[K] {
-  return registry.get(key)
+export function useService<K>(token: ServiceToken<K>): K {
+  return registry.get(token)
 }

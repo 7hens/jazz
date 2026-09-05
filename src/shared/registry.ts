@@ -1,21 +1,21 @@
-import type { ServiceKey } from './services/keys'
-import type { ServiceMap } from './services/map'
+import type { ServiceToken } from './services/token'
 
-const services = new Map<ServiceKey, unknown>()
+// key = 服务 token(Symbol),value = 实例。泛型经 token 的幽灵品牌回推实例类型。
+const services = new Map<object, unknown>()
 
 export const registry = {
-  register<K extends ServiceKey>(key: K, service: ServiceMap[K]) {
-    services.set(key, service)
+  register<K>(token: ServiceToken<K>, service: K) {
+    services.set(token, service)
   },
-  get<K extends ServiceKey>(key: K): ServiceMap[K] {
-    const service = services.get(key)
+  get<K>(token: ServiceToken<K>): K {
+    const service = services.get(token)
 
-    if (!service) throw new Error(`[registry] 服务未注册: ${key}`)
+    if (!service) throw new Error(`[registry] 服务未注册: ${String(token)}`)
 
-    return service as ServiceMap[K]
+    return service as K
   },
-  has(key: ServiceKey) {
-    return services.has(key)
+  has<K>(token: ServiceToken<K>) {
+    return services.has(token)
   },
   clear() {
     services.clear()

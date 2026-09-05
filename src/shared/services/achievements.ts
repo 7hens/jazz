@@ -1,3 +1,5 @@
+import type { ServiceToken } from './token'
+
 export type Achievement = Readonly<{
   id: string
   name: string
@@ -20,3 +22,5 @@ export type AchievementState = Readonly<{
 export interface AchievementService {
   scan(state: AchievementState, earned: readonly string[]): readonly Achievement[]
 }
+
+export const AchievementService = Symbol('AchievementService') as unknown as ServiceToken<AchievementService>

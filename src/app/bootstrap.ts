@@ -12,50 +12,66 @@ import { createSpeechService } from '@/features/speech'
 import { createToastService } from '@/features/toast'
 import { createVocabularyService } from '@/features/vocabulary'
 import { registry } from '@/shared/registry'
-import { SERVICE_KEYS } from '@/shared/services'
+import {
+  AchievementService,
+  ApiService,
+  AudioService,
+  AuthService,
+  CelebrateService,
+  ComboService,
+  LuckyBonusService,
+  ProgressService,
+  QuestionEngineService,
+  SettingsService,
+  SpeechService,
+  ToastService,
+  VocabularyService,
+} from '@/shared/services'
+import type { ServiceToken } from '@/shared/services/token'
 
-const CURRENT_SERVICE_KEYS = [
-  SERVICE_KEYS.ACHIEVEMENTS,
-  SERVICE_KEYS.API,
-  SERVICE_KEYS.AUDIO,
-  SERVICE_KEYS.AUTH,
-  SERVICE_KEYS.CELEBRATE,
-  SERVICE_KEYS.COMBO,
-  SERVICE_KEYS.LUCKY_BONUS,
-  SERVICE_KEYS.PROGRESS,
-  SERVICE_KEYS.QUESTION_ENGINE,
-  SERVICE_KEYS.SETTINGS,
-  SERVICE_KEYS.SPEECH,
-  SERVICE_KEYS.TOAST,
-  SERVICE_KEYS.VOCABULARY,
-] as const
+// 幂等守卫只做 has 存在性,故按 ServiceToken<unknown> 拓宽,避开异构联合的泛型推断。
+const ALL_SERVICE_TOKENS: readonly ServiceToken<unknown>[] = [
+  AchievementService,
+  ApiService,
+  AudioService,
+  AuthService,
+  CelebrateService,
+  ComboService,
+  LuckyBonusService,
+  ProgressService,
+  QuestionEngineService,
+  SettingsService,
+  SpeechService,
+  ToastService,
+  VocabularyService,
+]
 
 export function bootstrap(): void {
-  if (CURRENT_SERVICE_KEYS.every(key => registry.has(key))) return
+  if (ALL_SERVICE_TOKENS.every(token => registry.has(token))) return
 
   const api = createHttpApiService()
-  registry.register(SERVICE_KEYS.API, api)
+  registry.register(ApiService, api)
 
   const auth = createAuthService(api)
-  registry.register(SERVICE_KEYS.AUTH, auth)
+  registry.register(AuthService, auth)
 
-  registry.register(SERVICE_KEYS.ACHIEVEMENTS, createAchievementService())
-  registry.register(SERVICE_KEYS.AUDIO, createAudioService())
-  registry.register(SERVICE_KEYS.CELEBRATE, createCelebrateService())
-  registry.register(SERVICE_KEYS.COMBO, createComboService())
-  registry.register(SERVICE_KEYS.LUCKY_BONUS, createLuckyBonusService())
-  registry.register(SERVICE_KEYS.SPEECH, createSpeechService())
+  registry.register(AchievementService, createAchievementService())
+  registry.register(AudioService, createAudioService())
+  registry.register(CelebrateService, createCelebrateService())
+  registry.register(ComboService, createComboService())
+  registry.register(LuckyBonusService, createLuckyBonusService())
+  registry.register(SpeechService, createSpeechService())
   const toast = createToastService()
-  registry.register(SERVICE_KEYS.TOAST, toast)
+  registry.register(ToastService, toast)
 
   const callbacks = {
     onUnauthorized: auth.markAnonymous,
     onError: (message: string) => { toast.show('error', message) },
   }
-  registry.register(SERVICE_KEYS.PROGRESS, createProgressService(api, callbacks))
-  registry.register(SERVICE_KEYS.SETTINGS, createSettingsService(api, callbacks))
+  registry.register(ProgressService, createProgressService(api, callbacks))
+  registry.register(SettingsService, createSettingsService(api, callbacks))
 
   const vocabulary = createVocabularyService()
-  registry.register(SERVICE_KEYS.VOCABULARY, vocabulary)
-  registry.register(SERVICE_KEYS.QUESTION_ENGINE, createQuestionEngineService(vocabulary))
+  registry.register(VocabularyService, vocabulary)
+  registry.register(QuestionEngineService, createQuestionEngineService(vocabulary))
 }

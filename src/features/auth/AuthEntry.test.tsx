@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/registry'
-import type { AuthService } from '@/shared/services'
+import { AuthService } from '@/shared/services'
 import { AuthEntry } from './AuthEntry'
 
 beforeEach(() => registry.clear())
@@ -17,7 +17,7 @@ it('submits the typed token through the registered auth service', async () => {
     logout: async () => undefined,
     markAnonymous: () => undefined,
   }
-  registry.register('auth', auth)
+  registry.register(AuthService, auth)
 
   const { container } = render(<AuthEntry />)
   const token = container.querySelector<HTMLInputElement>('#token')

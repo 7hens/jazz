@@ -1,25 +1,27 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/registry'
-import type {
+import {
   AchievementService,
   AudioService,
   AuthService,
-  AuthSnapshot,
   CelebrateService,
   ComboService,
-  ComboSnapshot,
   LuckyBonusService,
   ProgressService,
-  ProgressSnapshot,
   QuestionEngineService,
   SettingsService,
-  SettingsSnapshot,
   SpeechService,
-  ToastData,
   ToastService,
-  User,
   VocabularyService,
+} from '@/shared/services'
+import type {
+  AuthSnapshot,
+  ComboSnapshot,
+  ProgressSnapshot,
+  SettingsSnapshot,
+  ToastData,
+  User,
 } from '@/shared/services'
 import type { ChoiceQuestion, UserSettings, WordUnit } from '@/shared/types'
 import App from './App'
@@ -180,18 +182,18 @@ function registerAll() {
   const achievements: AchievementService = { scan: () => [] }
   const lucky: LuckyBonusService = { roll: () => 0 }
 
-  registry.register('auth', auth)
-  registry.register('progress', progress)
-  registry.register('settings-state', settingsService)
-  registry.register('vocabulary', vocabulary)
-  registry.register('question-engine', questionEngine)
-  registry.register('combo', combo)
-  registry.register('audio', audio)
-  registry.register('speech', speech)
-  registry.register('celebrate', celebrate)
-  registry.register('toast', toast)
-  registry.register('achievements', achievements)
-  registry.register('lucky-bonus', lucky)
+  registry.register(AuthService, auth)
+  registry.register(ProgressService, progress)
+  registry.register(SettingsService, settingsService)
+  registry.register(VocabularyService, vocabulary)
+  registry.register(QuestionEngineService, questionEngine)
+  registry.register(ComboService, combo)
+  registry.register(AudioService, audio)
+  registry.register(SpeechService, speech)
+  registry.register(CelebrateService, celebrate)
+  registry.register(ToastService, toast)
+  registry.register(AchievementService, achievements)
+  registry.register(LuckyBonusService, lucky)
 
   return { auth, authStore, check, progressLoad, settingsLoad, celebrate, play: audio.play }
 }

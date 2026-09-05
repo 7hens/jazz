@@ -1,4 +1,5 @@
 import type { UserSettings, WordProgress } from '../types'
+import type { ServiceToken } from './token'
 
 export interface User {
   id: string
@@ -19,3 +20,5 @@ export interface ApiService {
   getSettings(): Promise<ApiUserSettings>
   putSettings(settings: UserSettings): Promise<void>
 }
+
+export const ApiService = Symbol('ApiService') as unknown as ServiceToken<ApiService>

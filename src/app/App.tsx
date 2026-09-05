@@ -8,9 +8,10 @@ import { LingLing } from '@/features/lingling'
 import { LessonEntry, type LessonCelebration } from '@/features/lesson'
 import { LuckyBonus } from '@/features/lucky-bonus'
 import { SettingsEntry } from '@/features/settings'
+import { AuthService, CelebrateService, ProgressService, SettingsService } from '@/shared/services'
+import type { Achievement } from '@/shared/services'
 import { useService } from '@/shared/useService'
 import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
-import type { Achievement } from '@/shared/services'
 import { useAppState } from './useAppState'
 import { useCompletedWords } from './useCompletedWords'
 
@@ -30,10 +31,10 @@ function BootScreen() {
 
 /** App 只做页面状态路由与跨 feature 组装;答题、结算、奖励规则都在 feature 内。 */
 export default function App() {
-  const auth = useService('auth')
-  const progress = useService('progress')
-  const settingsService = useService('settings-state')
-  const celebrateService = useService('celebrate')
+  const auth = useService(AuthService)
+  const progress = useService(ProgressService)
+  const settingsService = useService(SettingsService)
+  const celebrateService = useService(CelebrateService)
   const authSnap = useServiceSnapshot(auth)
 
   const { phase, currentWordId, actions } = useAppState()

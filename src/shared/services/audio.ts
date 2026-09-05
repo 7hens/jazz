@@ -1,3 +1,5 @@
+import type { ServiceToken } from './token'
+
 export type AudioCue = 'correct' | 'wrong' | 'streak' | 'victory' | 'tap'
 
 export interface AudioService {
@@ -8,3 +10,5 @@ export interface AudioService {
   play(cue: AudioCue): void
   unlock(): void
 }
+
+export const AudioService = Symbol('AudioService') as unknown as ServiceToken<AudioService>

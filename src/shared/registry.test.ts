@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { registry } from './registry'
-import type { ApiService } from './services'
+import { ApiService } from './services'
 import { useService } from './useService'
 
 beforeEach(() => registry.clear())
@@ -30,33 +30,33 @@ describe('registry', () => {
   it('returns the registered instance', () => {
     const api = createApi()
 
-    registry.register('api', api)
+    registry.register(ApiService, api)
 
-    expect(registry.get('api')).toBe(api)
+    expect(registry.get(ApiService)).toBe(api)
   })
 
   it('throws for a missing service', () => {
-    expect(() => registry.get('api')).toThrow('[registry] 服务未注册: api')
+    expect(() => registry.get(ApiService)).toThrow('[registry] 服务未注册: Symbol(ApiService)')
   })
 
   it('reports a registered service', () => {
-    registry.register('api', createApi())
+    registry.register(ApiService, createApi())
 
-    expect(registry.has('api')).toBe(true)
+    expect(registry.has(ApiService)).toBe(true)
   })
 
   it('removes registered services when cleared', () => {
-    registry.register('api', createApi())
+    registry.register(ApiService, createApi())
 
     registry.clear()
 
-    expect(registry.has('api')).toBe(false)
+    expect(registry.has(ApiService)).toBe(false)
   })
 
   it('gets registered services through useService', () => {
     const api = createApi()
-    registry.register('api', api)
+    registry.register(ApiService, api)
 
-    expect(useService('api')).toBe(api)
+    expect(useService(ApiService)).toBe(api)
   })
 })

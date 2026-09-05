@@ -1,3 +1,5 @@
+import type { ServiceToken } from './token'
+
 export type ToastType = 'success' | 'error' | 'info'
 
 export type ToastData = Readonly<{
@@ -12,3 +14,5 @@ export interface ToastService {
   show(type: ToastType, message: string): number
   dismiss(id: number): void
 }
+
+export const ToastService = Symbol('ToastService') as unknown as ServiceToken<ToastService>
