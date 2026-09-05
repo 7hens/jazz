@@ -12,9 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **认证**: 单一访问令牌(env `ADMIN_TOKEN`,必填)。首次登录输入令牌后存 HttpOnly + SameSite=Lax cookie(`jazz_token`),令牌永不过期,之后每请求由服务端直接比对 env token
 - **发音**: 浏览器 `SpeechSynthesis`;朗读文本一律 zh-CN(汉字)或 en-US(英文),无对应语音时静音降级;音效用 Web Audio 合成
 
-**二期 backlog**(一期明确不做,设计已留口):绘画题型(题干大图 `promptEmoji` 现仅 Choice 用)、填空题型、复习/错词重练排程、离线可用。
-
-**真不做**(非目标):语音识别、汉字书写笔顺、多孩子档案、家长看板、商店/徽章/宠物/每日挑战、PWA、多人在线。
+**需求/任务管理**:全仓需求·任务·优先级·拒绝记录统一收口 `docs/PLAN.md`(章节:当前迭代 P0 / 想法池 P1·P2 / 坚决不做)。原「二期 backlog」(绘画/填空/复习排程/离线)与「真不做」列表已并入 PLAN,不再本文件逐条抄(单一事实源,防漂移)。
 
 ## 常用命令
 
@@ -33,12 +31,15 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 **发布**:执行流水线(步骤/闸门/坑)走 `/release`(项目 skill);版本规范/铁律/事实在本文件「部署与版本发布」节。发布行为改动时,skill(可执行)与本节事实**两处同步**。
 
-### 需求与版本管理(流转视图,详则见 `docs/ideas/2026-09-04-feature-management.md`)
+### 需求与版本管理(流转 + 关键准则)
 
-- 想法 → `docs/IDEAS.md`(停车场,先入池不承诺);排期/拒绝 → 本文件「二期 backlog」/「真不做」(超 ~10 条或含拆解时拆出 `docs/BACKLOG.md`)。
-- 立项详设(需求详档唯一位置)→ `docs/superpowers/specs/`;当前迭代执行 → `docs/superpowers/plans/` + `.superpowers/sdd/`(一次一个,完成即走 `/release`)。
+- 需求/任务统一入 `docs/PLAN.md`(P0-P2 前缀;当前迭代 / 想法池 / 坚决不做)。新想法先入「想法池」一行占位,**禁止直接开工**;确认不做 → 移「坚决不做」留痕防反复。
+- 立项详设(需求详档唯一位置)→ `docs/superpowers/specs/`;当前迭代 = **feature 轨(聚合新能力,兼容→minor / 破坏→major)+ hotfix 轨(基于已发 tag 修 bug→patch)** 并行,轨内各 plan 走 `plans/` + `.superpowers/sdd/`,轨就绪即走 `/release`。
 - 提案/规范文档 → `docs/ideas/<YYYY-MM-DD>-<topic>.md`(日期前缀,命名与 specs 同构)。
-- 历史 → 根 `CHANGELOG.md`(只追加)。发布命令/闸门一律指向 `/release`,本文件零重复。
+- 历史 → 根 `CHANGELOG.md`(只追加)。发布命令/闸门一律指向 `/release`,本文件零重复。复盘三问(孩子真玩到没 / 想法池增删几条 / 最后悔做哪个)答案追加至最新发布条目末。
+- **分支模型**:唯一长命分支 = `main`(开发主干 + 发版起点)。其余全短命:大 plan 自开 topic 分支 + worktree,成即合 main 即删;hotfix 临时分支从已发 tag 出,发完合回 main 即删。禁常驻 feature/hotfix 长命线。tag 长存不删(hotfix 锚点 + 回滚真相源)。
+- 版本号只表影响面(语义见「版本语义」),P 只表何时做,两轴独立。想法池 P2 升 P1/当前,须满足其一:孩子实际受阻 / 家长明确诉求 / 技术债阻塞 / 明确复玩价值。
+- 估算与收尾:S(≤2h)随最近发版或直接 commit,不独立版本;M(1~2d)独立迭代随 minor;L(≥3d)强制拆多 spec。M/L 实际超上限且完成度 <50% → 收尾滚下版,只发已完成。
 
 ### 部署与版本发布(Cloudflare Workers + Assets)
 
