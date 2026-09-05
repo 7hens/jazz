@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 import type { AnswerKind, AudioCue, CelebrateLevel, Rng } from '@/shared/services'
 import type { Question, SkillKey, UserSettings, WordUnit } from '@/shared/types'
 import { stepsFor } from './lesson'

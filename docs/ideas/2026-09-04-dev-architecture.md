@@ -1,5 +1,7 @@
 # 📐 开发规范文档（最终版 v4.0）
 
+> ⚠️ **已被实施 spec 取代**:2026-09-04 前端架构重构落地,本提案的 shared/features/app 三层 + 服务注册表 + Entry 组件模式已实现。权威事实源 = [docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md](../superpowers/specs/2026-09-04-dev-architecture-refactor-design.md) + `CLAUDE.md`「前端(3 层)」节 + `src/architecture.test.ts`(边界由测试强制);本文保留为历史提案,不再逐条同步。
+
 > **版本**：v4.0（合并 v3.0 评审意见与 v2.0 修订）
 > **适用项目**：魔法语言岛 / 魔法成长乐园
 > **核心架构**：三层（shared → features → app），服务注册表解耦，Entry 组件模式

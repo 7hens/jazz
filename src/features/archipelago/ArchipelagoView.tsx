@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { LogOut, RotateCcw, Volume2, VolumeX, Wrench } from 'lucide-react'
 import { motion } from 'motion/react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 import type { CategoryKey, WordProgress, WordUnit } from '@/shared/types'
 import { Button } from '@/components/ui/button'
 

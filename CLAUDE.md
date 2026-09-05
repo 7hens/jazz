@@ -21,15 +21,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm install            # 安装依赖
 npm run dev            # 全栈本地运行(:3000):Vite dev server + workerd 内跑 worker + 本地 D1
+npm run dev:init       # 新环境一条命令:npm run db:local 后连跑 dev
 npm run build          # tsc -b && vite build → 前端在 dist/client(worker 由部署时 wrangler 从源码打包)
 npm run lint           # oxlint
-npm test               # vitest run src/**/*.test.ts(words/engine/lesson/progress 纯逻辑单测,node 环境)
+npm test               # vitest run src/**/*.test.{ts,tsx}(jsdom):纯逻辑/服务 + Entry 组件 + architecture 边界
 npm run db:local       # 本地 D1 应用 migrations/ 全部迁移(d1 migrations apply --local)
 npm run deploy         # npm run build && wrangler deploy(生产 = 默认 env)
 npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D1,冒烟用)
 ```
 
-无浏览器端测试框架;`npm test` 覆盖词库数据完整性(words)、出题引擎(engine)、步序/完成判定/解锁(lesson)、结算/称号/合并(progress)。
+`npm test` 覆盖:词库数据完整性(words)、出题引擎(engine)、步序/解锁/结算/称号(lesson/progress)、各 feature 服务与组件、`architecture.test.ts`(shared/features/app 3 层边界与注册纪律,违反即红)。
 
 **发布**:执行流水线(步骤/闸门/坑)走 `/release`(项目 skill);版本规范/铁律/事实在本文件「部署与版本发布」节。发布行为改动时,skill(可执行)与本节事实**两处同步**。
 
@@ -81,23 +82,22 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 - `users`:认证不校验密码/邮箱(列保留以免迁移),仅存默认用户单行作外键;登录时按需 `INSERT`(取现有单行,无则建默认)
 - `progress`:每 user × 每词一行,`word_id` 1..100。列:`pinyin_completed`/`hanzi_completed`/`english_completed`(0/1)、`stars_earned`(只增不减,由 `MAX` 合并)、`updated_at`。主键 `(user_id, word_id)`,`idx_progress_user` 索引
-- `user_settings`:每 user 一行,`enable_pinyin`/`enable_hanzi`/`enable_english`(默认全 1)、`updated_at`
+- `user_settings`:每 user 一行,`enable_pinyin`/`enable_hanzi`/`enable_english`(默认全 1)+ `0002_fun.sql` 增列 `earned_achievements`/`consecutive_days`/`last_active_date`、`updated_at`
 
-前端类型(`src/types.ts`):`WordUnit`(`{ id, emoji, pinyin, hanzi, english, category }`,`id` 1..100)、`WordProgress`(`{ wordId, completed: Record<SkillKey, boolean>, starsEarned, updatedAt }`)、`UserSettings`(`{ enablePinyin/enableHanzi/enableEnglish, updatedAt }`)、`Question`(判别联合 `listen-choice` / `choice` / `match`)、`SkillKey` 与 `KingdomKey`(同为 `'pinyin' | 'hanzi' | 'english'`,quiz 组件沿用后者命名)、`CategoryKey`(`shape/food/animal/nature/object`)。服务端 GET 返回的 progress/settings 行不含 `updatedAt`(worker 序列化时省略),前端以 `isValidWordProgress` 校验 progress 行。
+前端类型(`src/shared/types.ts`):`WordUnit`(`{ id, emoji, pinyin, hanzi, english, category }`,`id` 1..100)、`WordProgress`(`{ wordId, completed: Record<SkillKey, boolean>, starsEarned, updatedAt }`)、`UserSettings`(`enablePinyin/enableHanzi/enableEnglish` + 趣味字段 `earnedAchievements/consecutiveDays/lastActiveDate`、`updatedAt`)、`Question`(判别联合 `listen-choice` / `choice` / `match`)、`SkillKey` 与 `KingdomKey`(同为 `'pinyin' | 'hanzi' | 'english'`,quiz 组件沿用后者命名)、`CategoryKey`(`shape/food/animal/nature/object`)。服务接口类型在 `src/shared/services/*`,键名/映射在 `keys.ts`/`map.ts`。服务端 GET 返回的 progress/settings 行不含 `updatedAt`(worker 序列化时省略),前端以 `isValidWordProgress` 校验 progress 行。
 
-### 前端(状态机单页 App.tsx)
+### 前端(3 层:`shared/features/app`,`src/architecture.test.ts` 守边界)
 
-- `src/App.tsx` — 屏状态机 `boot → login → map → lesson → done`(无路由库)。`boot` 先 `GET /api/me` 判登录态;登录成功后并行拉 `progress` + `settings`。进词 `startWord`;每技能步过 `handleStepPass` 立即结算该词单行并即时 `PUT /api/progress`(一行);全部技能完成进 `WordDone`;家长操作:退出、重置进度(`DELETE /api/progress`)、学习设置(`PUT /api/settings`)
-- `src/components/login/` — 儿童版登录门 `LoginGate`
-- `src/components/game/` — `WordMapView`(地图即主页:5 分类词格 + 目标词脉冲高亮 + 状态条 + 家长菜单)、`WordLesson`(技能步答题器:answering/feedback/reveal 三阶段,一步 2 题、错 1 次给第 2 次机会,再错重做整步)、`WordDone`(整词结算卡:技能步星尘块 + 整词加成块 + 动态祝贺标题 + 称号/星尘)、`SettingsPanel`(拼音/汉字/英语三模块开关,防全关);`quiz/` 下 `Choice`/`ListenChoice`/`MatchGame` 三种题型组件 + `speech.ts`(发音语言推导)
-- `src/data/words.ts` — 100 词静态词库,5 分类各 20 词:`shape` 基础形状 1-20、`food` 食物 21-40、`animal` 动物 41-60、`nature` 自然界 61-80、`object` 交通与物品 81-100;`wordById` 查词,`CATEGORY_LABELS` 分类名
-- `src/game/*` — **纯逻辑**(可单测,无 React):`engine.ts`(运行时出题:`textOf`/`speakOf`/`distractorsFor`/`makeChoice`/`makeListen`/`makeMatch`/`makeStepQuestions`)、`lesson.ts`(`SKILL_ORDER`/`enabledSkills`/`stepsFor`/`fullComplete`/`firstTargetId` 顺序解锁判定)、`progress.ts`(`emptyProgress`/`mergeProgress`/`settleWord` 每技能步首过 +30、整词首通 +20/`titleForStars` 称号档位)、`tts.ts`(SpeechSynthesis 封装,静音降级)、`sfx.ts`(Web Audio 合成短音)、`audio.ts`(声音总开关 localStorage)
-- `src/components/ui/*` — Shadcn 风格基础组件(button 等),基于 `class-variance-authority` + `tailwind-merge`
-- `src/types.ts` — 见上「数据模型」;`WordUnit` 等与 D1 行级列对应
-- 数据流:`fetch('/api/...', { credentials: 'include' })`
-- `src/game/*.test.ts` — vitest 单测(`words.test` 词库数据完整性、`engine.test` 出题、`lesson.test` 步序、`progress.test` 结算/合并/称号)
+**事实源**:本重构设计定稿 = `docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md`(原始提案 `docs/ideas/2026-09-04-dev-architecture.md` 已被取代)。铁律(测试强制):
 
-### 题型与发音约定(引擎生成,`src/game/engine.ts` + `quiz/speech.ts`)
+- `src/shared/` — 无上层依赖的契约与纯逻辑:`types.ts`、`words.ts`(100 词词库 + `CATEGORY_LABELS`/`WORDS`/`wordById`)、`progress-rules.ts`(`SKILL_ORDER`/`enabledSkills`/`fullComplete`/`firstTargetId`/`titleForStars`,lesson 与主页共用)、`services/*`、`registry.ts`、`useService.ts` + `useServiceSnapshot.ts`、`utils.ts`(`cn`)、`api-error.ts`/`load-state.ts`
+- `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。业务分区:`auth`(登录门)、`archipelago`(群岛主页 `HomeEntry`/`ArchipelagoView`)、`lesson`(答题/结算/称号:`LessonEntry` + `WordLesson`/`WordDone`/`ComboDisplay`/`quiz/` 三题型 + `lesson.ts`/`progress.ts`/`settlement.ts`/`praise.ts`)、`settings`(学习设置面板)、`question-engine`(运行时出题)、`progress`/`settings-state`/`vocabulary`/`api`/`audio`/`speech`/`combo`/`toast`/`celebrate`/`achievements`/`lucky-bonus`/`lingling`(服务工厂 + 必要组件)
+- `src/app/` — composition root:`bootstrap.ts`(**唯一生产 `registry.register` 点**)、`App.tsx`(登录态驱动 + 页面状态路由 + 跨 feature 组装;答题/结算/奖励/持久化规则不落 app)、`useAppState.ts`(phase 状态机)、`useCompletedWords.ts`、`ErrorBoundary.tsx`。`src/main.tsx` = HTML 入口(`bootstrap()` + `ToastProvider` + `<App/>`)
+- `src/components/ui/*` — 中性视觉基础件(button/card/input/label/badge/select/chart-tooltip,`cva` + `tailwind-merge`),非业务逻辑,features 可引;不参与 feature 边界
+
+**取用纪律**:`useService()` 仅允许在 page feature 的 `<Name>Entry.tsx` 与 `app/` 组装 hooks 内调用;服务实例经 `registry` 注册后由 `useService(key)` 取、`useServiceSnapshot(service)` 订阅(`getSnapshot` 须返稳定引用)。跨 feature 的纯规则/词库放 shared,跨 feature 的组件在 app 组装传 props。数据流:`fetch('/api/...', { credentials: 'include' })`,封装在各 feature service。
+
+### 题型与发音约定(引擎生成,`src/features/question-engine/engine.ts` + `src/features/lesson/quiz/speech.ts`)
 
 - 每技能步 2 题:**首题恒 `choice`**(题干大图 = 该词 emoji,由 UI 层 `promptEmoji` 传入,选项不放图);次题按技能概率生成变体——拼音 50% `listen-choice`/50% `choice`,汉字 50% `match`/50% `choice`,英语 33/33/33 `listen-choice`/`match`/`choice`。题/选项 id 按 `{wordId}-{步序号}-{题型标记}-{技能}-{i}` 生成,一步内全局唯一。
 - 干扰项 `distractorsFor`:同 category 优先,不足跨类兜底,并排除与目标词任何一门文本(拼音/汉字/英文)重复的词;选项数 `optionCountFor` = 词 id ≤ 20 给 3 项、> 20 给 4 项(即 2/3 干扰项)。`match` 左卡文字、右卡 emoji,配对经词引用对齐。
@@ -105,10 +105,10 @@ npm run deploy:preview # npm run build && wrangler deploy --env preview(独立 D
 
 ## 注意
 
-- **改词库 / 加词**:只改 `src/data/words.ts`(加词遵循分类 id 段、`category` 归属、无重复文本)。发音文本由引擎按上节约定自动推导,**无需**在词条上存 `speak` 字段。
-- **改奖励 / 解锁 / 称号 / 出题**:先看 `src/game/*` 纯逻辑与其测试(引擎可注入 `rng` 保证测试确定性),再动 UI。
+- **改词库 / 加词**:只改 `src/shared/words.ts`(加词遵循分类 id 段、`category` 归属、无重复文本)。发音文本由引擎按上节约定自动推导,**无需**在词条上存 `speak` 字段。
+- **改奖励 / 解锁 / 称号 / 出题**:先看对应纯逻辑与其测试再动 UI —— 跨 feature 规则在 `src/shared/progress-rules.ts`、词库在 `src/shared/words.ts`,出题引擎在 `src/features/question-engine/`,结算/称号消费在 `src/features/lesson/`(引擎可注入 `rng` 保证测试确定性)。改完跑 `npm test`(architecture 边界测试须绿)。
 - **主题 token**:天空糖果色系定义在 `src/index.css`,通用强调色 `accent`(橙)、完成/加成 `emerald`、错误 `red`、中性 `ink/surface/hairline`;拼音/汉字/英语王国色 token(`pinyin`/`hanzi`/`english`)仍在但当前 UI 未逐王国着色,改色/动效先看该文件。
 - 表结构变更 = 新增数字前缀迁移文件(见上「数据库迁移流程」),不改 0001 基线;本地 `npm run db:local` 验;线上 apply 走 `/release` 步骤 2
 - UI 文案为中文,新增文案保持中文
 - 依赖精简、无路由库、无状态管理库 —— 新增功能保持同一简约风格
-- 生命周期:关卡制旧代码(worker/game.ts、`LevelPlay`/`LevelResult`/`MapView`、`src/game/scoring.ts`/`state.ts`/`levels.ts`、`src/data/levels.ts`)已删除;quiz 三组件与 `speech.ts` 的类型签名残留关卡制 `kingdom: KingdomKey | 'mixed'` 与 speech.ts 的 `mixed` 分支注释,WordLesson 实际只传三技能,`mixed` 分支不会走到;遗留 ui 基础组件(badge/select/chart-tooltip 等)暂无引用,保留待儿童主题复用
+- 生命周期:关卡制旧代码(worker/game.ts、`LevelPlay`/`LevelResult`/`MapView`、`src/game/*`、`src/components/game|login/`、`src/data/`)已删除/已迁 feature;quiz 三组件与 `quiz/speech.ts` 的类型签名残留关卡制 `kingdom: KingdomKey | 'mixed'` 与 `mixed` 分支注释,WordLesson 实际只传三技能,`mixed` 分支不会走到;`src/components/ui/` 中 button/card/input/label 已被 feature 复用,badge/select/chart-tooltip 暂无引用,保留待儿童主题复用

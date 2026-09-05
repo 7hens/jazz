@@ -1,4 +1,4 @@
-import type { CategoryKey, WordUnit } from '@/shared/types'
+import type { CategoryKey, WordUnit } from './types'
 
 export const CATEGORY_LABELS: Record<CategoryKey, string> = {
   shape: '基础形状',

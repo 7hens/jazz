@@ -1,28 +1,11 @@
-import type { SkillKey, UserSettings, WordProgress } from '@/shared/types'
+import type { SkillKey, UserSettings } from '@/shared/types'
+import { enabledSkills } from '@/shared/progress-rules'
 
-export const SKILL_ORDER: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
-
-export function enabledSkills(settings: UserSettings): SkillKey[] {
-  return SKILL_ORDER.filter((s) => settings[`enable${s[0].toUpperCase()}${s.slice(1)}` as 'enablePinyin'])
-}
+// 进阶判定与目标词规则已上移 shared/progress-rules(lesson、archipelago 共用)。
+export { firstTargetId, fullComplete, SKILL_ORDER } from '@/shared/progress-rules'
+export { enabledSkills }
 
 export function stepsFor(settings: UserSettings): SkillKey[] {
   const on = enabledSkills(settings)
   return on.length > 0 ? on : ['english']
-}
-
-export function fullComplete(p: WordProgress | undefined, settings: UserSettings): boolean {
-  if (!p) return false
-  return enabledSkills(settings).every((s) => p.completed[s])
-}
-
-export function firstTargetId(
-  words: Record<number, WordProgress>,
-  settings: UserSettings,
-  vocabulary: readonly { id: number }[],
-): number {
-  for (const w of vocabulary) {
-    if (!fullComplete(words[w.id], settings)) return w.id
-  }
-  return vocabulary.length + 1
 }

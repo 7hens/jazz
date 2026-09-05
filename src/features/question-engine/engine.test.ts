@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { WORDS, createVocabularyService } from '@/features/vocabulary'
+import { createVocabularyService } from '@/features/vocabulary'
+import { WORDS } from '@/shared/words'
 import { createQuestionEngineService, optionCountFor, speakOf, textOf } from './engine'
 import type { MatchQuestion, Question, WordUnit } from '@/shared/types'
 

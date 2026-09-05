@@ -1,4 +1,4 @@
-import { fullComplete } from '@/features/lesson'
+import { fullComplete } from '@/shared/progress-rules'
 import { useService } from '@/shared/useService'
 import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { Check, Volume2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 import type { AudioCue } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 import type { BaseOption, KingdomKey } from '@/shared/types'

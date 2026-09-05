@@ -3,6 +3,9 @@ import { fullComplete } from './lesson'
 
 const ALL_SKILLS: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
 
+// 称号档位已上移 shared/progress-rules(lesson、archipelago 共用)。
+export { titleForStars } from '@/shared/progress-rules'
+
 export function emptyProgress(wordId: number): WordProgress {
   return {
     wordId,
@@ -33,28 +36,6 @@ export function mergeProgress(local: WordProgress, server: WordProgress): WordPr
     starsEarned: Math.max(local.starsEarned, server.starsEarned),
     updatedAt: new Date().toISOString(),
   }
-}
-
-export const TITLE_STEPS: ReadonlyArray<{ threshold: number; name: string }> = [
-  { threshold: 0, name: '语言初学者' },
-  { threshold: 300, name: '小画家' },
-  { threshold: 1000, name: '拼音小达人' },
-  { threshold: 2500, name: '汉字小能手' },
-  { threshold: 5000, name: '英语小明星' },
-  { threshold: 8000, name: '语言小法师' },
-  { threshold: 12000, name: '语言大法师' },
-]
-
-export function titleForStars(total: number): { name: string; level: number } {
-  let level = 1
-  let name = TITLE_STEPS[0].name
-  for (const t of TITLE_STEPS) {
-    if (total >= t.threshold) {
-      name = t.name
-      level = t.threshold === 0 ? 1 : Math.max(level, TITLE_STEPS.findIndex((x) => x.threshold === t.threshold) + 1)
-    }
-  }
-  return { name, level }
 }
 
 export type SkillPass = { skill: SkillKey; passed: boolean }

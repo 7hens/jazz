@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { CATEGORY_LABELS, WORDS } from '@/features/vocabulary'
-import { firstTargetId, fullComplete, titleForStars } from '@/features/lesson'
+import { CATEGORY_LABELS, WORDS } from '@/shared/words'
+import { firstTargetId, fullComplete, titleForStars } from '@/shared/progress-rules'
 import { useService } from '@/shared/useService'
 import { useServiceSnapshot } from '@/shared/useServiceSnapshot'
 import type { WordProgress } from '@/shared/types'
