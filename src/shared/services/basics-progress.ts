@@ -18,6 +18,9 @@ export type ApiBasicsProgressRow = Omit<BasicsProgressRow, 'updatedAt'>
 export type BasicsProgressData = Record<string, BasicsProgressRow>
 export type BasicsProgressSnapshot = LoadState<BasicsProgressData>
 
+/** unit_key 白名单字符集:声母/韵母/声调/英文字母 + ü 韵母;worker 与本模式镜像同步。 */
+export const BASICS_UNIT_KEY_PATTERN = /^[a-z]+:[a-z0-9ü]+$/
+
 export interface BasicsService extends ReactiveService<BasicsProgressSnapshot> {
   load(): Promise<void>
   /** 一次作答(短教轻测/软提示跟测/诊断):内部经估计器更新该单元后持久化。 */

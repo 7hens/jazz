@@ -1,9 +1,9 @@
 import { getAuthenticatedUser } from './_lib/auth'
 import { jsonResponse } from './_lib/http'
 import type { Env } from './index'
+import { BASICS_UNIT_KEY_PATTERN } from '../src/shared/services/basics-progress'
 
 const MAX_BATCH = 200
-const UNIT_KEY_RE = /^[a-z]+:[A-Za-z0-9]+$/
 
 type Row = { unit_key: string; state: string; correct_streak: number; taught_count: number }
 
@@ -30,7 +30,7 @@ export async function handlePutBasicsProgress(request: Request, env: Env): Promi
   const stmts: D1PreparedStatement[] = []
   for (const item of list) {
     const r = item as { unitKey?: unknown; state?: unknown; correctStreak?: unknown; taughtCount?: unknown }
-    if (typeof r.unitKey !== 'string' || !UNIT_KEY_RE.test(r.unitKey)) {
+    if (typeof r.unitKey !== 'string' || !BASICS_UNIT_KEY_PATTERN.test(r.unitKey)) {
       return jsonResponse({ message: `非法的 unit_key:${String(r.unitKey)}` }, { status: 400 })
     }
     const state = r.state === 'learning' ? 'learning' : r.state === 'known' ? 'known' : null
