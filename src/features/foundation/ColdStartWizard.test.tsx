@@ -60,7 +60,7 @@ describe('ColdStartWizard', () => {
   beforeEach(() => { vi.useFakeTimers() })
   afterEach(() => { cleanup(); vi.useRealTimers() })
 
-  it('逐题推进并答题 → 全答完 saveAll(非空)+ onClose;题干出现题干文案', () => {
+  it('逐题推进并答题 → 全程零写,「开始游戏」才一次性 saveAll(非空)+ onClose', () => {
     const { recordAnswer, saveAll, onClose, container } = renderWizard()
 
     // intro → question:首题(声母 g 锚点)题干出现
@@ -71,11 +71,14 @@ describe('ColdStartWizard', () => {
     for (let i = 0; i < total; i++) {
       clickAnyOption(container)
       ADVANCE()
+      // 逐题只本地记录,不落库:中途答几题就「跳过」也不会提前写行
+      expect(recordAnswer).not.toHaveBeenCalled()
+      expect(saveAll).not.toHaveBeenCalled()
     }
 
-    // done → 「开始游戏」写入基线并收尾
+    // done → 「开始游戏」一次性写入基线并收尾
     fireEvent.click(screen.getByRole('button', { name: '开始游戏' }))
-    expect(recordAnswer).toHaveBeenCalledTimes(total)
+    expect(recordAnswer).not.toHaveBeenCalled()
     expect(saveAll).toHaveBeenCalledTimes(1)
     const rows = saveAll.mock.calls[0][0] as readonly BasicsProgressRow[]
     expect(rows.length).toBeGreaterThan(0)
@@ -107,6 +110,6 @@ describe('ColdStartWizard', () => {
     expect(screen.getByRole('button', { name: '开始游戏' })).toBeInTheDocument()
     expect(screen.queryByText(/听一听,选出你听到的字母/)).not.toBeInTheDocument()
     expect(saveAll).toHaveBeenCalledTimes(0) // 未点「开始游戏」,尚未写基线
-    expect(recordAnswer).toHaveBeenCalledTimes(3)
+    expect(recordAnswer).not.toHaveBeenCalled() // 逐题零写:答完就跳也不落库
   })
 })

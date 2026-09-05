@@ -371,6 +371,7 @@ describe('App 冷启动诊断', () => {
       expect(svc.basicsSaveAll).toHaveBeenCalledTimes(1)
       const rows = svc.basicsSaveAll.mock.calls[0][0] as readonly BasicsProgressRow[]
       expect(rows.length).toBeGreaterThan(0)
+      expect(svc.basicsRecord).not.toHaveBeenCalled() // 逐题零写,基线只在「开始游戏」一次性落库
       expect(screen.getByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()
     } finally {
       vi.useRealTimers()

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { PINYIN_FINALS } from './catalogs'
+import { decomposeWord } from './decompose'
 import { questionForUnit } from './teach-questions'
 
 describe('questionForUnit', () => {
@@ -67,5 +69,39 @@ describe('questionForUnit', () => {
     }
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids[0]).toMatch(/^teach-pinyin-b-c-\d+$/) // 稳定前缀:teach-{unitKey 冒号转连字符}-{kind 标记}-{i};i 为 shuffle 后下标(可漂移)
+  })
+})
+
+// —— 锚点诚实性整库扫描 ——
+// 韵母题形是「「锚词」里的韵母是哪个?」:若锚词本身含第二个「会被出题」的韵母(即出现在该题任一选项里),
+// 则双答案歧义——孩子答那个「真在词里但不是目标」的选项会被判错。典型 = iang 曾锚「大象 dà xiàng」,
+// 其首音节韵母 a 恰在该题干扰池里 → 修锚为单音节「象 xiàng」。
+// 扫描口径 = 真实引擎:对每个韵母单元出题,读实际选项;锚词(经 decomposeWord)不得含任一非目标选项韵母。
+// (声母/声调题形问「开头的声母/第几声」,锚词里其它韵母不会成为选项,故扫描对象为韵母目录。)
+function pseudoWordFor(anchorPinyin: string, anchorHanzi: string, anchorEmoji: string) {
+  return { id: -1, pinyin: anchorPinyin, hanzi: anchorHanzi, emoji: anchorEmoji, english: '', category: 'shape' as const }
+}
+
+describe('锚点诚实性:韵母锚词不得夹带会被出题的第二个韵母', () => {
+  it('每个韵母锚词都只含目标一个「会成为选项」的韵母', () => {
+    for (const f of PINYIN_FINALS) {
+      const key = `pinyin:${f.symbol}`
+      const q = questionForUnit(key)
+      expect(q, `${f.symbol}(${f.anchorHanzi}) 应能出题`).not.toBeNull()
+      if (!q || q.kind !== 'choice') continue
+      // 实际会摆上桌的「其它韵母」选项 = 全部选项文本 ∩ 韵母目录 − 目标
+      const offered = new Set(
+        q.options
+          .map((o) => o.text)
+          .filter((t) => PINYIN_FINALS.some((x) => x.symbol === t && x.symbol !== f.symbol)),
+      )
+      const { pinyin } = decomposeWord(pseudoWordFor(f.anchorPinyin, f.anchorHanzi, f.anchorEmoji))
+      const finalsInWord = pinyin.map((s) => s.final)
+      // 正:锚词确实含目标韵母(题目有诚实答案)
+      expect(finalsInWord, `${f.symbol}(${f.anchorHanzi}) 锚词应含目标韵母 ${f.symbol}`).toContain(f.symbol)
+      // 反:锚词不得夹带任何会被出题的其它韵母(多韵母锚词 → 双答案歧义)
+      const smuggled = finalsInWord.filter((final) => offered.has(final))
+      expect(smuggled, `${f.symbol}(${f.anchorHanzi}) 锚词夹带会被出题的韵母 ${smuggled.join(',')}`).toEqual([])
+    }
   })
 })

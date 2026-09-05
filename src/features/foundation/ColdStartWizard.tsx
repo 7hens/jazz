@@ -1,5 +1,6 @@
 // 冷启动诊断向导:零进度新档案登录后、进群岛前,跑一段探针短测,按三档基线写 BasicsService。
-// 0 星、不进群岛、不触发 fun 系统;中途「跳过/退出」不写基线(saveAll),逐题作答仍按短教同款 recordAnswer。
+// 0 星、不进群岛、不触发 fun 系统;中途「跳过/退出」零写——逐题只做本地记录(answersRef),
+// 「开始游戏」才一次性 saveAll 基线;不做逐题 recordAnswer,避免「答几题就跳」提前落库导致下次登录不再诊断。
 // 非 Entry 不自取服务:settings/basics/speak/playSound 全由 app 组装层注入。
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
@@ -87,7 +88,6 @@ export function ColdStartWizard({ settings, basics, speak, playSound, onClose }:
     if (correct) playSound('correct')
     else playSound('wrong')
     answersRef.current.push({ track: item.track, unitKey: item.unitKey, correct })
-    void basics.recordAnswer(item.unitKey, correct).catch(() => {})
     setQState(correct ? 'correct' : 'wrong')
     setPickedId(answerId)
     const last = qi >= items.length - 1

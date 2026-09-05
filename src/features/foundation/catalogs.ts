@@ -69,7 +69,7 @@ export const PINYIN_FINALS: PinyinAnchor[] = [
   { symbol: 'iou', anchorPinyin: 'qiú', anchorHanzi: '球', anchorEmoji: '⚽' },
   { symbol: 'ian', anchorPinyin: 'miàn bāo', anchorHanzi: '面包', anchorEmoji: '🍞' },
   { symbol: 'in', anchorPinyin: 'ài xīn', anchorHanzi: '爱心', anchorEmoji: '❤️' },
-  { symbol: 'iang', anchorPinyin: 'dà xiàng', anchorHanzi: '大象', anchorEmoji: '🐘' },
+  { symbol: 'iang', anchorPinyin: 'xiàng', anchorHanzi: '象', anchorEmoji: '🐘' },
   { symbol: 'ing', anchorPinyin: 'xīng xing', anchorHanzi: '星星', anchorEmoji: '⭐' },
   { symbol: 'iong', anchorPinyin: 'xióng', anchorHanzi: '熊', anchorEmoji: '🐻' },
   { symbol: 'ua', anchorPinyin: 'huā', anchorHanzi: '花', anchorEmoji: '🌸' },
