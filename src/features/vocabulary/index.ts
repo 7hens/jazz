@@ -1,0 +1,1 @@
+export { createVocabularyService } from './vocabulary'
