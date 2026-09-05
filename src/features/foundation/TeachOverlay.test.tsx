@@ -46,7 +46,10 @@ describe('TeachOverlay', () => {
 
     // 两题逐题答对:题面选项文本 = 单元符号(声母砖 'p'/'g'),干扰项不含 target → 唯一正确。
     fireEvent.click(screen.getByText('p'))
-    fireEvent.click(await screen.findByText('g'))
+    // 第 1 题答对已推进到第 2 题(尚未全过)→ 教学记录此时不应落
+    const second = await screen.findByText('g')
+    expect(basics.markTaught).not.toHaveBeenCalled()
+    fireEvent.click(second)
 
     // 全对 → praise 步「开始答题!」→ onDone
     fireEvent.click(await screen.findByRole('button', { name: /开始答题/ }))

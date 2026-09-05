@@ -112,12 +112,15 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
     if (answerId === item.q.answerId) {
       playSound('correct')
       void basics.recordAnswer(item.unit, true).catch(() => {})
+      const last = quiz !== null && qi >= quiz.length - 1
+      if (last) {
+        // 全对立即同步落教学记录(幂等),再定时切 praise —— 防绿闪窗口点「直接答题」跳过丢教学记录。
+        void basics.markTaught(units).catch(() => {})
+      }
       setQState('correct')
       setCorrectId(answerId)
       later(() => {
-        const last = quiz !== null && qi >= quiz.length - 1
         if (last) {
-          void basics.markTaught(units).catch(() => {})
           setPhase('praise')
         } else {
           setQi(qi + 1)
@@ -316,21 +319,23 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
         animate={{ opacity: 1, scale: 1 }}
         className="rounded-[1.75rem] border-2 border-emerald/60 bg-emerald/10 p-6 text-center"
       >
-        <motion.div
-          animate={{ x: [0, -9, 9, -6, 6, 0] }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-          className="flex flex-col items-center gap-2"
-        >
-          {opt?.emoji ? (
-            <span aria-hidden className="text-5xl leading-none">
-              {opt.emoji}
-            </span>
-          ) : null}
-          <p className="text-xl font-extrabold text-ink">
-            对,是 {opt?.text} !
-          </p>
-          <p className="text-sm font-medium text-ink-2">再听一遍,然后试一试</p>
-        </motion.div>
+        <div role="status">
+          <motion.div
+            animate={{ x: [0, -9, 9, -6, 6, 0] }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            className="flex flex-col items-center gap-2"
+          >
+            {opt?.emoji ? (
+              <span aria-hidden className="text-5xl leading-none">
+                {opt.emoji}
+              </span>
+            ) : null}
+            <p className="text-xl font-extrabold text-ink">
+              对,是 {opt?.text} !
+            </p>
+            <p className="text-sm font-medium text-ink-2">再听一遍,然后试一试</p>
+          </motion.div>
+        </div>
         <Button variant="secondary" size="lg" className="mt-4" onClick={retryQuestion}>
           再试一次
         </Button>
@@ -377,22 +382,24 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
   function renderPraise() {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
-        <motion.div
-          initial={{ scale: 0.4, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', bounce: 0.5 }}
-          className="text-6xl"
-          aria-hidden
-        >
-          🎉
-        </motion.div>
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-xl font-extrabold text-ink"
-        >
-          太棒了,我们开始答题吧!
-        </motion.p>
+        <div role="status" className="flex flex-col items-center gap-2">
+          <motion.div
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', bounce: 0.5 }}
+            className="text-6xl"
+            aria-hidden
+          >
+            🎉
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-xl font-extrabold text-ink"
+          >
+            太棒了,我们开始答题吧!
+          </motion.p>
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Button variant="ghost" onClick={replayDemo}>
             再看一遍演示
