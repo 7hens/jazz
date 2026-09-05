@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createToastService } from './toast'
+
+afterEach(() => vi.unstubAllGlobals())
 
 function fakeTimers() {
   let nextId = 0
@@ -50,5 +52,15 @@ describe('ToastService', () => {
 
     harness.fire(2)
     expect(service.getSnapshot()).toEqual([])
+  })
+
+  it('keeps toast reporting available without a DOM timer host', () => {
+    vi.stubGlobal('window', undefined)
+    const service = createToastService()
+
+    expect(() => service.show('error', 'Progress unavailable')).not.toThrow()
+    expect(service.getSnapshot()).toEqual([
+      { id: 1, type: 'error', message: 'Progress unavailable' },
+    ])
   })
 })

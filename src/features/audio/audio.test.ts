@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createAudioService, SOUND_KEY } from './audio'
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>(done => { resolve = done })
+  return { promise, resolve }
+}
+
 function storage(initial: Record<string, string> = {}): Storage {
   const values = new Map(Object.entries(initial))
   return {
@@ -122,5 +128,27 @@ describe('AudioService', () => {
 
     expect(suspended.close).toHaveBeenCalledOnce()
     expect(createContext).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps one suspended context alive while a multi-note cue waits for resume', async () => {
+    const gate = deferred<undefined>()
+    const { context, tones } = runningContext()
+    context.state = 'suspended'
+    context.resume.mockImplementation(() => gate.promise)
+    const createContext = vi.fn(() => context as unknown as AudioContext)
+    const service = createAudioService({ storage: storage(), createContext, eventTarget: null })
+
+    service.play('correct')
+
+    expect(tones).toHaveLength(0)
+    expect(createContext).toHaveBeenCalledOnce()
+    expect(context.close).not.toHaveBeenCalled()
+    expect(context.resume).toHaveBeenCalledOnce()
+
+    context.state = 'running'
+    gate.resolve(undefined)
+    await gate.promise
+
+    await vi.waitFor(() => expect(tones).toHaveLength(2))
   })
 })

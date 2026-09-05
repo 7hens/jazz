@@ -77,3 +77,18 @@ it('reports state service errors through the toast service', async () => {
     { id: 1, type: 'error', message: 'Progress unavailable' },
   ])
 })
+
+it('keeps bootstrap error reporting available without a DOM timer host', async () => {
+  vi.stubGlobal('window', undefined)
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(
+    JSON.stringify({ message: 'Progress unavailable' }),
+    { status: 503, headers: { 'Content-Type': 'application/json' } },
+  )))
+
+  expect(() => bootstrap()).not.toThrow()
+  await registry.get('progress').load()
+
+  expect(registry.get('toast').getSnapshot()).toEqual([
+    { id: 1, type: 'error', message: 'Progress unavailable' },
+  ])
+})

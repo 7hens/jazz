@@ -43,11 +43,12 @@ export function createAudioService(options: AudioServiceOptions = {}): AudioServ
   const eventTarget = options.eventTarget === undefined ? browserEventTarget() : options.eventTarget
   let soundOn = readPreference(storage)
   let context: AudioContext | null = null
+  let pendingResume: { context: AudioContext; promise: Promise<void> } | null = null
   const listeners = new Set<() => void>()
 
   function ensureContext(): AudioContext | null {
     if (!createContext) return null
-    if (context && context.state !== 'running') {
+    if (context && context.state !== 'running' && pendingResume?.context !== context) {
       void context.close().catch(() => undefined)
       context = null
     }
@@ -76,9 +77,18 @@ export function createAudioService(options: AudioServiceOptions = {}): AudioServ
       playNow()
       return
     }
-    const resumed = current.resume()
-    if (resumed) void resumed.then(playNow).catch(() => undefined)
-    else playNow()
+    if (pendingResume?.context !== current) {
+      const resumed = current.resume()
+      if (!resumed) {
+        playNow()
+        return
+      }
+      const promise = resumed.finally(() => {
+        if (pendingResume?.promise === promise) pendingResume = null
+      })
+      pendingResume = { context: current, promise }
+    }
+    void pendingResume.promise.then(playNow).catch(() => undefined)
   }
 
   function play(cue: AudioCue) {

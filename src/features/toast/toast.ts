@@ -6,6 +6,12 @@ export type ToastTimers = {
 }
 
 function browserTimers(): ToastTimers {
+  if (typeof window === 'undefined') {
+    return {
+      setTimeout: () => 0,
+      clearTimeout: () => undefined,
+    }
+  }
   return {
     setTimeout: (callback, delay) => window.setTimeout(callback, delay),
     clearTimeout: id => window.clearTimeout(id),
