@@ -135,7 +135,8 @@ function decomposeSyllable(text: string): PinyinSyllable {
   const unitKeys: string[] = []
   if (initial) unitKeys.push(toPinyinKey(initial))
   unitKeys.push(toPinyinKey(final))
-  unitKeys.push(toPinyinKey(tone === 0 ? 'ton0' : `ton${tone}`))
+  // 轻声(无调号)不是可教声调,不产声调单元键(轻声整词自然轻读)。
+  if (tone !== 0) unitKeys.push(toPinyinKey(`ton${tone}`))
   return { text, initial, final, tone, unitKeys, hanzi: '' }
 }
 

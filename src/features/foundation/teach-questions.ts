@@ -85,7 +85,7 @@ export function questionForUnit(unitKey: string, rng: Rng = defaultRng()): Teach
   const isTone = unitKey.startsWith('pinyin:ton')
   const targetSym = isEnglish ? unitKey.slice(8) : unitKey.slice('pinyin:'.length)
   const toneUnit = isTone ? PINYIN_TONES.find((t) => t.symbol === targetSym) : undefined
-  // 多音节声调锚点(如轻声「mào zi」)不指向唯一声调,不出题,避免歧义。
+  // 声调锚须单音节才指向唯一声调(目录现全单音节;多音节防御不出题,避免歧义)。
   const toneUsable = toneUnit !== undefined && !toneUnit.anchorPinyin.includes(' ')
   const isInitial = !isTone && !isEnglish && PINYIN_INITIALS.some((i) => i.symbol === targetSym)
   const valid = isEnglish

@@ -85,13 +85,12 @@ export const PINYIN_FINALS: PinyinAnchor[] = [
   { symbol: 'ueng', anchorPinyin: 'wēng', anchorHanzi: '翁', anchorEmoji: '👴' },
 ]
 
-/** 声调 5:ton1..ton4 + 轻声 ton0(锚点取标调音节/轻声词)。 */
+/** 声调 4:ton1..ton4(锚统一 qi 音节;轻声退役:本不出题,轻声音节也不再产声调单元键)。 */
 export const PINYIN_TONES: ToneUnit[] = [
-  { symbol: 'ton1', label: '一声', anchorPinyin: 'māo', anchorHanzi: '猫', anchorEmoji: '🐱' },
-  { symbol: 'ton2', label: '二声', anchorPinyin: 'lí', anchorHanzi: '梨', anchorEmoji: '🍐' },
-  { symbol: 'ton3', label: '三声', anchorPinyin: 'mǎ', anchorHanzi: '马', anchorEmoji: '🐴' },
-  { symbol: 'ton4', label: '四声', anchorPinyin: 'shù', anchorHanzi: '树', anchorEmoji: '🌳' },
-  { symbol: 'ton0', label: '轻声', anchorPinyin: 'mào zi', anchorHanzi: '帽子', anchorEmoji: '🎩' },
+  { symbol: 'ton1', label: '一声', anchorPinyin: 'qī', anchorHanzi: '七', anchorEmoji: '7️⃣' },
+  { symbol: 'ton2', label: '二声', anchorPinyin: 'qí', anchorHanzi: '旗', anchorEmoji: '🚩' },
+  { symbol: 'ton3', label: '三声', anchorPinyin: 'qǐ', anchorHanzi: '企', anchorEmoji: '🐧' },
+  { symbol: 'ton4', label: '四声', anchorPinyin: 'qì', anchorHanzi: '气', anchorEmoji: '🎈' },
 ]
 
 /** 英语 26 字母(anchorWord 尽量取词库词;n/q/v/x/y/z 无词库词用常见儿童词)。 */

@@ -16,8 +16,8 @@ describe('catalogs 完整性', () => {
     expect(PINYIN_INITIALS).toHaveLength(23)
     expect(new Set(PINYIN_INITIALS.map(u => u.symbol)).size).toBe(23)
   })
-  it('声调 ton1..ton4 + ton0', () => {
-    expect(PINYIN_TONES.map(t => t.symbol)).toEqual(['ton1', 'ton2', 'ton3', 'ton4', 'ton0'])
+  it('声调 ton1..ton4(轻声已退役)', () => {
+    expect(PINYIN_TONES.map(t => t.symbol)).toEqual(['ton1', 'ton2', 'ton3', 'ton4'])
   })
   it('英文字母 26 唯一', () => {
     expect(ENGLISH_LETTERS).toHaveLength(26)

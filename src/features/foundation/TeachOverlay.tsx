@@ -36,7 +36,7 @@ const SKILL_LABEL = { pinyin: '拼音', english: '英语' } as const
 export function TeachOverlay({ word, skill, units, basics, speak, playSound, onDone, onExit }: TeachOverlayProps) {
   const lang = langFor(skill)
 
-  // 全量出题:每个能公平出题的单元一条;目录缺/轻声等无题单元不入列但仍随 markTaught 记录。
+  // 全量出题:每个能公平出题的单元一条;目录缺等无题单元不入列但仍随 markTaught 记录。
   const [quiz] = useState<QuizItem[]>(() => {
     const items: QuizItem[] = []
     for (const unit of units) {
@@ -62,7 +62,7 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
     [],
   )
 
-  // 全部无可出题单元(目录缺/轻声多音节):无题可判,直接把整组标教过并夸奖结课。
+  // 全部无可出题单元(目录缺兜底):无题可判,直接把整组标教过并夸奖结课。
   // ref 去重防 StrictMode 双 effect 重复 markTaught(+2 教学计数)。
   useEffect(() => {
     if (quiz.length !== 0 || emptyBootRef.current) return

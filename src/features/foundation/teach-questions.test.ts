@@ -29,7 +29,7 @@ describe('questionForUnit', () => {
     expect(ans?.text).toBe('一声')
   })
 
-  it('轻声 ton0 为多音节锚点,返回 null 避免歧义', () => {
+  it('退役轻声键 ton0 不在 4 调目录,返回 null', () => {
     expect(questionForUnit('pinyin:ton0')).toBeNull()
   })
 
