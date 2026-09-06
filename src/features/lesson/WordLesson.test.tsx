@@ -108,4 +108,13 @@ describe('WordLesson stepGate', () => {
     answerChoice('A')
     await waitFor(() => expect(onComplete).toHaveBeenCalled(), { timeout: 3000 }) // 末步答完直通结课
   })
+  it('gate.render ctx 携带 exit:点返回钮触发 onExit', async () => {
+    const onExit = vi.fn()
+    const renderGate = vi.fn((ctx: { word: WordUnit; skill: SkillKey; cont: () => void; exit?: () => void }) => (
+      <button onClick={() => ctx.exit?.()}>先离开一下</button>
+    ))
+    renderLesson({ stepGate: { judge: () => true, render: renderGate }, onExit })
+    await userEvent.click(screen.getByRole('button', { name: '先离开一下' }))
+    expect(onExit).toHaveBeenCalledTimes(1)
+  })
 })

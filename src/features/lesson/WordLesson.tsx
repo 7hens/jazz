@@ -34,7 +34,7 @@ export type WordLessonProps = {
   /** 步前教学门插槽(可选,缺省零行为):step 进入时 judge 判定,true 则暂以 render 替代题卡;cont() 放行进该步。 */
   stepGate?: {
     judge(word: WordUnit, skill: SkillKey): boolean
-    render(ctx: { word: WordUnit; skill: SkillKey; cont(): void }): ReactNode
+    render(ctx: { word: WordUnit; skill: SkillKey; cont(): void; exit?: () => void }): ReactNode
   }
 }
 
@@ -266,7 +266,7 @@ export function WordLesson({
           </div>
         </header>
         <main className="mx-auto max-w-xl px-4 pb-24 pt-5">
-          {stepGate?.render({ word, skill: gate.skill, cont })}
+          {stepGate?.render({ word, skill: gate.skill, cont, exit: onExit })}
         </main>
       </div>
     )

@@ -116,7 +116,7 @@ export default function App() {
     () => ({
       judge: (w: WordUnit, s: SkillKey) =>
         s !== 'hanzi' && foundation.needFor(foundation.unitsFor(w.id, s), data) !== 'none',
-      render: (ctx: { word: WordUnit; skill: SkillKey; cont: () => void }) => (
+      render: (ctx: { word: WordUnit; skill: SkillKey; cont: () => void; exit?: () => void }) => (
         <FoundationStepGate
           key={`${ctx.word.id}-${ctx.skill}`}
           word={ctx.word}
@@ -127,6 +127,7 @@ export default function App() {
           speak={speech.speak}
           playSound={audio.play}
           onContinue={ctx.cont}
+          onExit={ctx.exit}
         />
       ),
     }),

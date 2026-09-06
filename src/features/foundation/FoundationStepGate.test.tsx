@@ -148,3 +148,13 @@ describe('FoundationStepGate (reactive basics — 自身写入不回抽)', () =>
     expect(onContinue).toHaveBeenCalled()
   })
 })
+
+describe('FoundationStepGate onExit 透传', () => {
+  afterEach(cleanup)
+  it('mandatory → TeachOverlay 标题「返回」触发 onExit', () => {
+    const exit = vi.fn()
+    render(<FoundationStepGate word={apple} skill="pinyin" data={{}} foundation={foundation} basics={basics} speak={() => true} playSound={noop} onContinue={vi.fn()} onExit={exit} />)
+    fireEvent.click(screen.getByRole('button', { name: '返回' }))
+    expect(exit).toHaveBeenCalledTimes(1)
+  })
+})

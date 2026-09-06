@@ -47,9 +47,10 @@ function answerWrong(container: HTMLElement, wrong: string) {
   fireEvent.click(screen.getByRole('button', { name: '确定' }))
 }
 
-function renderOverlay(over: { onDone?: () => void } = {}) {
+function renderOverlay(over: { onDone?: () => void; onExit?: () => void } = {}) {
   const basics = fakeBasics()
   const onDone = over.onDone ?? vi.fn()
+  const onExit = over.onExit ?? vi.fn()
   const utils = render(
     <TeachOverlay
       word={apple}
@@ -59,6 +60,7 @@ function renderOverlay(over: { onDone?: () => void } = {}) {
       speak={speak}
       playSound={playSound}
       onDone={onDone}
+      onExit={onExit}
     />,
   )
   return { basics, onDone, ...utils }
@@ -112,5 +114,29 @@ describe('TeachOverlay', () => {
     fireEvent.click(screen.getByRole('button', { name: /直接答题/ }))
     expect(onDone).toHaveBeenCalled()
     expect(basics.markTaught).not.toHaveBeenCalled()
+  })
+
+  it('onExit:标题栏「返回」离教(demo 期)', () => {
+    const onExit = vi.fn()
+    const onDone = vi.fn()
+    renderOverlay({ onDone, onExit })
+    fireEvent.click(screen.getByRole('button', { name: '返回' }))
+    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
+  it('onExit:praise 结课「返回地图」离教(未点「开始答题」不 onDone)', async () => {
+    const onExit = vi.fn()
+    const onDone = vi.fn()
+    const { container } = renderOverlay({ onDone, onExit })
+
+    await enterQuiz()
+    answerTarget(container, 'p')
+    await screen.findByText('g')
+    answerTarget(container, 'g')
+
+    fireEvent.click(await screen.findByRole('button', { name: '返回地图' }))
+    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onDone).not.toHaveBeenCalled()
   })
 })

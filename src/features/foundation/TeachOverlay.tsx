@@ -3,7 +3,7 @@
 // 只 import ./、@/shared/* 与外部包 —— architecture 边界测试强制。
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { Volume2 } from 'lucide-react'
+import { ArrowLeft, Volume2 } from 'lucide-react'
 import { Button } from '@/shared/ui/button'
 import type { AudioCue, WordUnit } from '@/shared/services'
 import type { BasicsService } from '@/shared/services'
@@ -22,6 +22,7 @@ export type TeachOverlayProps = {
   speak: Speak
   playSound: (cue: AudioCue) => void
   onDone: () => void // 全部完成(已 record/markTaught)或中途「直接答题」跳过
+  onExit?: () => void // 短教出口:标题返回 / praise「返回地图」(可选,缺省无出口)
 }
 
 type Phase = 'demo' | 'tap' | 'quiz' | 'praise'
@@ -32,7 +33,7 @@ const CORRECT_DELAY_MS = 420 // 答对绿闪后推进,让儿童看到正确反�
 
 const SKILL_LABEL = { pinyin: '拼音', english: '英语' } as const
 
-export function TeachOverlay({ word, skill, units, basics, speak, playSound, onDone }: TeachOverlayProps) {
+export function TeachOverlay({ word, skill, units, basics, speak, playSound, onDone, onExit }: TeachOverlayProps) {
   const lang = langFor(skill)
   const demo = useMemo(() => demoBlocksFor(word, skill), [word, skill])
 
@@ -151,12 +152,19 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
   const item: QuizItem | null = quiz && qi < quiz.length ? quiz[qi] : null
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-surface/95 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-accent/10 backdrop-blur-sm">
       <div className="mx-auto flex min-h-full max-w-xl flex-col px-4 py-5">
-        <header className="flex items-center justify-between">
-          <span className="rounded-full border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-ink-2">
-            {word.emoji} {word.hanzi} · {SKILL_LABEL[skill]}短教
-          </span>
+        <header className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {onExit && phase !== 'praise' ? (
+              <Button variant="ghost" size="icon" onClick={onExit} aria-label="返回">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            ) : null}
+            <span className="rounded-full border border-accent/40 bg-accent-tint/60 px-2.5 py-1 text-xs font-semibold text-accent-ink">
+              {word.emoji} {word.hanzi} · {SKILL_LABEL[skill]}短教
+            </span>
+          </div>
           {phase !== 'praise' ? (
             <Button variant="ghost" size="sm" onClick={skip} aria-label="跳过短教直接答题">
               直接答题
@@ -348,6 +356,7 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
       skill,
       options: q.options,
       speak,
+      requireVisitAll: true, // 短教学习化:目标+干扰全点听一遍才可确认(仍判分)
       disabled: qState === 'correct',
       correctId: qState === 'correct' ? correctId : null,
       onAnswer: handleQuizAnswer,
@@ -359,7 +368,7 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-          className="rounded-[1.75rem] border border-hairline bg-surface p-4 shadow-card sm:p-5"
+          className="rounded-[1.75rem] border-2 border-accent/30 bg-accent/10 p-4 sm:p-5"
         >
           <Choice prompt={q.prompt} promptSpeak={q.promptSpeak} promptEmoji={q.promptEmoji} {...shared} />
         </motion.div>
@@ -371,7 +380,7 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-        className="rounded-[1.75rem] border border-hairline bg-surface p-4 shadow-card sm:p-5"
+        className="rounded-[1.75rem] border-2 border-accent/30 bg-accent/10 p-4 sm:p-5"
       >
         <ListenChoice prompt={q.prompt} promptSpeak={q.promptSpeak} {...shared} />
       </motion.div>
@@ -401,6 +410,11 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
           </motion.p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
+          {onExit ? (
+            <Button variant="ghost" onClick={onExit}>
+              返回地图
+            </Button>
+          ) : null}
           <Button variant="ghost" onClick={replayDemo}>
             再看一遍演示
           </Button>

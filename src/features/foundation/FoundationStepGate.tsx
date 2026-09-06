@@ -15,9 +15,10 @@ export type FoundationStepGateProps = {
   speak: Speak
   playSound: (cue: AudioCue) => void
   onContinue: () => void // 跳过或学完回正题
+  onExit?: () => void // 教学出口(可选):直接回群岛
 }
 
-export function FoundationStepGate({ word, skill, data, foundation, basics, speak, playSound, onContinue }: FoundationStepGateProps) {
+export function FoundationStepGate({ word, skill, data, foundation, basics, speak, playSound, onContinue, onExit }: FoundationStepGateProps) {
   // 开门即锁存本次判定:units/need 只在挂载算一次;自身子树写 basics 触发的重渲染不回抽/抽空已开门,
   // 让在飞的 TeachOverlay 一路跑到 onDone(教学结课的 praise 不被吞)。后续步的开门判定仍在 App judge / WordLesson.enterStep。
   const [{ units, need }] = useState(() => {
@@ -29,7 +30,7 @@ export function FoundationStepGate({ word, skill, data, foundation, basics, spea
   if (skill === 'hanzi') return null // 组件级防御(正常已被 App 判定滤除);顺带把 skill 窄化到 pinyin|english
   if (need === 'none') return null
   if (need === 'mandatory' || teaching) {
-    return <TeachOverlay word={word} skill={skill} units={units} basics={basics} speak={speak} playSound={playSound} onDone={onContinue} />
+    return <TeachOverlay word={word} skill={skill} units={units} basics={basics} speak={speak} playSound={playSound} onDone={onContinue} onExit={onExit} />
   }
   // soft 浮条:一步一停,可去学可跳过
   return (
