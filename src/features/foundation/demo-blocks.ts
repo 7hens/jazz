@@ -1,6 +1,6 @@
 // 词 → 教学演示分组 + 砖(纯函数)。砖是可点读、可动画合体的最小教学块。
 // 拼音:按 decompose 两拼口径逐音节一组「声母砖 + 韵母砖」(零声母/整音节仅韵母砖);
-//   group.text = 带调音节 verbatim(UI 合体目标),点读该单元 catalogs 锚点汉字。
+//   group.text = 带调音节 verbatim(UI 合体目标);group.speak = 该音节在词内对应汉字(逐音节朗读字音)。
 // 英语:每字母一组(大写),块同字母,点读字母名(en-US 直读字母=字母名);speakTitle=整词。
 // 声调不产独立块:调信息由 group.text 的带调音节承载;若目标含 tonN,quiz 阶段 questionForUnit 单独考。
 import type { WordUnit } from '@/shared/services'
@@ -53,7 +53,7 @@ export function demoBlocksFor(word: WordUnit, skill: 'pinyin' | 'english'): Demo
     const ids: string[] = []
     if (s.initial) ids.push(pushBlock(s.initial, `pinyin:${s.initial}`))
     ids.push(pushBlock(s.final, `pinyin:${s.final}`))
-    groups.push({ text: s.text, speak: word.hanzi, blockIds: ids })
+    groups.push({ text: s.text, speak: s.hanzi || word.hanzi, blockIds: ids })
   }
   return { title: word.hanzi, speakTitle: word.hanzi, groups, blocks }
 }

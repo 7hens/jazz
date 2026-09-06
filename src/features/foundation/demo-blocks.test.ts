@@ -24,3 +24,27 @@ describe('demoBlocksFor', () => {
     expect(d.speakTitle).toBe('apple')
   })
 })
+
+const egg: WordUnit = { id: 1, emoji: '🥚', pinyin: 'jī dàn', hanzi: '鸡蛋', english: 'egg', category: 'food' }
+const fish: WordUnit = { id: 2, emoji: '🐟', pinyin: 'yú', hanzi: '鱼', english: 'fish', category: 'food' }
+
+describe('demoBlocksFor 合体 chip 读音', () => {
+  it('多音节词:每音节 chip 读词内对应汉字,非整词', () => {
+    const d = demoBlocksFor(egg, 'pinyin')
+    expect(d.groups.map((g) => g.text)).toEqual(['jī', 'dàn'])
+    expect(d.groups.map((g) => g.speak)).toEqual(['鸡', '蛋'])
+  })
+  it('声母 j 与韵母 i 砖卡锚点独立(emoji/读音各异)', () => {
+    const d = demoBlocksFor(egg, 'pinyin')
+    const j = d.blocks.find((b) => b.text === 'j')!
+    const i = d.blocks.find((b) => b.text === 'i')!
+    expect(j.speak).toBe('鸡')
+    expect(i.speak).toBe('衣')
+    expect(j.emoji).not.toBe(i.emoji)
+  })
+  it('单字词 chip 读音 = 该字', () => {
+    const d = demoBlocksFor(fish, 'pinyin')
+    expect(d.groups.map((g) => g.text)).toEqual(['yú'])
+    expect(d.groups[0].speak).toBe('鱼')
+  })
+})
