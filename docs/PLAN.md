@@ -26,6 +26,7 @@
 
 - [x] `P0` `[feature]` 趣味性系统(fun-system)— 开发完成并入 main,随 0.2.0 一起发 — [plan](superpowers/plans/2026-09-04-fun-system.md) / [spec](superpowers/specs/2026-09-04-fun-system-design.md)
 - [x] `P0` `[feature]` 前端架构重构 — 开发完成并入 main,随 0.2.0 一起发 — [plan](superpowers/plans/2026-09-04-dev-architecture-refactor.md) / [spec](superpowers/specs/2026-09-04-dev-architecture-refactor-design.md)
+- [x] `P0` `[feature]` 基础引导自适应教学层(foundation-learning)— 开发完成并入 main,随 0.2.0 一起发 — [spec](superpowers/specs/2026-09-05-foundation-learning-design.md) / [plan·core](superpowers/plans/2026-09-05-foundation-learning-core.md) / [plan·embed](superpowers/plans/2026-09-05-foundation-learning-embed.md)
 - [ ] `P0` `[feature]` 浏览器端人工验收 — 0.2.0 发布前置:登录 → 词 1 三技能(含故意答错)→ 结算 +110 → 解锁词 2 → 关拼音后词 2 只 2 步 → 刷新持久 → 重置归零;补 fun 抽查(连击 / 成就 / 幸运 / 夸奖 / 撒花)
 - [ ] `P0` `[feature]` 远程 D1 迁移 — 0.2.0 发布前 apply `migrations/0002_fun.sql`(settings 新列),preview → 生产;本地已 `npm run db:local`
 
