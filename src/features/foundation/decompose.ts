@@ -9,13 +9,14 @@
 import type { SkillKey, WordUnit } from '@/shared/services'
 import { PINYIN_FINALS, PINYIN_INITIALS } from './catalogs'
 
-/** 拆出的单音节。text = 原文(带调号,verbatim);initial 空即零声母。 */
+/** 拆出的单音节。text = 原文(带调号,verbatim);initial 空即零声母;hanzi = 词内该音节对应汉字。 */
 export type PinyinSyllable = {
   text: string
   initial: string | null
   final: string
   tone: number
   unitKeys: string[]
+  hanzi: string
 }
 
 /** 英语字母拆解行(char 为小写字母;unitKey = 目录键 english:<char>)。注意:与 catalogs 的 EnglishLetter(目录条目)同名不同形,故不跨文件引用。 */
@@ -135,15 +136,16 @@ function decomposeSyllable(text: string): PinyinSyllable {
   if (initial) unitKeys.push(toPinyinKey(initial))
   unitKeys.push(toPinyinKey(final))
   unitKeys.push(toPinyinKey(tone === 0 ? 'ton0' : `ton${tone}`))
-  return { text, initial, final, tone, unitKeys }
+  return { text, initial, final, tone, unitKeys, hanzi: '' }
 }
 
-/** 拆一词:pinyin = 逐音节(文本 verbatim 保留);english = 逐字母(小写,跳过非 a-z)。 */
+/** 拆一词:pinyin = 逐音节(文本 verbatim 保留,逐音节按序回填词内汉字);english = 逐字母(小写,跳过非 a-z)。 */
 export function decomposeWord(word: WordUnit): { pinyin: PinyinSyllable[]; english: EnglishLetter[] } {
+  const chars = [...word.hanzi]
   const pinyin = word.pinyin
     .split(' ')
     .filter((s) => s.length > 0)
-    .map(decomposeSyllable)
+    .map((text, i) => ({ ...decomposeSyllable(text), hanzi: chars[i] ?? '' }))
   const english: EnglishLetter[] = []
   for (const ch of word.english) {
     const lower = ch.toLowerCase()

@@ -94,3 +94,14 @@ describe('decompose 全 100 词', () => {
     expect(unitsFor(21, 'hanzi', WORDS)).toEqual([])
   })
 })
+
+describe('decompose 音节 ↔ 词内汉字对齐', () => {
+  it('逐 100 词:拼音音节数与汉字数一致,逐位 hanzi 匹配', () => {
+    for (const word of WORDS) {
+      const chars = [...word.hanzi]
+      const { pinyin } = decomposeWord(word)
+      expect(pinyin.length).toBe(chars.length)
+      pinyin.forEach((s, i) => expect(s.hanzi).toBe(chars[i]))
+    }
+  })
+})
