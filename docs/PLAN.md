@@ -29,7 +29,7 @@
 - [x] `P0` `[feature]` 基础引导自适应教学层(foundation-learning)— 开发完成并入 main,随 0.2.0 一起发 — [spec](superpowers/specs/2026-09-05-foundation-learning-design.md) / [plan·core](superpowers/plans/2026-09-05-foundation-learning-core.md) / [plan·embed](superpowers/plans/2026-09-05-foundation-learning-embed.md)
 - [x] `P0` `[feature]` 浏览器端人工验收 — 0.2.0 发布前置:登录 → 词 1 三技能(含故意答错)→ 结算 +110 → 解锁词 2 → 关拼音后词 2 只 2 步 → 刷新持久 → 重置归零;补 fun 抽查(连击 / 成就 / 幸运 / 夸奖 / 撒花)
 - [x] `P0` `[feature]` 拼音短教单元锚点重构 — 人工验收发现:合体 chip 读整词(缺音节↔汉字对齐)、j/i 等 9 对声母/韵母共享同锚(emoji/读音不独立)。修:decompose 产音节汉字、catalogs 每单元独立单音锚点、demo/quiz 消费对齐 — [design](superpowers/specs/2026-09-06-pinyin-anchor-redesign-design.md)
-- [ ] `P0` `[feature]` 答题卡交互重构(点听·确认制)+ 短教结口 — 人工验收:短教全屏无返回出口、教学与做题同款难辨、选项卡喇叭拥挤且点选即跳误触无确认。改:Choice/ListenChoice/Match 去喇叭、点卡即念、题干整块可点重播、「确定」提交才判;短教卡听齐(requireVisitAll)才可确认作答但仍判分保熟度、补「返回地图」出口、教学期视觉壳与真答题区分;主词课判对后自动推进保留 — [design](superpowers/specs/2026-09-06-quiz-interaction-redesign-design.md) / [plan](superpowers/plans/2026-09-06-quiz-interaction-redesign.md)
+- [x] `P0` `[feature]` 答题卡交互重构(点听·确认制)+ 短教结口 — 人工验收:短教全屏无返回出口、教学与做题同款难辨、选项卡喇叭拥挤且点选即跳误触无确认。改:Choice/ListenChoice/Match 去喇叭、点卡即念、题干整块可点重播、「确定」提交才判;短教卡听齐(requireVisitAll)才可确认作答但仍判分保熟度、补「返回地图」出口、教学期视觉壳与真答题区分;主词课判对后自动推进保留 — 开发完成并入 main,随 0.2.0 一起发 — [design](superpowers/specs/2026-09-06-quiz-interaction-redesign-design.md) / [plan](superpowers/plans/2026-09-06-quiz-interaction-redesign.md)
 - [ ] `P0` `[feature]` 远程 D1 迁移 — 0.2.0 发布前 apply `migrations/0002_fun.sql`(settings 新列),preview → 生产;本地已 `npm run db:local`
 
 ### hotfix 轨 — 目标 `0.1.1`(基于 `v0.1.0` 已发 tag)
