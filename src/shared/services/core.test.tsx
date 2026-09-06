@@ -23,6 +23,8 @@ function createApi(): ApiService {
       updatedAt: '',
     }),
     putSettings: async () => undefined,
+    getBasicsProgress: async () => [],
+    putBasicsProgress: async () => undefined,
   }
 }
 

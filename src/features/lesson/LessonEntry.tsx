@@ -24,7 +24,7 @@ import {
   type SettlementSession,
 } from './settlement'
 import { WordDone } from './WordDone'
-import { WordLesson } from './WordLesson'
+import { WordLesson, type WordLessonProps } from './WordLesson'
 
 export type LessonEntryProps = {
   wordId: number
@@ -32,6 +32,8 @@ export type LessonEntryProps = {
   onNextWord: () => void
   // app 组合层可选:整词结算的成就/幸运奖励入队(供成就弹层与幸运层展示)。
   onCelebrate?: (celebration: LessonCelebration) => void
+  // app 组合层可选:词课步前教学门(缺省零行为,透传 WordLesson)。
+  stepGate?: WordLessonProps['stepGate']
 }
 
 export type LessonCelebration = Readonly<{
@@ -76,6 +78,7 @@ function LessonSession({
   onExit,
   onNextWord,
   onCelebrate,
+  stepGate,
   word,
   words,
   progressData,
@@ -216,11 +219,12 @@ function LessonSession({
       onStepPass={handleStepPass}
       onLessonComplete={() => { void handleLessonComplete() }}
       onExit={() => leave(onExit)}
+      stepGate={stepGate}
     />
   )
 }
 
-export function LessonEntry({ wordId, onExit, onNextWord, onCelebrate }: LessonEntryProps) {
+export function LessonEntry({ wordId, onExit, onNextWord, onCelebrate, stepGate }: LessonEntryProps) {
   const vocabulary = useService(VocabularyService)
   const questionEngine = useService(QuestionEngineService)
   const progress = useService(ProgressService)
@@ -247,6 +251,7 @@ export function LessonEntry({ wordId, onExit, onNextWord, onCelebrate }: LessonE
       onExit={onExit}
       onNextWord={onNextWord}
       onCelebrate={onCelebrate}
+      stepGate={stepGate}
       word={word}
       words={vocabulary.getAllWords()}
       progressData={progressSnapshot.data}

@@ -1,3 +1,4 @@
+import type { ApiBasicsProgressRow, BasicsProgressRow } from './basics-progress'
 import type { ServiceToken } from './core'
 import type { WordProgress } from './progress'
 import type { UserSettings } from './settings'
@@ -31,6 +32,8 @@ export interface ApiService {
   deleteProgress(): Promise<void>
   getSettings(): Promise<ApiUserSettings>
   putSettings(settings: UserSettings): Promise<void>
+  getBasicsProgress(): Promise<ApiBasicsProgressRow[]>
+  putBasicsProgress(rows: BasicsProgressRow[]): Promise<void>
 }
 
 export const ApiService = Symbol('ApiService') as unknown as ServiceToken<ApiService>
