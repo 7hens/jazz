@@ -1,7 +1,7 @@
 // 基础单元目录(纯数据,不依赖词库/服务)。
 // 拼音按两拼口径拆:声母 23 + 韵母 + 声调;英语拆 26 字母。
 // 锚点为每单元独立单字整音节锚(声母∪韵母内汉字/emoji 全唯一,可超出词库,取常见儿童单字)。
-// 声母锚 = 以该声母开头的单字整音节;韵母锚 = 含该韵母的单字整音节(单音节自拆只归口本韵母)。
+// 声母锚 = 以该声母开头的单字整音节;韵母锚 = 零声母整音节优先(整音节 = 该韵母,读感纯),无则回退含该韵母带声母单字(自拆只归口本韵母)。
 // 韵母 symbol 用汉语拼音方案全形(iou/uei/uen…):拆解时把写法缩写 iu/ui/un 归口回全形。
 // 声母含 y/w(两拼教学惯例列 23 声母),但拆解算法把 y/w 起头音节当零声母整音节处理,永不产出 pinyin:y / pinyin:w 键。
 
@@ -65,21 +65,21 @@ export const PINYIN_FINALS: PinyinAnchor[] = [
   { symbol: 'eng', anchorPinyin: 'fēng', anchorHanzi: '风', anchorEmoji: '🌬️' },
   { symbol: 'ong', anchorPinyin: 'lóng', anchorHanzi: '龙', anchorEmoji: '🐉' },
   { symbol: 'ia', anchorPinyin: 'yā', anchorHanzi: '鸭', anchorEmoji: '🦆' },
-  { symbol: 'ie', anchorPinyin: 'xiè', anchorHanzi: '蟹', anchorEmoji: '🦀' },
+  { symbol: 'ie', anchorPinyin: 'yè', anchorHanzi: '叶', anchorEmoji: '🍃' },
   { symbol: 'iao', anchorPinyin: 'niǎo', anchorHanzi: '鸟', anchorEmoji: '🐦' },
   { symbol: 'iou', anchorPinyin: 'yóu', anchorHanzi: '游', anchorEmoji: '🏊' },
-  { symbol: 'ian', anchorPinyin: 'miàn', anchorHanzi: '面', anchorEmoji: '🍜' },
+  { symbol: 'ian', anchorPinyin: 'yǎn', anchorHanzi: '眼', anchorEmoji: '👀' },
   { symbol: 'in', anchorPinyin: 'xīn', anchorHanzi: '心', anchorEmoji: '💗' },
-  { symbol: 'iang', anchorPinyin: 'xiàng', anchorHanzi: '象', anchorEmoji: '🐘' },
-  { symbol: 'ing', anchorPinyin: 'xīng', anchorHanzi: '星', anchorEmoji: '⭐' },
+  { symbol: 'iang', anchorPinyin: 'yáng', anchorHanzi: '阳', anchorEmoji: '☀️' },
+  { symbol: 'ing', anchorPinyin: 'yīng', anchorHanzi: '鹰', anchorEmoji: '🦅' },
   { symbol: 'iong', anchorPinyin: 'xióng', anchorHanzi: '熊', anchorEmoji: '🐻' },
   { symbol: 'ua', anchorPinyin: 'wā', anchorHanzi: '蛙', anchorEmoji: '🐸' },
   { symbol: 'uo', anchorPinyin: 'guǒ', anchorHanzi: '果', anchorEmoji: '🍎' },
   { symbol: 'uei', anchorPinyin: 'guī', anchorHanzi: '龟', anchorEmoji: '🐢' },
-  { symbol: 'uan', anchorPinyin: 'chuán', anchorHanzi: '船', anchorEmoji: '⛵' },
+  { symbol: 'uan', anchorPinyin: 'wǎn', anchorHanzi: '碗', anchorEmoji: '🥣' },
   { symbol: 'uen', anchorPinyin: 'wén', anchorHanzi: '蚊', anchorEmoji: '🦟' },
-  { symbol: 'uang', anchorPinyin: 'chuāng', anchorHanzi: '窗', anchorEmoji: '🪟' },
-  { symbol: 'üe', anchorPinyin: 'xuě', anchorHanzi: '雪', anchorEmoji: '❄️' },
+  { symbol: 'uang', anchorPinyin: 'wáng', anchorHanzi: '王', anchorEmoji: '👑' },
+  { symbol: 'üe', anchorPinyin: 'yuè', anchorHanzi: '月', anchorEmoji: '🌙' },
   { symbol: 'üan', anchorPinyin: 'yuán', anchorHanzi: '圆', anchorEmoji: '⭕' },
   { symbol: 'ün', anchorPinyin: 'yún', anchorHanzi: '云', anchorEmoji: '☁️' },
   { symbol: 'ueng', anchorPinyin: 'wēng', anchorHanzi: '翁', anchorEmoji: '👴' },

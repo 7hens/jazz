@@ -71,6 +71,40 @@ describe('锚点不变量:声母∪韵母独立单字整音节锚', () => {
   })
 })
 
+describe('韵母锚零声母纯整音节钉值(读感纯,禁裹声母字回滑)', () => {
+  // 这批韵母有常用零声母整音节字,锚须为纯读零声母,不用「带声母的含该韵母字」(如 象/雪/蟹)污染听感。
+  const pure: Record<string, { hanzi: string; pinyin: string; emoji: string }> = {
+    ie: { hanzi: '叶', pinyin: 'yè', emoji: '🍃' },
+    ian: { hanzi: '眼', pinyin: 'yǎn', emoji: '👀' },
+    iang: { hanzi: '阳', pinyin: 'yáng', emoji: '☀️' },
+    ing: { hanzi: '鹰', pinyin: 'yīng', emoji: '🦅' },
+    uan: { hanzi: '碗', pinyin: 'wǎn', emoji: '🥣' },
+    uang: { hanzi: '王', pinyin: 'wáng', emoji: '👑' },
+    üe: { hanzi: '月', pinyin: 'yuè', emoji: '🌙' },
+  }
+
+  it('钉值:目录 字/音/emoji 与表中一致', () => {
+    for (const [symbol, v] of Object.entries(pure)) {
+      const u = PINYIN_FINALS.find((f) => f.symbol === symbol)
+      expect(u).toBeDefined()
+      expect(
+        { hanzi: u!.anchorHanzi, pinyin: u!.anchorPinyin, emoji: u!.anchorEmoji },
+        `${symbol} 锚值`
+      ).toEqual(v)
+    }
+  })
+
+  it('钉值:自拆为零声母整音节(initial null),归口恰本单元', () => {
+    for (const [symbol, v] of Object.entries(pure)) {
+      const { pinyin } = decomposeWord(pseudoUnit(v.pinyin, v.hanzi))
+      expect(
+        pinyin.map((s) => ({ initial: s.initial, final: s.final })),
+        `${symbol}(${v.hanzi}) 应零声母纯读`
+      ).toEqual([{ initial: null, final: symbol }])
+    }
+  })
+})
+
 describe('decompose 全 100 词', () => {
   it('每词可拆,拼音 round-trip == 原文本', () => {
     for (const word of WORDS) {

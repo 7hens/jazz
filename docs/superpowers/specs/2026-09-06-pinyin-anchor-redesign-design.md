@@ -109,26 +109,26 @@
 | eng | 风 | fēng | 🌬️ | f+eng |
 | ong | 龙 | lóng | 🐉 | l+ong |
 | ia | 鸭 | yā | 🦆 | y→ia |
-| ie | 蟹 | xiè | 🦀 | x+ie |
+| ie | 叶 | yè | 🍃 | y→ie |
 | iao | 鸟 | niǎo | 🐦 | n+iao |
 | iou | 游 | yóu | 🏊 | y→iou |
-| ian | 面 | miàn | 🍜 | m+ian |
+| ian | 眼 | yǎn | 👀 | y→ian |
 | in | 心 | xīn | 💗 | x+in |
-| iang | 象 | xiàng | 🐘 | x+iang |
-| ing | 星 | xīng | ⭐ | x+ing |
+| iang | 阳 | yáng | ☀️ | y→iang |
+| ing | 鹰 | yīng | 🦅 | y→ing |
 | iong | 熊 | xióng | 🐻 | x+iong |
 | ua | 蛙 | wā | 🐸 | w→ua |
 | uo | 果 | guǒ | 🍎 | g+uo |
 | uei | 龟 | guī | 🐢 | gui→uei |
-| uan | 船 | chuán | ⛵ | ch+uan |
+| uan | 碗 | wǎn | 🥣 | w→uan |
 | uen | 蚊 | wén | 🦟 | w→uen |
-| uang | 窗 | chuāng | 🪟 | ch+uang |
-| üe | 雪 | xuě | ❄️ | x+üe(jqx u→ü) |
+| uang | 王 | wáng | 👑 | w→uang |
+| üe | 月 | yuè | 🌙 | y→üe |
 | üan | 圆 | yuán | ⭕ | y→üan |
 | ün | 云 | yún | ☁️ | y→ün |
 | ueng | 翁 | wēng | 👴 | w→ueng |
 
-> 注:韵母锚带声母属「含该韵母的单字」回退(单音节即恰好一韵母,诚实无歧义);零声母/y-w 径为优先(读感更纯)。`üe` 锚「雪」走 jqx u→ü 规则,归口 `üe` 符号。
+> 注:韵母锚优先零声母/y-w 整音节(整音节 = 该韵母,读感纯):i 系 iae/iao/ian/iang/ing 类、u 系 uan/uang、üe 均取纯读零声母字;无常用零声母字或该韵母不可零声母成音节(ang/eng/ong)则回退带声母「含该韵母」单字(a 马、ei 黑、ao 猫、ou 狗、an 山、en 门、iao 鸟、in 心、iong 熊、uo 果、uei 龟、uen 蚊已纯)。单音节自拆只归口本韵母,诚实无歧义。撞轨知悉:韵母 阳/王 与声母 y(羊)/w(网)同音近形,但 y/w 声母卡不产自词拆解(整音节只归韵母),两卡不同屏,可接受。
 
 ## 6. 测试策略
 
