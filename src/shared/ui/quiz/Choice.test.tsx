@@ -32,6 +32,7 @@ describe('Choice 确认制(点听 · 确定提交)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
     fireEvent.click(screen.getByRole('button', { name: '确定' }))
     expect(onAnswer).toHaveBeenCalledWith('a')
+    expect(onAnswer).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: '确定' })).toBeDisabled() // 已清空
   })
 
@@ -41,6 +42,7 @@ describe('Choice 确认制(点听 · 确定提交)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'B' }))
     fireEvent.click(screen.getByRole('button', { name: '确定' }))
     expect(onAnswer).toHaveBeenCalledWith('b')
+    expect(onAnswer).toHaveBeenCalledTimes(1)
   })
 
   it('重复点已选卡:重念 + 保持选中', () => {
