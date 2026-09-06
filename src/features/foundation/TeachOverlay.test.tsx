@@ -19,30 +19,21 @@ function fakeBasics(): BasicsService {
   }
 }
 
-/** 前进到 quiz 步:demo → tap → quiz。 */
-async function enterQuiz() {
-  fireEvent.click(await screen.findByRole('button', { name: /下一步/ }))
-  fireEvent.click(await screen.findByRole('button', { name: /下一步/ }))
-  await screen.findByText(/开头的声母/)
-}
-
-/** 当前 quiz 题的选项按钮(首个含 button 的 div.grid;确认行/重听区为 flex,不会误抓)。 */
+/** 当前 quiz 题的选项按钮(首个含 button 的 div.grid;确认行/标题行为 flex,不会误抓)。 */
 function optionButtons(container: HTMLElement): HTMLElement[] {
   const grid = Array.from(container.querySelectorAll('div.grid')).find((el) => el.querySelectorAll('button').length > 0)
   if (!grid) return []
   return Array.from(grid.querySelectorAll('button'))
 }
 
-/** 答对:全部选项点听一遍(听齐 + 满足 requireVisitAll)→ 选 target → 确定。 */
-function answerTarget(container: HTMLElement, target: string) {
-  optionButtons(container).forEach((b) => fireEvent.click(b))
+/** 直接判分作答:选 target → 确定。 */
+function answerTarget(target: string) {
   fireEvent.click(screen.getByText(target))
   fireEvent.click(screen.getByRole('button', { name: '确定' }))
 }
 
-/** 答错:同上,但最终选 wrong。 */
-function answerWrong(container: HTMLElement, wrong: string) {
-  optionButtons(container).forEach((b) => fireEvent.click(b))
+/** 直接判分作答:选干扰项 wrong → 确定。 */
+function answerWrong(wrong: string) {
   fireEvent.click(screen.getByText(wrong))
   fireEvent.click(screen.getByRole('button', { name: '确定' }))
 }
@@ -63,23 +54,27 @@ function renderOverlay(over: { onDone?: () => void; onExit?: () => void } = {}) 
       onExit={onExit}
     />,
   )
-  return { basics, onDone, ...utils }
+  return { basics, onDone, onExit, ...utils }
 }
 
-describe('TeachOverlay', () => {
-  it('按 units 逐题轻测,答对 recordAnswer(true) 且全过 markTaught + onDone', async () => {
-    const { basics, onDone, container } = renderOverlay()
+describe('TeachOverlay 纯判分题(直接答题,无听齐)', () => {
+  it('入题即首题(无 demo/tap 步),首题 4 选项,左上角题型徽章', async () => {
+    const { container } = renderOverlay()
+    expect(await screen.findByText(/开头的声母/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /下一步/ })).toBeNull()
+    expect(optionButtons(container)).toHaveLength(4)
+    expect(screen.getByText('选一选')).toBeTruthy()
+  })
 
-    await enterQuiz()
+  it('按 units 逐题判分,答对 recordAnswer(true) 且全过 markTaught + onDone', async () => {
+    const { basics, onDone } = renderOverlay()
 
-    // 两题逐题「听齐 + 选对 + 确定」
-    answerTarget(container, 'p')
-    // 第 1 题答对已推进到第 2 题(尚未全过)→ 教学记录此时不应落
-    const second = await screen.findByText('g')
-    expect(basics.markTaught).not.toHaveBeenCalled()
-    answerTarget(container, 'g')
+    await screen.findByText(/开头的声母/)
+    answerTarget('p')
+    await screen.findByText('g') // 已自动推进到第 2 题
+    expect(basics.markTaught).not.toHaveBeenCalled() // 未全过,教学记录此时不落
+    answerTarget('g')
 
-    // 全对 → praise 步「开始答题!」→ onDone
     fireEvent.click(await screen.findByRole('button', { name: /开始答题/ }))
 
     expect(basics.recordAnswer).toHaveBeenCalled()
@@ -88,19 +83,16 @@ describe('TeachOverlay', () => {
   })
 
   it('答错 → recordAnswer(false) + 复演示反馈,点「再试一次」后答对继续,不 markTaught', async () => {
-    const { basics, onDone, container } = renderOverlay()
+    const { basics, onDone } = renderOverlay()
 
-    await enterQuiz()
-
-    // 第 1 题听齐后选干扰项 'b' → 答错(复演示 overlay 替代题卡,Choice 卸载 → 重试时 visited 复位)
-    answerWrong(container, 'b')
+    await screen.findByText(/开头的声母/)
+    answerWrong('b')
     expect(basics.recordAnswer).toHaveBeenCalledWith('pinyin:p', false)
     fireEvent.click(await screen.findByRole('button', { name: /再试一次/ }))
 
-    // 重试第 1 题听齐答对,再答第 2 题
-    answerTarget(container, 'p')
-    const second = await screen.findByText('g')
-    answerTarget(container, 'g')
+    answerTarget('p')
+    await screen.findByText('g')
+    answerTarget('g')
 
     fireEvent.click(await screen.findByRole('button', { name: /开始答题/ }))
 
@@ -116,10 +108,11 @@ describe('TeachOverlay', () => {
     expect(basics.markTaught).not.toHaveBeenCalled()
   })
 
-  it('onExit:标题栏「返回」离教(demo 期)', () => {
+  it('onExit:标题栏「返回」离教(quiz 期)', async () => {
     const onExit = vi.fn()
     const onDone = vi.fn()
     renderOverlay({ onDone, onExit })
+    await screen.findByText(/开头的声母/)
     fireEvent.click(screen.getByRole('button', { name: '返回' }))
     expect(onExit).toHaveBeenCalledTimes(1)
     expect(onDone).not.toHaveBeenCalled()
@@ -128,12 +121,12 @@ describe('TeachOverlay', () => {
   it('onExit:praise 结课「返回地图」离教(未点「开始答题」不 onDone)', async () => {
     const onExit = vi.fn()
     const onDone = vi.fn()
-    const { container } = renderOverlay({ onDone, onExit })
+    renderOverlay({ onDone, onExit })
 
-    await enterQuiz()
-    answerTarget(container, 'p')
+    await screen.findByText(/开头的声母/)
+    answerTarget('p')
     await screen.findByText('g')
-    answerTarget(container, 'g')
+    answerTarget('g')
 
     fireEvent.click(await screen.findByRole('button', { name: '返回地图' }))
     expect(onExit).toHaveBeenCalledTimes(1)

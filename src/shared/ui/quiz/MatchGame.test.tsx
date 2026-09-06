@@ -15,6 +15,22 @@ const right: BaseOption[] = [
 describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
   afterEach(cleanup)
 
+  it('题卡左上角渲染「连连看」题型徽章', () => {
+    render(
+      <MatchGame
+        prompt="配对"
+        left={left}
+        right={right}
+        answerMap={{ l1: 'r1', l2: 'r2' }}
+        skill="hanzi"
+        playSound={vi.fn()}
+        speak={() => true}
+        onComplete={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('连连看')).toBeTruthy()
+  })
+
   it('选中读一次、取消选择不读、再选再读', () => {
     const speak = vi.fn(() => true)
     const onComplete = vi.fn()

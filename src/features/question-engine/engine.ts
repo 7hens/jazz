@@ -12,8 +12,9 @@ import type {
 
 export type { Rng } from '@/shared/services/question-engine'
 
-export function optionCountFor(wordId: number): number {
-  return wordId <= 20 ? 3 : 4
+/** 选项恒 4(0.2.0 起统一:选一选/听一听/短教/连连看全部 4 项);wordId 仅留参数签名兼容旧调用。 */
+export function optionCountFor(_wordId: number): number {
+  return 4
 }
 
 function shuffle<T>(arr: readonly T[], rng: Rng): T[] {

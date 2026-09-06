@@ -1,8 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import type { AudioCue, BasicsProgressData, BasicsProgressRow, BasicsProgressSnapshot, BasicsService, FoundationNeed, FoundationService, SkillKey, WordUnit } from '@/shared/services'
+import type { AudioCue, BasicsProgressData, BasicsProgressSnapshot, BasicsService, FoundationNeed, FoundationService, SkillKey, WordUnit } from '@/shared/services'
 import type { Speak } from '@/shared/ui/quiz/speech'
 import { FoundationStepGate } from './FoundationStepGate'
 
@@ -74,7 +73,7 @@ function GateHarness({ word, skill, foundation: f, basics: b, speak, playSound, 
   return <FoundationStepGate word={word} skill={skill} data={snap.data} foundation={f} basics={b} speak={speak} playSound={playSound} onContinue={onContinue} />
 }
 
-/** 当前 quiz 题选项按钮 + 听齐答 target(同 TeachOverlay.test 定稿 helper)。 */
+/** 当前 quiz 题选项按钮 + 判分选 target(同 TeachOverlay.test 定稿 helper)。 */
 function answerTarget(container: HTMLElement, target: string) {
   const grid = Array.from(container.querySelectorAll('div.grid')).find((el) => el.querySelectorAll('button').length > 0)
   expect(grid, '应存在选项 grid').toBeTruthy()
@@ -95,18 +94,11 @@ describe('FoundationStepGate', () => {
     const { container } = render(<FoundationStepGate word={apple} skill="pinyin" data={{ 'pinyin:p': { unitKey: 'pinyin:p', state: 'known', correctStreak: 2, taughtCount: 1, updatedAt: '' }, 'pinyin:g': { unitKey: 'pinyin:g', state: 'known', correctStreak: 2, taughtCount: 1, updatedAt: '' } }} foundation={foundation} basics={basics} speak={() => true} playSound={noop} onContinue={vi.fn()} />)
     expect(container.firstChild).toBeNull()
   })
-  it('soft(教过仍在 learning)→ 浮条,点「直接答题」走 onContinue', async () => {
+  it('soft(教过仍 learning)→ 放行返回 null,不弹「先学一下」浮条打断,直接答题', () => {
     const cont = vi.fn()
-    render(<FoundationStepGate word={apple} skill="pinyin" data={{}} foundation={{ ...foundation, needFor: () => 'soft' as const }} basics={basics} speak={() => true} playSound={noop} onContinue={cont} />)
-    expect(screen.getByText(/想先学一下/)).toBeTruthy()
-    await userEvent.click(screen.getByRole('button', { name: /直接答题/ }))
-    expect(cont).toHaveBeenCalled()
-  })
-  it('soft 浮条点「先学一下」→ 切 TeachOverlay,onContinue 后走回调', async () => {
-    const cont = vi.fn()
-    render(<FoundationStepGate word={apple} skill="pinyin" data={{}} foundation={{ ...foundation, needFor: () => 'soft' as const }} basics={basics} speak={() => true} playSound={noop} onContinue={cont} />)
-    await userEvent.click(screen.getByRole('button', { name: /先学一下/ }))
-    expect(screen.getByRole('button', { name: /直接答题/ })).toBeTruthy() // 已切 TeachOverlay(其 header 带「直接答题」跳过)
+    const { container } = render(<FoundationStepGate word={apple} skill="pinyin" data={{}} foundation={{ ...foundation, needFor: () => 'soft' as const }} basics={basics} speak={() => true} playSound={noop} onContinue={cont} />)
+    expect(container.firstChild).toBeNull()
+    expect(cont).not.toHaveBeenCalled()
   })
 })
 
@@ -118,31 +110,11 @@ describe('FoundationStepGate (reactive basics — 自身写入不回抽)', () =>
     const onContinue = vi.fn()
     const { container } = render(<GateHarness word={apple} skill="pinyin" foundation={foundation} basics={publishing} speak={() => true} playSound={noop} onContinue={onContinue} />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /下一步/ })) // demo → tap
-    fireEvent.click(await screen.findByRole('button', { name: /下一步/ })) // tap → quiz
+    await screen.findByText(/开头的声母/) // 入题即首题(无 demo/tap)
     answerTarget(container, 'p')
-    const g = await screen.findByText('g')
+    await screen.findByText('g') // 已推进到第 2 题
     answerTarget(container, 'g') // 末题答对 → recordAnswer + markTaught → 发布新快照(taughtCount=1 仍 learning)
-    // 锁存:不得抽成 soft 浮条,overlay 须继续到 praise 结课
-    expect(screen.queryByText(/想先学一下/)).toBeNull()
-    fireEvent.click(await screen.findByRole('button', { name: /开始答题/ }))
-    expect(onContinue).toHaveBeenCalled()
-  })
-
-  it('soft →「先学一下」:即使自身写入把单元升到 known 也不抽空,仍到 praise/onContinue', async () => {
-    const rowP: BasicsProgressRow = { unitKey: 'pinyin:p', state: 'learning', correctStreak: 1, taughtCount: 1, updatedAt: '' }
-    const rowG: BasicsProgressRow = { unitKey: 'pinyin:g', state: 'learning', correctStreak: 1, taughtCount: 1, updatedAt: '' }
-    const publishing = createPublishingBasics({ 'pinyin:p': rowP, 'pinyin:g': rowG })
-    const onContinue = vi.fn()
-    const { container } = render(<GateHarness word={apple} skill="pinyin" foundation={foundation} basics={publishing} speak={() => true} playSound={noop} onContinue={onContinue} />)
-
-    expect(screen.getByText(/想先学一下/)).toBeTruthy() // soft 浮条
-    await userEvent.click(screen.getByRole('button', { name: /先学一下/ }))
-    fireEvent.click(await screen.findByRole('button', { name: /下一步/ })) // demo → tap
-    fireEvent.click(await screen.findByRole('button', { name: /下一步/ })) // tap → quiz
-    answerTarget(container, 'p') // streak2 → known;发布
-    const g = await screen.findByText('g')
-    answerTarget(container, 'g') // 同 + markTaught;发布(全 known → need none,teaching latch 仍须保 overlay)
+    // 锁存:need 不在重渲染回抽(自身写入把 need 从 mandatory 抽 soft/known 也不影响),overlay 须一路到 praise 结课
     expect(screen.queryByText(/想先学一下/)).toBeNull()
     fireEvent.click(await screen.findByRole('button', { name: /开始答题/ }))
     expect(onContinue).toHaveBeenCalled()

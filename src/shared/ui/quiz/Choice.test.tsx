@@ -19,6 +19,16 @@ describe('Choice 确认制(点听 · 确定提交)', () => {
   beforeEach(() => { speak.mockClear(); onAnswer.mockClear() })
   afterEach(cleanup)
 
+  it('题卡左上角渲染「选一选」题型徽章', () => {
+    renderChoice()
+    expect(screen.getByText('选一选')).toBeTruthy()
+  })
+
+  it('showBadge=false(内嵌复用)不渲染徽章', () => {
+    renderChoice({ showBadge: false })
+    expect(screen.queryByText('选一选')).toBeNull()
+  })
+
   it('未选中「确定」禁用;点卡先念(缺 speak 读文本)再放开', () => {
     renderChoice()
     expect(screen.getByRole('button', { name: '确定' })).toBeDisabled()
@@ -54,25 +64,11 @@ describe('Choice 确认制(点听 · 确定提交)', () => {
     expect(onAnswer).toHaveBeenCalledWith('a')
   })
 
-  it('promptSpeak:题干整块为「再听一遍」重听区(无喇叭)', () => {
+  it('promptSpeak:题干整块为「再听一遍」重听区(纯 choice 无独立喇叭)', () => {
     renderChoice({ promptSpeak: 'xiao ming' })
     fireEvent.click(screen.getByRole('button', { name: '再听一遍' }))
     expect(speak).toHaveBeenCalledWith('xiao ming', 'zh-CN')
     expect(screen.queryByRole('button', { name: '朗读题目' })).toBeNull()
-  })
-
-  it('requireVisitAll:全部选项点过才放开「确定」;未齐显提示', () => {
-    renderChoice({ requireVisitAll: true })
-    expect(screen.getByRole('button', { name: '确定' })).toBeDisabled()
-    expect(screen.getByText('把每个都点一点、听一听,再选答案')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'A' }))
-    expect(screen.getByRole('button', { name: '确定' })).toBeDisabled() // 还差 B
-    expect(screen.getByText('把每个都点一点、听一听,再选答案')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'B' }))
-    expect(screen.getByRole('button', { name: '确定' })).not.toBeDisabled()
-    expect(screen.queryByText('把每个都点一点、听一听,再选答案')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '确定' }))
-    expect(onAnswer).toHaveBeenCalledWith('b')
   })
 
   it('disabled:不渲染「确定」,选项禁用', () => {

@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'motion/react'
+import { Volume2 } from 'lucide-react'
 import { speakCard } from './speech'
+import { TypeBadge } from './TypeBadge'
 import { Choice, type ChoiceProps } from './Choice'
 
 export type ListenChoiceProps = Omit<ChoiceProps, 'promptSpeak'> & {
-  /** 进题自动朗读、点击重听区重播的文本 */
+  /** 进题自动朗读、点击喇叭重播的文本 */
   promptSpeak: string
 }
 
@@ -21,19 +23,27 @@ export function ListenChoice({ promptSpeak, skill, options, onAnswer, speak, ...
 
   return (
     <div className="space-y-5">
-      {/* 题干重听区:整块可点空区(flex,非 grid;不放答案文字,故无喇叭图标)。 */}
-      <div className="flex justify-center">
+      {/* 标题行:左徽章「听一听」,右喇叭 = 点击重听(补回标题行喇叭图标,方便复听) */}
+      <div className="flex items-center justify-between gap-2">
+        <TypeBadge kind="listen-choice" />
         <motion.button
           type="button"
           aria-label="再听一遍"
-          whileTap={{ scale: 0.94 }}
+          whileTap={{ scale: 0.9 }}
           onClick={() => speakCard(speak, skill, promptSpeak)}
-          className="flex h-16 w-full max-w-60 items-center justify-center rounded-full border-2 border-dashed border-accent/60 bg-accent-tint/40 transition-colors hover:border-accent hover:bg-accent-tint"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-ink-2 transition-colors hover:bg-accent-tint hover:text-accent"
         >
-          <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-accent/70" />
+          <Volume2 className="h-5 w-5" />
         </motion.button>
       </div>
-      <Choice skill={skill} options={options} speak={speak} onAnswer={onAnswer} {...rest} />
+      <Choice
+        {...rest}
+        skill={skill}
+        options={options}
+        speak={speak}
+        onAnswer={onAnswer}
+        showBadge={false}
+      />
     </div>
   )
 }

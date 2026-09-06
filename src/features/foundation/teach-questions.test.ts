@@ -11,7 +11,7 @@ describe('questionForUnit', () => {
     if (q.kind !== 'choice') throw new Error('声母题应为 choice')
     const target = q.options.find((o) => o.id === q.answerId)
     expect(target?.text).toBe('b')
-    expect(q.options).toHaveLength(3)
+    expect(q.options).toHaveLength(4)
     const texts = q.options.map((o) => o.text)
     expect(texts.filter((t) => t === 'b')).toHaveLength(1)
     expect(q.promptEmoji.length).toBeGreaterThan(0)

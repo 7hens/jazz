@@ -23,17 +23,20 @@ function renderListen(over: Partial<ListenChoiceProps> = {}) {
   return render(<ListenChoice {...base} />)
 }
 
-describe('ListenChoice(自动读 · 整块重听 · 透传 Choice 确认制)', () => {
+describe('ListenChoice(自动读 · 标题行喇叭重听 · 透传 Choice 确认制)', () => {
   beforeEach(() => { speak.mockClear(); onAnswer.mockClear() })
   afterEach(cleanup)
 
-  it('进题自动朗读 promptSpeak 一次', () => {
+  it('进题自动朗读 promptSpeak 一次;左上角渲染「听一听」徽章且内嵌 Choice 不重复徽章', () => {
     renderListen()
     expect(speak).toHaveBeenCalledTimes(1)
     expect(speak).toHaveBeenCalledWith('xiao ming', 'en-US')
+    expect(screen.getByText('听一听')).toBeTruthy()
+    expect(screen.queryAllByText('听一听')).toHaveLength(1)
+    expect(screen.queryByText('选一选')).toBeNull()
   })
 
-  it('顶部整块重听区点击重读(无喇叭图标)', () => {
+  it('标题行喇叭点击重读', () => {
     renderListen()
     expect(speak).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: '再听一遍' }))
@@ -47,14 +50,5 @@ describe('ListenChoice(自动读 · 整块重听 · 透传 Choice 确认制)', (
     expect(speak).toHaveBeenLastCalledWith('A', 'en-US')
     fireEvent.click(screen.getByRole('button', { name: '确定' }))
     expect(onAnswer).toHaveBeenCalledWith('a')
-  })
-
-  it('requireVisitAll 透传:点齐才可确认', () => {
-    renderListen({ requireVisitAll: true })
-    expect(screen.getByRole('button', { name: '确定' })).toBeDisabled()
-    expect(screen.getByText('把每个都点一点、听一听,再选答案')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'A' }))
-    fireEvent.click(screen.getByRole('button', { name: 'B' }))
-    expect(screen.getByRole('button', { name: '确定' })).not.toBeDisabled()
   })
 })

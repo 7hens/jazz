@@ -5,6 +5,7 @@ import { cn } from '@/shared/ui/utils'
 import type { AudioCue } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 import type { BaseOption, SkillKey } from '@/shared/services'
+import { TypeBadge } from './TypeBadge'
 
 type MatchGameProps = {
   prompt: string
@@ -130,6 +131,9 @@ export function MatchGame({
 
   return (
     <div className="space-y-5">
+      <div className="flex justify-start">
+        <TypeBadge kind="match" />
+      </div>
       <p className="text-center text-lg font-bold leading-snug text-ink">{prompt}</p>
       <div className="grid grid-cols-2 items-start gap-3">
         <div className="space-y-2.5">{left.map((o) => renderCard(o, true))}</div>

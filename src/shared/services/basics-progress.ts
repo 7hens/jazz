@@ -23,7 +23,7 @@ export const BASICS_UNIT_KEY_PATTERN = /^[a-z]+:[a-z0-9ü]+$/
 
 export interface BasicsService extends ReactiveService<BasicsProgressSnapshot> {
   load(): Promise<void>
-  /** 一次作答(短教轻测/软提示跟测/诊断):内部经估计器更新该单元后持久化。 */
+  /** 一次作答(短教轻测/诊断):内部经估计器更新该单元后持久化。 */
   recordAnswer(unitKey: string, correct: boolean): Promise<void>
   /** 短教完成:这些单元 taughtCount+1 并持久化。 */
   markTaught(unitKeys: readonly string[]): Promise<void>

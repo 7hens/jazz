@@ -11,6 +11,7 @@ it('uses the injected vocabulary to build question options', () => {
     { id: 1, emoji: '🎯', pinyin: 'mù biāo', hanzi: '目标', english: 'target', category: 'shape' },
     { id: 2, emoji: '1️⃣', pinyin: 'yī', hanzi: '一', english: 'one', category: 'shape' },
     { id: 3, emoji: '2️⃣', pinyin: 'èr', hanzi: '二', english: 'two', category: 'shape' },
+    { id: 4, emoji: '3️⃣', pinyin: 'sān', hanzi: '三', english: 'three', category: 'shape' },
   ]
   const vocabulary = {
     getAllWords: () => words,
@@ -23,7 +24,7 @@ it('uses the injected vocabulary to build question options', () => {
   expect(question.kind).toBe('choice')
   if (question.kind !== 'choice') throw new Error('Expected a choice question')
   expect(new Set(question.options.map(option => option.text))).toEqual(
-    new Set(['target', 'one', 'two']),
+    new Set(['target', 'one', 'two', 'three']),
   )
 })
 
@@ -35,9 +36,9 @@ function allOptions(q: Question): string[] {
 describe('出题引擎', () => {
   const apple = WORDS[20] // id 21, food
 
-  it('选项数按 id 门槛', () => {
-    expect(optionCountFor(1)).toBe(3)
-    expect(optionCountFor(20)).toBe(3)
+  it('选项数恒为 4(0.2.0 统一单多选 4 选项)', () => {
+    expect(optionCountFor(1)).toBe(4)
+    expect(optionCountFor(20)).toBe(4)
     expect(optionCountFor(21)).toBe(4)
     expect(optionCountFor(100)).toBe(4)
   })

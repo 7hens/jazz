@@ -4,6 +4,7 @@ import { cn } from '@/shared/ui/utils'
 import { Button } from '@/shared/ui/button'
 import type { BaseOption, SkillKey } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
+import { TypeBadge } from './TypeBadge'
 
 export type ChoiceProps = {
   prompt: string
@@ -18,8 +19,8 @@ export type ChoiceProps = {
   correctId?: string | null
   /** 本次答错的 option id(红标 + 抖动) */
   wrongId?: string | null
-  /** 短教专用:全部选项各点听一遍后才放开「确定」 */
-  requireVisitAll?: boolean
+  /** 内嵌复用(如 ListenChoice)时置 false,徽章由外层题型组件渲染,避免双徽章 */
+  showBadge?: boolean
   speak: Speak
   onAnswer: (id: string) => void
 }
@@ -50,32 +51,32 @@ export function Choice({
   revealId = null,
   correctId = null,
   wrongId = null,
-  requireVisitAll = false,
+  showBadge = true,
   speak,
   onAnswer,
 }: ChoiceProps) {
   // 每题/每轮由调用方 key 重挂载复位;同实例内确认提交后清空选中 → 二答须重选(attempt 语义不变)。
   const [selected, setSelected] = useState<string | null>(null)
-  const [visited, setVisited] = useState<ReadonlySet<string>>(() => new Set())
-  const allVisited = requireVisitAll && visited.size === options.length
 
   function handleCard(o: BaseOption) {
     if (disabled) return
     speakCard(speak, skill, o.speak ?? o.text) // 点卡 = 先念再选(缺 speak 读文本)
     setSelected(o.id)
-    if (requireVisitAll) {
-      setVisited((prev) => (prev.has(o.id) ? prev : new Set(prev).add(o.id)))
-    }
   }
 
   function confirm() {
-    if (selected === null || (requireVisitAll && !allVisited)) return
+    if (selected === null) return
     onAnswer(selected)
     setSelected(null)
   }
 
   return (
     <div className="space-y-5">
+      {showBadge ? (
+        <div className="flex justify-start">
+          <TypeBadge kind="choice" />
+        </div>
+      ) : null}
       {promptSpeak ? (
         // 题干整块可点重听区(无喇叭图标)
         <button
@@ -136,13 +137,10 @@ export function Choice({
 
       {!disabled ? (
         <div className="flex flex-col items-center gap-2 pt-1">
-          {requireVisitAll && !allVisited ? (
-            <p className="text-center text-sm font-semibold text-accent-ink">把每个都点一点、听一听,再选答案</p>
-          ) : null}
           <Button
             size="lg"
             className="w-full sm:w-auto sm:min-w-52"
-            disabled={selected === null || (requireVisitAll && !allVisited)}
+            disabled={selected === null}
             onClick={confirm}
           >
             确定

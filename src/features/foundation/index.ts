@@ -1,6 +1,5 @@
 export { createBasicsService } from './basics-service'
 export type { TeachQuestion } from './teach-questions'
-export type { DemoBlock, DemoData } from './demo-blocks'
 export type { TeachOverlayProps } from './TeachOverlay'
 export { FoundationStepGate } from './FoundationStepGate'
 export type { FoundationStepGateProps } from './FoundationStepGate'

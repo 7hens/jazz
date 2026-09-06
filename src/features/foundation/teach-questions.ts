@@ -95,7 +95,7 @@ export function questionForUnit(unitKey: string, rng: Rng = defaultRng()): Teach
       : isInitial || PINYIN_FINALS.some((f) => f.symbol === targetSym)
   if (!valid) return null
 
-  const pick = shuffle([targetSym, ...candidatesFor(unitKey, 2)], rng)
+  const pick = shuffle([targetSym, ...candidatesFor(unitKey, 3)], rng) // 1 目标 + 3 干扰 = 4 选项
   const marker: 'c' | 'l' = isEnglish ? 'l' : 'c'
   const options: BaseOption[] = pick.map((sym, i) => {
     const r = refOf(unitKey, sym)

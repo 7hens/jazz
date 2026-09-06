@@ -115,7 +115,7 @@ export default function App() {
   const stepGate = useMemo(
     () => ({
       judge: (w: WordUnit, s: SkillKey) =>
-        s !== 'hanzi' && foundation.needFor(foundation.unitsFor(w.id, s), data) !== 'none',
+        s !== 'hanzi' && foundation.needFor(foundation.unitsFor(w.id, s), data) === 'mandatory',
       render: (ctx: { word: WordUnit; skill: SkillKey; cont: () => void; exit?: () => void }) => (
         <FoundationStepGate
           key={`${ctx.word.id}-${ctx.skill}`}
