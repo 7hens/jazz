@@ -4,6 +4,8 @@
 >
 > ⚠️ **后续修订(0.2.0 收口批)**:本 spec 关于 `demo-blocks.ts`「合体 chip 读词内对应汉字」的改动随 demo/tap 演示步删除而失效(短教已改纯判分题,`demo-blocks.ts` 与其测试整体删除);**catalogs 每单元独立锚点(emoji/读音)仍有效**,由短教判分题选项继续消费。相关收口见 PLAN「答题卡交互收口」行。
 >
+> ⚠️ **后续修订(0.2.0 声调统一批)**:§4.1「声调 5 项不动」已被推翻 —— 声调锚统一 qi 四调(ton1 七 `qī` `7️⃣` / ton2 旗 `qí` `🚩` / ton3 企 `qǐ` `🐧` / ton4 气 `qì` `🎈`),轻声 ton0 整体退役。原 §5 表不含声调(该行本声明不动故未列表),现见 PLAN「声调锚统一 qi 四调 + 删轻声」行与 `catalogs.ts` 现行值。
+>
 > 关联:`docs/PLAN.md` feature 轨「拼音短教单元锚点重构」行;spec `2026-09-05-foundation-learning-design.md` §4.1/§8 为原始设计依据;现代码 `src/features/foundation/{catalogs,decompose,teach-questions}.ts` 与对应测试。
 
 ## 1. 背景与问题
