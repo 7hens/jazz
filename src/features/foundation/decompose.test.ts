@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { WordUnit } from '@/shared/services'
 import { WORDS } from '@/features/vocabulary/words'
 import { decomposeWord, unitsFor } from './decompose'
 import { PINYIN_FINALS, PINYIN_INITIALS, PINYIN_TONES, ENGLISH_LETTERS } from './catalogs'
@@ -27,6 +28,45 @@ describe('catalogs 完整性', () => {
     for (const u of all) {
       expect(u.anchorHanzi.length).toBeGreaterThan(0)
       expect(u.anchorEmoji.length).toBeGreaterThan(0)
+    }
+  })
+})
+
+const pseudoUnit = (pinyin: string, hanzi: string): WordUnit =>
+  ({ id: -1, emoji: '', pinyin, hanzi, english: '', category: 'shape' })
+
+describe('锚点不变量:声母∪韵母独立单字整音节锚', () => {
+  const all = [...PINYIN_INITIALS, ...PINYIN_FINALS]
+
+  it('锚汉字两两不同、锚 emoji 两两不同', () => {
+    const hanzi = all.map((u) => u.anchorHanzi)
+    const emoji = all.map((u) => u.anchorEmoji)
+    expect(new Set(hanzi).size).toBe(hanzi.length)
+    expect(new Set(emoji).size).toBe(emoji.length)
+  })
+
+  it('锚汉字均单字、锚拼音均单音节(无空格)', () => {
+    for (const u of all) {
+      expect([...u.anchorHanzi]).toHaveLength(1)
+      expect(u.anchorPinyin.includes(' ')).toBe(false)
+    }
+  })
+
+  it('每个韵母锚单音节自拆归口恰本单元(无第二韵母)', () => {
+    for (const f of PINYIN_FINALS) {
+      const { pinyin } = decomposeWord(pseudoUnit(f.anchorPinyin, f.anchorHanzi))
+      expect(pinyin.map((s) => s.final), `${f.symbol}(${f.anchorHanzi})`).toEqual([f.symbol])
+    }
+  })
+
+  it('声母锚以该声母开头(y/w 例外:锚字以 y/w 拼写起头)', () => {
+    for (const u of PINYIN_INITIALS) {
+      if (u.symbol === 'y' || u.symbol === 'w') {
+        expect(u.anchorPinyin[0]).toBe(u.symbol)
+        continue
+      }
+      const { pinyin } = decomposeWord(pseudoUnit(u.anchorPinyin, u.anchorHanzi))
+      expect(pinyin[0].initial, `${u.symbol}(${u.anchorHanzi})`).toBe(u.symbol)
     }
   })
 })
