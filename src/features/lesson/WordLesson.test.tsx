@@ -22,6 +22,12 @@ function renderLesson(over: Partial<Parameters<typeof WordLesson>[0]> = {}) {
   return render(<WordLesson {...base} {...over} />)
 }
 
+/** 新确认制作答:点选项(即念) → 点「确定」提交。 */
+function answerChoice(text: string) {
+  fireEvent.click(screen.getByText(text))
+  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+}
+
 describe('WordLesson stepGate', () => {
   afterEach(cleanup)
   it('无 stepGate:直接出题(现状回归)', () => {
@@ -53,7 +59,7 @@ describe('WordLesson stepGate', () => {
     })
     expect(renderGate).toHaveBeenCalledTimes(1) // 首步(pinyin)门
     await userEvent.click(screen.getByRole('button', { name: '先学一下' }))
-    fireEvent.click(screen.getByText('A')) // 答对首步 → 推进到第二步
+    answerChoice('A') // 答对首步 → 推进到第二步
     await waitFor(() => expect(renderGate).toHaveBeenCalledTimes(2), { timeout: 3000 }) // 第二步(hanzi)再开门
     expect(renderGate.mock.calls[1]?.[0]?.skill).toBe('hanzi')
     await userEvent.click(screen.getByRole('button', { name: '先学一下' }))
@@ -71,12 +77,12 @@ describe('WordLesson stepGate', () => {
     })
     await userEvent.click(screen.getByRole('button', { name: '先学一下' }))
     // 换题:首题答对 → 同一步内进第二题,不开门
-    fireEvent.click(screen.getByText('A'))
+    answerChoice('A')
     await waitFor(() => expect(screen.getByText('y')).toBeTruthy(), { timeout: 3000 })
     expect(renderGate).toHaveBeenCalledTimes(1)
     // round 重试:第二题连错两次 → reveal「再练一次」,点了仍在原步重出首题,不开门
-    fireEvent.click(screen.getByText('B'))
-    fireEvent.click(screen.getByText('B'))
+    answerChoice('B')
+    answerChoice('B')
     fireEvent.click(screen.getByRole('button', { name: '再练一次' }))
     expect(renderGate).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('button', { name: '再练一次' })).toBeNull()
@@ -93,13 +99,13 @@ describe('WordLesson stepGate', () => {
     })
     expect(renderGate).toHaveBeenCalledTimes(1) // 首步(pinyin)门
     await userEvent.click(screen.getByRole('button', { name: '先学一下' }))
-    fireEvent.click(screen.getByText('A'))
+    answerChoice('A')
     await waitFor(() => expect(screen.getByText('hanzi')).toBeTruthy(), { timeout: 3000 }) // 第二步 judge false → 无门直出题
     expect(renderGate).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByText('A'))
+    answerChoice('A')
     await waitFor(() => expect(screen.getByText('english')).toBeTruthy(), { timeout: 3000 }) // 末步 judge false → 无门直出题
     expect(renderGate).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByText('A'))
+    answerChoice('A')
     await waitFor(() => expect(onComplete).toHaveBeenCalled(), { timeout: 3000 }) // 末步答完直通结课
   })
 })

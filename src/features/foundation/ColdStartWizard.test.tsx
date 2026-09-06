@@ -54,6 +54,11 @@ function clickAnyOption(container: HTMLElement) {
   fireEvent.click(btn)
 }
 
+/** 新确认制:点「确定」提交当前选中。 */
+function confirmAnswer() {
+  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+}
+
 const ADVANCE = () => act(() => { vi.advanceTimersByTime(700) })
 
 describe('ColdStartWizard', () => {
@@ -70,6 +75,7 @@ describe('ColdStartWizard', () => {
     const total = 6 // 双轨开 → 3 pinyin + 3 english 探针
     for (let i = 0; i < total; i++) {
       clickAnyOption(container)
+      confirmAnswer()
       ADVANCE()
       // 逐题只本地记录,不落库:中途答几题就「跳过」也不会提前写行
       expect(recordAnswer).not.toHaveBeenCalled()
@@ -104,6 +110,7 @@ describe('ColdStartWizard', () => {
 
     for (let i = 0; i < 3; i++) {
       clickAnyOption(container)
+      confirmAnswer()
       ADVANCE()
     }
 

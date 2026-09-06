@@ -281,6 +281,11 @@ function clickAnyOption(container: HTMLElement) {
   fireEvent.click(btn)
 }
 
+/** 提交当前题(新确认制:点选项后再点「确定」才判)。 */
+function confirmAnswer() {
+  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+}
+
 beforeEach(() => registry.clear())
 
 describe('App 路由', () => {
@@ -362,6 +367,7 @@ describe('App 冷启动诊断', () => {
 
       for (let i = 0; i < 6; i++) {
         clickAnyOption(container)
+        confirmAnswer()
         act(() => { vi.advanceTimersByTime(700) })
       }
 
