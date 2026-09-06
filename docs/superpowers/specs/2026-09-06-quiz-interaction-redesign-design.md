@@ -1,8 +1,10 @@
 # 答题卡交互重构 + 短教学习化设计
 
-> 日期:2026-09-06 · 状态:设计已确认(待计划) · 所属:feature 轨(0.2.0 未发,修订 foundation-learning 与答题体验)
+> 日期:2026-09-06 · 状态:设计已确认(待计划)→ 已实现并并入 main(0.2.0) · 所属:feature 轨(0.2.0 未发,修订 foundation-learning 与答题体验)
 >
-> 关联:`docs/PLAN.md` feature 轨新行「答题交互重构(点听·确认制)+ 短教结口」;spec `2026-09-05-foundation-learning-design.md` §8 为短教原始交互依据;现代码 `src/shared/ui/quiz/{Choice,ListenChoice,MatchGame}.tsx`、`src/features/lesson/WordLesson.tsx`、`src/features/foundation/{TeachOverlay,ColdStartWizard,teach-questions}.tsx`。
+> ⚠️ **后续收口修订(并入 0.2.0,同批再改,以下正文部分已被取代,以 PLAN 收口行 / dev-reference / 源码为准)**:①短教专用 `requireVisitAll`(听齐才可确认)→ **已删除**,短教改纯判分(每 unit 直接出题判分,无听齐门);②`Choice`/`ListenChoice` 的 `requireVisitAll` prop 与 visited/提示文案 → 已删;③ListenChoice「虚线圆可点重听区」→ 已改回**标题行喇叭图标(Volume2)重听**;④题型徽章(`TypeBadge` 选一选/听一听/连连看)→ 本题卡左上角新增(Choice 内嵌 ListenChoice 时以 `showBadge=false` 防双徽章);⑤短教 demo/tap「朗读整词/组 chip」→ 已随 demo/tap 步删除(纯判分无演示步);⑥全题选项数恒 4(短教干扰 2→3)。详见 PLAN「答题卡交互收口」行。
+>
+> 关联:`docs/PLAN.md` feature 轨新行「答题交互重构(点听·确认制)+ 短教结口」;spec `2026-09-05-foundation-learning-design.md` §8 为短教原始交互依据;现代码 `src/shared/ui/quiz/{Choice,ListenChoice,MatchGame,TypeBadge}.tsx`、`src/shared/ui/quiz/speech.ts`、`src/features/lesson/WordLesson.tsx`、`src/features/foundation/{TeachOverlay,ColdStartWizard,teach-questions}.tsx`。
 
 ## 1. 背景与问题
 

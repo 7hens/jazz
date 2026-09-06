@@ -84,11 +84,11 @@
 
 ## 题型与发音约定(引擎生成)
 
-`src/features/question-engine/engine.ts` + `src/features/lesson/quiz/speech.ts`:
+`src/features/question-engine/engine.ts` + `src/shared/ui/quiz/`(题型组件 `Choice`/`ListenChoice`/`MatchGame` + `TypeBadge` + `speech.ts`):
 
 - 每技能步 2 题:**首题恒 `choice`**(题干大图 = 该词 emoji,由 UI 层 `promptEmoji` 传入,选项不放图);次题按技能概率生成变体——拼音 50% `listen-choice`/50% `choice`,汉字 50% `match`/50% `choice`,英语 33/33/33 `listen-choice`/`match`/`choice`。题/选项 id 按 `{wordId}-{步序号}-{题型标记}-{技能}-{i}` 生成,一步内全局唯一。
-- 干扰项 `distractorsFor`:同 category 优先,不足跨类兜底,并排除与目标词任何一门文本(拼音/汉字/英文)重复的词;选项数 `optionCountFor` = 词 id ≤ 20 给 3 项、> 20 给 4 项(即 2/3 干扰项)。`match` 左卡文字、右卡 emoji,配对经词引用对齐。
-- **朗读真相 = 卡面对应词的汉字或英文**:`speakOf(word, skill)` 返回英文词(english)或汉字(其余技能)——拼音选项卡面显示拼音文本但**朗读其对应汉字**(zh-CN 直读汉字稳定),汉字题卡面与朗读均为汉字,英语题朗读英文词(en-US)。speech.ts 按此定语言:english → en-US,其余 → zh-CN。选项可点读;`listen-choice` 进题自动朗读 `promptSpeak`;`match` 不自动朗读(卡面带 speak 时渲染点读喇叭可点读)。
+- 干扰项 `distractorsFor`:同 category 优先,不足跨类兜底,并排除与目标词任何一门文本(拼音/汉字/英文)重复的词。选项数 **恒 4**(0.2.0 起统一:选一选/听一听/短教判分题均 4 项;`optionCountFor` 返回常量 4,不再按 id 分段)。`match` 左卡文字、右卡 emoji,配对经词引用对齐。
+- **朗读真相 = 卡面对应词的汉字或英文**:`speakOf(word, skill)` 返回英文词(english)或汉字(其余技能)——拼音选项卡面显示拼音文本但**朗读其对应汉字**(zh-CN 直读汉字稳定),汉字题卡面与朗读均为汉字,英语题朗读英文词(en-US)。speech.ts 按此定语言:english → en-US,其余 → zh-CN。选项**点卡即念**(先念 `o.speak ?? o.text` 再选中/判合),无选项卡内喇叭;`listen-choice` 进题自动朗读 `promptSpeak` 一次,标题行右喇叭(Volume2)可重听;**每题卡左上角题型徽章**(`TypeBadge`:choice=「选一选」/listen-choice=「听一听」/match=「连连看」);纯 choice 的 `promptSpeak` 由题干整块可点重听(无喇叭图标);match 朗读只在「纯选择」时刻(配对判定不读)。
 - **发音文本由引擎按上节约定自动推导,无需在词条上存 `speak` 字段**。
 
 ---
@@ -97,8 +97,8 @@
 
 **事实源**:3 层架构设计定稿 + 操作细则 = `docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md` + `docs/frontend-dev-standard.md`(specs 中服务 key 的 keys/map 原案已由同名 token 取代,以标准与源码为准)。
 
-- `src/shared/` — 无上层依赖的契约、纯逻辑与中性基础件:`services/*`(契约 + 数据类随契约归属;`core.ts` 服务访问机制核心:`ServiceToken`·`registry`·`useService`·`useServiceSnapshot` + 快照态 `LoadState`;`api-error`/`load-state`/`types` 已并入 services 后删除)、`ui/`(button/card/input/label/badge/select/chart-tooltip 中性视觉基础件 + `utils.ts`(`cn` 类名合并,同源 `tailwind-merge`,features 可引))
-- `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。业务分区:`auth`(登录门)、`archipelago`(群岛主页 `HomeEntry`/`ArchipelagoView`)、`lesson`(答题/结算/称号:`LessonEntry` + `WordLesson`/`WordDone`/`ComboDisplay`/`quiz/` 三题型 + `progress-rules.ts`(`SKILL_ORDER`/`enabledSkills`/`fullComplete`/`firstTargetId`/`titleForStars`,语义属主,经 `ProgressRulesService` 透传)、`lesson.ts`/`progress.ts`/`settlement.ts`/`praise.ts`)、`settings`(学习设置面板,`SettingsPanel` 纯 UI 收 `skillOrder` prop)、`question-engine`(运行时出题)、`vocabulary`(100 词词库 `words.ts` + 服务工厂)、`progress`/`settings-state`/`api`/`audio`/`speech`/`combo`/`toast`/`celebrate`/`achievements`/`lucky-bonus`/`lingling`(服务工厂 + 必要组件)
+- `src/shared/` — 无上层依赖的契约、纯逻辑与中性基础件:`services/*`(契约 + 数据类随契约归属;`core.ts` 服务访问机制核心:`ServiceToken`·`registry`·`useService`·`useServiceSnapshot` + 快照态 `LoadState`;`api-error`/`load-state`/`types` 已并入 services 后删除)、`ui/`(button/card/input/label/badge/select/chart-tooltip 中性视觉基础件 + `quiz/` 三题型 `Choice`/`ListenChoice`/`MatchGame` + `TypeBadge`(题型徽章)+ `speech.ts`(`speakCard`/`langFor`)+ `utils.ts`(`cn` 类名合并,同源 `tailwind-merge`,features 可引))
+- `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。业务分区:`auth`(登录门)、`archipelago`(群岛主页 `HomeEntry`/`ArchipelagoView`)、`lesson`(答题/结算/称号:`LessonEntry` + `WordLesson`/`WordDone`/`ComboDisplay` + `progress-rules.ts`(`SKILL_ORDER`/`enabledSkills`/`fullComplete`/`firstTargetId`/`titleForStars`,语义属主,经 `ProgressRulesService` 透传)、`lesson.ts`/`progress.ts`/`settlement.ts`/`praise.ts`)、`settings`(学习设置面板,`SettingsPanel` 纯 UI 收 `skillOrder` prop)、`question-engine`(运行时出题)、`vocabulary`(100 词词库 `words.ts` + 服务工厂)、`foundation`(基础引导自适应:词前短教 `TeachOverlay`(纯判分 4 选项)+ `FoundationStepGate`/`ColdStartWizard` + `teach-questions` 微出题 + `estimator`/`decompose`/`catalogs`/`basics-service`)、`progress`/`settings-state`/`api`/`audio`/`speech`/`combo`/`toast`/`celebrate`/`achievements`/`lucky-bonus`/`lingling`(服务工厂 + 必要组件)
 - `src/app/` — composition root:`bootstrap.ts`(**唯一生产 `registry.register` 点**)、`App.tsx`(登录态驱动 + 页面状态路由 + 跨 feature 组装;答题/结算/奖励/持久化规则不落 app)、`useAppState.ts`(phase 状态机)、`useCompletedWords.ts`、`ErrorBoundary.tsx`。`src/main.tsx` = HTML 入口(`bootstrap()` + `ToastProvider` + `<App/>`)
 
 **取用纪律**:`useService()` 仅允许在 page feature 的 `<Name>Entry.tsx` 与 `app/` 组装 hooks 内调用;接口与注册/取用 key **同名一体**(接口占 type 空间,`export const XService = Symbol(...) as ServiceToken<XService>` 同名 const 占 value 空间;`ServiceToken` 与 `registry`/`useService`/`useServiceSnapshot` 收 `services/core.ts` 一文件),`registry.register(ProgressService, impl)` 只在 bootstrap、`useService(ProgressService)` 取、`useServiceSnapshot(service)` 订阅(`getSnapshot` 须返稳定引用)。领域词库/规则按语义属主落 feature(vocabulary/lesson),跨 feature 消费经 shared 契约服务(`VocabularyService`/`ProgressRulesService`)与 `CATEGORY_LABELS` 这类 shared 常量;跨 feature 的组件在 app 组装传 props。数据流:`fetch('/api/...', { credentials: 'include' })`,封装在各 feature service。

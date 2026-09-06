@@ -1,8 +1,10 @@
 # 拼音短教单元锚点重构设计
 
-> 日期:2026-09-06 · 状态:设计待审 · 所属:feature 轨(0.2.0 未发,修订 foundation-learning 交付质量)
+> 日期:2026-09-06 · 状态:设计待审 → 已实现并入 main(0.2.0) · 所属:feature 轨(0.2.0 未发,修订 foundation-learning 交付质量)
 >
-> 关联:`docs/PLAN.md` feature 轨「拼音短教单元锚点重构」行;spec `2026-09-05-foundation-learning-design.md` §4.1/§8 为原始设计依据;现代码 `src/features/foundation/{catalogs,decompose,demo-blocks,teach-questions}.ts` 与对应测试。
+> ⚠️ **后续修订(0.2.0 收口批)**:本 spec 关于 `demo-blocks.ts`「合体 chip 读词内对应汉字」的改动随 demo/tap 演示步删除而失效(短教已改纯判分题,`demo-blocks.ts` 与其测试整体删除);**catalogs 每单元独立锚点(emoji/读音)仍有效**,由短教判分题选项继续消费。相关收口见 PLAN「答题卡交互收口」行。
+>
+> 关联:`docs/PLAN.md` feature 轨「拼音短教单元锚点重构」行;spec `2026-09-05-foundation-learning-design.md` §4.1/§8 为原始设计依据;现代码 `src/features/foundation/{catalogs,decompose,teach-questions}.ts` 与对应测试。
 
 ## 1. 背景与问题
 
