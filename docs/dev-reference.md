@@ -90,6 +90,7 @@
 - 干扰项 `distractorsFor`:同 category 优先,不足跨类兜底,并排除与目标词任何一门文本(拼音/汉字/英文)重复的词。选项数 **恒 4**(0.2.0 起统一:选一选/听一听/短教判分题均 4 项;`optionCountFor` 返回常量 4,不再按 id 分段)。`match` 左卡文字、右卡 emoji,配对经词引用对齐。
 - **朗读真相 = 卡面对应词的汉字或英文**:`speakOf(word, skill)` 返回英文词(english)或汉字(其余技能)——拼音选项卡面显示拼音文本但**朗读其对应汉字**(zh-CN 直读汉字稳定),汉字题卡面与朗读均为汉字,英语题朗读英文词(en-US)。speech.ts 按此定语言:english → en-US,其余 → zh-CN。选项**点卡即念**(先念 `o.speak ?? o.text` 再选中/判合),无选项卡内喇叭;`listen-choice` 进题自动朗读 `promptSpeak` 一次,标题行右喇叭(Volume2)可重听;**每题卡左上角题型徽章**(`TypeBadge`:choice=「选一选」/listen-choice=「听一听」/match=「连连看」);纯 choice 的 `promptSpeak` 由题干整块可点重听(无喇叭图标);match 朗读只在「纯选择」时刻(配对判定不读)。
 - **发音文本由引擎按上节约定自动推导,无需在词条上存 `speak` 字段**。
+- **speech 首响治理(0.2.0 发音延时/无声)**:`features/speech` 创建即 `getVoices()` 预取 + `voiceschanged` 刷新缓存(空轮询不覆盖好缓存);语音未就绪时保留**最新一条**朗读、就绪即补播(不静默丢);空闲冷启动**不 cancel** 立即播,仅引擎忙才 `cancel` 且隔 ~30ms 再播(防 Chrome 同 tick 吞句头);有 voices 但无匹配 voice 时降级引擎默认音(utterance 只带 BCP47 `lang`);**冷启动唤醒**:Chrome 懒初始化 TTS 且需真实有声样本才起音频管线(空句会被引擎跳过、不唤醒)→ voices 一就绪即自动播一条 `volume=0` 的极短真音节(无声)暖机,首指针/键盘 capture 监听兜底(iOS / 加载晚于交互)。`speak` 仅「无引擎 / 无语音源且永等不到 voices」时返 `false`(静默),入队与降级均返 `true`。
 
 ---
 
