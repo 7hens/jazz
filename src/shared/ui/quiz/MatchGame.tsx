@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { Check, Volume2 } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { cn } from '@/shared/ui/utils'
 import type { AudioCue } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
@@ -65,17 +65,27 @@ export function MatchGame({
     }
   }
 
+  /** 朗读只在「纯选择」时刻(点某侧卡、对侧无待配对选中);配对判合与取消选择都不读。 */
+  function speakOnPureSelect(side: 'left' | 'right', id: string) {
+    const opt = (side === 'left' ? left : right).find((x) => x.id === id)
+    if (opt?.speak) speakCard(speak, skill, opt.speak)
+  }
+
   function pickLeft(id: string) {
     if (matched[id] || mismatch || done) return
-    if (selR) settlePair(id, selR)
-    else setSelL((p) => (p === id ? null : id))
+    if (selR) { settlePair(id, selR); return }
+    if (selL === id) { setSelL(null); return } // 取消选择不朗读
+    setSelL(id)
+    speakOnPureSelect('left', id)
   }
 
   function pickRight(id: string) {
     const matchedRightIds = Object.values(matched)
     if (matchedRightIds.includes(id) || mismatch || done) return
-    if (selL) settlePair(selL, id)
-    else setSelR((p) => (p === id ? null : id))
+    if (selL) { settlePair(selL, id); return }
+    if (selR === id) { setSelR(null); return } // 取消选择不朗读
+    setSelR(id)
+    speakOnPureSelect('right', id)
   }
 
   function renderCard(o: BaseOption, isLeft: boolean) {
@@ -83,7 +93,6 @@ export function MatchGame({
     const isMatched = isLeft ? matched[o.id] !== undefined : matchedRightIds.includes(o.id)
     const isSel = isLeft ? selL === o.id : selR === o.id
     const isMis = mismatch ? (isLeft ? mismatch[0] === o.id : mismatch[1] === o.id) : false
-    const speakText = o.speak
     return (
       <motion.button
         key={o.id}
@@ -113,27 +122,6 @@ export function MatchGame({
         {isMatched ? (
           <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald text-white">
             <Check className="h-3.5 w-3.5" />
-          </span>
-        ) : null}
-        {speakText ? (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label={`朗读 ${o.text}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              speakCard(speak, skill, speakText)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                e.stopPropagation()
-                speakCard(speak, skill, speakText)
-              }
-            }}
-            className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/75 text-accent shadow-card transition-transform hover:scale-110"
-          >
-            <Volume2 className="h-3.5 w-3.5" />
           </span>
         ) : null}
       </motion.button>
