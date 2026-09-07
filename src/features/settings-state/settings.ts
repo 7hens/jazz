@@ -8,8 +8,7 @@ export interface SettingsServiceCallbacks {
 
 export function defaultSettings(): UserSettings {
   return {
-    enablePinyin: true,
-    enableHanzi: true,
+    enableChinese: true,
     enableEnglish: true,
     earnedAchievements: [],
     consecutiveDays: 0,

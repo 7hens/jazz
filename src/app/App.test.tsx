@@ -38,8 +38,7 @@ import App from './App'
 const user: User = { id: 'u', email: '', name: '' }
 
 const settings: UserSettings = {
-  enablePinyin: true,
-  enableHanzi: true,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: [],
   consecutiveDays: 0,
@@ -328,7 +327,7 @@ describe('App 路由', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '家长菜单' }))
     fireEvent.click(screen.getByRole('menuitem', { name: /学习设置/ }))
-    expect(await screen.findByRole('switch', { name: /拼音/ })).toBeInTheDocument()
+    expect(await screen.findByRole('switch', { name: /汉语/ })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '完成' }))
     expect(await screen.findByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()

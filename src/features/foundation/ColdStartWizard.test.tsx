@@ -4,8 +4,7 @@ import type { BasicsProgressRow, BasicsService, UserSettings } from '@/shared/se
 import { ColdStartWizard } from './ColdStartWizard'
 
 const settings: UserSettings = {
-  enablePinyin: true,
-  enableHanzi: true,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: [],
   consecutiveDays: 0,

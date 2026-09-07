@@ -19,7 +19,7 @@ export function enabledSkillsFor(on: { enableChinese: boolean; enableEnglish: bo
 }
 
 export function enabledSkills(settings: UserSettings): SkillKey[] {
-  return SKILL_ORDER.filter((s) => settings[`enable${s[0].toUpperCase()}${s.slice(1)}` as 'enablePinyin'])
+  return enabledSkillsFor({ enableChinese: settings.enableChinese, enableEnglish: settings.enableEnglish })
 }
 
 export function fullComplete(p: WordProgress | undefined, settings: UserSettings): boolean {

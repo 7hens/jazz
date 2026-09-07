@@ -29,18 +29,18 @@ const word: WordUnit = {
 
 const question: ChoiceQuestion = {
   kind: 'choice',
-  prompt: '选出太阳的汉字',
+  prompt: '选出太阳的拼音',
   options: [
-    { id: 'sun', text: '太阳' },
-    { id: 'moon', text: '月亮' },
+    { id: 'sun', text: 'píng guǒ' },
+    { id: 'moon', text: 'yuè liang' },
   ],
   answerId: 'sun',
 }
 
+// 领域语义:中文两步(拼音+汉字)→ 首步 pinyin。原「汉字起步」技能粒度用例在领域下无等价,按断言意图重表达。
 const settings: UserSettings = {
-  enablePinyin: false,
-  enableHanzi: true,
-  enableEnglish: true,
+  enableChinese: true,
+  enableEnglish: false,
   earnedAchievements: [],
   consecutiveDays: 0,
   lastActiveDate: '',
@@ -122,8 +122,8 @@ it('renders the first enabled skill using only registered service composition', 
 
   render(<LessonEntry wordId={1} onExit={vi.fn()} onNextWord={vi.fn()} />)
 
-  expect(screen.getByText('选出太阳的汉字')).toBeInTheDocument()
-  expect(screen.getByText(/^☀️ 太阳 · 汉字$/)).toBeInTheDocument()
+  expect(screen.getByText('选出太阳的拼音')).toBeInTheDocument()
+  expect(screen.getByText(/^☀️ 太阳 · 拼音$/)).toBeInTheDocument()
 })
 
 it('keeps WordLesson free of direct service lookup', () => {

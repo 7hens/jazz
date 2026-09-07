@@ -33,8 +33,8 @@ export type {
   Rng,
 } from './question-engine'
 export { QuestionEngineService } from './question-engine'
-export type { SettingsSnapshot, UserSettings } from './settings'
-export { SettingsService } from './settings'
+export type { DomainKey, SettingsSnapshot, UserSettings } from './settings'
+export { DOMAIN_ORDER, enableKeyOf, SettingsService } from './settings'
 export { SpeechService } from './speech'
 export type { ToastData, ToastType } from './toast'
 export { ToastService } from './toast'

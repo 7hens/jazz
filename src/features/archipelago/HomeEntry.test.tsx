@@ -9,8 +9,7 @@ import { HomeEntry } from './HomeEntry'
 import viewSource from './ArchipelagoView.tsx?raw'
 
 const settings: UserSettings = {
-  enablePinyin: true,
-  enableHanzi: true,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: [],
   consecutiveDays: 0,
@@ -103,8 +102,8 @@ describe('主页入口', () => {
     expect(saveSettings).toHaveBeenCalledTimes(1)
     const saved = saveSettings.mock.calls[0][0]
     expect(saved).toMatchObject({ earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '' })
-    // 技能开关保持原样(未全关)
-    expect(saved.enablePinyin || saved.enableHanzi || saved.enableEnglish).toBe(true)
+    // 领域开关保持原样(未全关)
+    expect(saved.enableChinese || saved.enableEnglish).toBe(true)
   })
 
   it('ArchipelagoView 保持纯视图:无 service 直取、无跨 feature 依赖', () => {

@@ -19,8 +19,7 @@ const completeProgress: WordProgress = {
 }
 
 const settings: UserSettings = {
-  enablePinyin: true,
-  enableHanzi: true,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: [],
   consecutiveDays: 0,

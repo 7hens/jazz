@@ -16,8 +16,7 @@ const workerProgress = [{
   starsEarned: 30,
 }]
 const settings = {
-  enablePinyin: true,
-  enableHanzi: false,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: ['first-word'],
   consecutiveDays: 3,
@@ -25,8 +24,7 @@ const settings = {
   updatedAt: '2026-09-04T00:00:00.000Z',
 }
 const workerSettings = {
-  enablePinyin: true,
-  enableHanzi: false,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: ['first-word'],
   consecutiveDays: 3,
@@ -147,8 +145,7 @@ describe('HTTP API service', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         settings: {
-          enablePinyin: true,
-          enableHanzi: false,
+          enableChinese: true,
           enableEnglish: true,
           earnedAchievements: ['first-word'],
           consecutiveDays: 3,

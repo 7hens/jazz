@@ -1,26 +1,23 @@
 import { X } from 'lucide-react'
 import { cn } from '@/shared/ui/utils'
-import type { SkillKey, UserSettings } from '@/shared/services'
+import type { DomainKey, UserSettings } from '@/shared/services'
+import { enableKeyOf } from '@/shared/services'
 import { Button } from '@/shared/ui/button'
 
 export type SettingsPanelProps = {
   settings: UserSettings
-  skillOrder: readonly SkillKey[]
+  domainOrder: readonly DomainKey[]
   onChange: (next: UserSettings) => void
   onClose: () => void
 }
 
-const LABELS: Record<SkillKey, string> = { pinyin: '拼音', hanzi: '汉字', english: '英语' }
+const DOMAIN_LABEL: Record<DomainKey, string> = { chinese: '汉语', english: '英语' }
 
-function keyFor(skill: SkillKey): 'enablePinyin' | 'enableHanzi' | 'enableEnglish' {
-  return ('enable' + skill[0].toUpperCase() + skill.slice(1)) as 'enablePinyin' | 'enableHanzi' | 'enableEnglish'
-}
-
-export function SettingsPanel({ settings, skillOrder, onChange, onClose }: SettingsPanelProps) {
-  function toggle(skill: SkillKey) {
-    const key = keyFor(skill)
-    // 防全关:若正在关闭的项是当前唯一开启项,拒绝(保持选中)。
-    if (settings[key] && skillOrder.every((s) => s === skill || !settings[keyFor(s)])) return
+export function SettingsPanel({ settings, domainOrder, onChange, onClose }: SettingsPanelProps) {
+  function toggle(domain: DomainKey) {
+    const key = enableKeyOf(domain)
+    // 防全关:若正在关闭的域是唯一开启域,拒绝(保持选中)。
+    if (settings[key] && domainOrder.every((d) => d === domain || !settings[enableKeyOf(d)])) return
     onChange({ ...settings, [key]: !settings[key], updatedAt: new Date().toISOString() })
   }
 
@@ -35,18 +32,18 @@ export function SettingsPanel({ settings, skillOrder, onChange, onClose }: Setti
           </Button>
         </div>
         <div className="space-y-3">
-          {skillOrder.map((skill) => {
-            const on = settings[keyFor(skill)]
+          {domainOrder.map((domain) => {
+            const on = settings[enableKeyOf(domain)]
             return (
               <button
-                key={skill}
+                key={domain}
                 type="button"
                 role="switch"
                 aria-checked={on}
-                onClick={() => toggle(skill)}
+                onClick={() => toggle(domain)}
                 className="flex w-full items-center justify-between rounded-2xl border border-hairline bg-surface-2 px-4 py-3 text-left"
               >
-                <span className="text-[15px] font-semibold">{LABELS[skill]} 学习</span>
+                <span className="text-[15px] font-semibold">{DOMAIN_LABEL[domain]} 学习</span>
                 <span
                   className={cn(
                     'relative h-6 w-11 rounded-full transition-colors',
@@ -64,7 +61,7 @@ export function SettingsPanel({ settings, skillOrder, onChange, onClose }: Setti
             )
           })}
         </div>
-        <p className="mt-3 text-xs text-ink-3">至少保留一个学习模块。设置会同步到本设备。</p>
+        <p className="mt-3 text-xs text-ink-3">至少保留一个学习领域。设置会同步到本设备。</p>
         <Button size="lg" className="mt-4 w-full" onClick={onClose}>
           完成
         </Button>
