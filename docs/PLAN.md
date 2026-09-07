@@ -40,7 +40,7 @@
 
 ### feature 轨 — 目标 `0.3.0`(未发;新能力,兼容 → minor)
 
-- [ ] `P0` `[feature]` 汉语领域并轨 S1 — 启用模型 3 技能开关 → 2 领域开关(汉语=拼音+汉字 捆绑 / 英语),内部 `SkillKey`/进度三键/步序/出题/结算不变;面板与冷启动按域;迁移 `0004_chinese_domain.sql` 加 `enable_chinese`(回填任一侧旧汉语技能开即域开)。随 0.2.0 发布后下一条 feature 轨发 — [spec](superpowers/specs/2026-09-08-chinese-domain-merge-design.md)
+- [ ] `P0` `[feature]` 汉语领域并轨 S1 — 启用模型 3 技能开关 → 2 领域开关(汉语=拼音+汉字 捆绑 / 英语),内部 `SkillKey`/进度三键/步序/出题/结算不变;面板与冷启动按域;迁移 `0004_chinese_domain.sql` 加 `enable_chinese`(回填任一侧旧汉语技能开即域开)。随 0.2.0 发布后下一条 feature 轨发 — [spec](superpowers/specs/2026-09-08-chinese-domain-merge-design.md) / [plan](superpowers/plans/2026-09-08-chinese-domain-merge.md)
 
 ### hotfix 轨 — 目标 `0.1.1`(基于 `v0.1.0` 已发 tag)
 
