@@ -68,7 +68,7 @@ export function enabledSkills(settings: UserSettings): SkillKey[] {
 
 | 文件 | 改法 |
 |---|---|
-| `shared/services/settings.ts` | +`DomainKey`;UserSettings 字段替换;提供 `domainEnableKey(d): 'enableChinese'\|'enableEnglish'`(供 UI/校验复用,避免散写 `'enable'+Cap`) |
+| `shared/services/settings.ts` | +`DomainKey`;UserSettings 字段替换;提供 `enableKeyOf(d): 'enableChinese'\|'enableEnglish'`(供 UI/校验复用,避免散写 `'enable'+Cap`) |
 | `features/settings-state/settings.ts` | `defaultSettings()` 改双开 |
 | `features/settings/SettingsPanel.tsx` | 逐技能行 → 逐域行(2 行,文案 汉语/英语 学习);props `skillOrder: SkillKey[]` → `domainOrder: readonly DomainKey[]`;防全关判定按域;提示「至少保留一个学习领域」 |
 | `features/settings/SettingsEntry.tsx` | 传领域序(本地常量 `['chinese','english']` 或 `rules` 提供),不再 `skillOrder()` |
@@ -120,7 +120,7 @@ UPDATE user_settings SET enable_chinese = (enable_pinyin | enable_hanzi);
 - `api.test`/worker 契约:`isSettings` 双布尔、PUT 双关 400、GET 无行默认双开。
 - `SettingsPanel`/`SettingsEntry`/`ColdStartWizard` 测试更新至域文案与门控。
 - 手工验收:家长面板 汉语/英语 两行;只关英语 → 词课只跑 拼音+汉字 两步;只关汉语 → 只英语一步;双关被面板拦;旧「纯英语」库迁移后仍英语-only。
-- architecture 测试照跑(无跨 feature 新互引;DomainKey/domainEnableKey 在 shared,映射在 lesson 属主)。
+- architecture 测试照跑(无跨 feature 新互引;DomainKey/enableKeyOf 在 shared,映射在 lesson 属主)。
 
 ## 8. 落地方式(遵循仓库纪律)
 

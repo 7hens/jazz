@@ -155,6 +155,28 @@ describe('HTTP API service', () => {
     })
   })
 
+  it('serializes a partial-off settings body carrying an explicit false', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    const partialOff = { ...settings, enableEnglish: false }
+
+    await createHttpApiService(fetcher).putSettings(partialOff)
+
+    expect(fetcher).toHaveBeenCalledWith('/api/settings', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        settings: {
+          enableChinese: true,
+          enableEnglish: false,
+          earnedAchievements: ['first-word'],
+          consecutiveDays: 3,
+          lastActiveDate: '2026-09-04',
+        },
+      }),
+    })
+  })
+
   it('returns basics rows from the Worker envelope', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ rows: workerBasicsRows }), { status: 200 }))
 

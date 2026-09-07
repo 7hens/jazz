@@ -118,4 +118,39 @@ describe('ColdStartWizard', () => {
     expect(saveAll).toHaveBeenCalledTimes(0) // 未点「开始游戏」,尚未写基线
     expect(recordAnswer).not.toHaveBeenCalled() // 逐题零写:答完就跳也不落库
   })
+
+  it('家长关汉语 → 只抽英语听选段,无拼音题(0004 纯英语档案镜像)', () => {
+    const { saveAll, recordAnswer, onClose, container } = renderWizard({ settings: { ...settings, enableChinese: false } })
+
+    fireEvent.click(screen.getByRole('button', { name: '开始' }))
+    expect(screen.getByText(/听一听,选出你听到的字母/)).toBeInTheDocument() // 首题是英语听选探针
+
+    for (let i = 0; i < 3; i++) {
+      clickAnyOption(container)
+      confirmAnswer()
+      ADVANCE()
+    }
+
+    expect(screen.getByRole('button', { name: '开始游戏' })).toBeInTheDocument()
+    expect(screen.queryByText(/声母/)).not.toBeInTheDocument()
+
+    // 「开始游戏」写基线:只答过 english 轨 → 只产英语单元行,无 pinyin 行
+    fireEvent.click(screen.getByRole('button', { name: '开始游戏' }))
+    expect(recordAnswer).not.toHaveBeenCalled()
+    expect(saveAll).toHaveBeenCalledTimes(1)
+    const rows = saveAll.mock.calls[0][0] as readonly BasicsProgressRow[]
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.every((r) => r.unitKey.startsWith('english:'))).toBe(true)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('家长双关(防御兜底)→ items 空,挂载即 onClose 且零写', () => {
+    const { saveAll, recordAnswer, onClose } = renderWizard({
+      settings: { ...settings, enableChinese: false, enableEnglish: false },
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(saveAll).not.toHaveBeenCalled()
+    expect(recordAnswer).not.toHaveBeenCalled()
+  })
 })
