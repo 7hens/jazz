@@ -127,7 +127,7 @@ qianzigu 内新增唯一"长什么样"映射,所有舞台 UI 只消费接口、�
 | br1~br3 break | — | — | night(月夜) | — |
 | boss | intro/win/lose | [jingmo, lingling] | dark | 恐吓 scary;逃跑(win)scary→lingling calm |
 | ending | 恢复台词 | [villager, lingling] | day(全彩) | villager 欢呼 happy |
-| settle | summary | 仅 narrator?(settle 无站队需要,summary 台词以灵灵叙述呈现) | day | 悬念句 calm |
+| settle | summary | —(结算卡 UI 承载;summary 沿用现 `SettleCard` 灵灵摘要框,无站队需要) | day | 悬念句 calm |
 
 - 具体 mood 落点实现时以不喧宾夺主为度:仅 哭诉/恐吓/欢呼/求救 类**情绪显著**句标注,其余缺省 calm,避免逐句标注噪音。
 
