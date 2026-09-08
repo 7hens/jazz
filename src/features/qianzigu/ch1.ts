@@ -209,6 +209,7 @@ export const CHAPTER_1: Chapter = {
         { role: 'jingmo', text: '如果你们能全部答对，我就把星星还给你们！' },
       ],
       maxWrong: 3,
+      questionCount: 5,
       win: [
         { role: 'jingmo', text: '不可能...！我还会回来的！' },
         { role: 'lingling', text: '静默逃跑时掉下了这个...' },

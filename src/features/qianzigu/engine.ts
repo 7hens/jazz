@@ -1,4 +1,4 @@
-import type { Chapter, WordLayer } from './chapter'
+import type { Chapter, Scene, WordLayer } from './chapter'
 
 export type RunnerEffect =
   | { type: 'restore'; wordId: number; layer: WordLayer }      // UI 落 completed.pinyin/hanzi
@@ -10,6 +10,8 @@ export type RunnerState = Readonly<{
   taskHits: Record<number, number>      // wordId -> 已答对次数(task scene 推进)
   restored: ReadonlyArray<{ wordId: number; layer: WordLayer }>
   bossWrong: number
+  bossAnswered: number                  // 已答对题数(全对制)
+  bossNeeded: number                    // 需全对题数(= 首个 boss scene 的 questionCount)
   bossWon: boolean
   socialDone: boolean
   finished: boolean
@@ -30,7 +32,7 @@ export type Runner = {
 }
 
 export function createChapterRunner(chapter: Chapter): Runner {
-  let state: RunnerState = initial()
+  let state: RunnerState = initial(chapter)
 
   const step = (s: RunnerState, action: RunnerAction): { state: RunnerState; effects: RunnerEffect[] } => {
     if (s.finished) return { state: s, effects: [] }
@@ -86,7 +88,11 @@ export function createChapterRunner(chapter: Chapter): Runner {
           return { state: patch({ bossWrong: wrong }), effects }
         }
         if (action.type === 'boss-correct') {
-          return { state: patch({ bossWon: true, sceneIndex: s.sceneIndex + 1 }), effects }
+          const answered = s.bossAnswered + 1
+          if (answered >= s.bossNeeded) {
+            return { state: patch({ bossAnswered: answered, bossWon: true, sceneIndex: s.sceneIndex + 1 }), effects }
+          }
+          return { state: patch({ bossAnswered: answered }), effects }
         }
         return { state: s, effects }
       }
@@ -102,7 +108,7 @@ export function createChapterRunner(chapter: Chapter): Runner {
   return {
     state,
     start() {
-      state = initial()
+      state = initial(chapter)
       return state
     },
     next(action) {
@@ -113,6 +119,18 @@ export function createChapterRunner(chapter: Chapter): Runner {
   }
 }
 
-function initial(): RunnerState {
-  return { sceneIndex: 0, taskHits: {}, restored: [], bossWrong: 0, bossWon: false, socialDone: false, finished: false }
+function initial(chapter: Chapter): RunnerState {
+  // R3:bossNeeded 取首个 boss scene 的 questionCount,缺省 5
+  const boss = chapter.scenes.find((sc): sc is Extract<Scene, { kind: 'boss' }> => sc.kind === 'boss')
+  return {
+    sceneIndex: 0,
+    taskHits: {},
+    restored: [],
+    bossWrong: 0,
+    bossAnswered: 0,
+    bossNeeded: boss?.questionCount ?? 5,
+    bossWon: false,
+    socialDone: false,
+    finished: false,
+  }
 }

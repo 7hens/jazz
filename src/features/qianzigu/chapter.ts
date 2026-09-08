@@ -52,6 +52,7 @@ export type BossScene = Readonly<{
   kind: 'boss'
   intro: ChapterLine[]
   maxWrong: number                   // 失败阈值(默认 3)
+  questionCount: number              // 题目数(全对制,默认 5)
   win: ChapterLine[]
   lose: ChapterLine[]
 }>

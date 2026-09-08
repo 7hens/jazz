@@ -68,4 +68,23 @@ describe('createChapterRunner', () => {
     expect(s.sceneIndex).toBeGreaterThan(socialIdx)
     expect(s.socialDone).toBe(true)
   })
+
+  it('boss 需全对 questionCount 才胜', () => {
+    const r = createChapterRunner(CHAPTER_1)
+    let s = r.start()
+    const bossIdx = CHAPTER_1.scenes.findIndex((sc) => sc.kind === 'boss')
+    while (s.sceneIndex < bossIdx) {
+      const scene = CHAPTER_1.scenes[s.sceneIndex]
+      if (scene.kind === 'task') {
+        const t = scene as Extract<Scene, { kind: 'task' }>
+        s = r.next({ type: 'task-correct', wordId: t.task.wordId, layer: t.task.layer }).state
+      } else s = r.next({ type: 'advance' }).state
+    }
+    const boss = CHAPTER_1.scenes[s.sceneIndex] as Extract<Scene, { kind: 'boss' }>
+    for (let i = 0; i < boss.questionCount - 1; i++) s = r.next({ type: 'boss-correct' }).state
+    expect(s.bossWon).toBe(false)                     // 未满
+    s = r.next({ type: 'boss-correct' }).state
+    expect(s.bossWon).toBe(true)
+    expect(s.sceneIndex).toBeGreaterThan(bossIdx)
+  })
 })
