@@ -41,7 +41,7 @@
 ### feature 轨 — 目标 `0.3.0`(未发;新能力,兼容 → minor)
 
 - [ ] `P0` `[feature]` 汉语领域并轨 S1 — 启用模型 3 技能开关 → 2 领域开关(汉语=拼音+汉字 捆绑 / 英语),内部 `SkillKey`/进度三键/步序/出题/结算不变;面板与冷启动按域;迁移 `0004_chinese_domain.sql` 加 `enable_chinese`(回填任一侧旧汉语技能开即域开)。随 0.2.0 发布后下一条 feature 轨发 — [spec](superpowers/specs/2026-09-08-chinese-domain-merge-design.md) / [plan](superpowers/plans/2026-09-08-chinese-domain-merge.md)
-- [x] `P0` `[feature]` 千字谷 ch1 纵切片立项(执行中)— 重构现游戏为千字谷:词库升维(story 补词 升起/亮/早上好)+ 章节引擎/ch1 内容 + speech 角色层 + 章节态持久化(0005)+ 双世界壳 UI;ch1 5 词可玩纵切片(绘画/部件拼装留后续子项)。已解禁红线边界(见坚决不做)。发布轨道待 0.3.0 排期 — [spec](superpowers/specs/2026-09-08-qianzigu-ch1-design.md) / [plans](superpowers/plans/2026-09-08-qianzigu-ch1-vocab.md)(+speech-role/+ch1-engine/+ch1-persistence/+ch1-ui)
+- [x] `P0` `[feature]` 千字谷 ch1 纵切片(已落地,发轨待 0.3.0)— 重构现游戏为千字谷:双世界壳(千字谷·章节地图 / 字母林保留零改动);ch1《太阳的求救》可玩纵切片(词 1/101/102/103/3,story 补词 升起/亮/早上好),P3 引擎跑 dialogue/task(听音·辨形双层恢复,minCorrect 2)/社交(两段式先听后选)/BOSS/结局/结算,恢复写词进度 + 复用星尘结算(幂等),断点续玩落迁移 0005。5-plan 经 SDD 全绿(324 tests,0 Critical);架构红线(useService 单点/feature 不互引/worker 行级)全守。**发布前闸门**:spec §7 浏览器人工走查(灰白→彩色 / 全程角色语音 / 刷新续玩 / BOSS 失败保留 / 社交听选)——无 headless 工具未自动。绘画/部件拼装子项未含(见想法池)。已解禁边界见「坚决不做」。— [spec](superpowers/specs/2026-09-08-qianzigu-ch1-design.md) / [plans](superpowers/plans/2026-09-08-qianzigu-ch1-vocab.md)(+speech-role/+ch1-engine/+ch1-persistence/+ch1-ui)
 
 ### hotfix 轨 — 目标 `0.1.1`(基于 `v0.1.0` 已发 tag)
 
@@ -58,6 +58,11 @@
 - [ ] `P1` settings 中途开启模块的语义缺口 — 家长学习时关技能、之后重开 → 已学词重达「全完成」再触发 +20、目标词回跳;以 per-word 永久 `bonus_granted` 列 + ever-enabled 解锁修复。spec §13 有述
 - [ ] `P1` 词库 emoji / 分类语义人工校对 — shape 组含书 / 门 / 礼物等非形状物、nature 组含蜜蜂 / 蝴蝶等动物(源自 v1.1 数据瑕疵),需真人图文重整
 - [ ] `P2` mergeProgress 死导出 — [src/game/progress.ts](../src/game/progress.ts) 导出未接线;接入加载合并或删除(连同测试)
+- [ ] `P1` 千字谷 场景两态升级 — 待 ch 数据带 scene-elements(村庄/月亮/天空元素)后按 spec §3.3 全场景灰度→点亮 + ending 白闪,并接线 `celebrate`(现死)/消费 `restoreOrder`;当前 = 顶部 SkyStrip 逐词点亮(纵切片最小实现)
+- [ ] `P1` 千字谷 绘画/部件拼装子项 — 拍照→亮度抠图→贴图进场景(P1 绘画题型同源)+ 汉字部件拖拽拼装;ch1 竖切按 spec §3.0 跳过,接缝已标 R4a 留缝
+- [ ] `P2` 千字谷 章节 done 标记 / 结局回放 — settle 现即 `chapter.clear` 清行重玩,完成度由 per-word 承载;「已通关重看结局」需 done 列
+- [ ] `P2` 千字谷 双语 wordBonus 口径 — 默认 enableEnglish 下 `fullComplete` 含英语域,ch1 只写汉语域 → 整词 +20 恒不发(故事词 101-103 字母林永不涉足);「千字谷仅汉语域」的 +20 判定待产品对齐(full-review N1)
+- [ ] `P2` 千字谷 UX 打磨 — neutral 社交选项误播 wrong 音(N2)/ BOSS 题形恒 choice(N3,题序词池×[pinyin,hanzi] 轮转)/ 地图「继续」标签(有断点仍显「开始」)/ 重登落点定夺(回上次世界 vs 每次回世界壳,现 lastMapRef 保留)
 
 ### 星语群岛 v10 方向(角色差异化叙事,会话贴入) — 观察项
 

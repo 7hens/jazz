@@ -120,7 +120,7 @@ export const speakRole: (text: string, role: SpeechRole, opts?: SpeakOptions) =>
 
 ## 5. 数据与迁移
 
-- 新迁移 `0005_qianzigu_chapter.sql`(additive,带 DEFAULT):`user_qianzigu_progress(user_id TEXT NOT NULL PRIMARY KEY, chapter_id INTEGER NOT NULL DEFAULT 1, resume_scene_id TEXT, restore_state TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL DEFAULT (datetime('now')))`。`restore_state` = 已恢复词/元素集合的 JSON(章节地图 + 续玩定位用),`resume_scene_id` = 自然断点后从哪个 scene 续。单行/单活动章节即可承载 ch1;不扩 settings 列(settings 是开关账,章节态独立表更干净)。遵循「顺序先升库后升代码、本地 db:local → preview → prod」。
+- 新迁移 `0005_qianzigu_chapter.sql`(additive,带 DEFAULT):`qianzigu_progress(user_id TEXT NOT NULL PRIMARY KEY, chapter_id INTEGER NOT NULL DEFAULT 1, resume_scene_id TEXT, restore_state TEXT NOT NULL DEFAULT '[]', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`。`restore_state` = 已恢复词/元素集合的 JSON 数组(章节地图 + 续玩定位用),`resume_scene_id` = 自然断点后从哪个 scene 续。单行/单活动章节即可承载 ch1;不扩 settings 列(settings 是开关账,章节态独立表更干净)。遵循「顺序先升库后升代码、本地 db:local → preview → prod」。
 - **不改 0001 基线**;`worker/` 加只行级读写的 chapter handler(`GET`/`PUT` upsert 单行),`getAuthenticatedUser` 后按 user 隔离。词库补词:新增词 id 接 101+ 追加(现白名单按 1..100 放行,需扩到含新 id),后端**不解析** restore_state JSON 语义,仅做行级读写。
 
 ## 6. 测试
