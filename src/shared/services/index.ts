@@ -35,6 +35,7 @@ export type {
 export { QuestionEngineService } from './question-engine'
 export type { DomainKey, SettingsSnapshot, UserSettings } from './settings'
 export { DOMAIN_ORDER, enableKeyOf, SettingsService } from './settings'
+export type { SpeakRoleOptions, SpeechRole } from './speech'
 export { SpeechService } from './speech'
 export type { ToastData, ToastType } from './toast'
 export { ToastService } from './toast'
