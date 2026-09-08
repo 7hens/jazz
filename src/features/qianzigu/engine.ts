@@ -7,7 +7,7 @@ export type RunnerEffect =
 
 export type RunnerState = Readonly<{
   sceneIndex: number
-  taskHits: Record<number, number>      // wordId -> 已答对次数(task scene 推进)
+  taskHits: Record<string, number>      // `${wordId}:${layer}` -> 已答对次数(每层独立,推进 task scene)
   restored: ReadonlyArray<{ wordId: number; layer: WordLayer }>
   bossWrong: number
   bossAnswered: number                  // 已答对题数(全对制)
@@ -52,8 +52,9 @@ export function createChapterRunner(chapter: Chapter): Runner {
       }
       case 'task': {
         if (action.type === 'task-correct' && action.wordId === scene.task.wordId && action.layer === scene.task.layer) {
-          const hits = { ...s.taskHits, [action.wordId]: (s.taskHits[action.wordId] ?? 0) + 1 }
-          if (hits[action.wordId] >= scene.task.minCorrect) {
+          const key = taskKey(action.wordId, action.layer)
+          const hits = { ...s.taskHits, [key]: (s.taskHits[key] ?? 0) + 1 }
+          if (hits[key] >= scene.task.minCorrect) {
             const restored = [...s.restored, { wordId: action.wordId, layer: action.layer }]
             effects.push({ type: 'restore', wordId: action.wordId, layer: action.layer })
             return { state: patch({ sceneIndex: s.sceneIndex + 1, taskHits: hits, restored }), effects }
@@ -117,6 +118,11 @@ export function createChapterRunner(chapter: Chapter): Runner {
       return out
     },
   }
+}
+
+// 每词每层独立计数:同词 sound 与 shape 不串数(shape 场景需各自再答对 minCorrect 次)。
+function taskKey(wordId: number, layer: WordLayer): string {
+  return `${wordId}:${layer}`
 }
 
 function initial(chapter: Chapter): RunnerState {

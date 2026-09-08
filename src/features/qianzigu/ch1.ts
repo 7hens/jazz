@@ -6,7 +6,7 @@ import type { Chapter } from './chapter'
  * 🦊→lingling / ☀️→sun / 🌙→moon / 🖤→jingmo / 🐰→villager。
  * 场景结构遵循 P3 引擎/控制器约束:
  *  - 每词两个连续 task scene(先 sound 后 shape),minCorrect 均 2(R2);
- *  - 断点恰 3 个(词1 后 / 词2 后 / BOSS 前,R4e);
+ *  - 断点恰 3 个(词1 后 / 词2 后 / 社交事件后,对齐 idea §2 流程);
  *  - 创作锚定/画/拍照等延迟子步骤不在此纵切片,仅以 idea 相邻台词作接缝(R4a)。
  */
 export const CHAPTER_1: Chapter = {
@@ -120,6 +120,8 @@ export const CHAPTER_1: Chapter = {
         { role: 'lingling', text: '月亮开心了！' },
       ],
     },
+    // 断点 3:社交事件后(idea §2 流程:任务1/任务2/社交事件 各一处自然断点)
+    { id: 'br3', kind: 'break' },
 
     // §4.5 任务3 亮(102):听音 + 情感匹配(sound)→ 修饰组合(shape)→ 山谷变亮(无对白收尾)。
     {
@@ -196,9 +198,6 @@ export const CHAPTER_1: Chapter = {
         { role: 'lingling', text: '星星也回来了！' },
       ],
     },
-    // 断点 3:BOSS 前(R4e;源 idea §2 流程在社交后也有一处断点,控制器裁定第 3 断点放 BOSS 前)
-    { id: 'br3', kind: 'break' },
-
     // §4.8 BOSS 战:静默的挑战(交错 5 题;失败 3 次阈值。勇气徽章等奖励不在本数据)。
     {
       id: 'boss',
