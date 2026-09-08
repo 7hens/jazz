@@ -3,7 +3,7 @@ import { WORDS, wordById } from './words'
 
 export function createVocabularyService(): VocabularyService {
   return {
-    getAllWords: () => WORDS,
+    getAllWords: () => WORDS.filter((w) => w.category !== 'story'),
     wordById,
   }
 }
