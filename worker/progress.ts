@@ -2,7 +2,7 @@ import { getAuthenticatedUser } from './_lib/auth'
 import { jsonResponse } from './_lib/http'
 import type { Env } from './index'
 
-const MAX_WORD_ID = 100
+const MAX_WORD_ID = 103
 const MAX_BATCH = 200
 
 type Row = {

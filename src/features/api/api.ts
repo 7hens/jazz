@@ -25,7 +25,7 @@ function isUser(value: unknown): value is User {
 }
 
 function isWordProgress(value: unknown): value is ApiWordProgress {
-  if (!isObject(value) || typeof value.wordId !== 'number' || !Number.isInteger(value.wordId) || value.wordId < 1 || value.wordId > 100) return false
+  if (!isObject(value) || typeof value.wordId !== 'number' || !Number.isInteger(value.wordId) || value.wordId < 1 || value.wordId > 103) return false
   if (!isObject(value.completed) || typeof value.starsEarned !== 'number' || !Number.isFinite(value.starsEarned)) return false
 
   return typeof value.completed.pinyin === 'boolean'

@@ -133,7 +133,7 @@ describe('HTTP API service', () => {
     expect(fetcher).toHaveBeenCalledWith('/api/settings', { credentials: 'include' })
   })
 
-  it.each([0, 101])('rejects a progress response with out-of-range word ID %s', async (wordId) => {
+  it.each([0, 104])('rejects a progress response with out-of-range word ID %s', async (wordId) => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({
       progress: [{ ...workerProgress[0], wordId }],
     }), { status: 200 }))
