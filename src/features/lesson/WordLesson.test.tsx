@@ -5,8 +5,7 @@ import type { Question, SkillKey, UserSettings, WordUnit } from '@/shared/servic
 import { WordLesson } from './WordLesson'
 
 const settings: UserSettings = {
-  enablePinyin: true,
-  enableHanzi: true,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: [],
   consecutiveDays: 0,

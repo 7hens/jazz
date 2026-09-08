@@ -7,7 +7,7 @@ function fakeApi(): ApiService {
   return {
     me: vi.fn(), login: vi.fn(), logout: vi.fn(),
     getProgress: vi.fn(async () => []), putProgress: vi.fn(), deleteProgress: vi.fn(),
-    getSettings: vi.fn(async () => ({ enablePinyin: true, enableHanzi: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '' })),
+    getSettings: vi.fn(async () => ({ enableChinese: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '' })),
     putSettings: vi.fn(),
     getBasicsProgress: vi.fn(async () => []),
     putBasicsProgress: vi.fn(async () => undefined),

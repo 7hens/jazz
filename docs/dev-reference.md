@@ -42,13 +42,13 @@
 
 ## 数据模型
 
-### 表(migrations/0001_init.sql + 0002_fun.sql)
+### 表(migrations/0001_init.sql + 0002_fun.sql + 0004_chinese_domain.sql)
 
 表 `users` + `progress` + `user_settings`(`game_state`/`records` 已随关卡制下线):
 
 - `users`:认证不校验密码/邮箱(列保留以免迁移),仅存默认用户单行作外键;登录时按需 `INSERT`(取现有单行,无则建默认)
 - `progress`:每 user × 每词一行,`word_id` 1..100。列:`pinyin_completed`/`hanzi_completed`/`english_completed`(0/1)、`stars_earned`(只增不减,由 `MAX` 合并)、`updated_at`。主键 `(user_id, word_id)`,`idx_progress_user` 索引
-- `user_settings`:每 user 一行,`enable_pinyin`/`enable_hanzi`/`enable_english`(默认全 1)+ `0002_fun.sql` 增列 `earned_achievements`/`consecutive_days`/`last_active_date`、`updated_at`
+- `user_settings`:每 user 一行,启用领域列 `enable_chinese`/`enable_english`(默认 1;旧 `enable_pinyin`/`enable_hanzi` 停用保留 —— `0004_chinese_domain.sql` 增 `enable_chinese` 并回填「任一侧旧汉语技能开 → 域开」)+ `0002_fun.sql` 增列 `earned_achievements`/`consecutive_days`/`last_active_date`、`updated_at`
 
 ### 前端类型归属(每个数据类随其管理服务契约文件归属)
 
@@ -56,7 +56,7 @@
 
 - `WordUnit`(`{ id, emoji, pinyin, hanzi, english, category }`,`id` 1..100)与 `CategoryKey`(`shape/food/animal/nature/object`)归 `services/vocabulary.ts`(分类中文名 `CATEGORY_LABELS` 同在;词库常量 `WORDS`/`wordById` 100 词在 `features/vocabulary/words.ts`)
 - `WordProgress`(`{ wordId, completed: Record<SkillKey, boolean>, starsEarned, updatedAt }`)与 `SkillKey`(`'pinyin' | 'hanzi' | 'english'`,原 KingdomKey 已并入)归 `services/progress.ts`
-- `UserSettings`(`enablePinyin/enableHanzi/enableEnglish` + 趣味字段 `earnedAchievements/consecutiveDays/lastActiveDate`、`updatedAt`)归 `services/settings.ts`
+- `UserSettings`(`enableChinese/enableEnglish` + 趣味字段 `earnedAchievements/consecutiveDays/lastActiveDate`、`updatedAt`)与 `DomainKey`(`'chinese' | 'english'`)/`DOMAIN_ORDER` 归 `services/settings.ts`
 - `Question` 判别联合(`listen-choice` / `choice` / `match` + `BaseOption`/`QuestionKind`)归 `services/question-engine.ts`
 - `ApiError`(HTTP 错误类)与 `User`/`ApiWordProgress`/`ApiUserSettings` 归 `services/api.ts`
 
@@ -71,7 +71,7 @@
 - `worker/index.ts` — entry + 路由表(`/api/auth/login` POST/GET、`/api/auth/logout` POST、`/api/me` GET、`/api/progress` GET/PUT/DELETE、`/api/settings` GET/PUT;未匹配的 `/api/*` 一律 JSON 404,其余非 API 请求走 `env.ASSETS.fetch`)
 - `worker/auth.ts` — `handleLogin`(POST,constant-time 比对 `env.ADMIN_TOKEN`,通过后设 `jazz_token` cookie,返回唯一用户)、`handleLogout`(清 cookie)、`handleMe`
 - `worker/progress.ts` — `handleGetProgress`(GET,读该 user 全部 progress 行)、`handlePutProgress`(PUT,body `{ progress: [...] }` 批量行级 upsert,`ON CONFLICT` 用 `MAX(...)` 只升不降;word_id 越界/单批 > 200 → 400)、`handleDeleteProgress`(DELETE,清空该 user 全部行)
-- `worker/settings.ts` — `handleGetSettings`(GET,读该 user 单行;无行返回默认三开)、`handlePutSettings`(PUT,upsert;拒绝三模块全关 → 400「至少保留一个学习模块」)
+- `worker/settings.ts` — `handleGetSettings`(GET,读该 user 单行启领域列;无行返回默认双开)、`handlePutSettings`(PUT,upsert `enable_chinese`/`enable_english`;双领域全关 → 400「至少保留一个学习领域」)
 - `worker/_lib/auth.ts` — 共享认证工具:`getAuthenticatedUser()`、cookie 读写、constant-time 比较 `safeEqual`、唯一用户读取/建行;`worker/_lib/http.ts` — `jsonResponse` 辅助
 
 **约定**:每个 handler 先调 `getAuthenticatedUser(request, env)`,未授权返回 401。所有查询按 `user_id` 绑定,实现用户隔离。worker 只做行级读写(progress 每词一行、settings 每 user 一行),**不解析**词库业务语义;星尘只升不降、加成只在首次由 worker 的 `MAX` 合并保证(幂等)。路由无第三方库(无 itty-router 等),保持简约。
@@ -99,7 +99,7 @@
 **事实源**:3 层架构设计定稿 + 操作细则 = `docs/superpowers/specs/2026-09-04-dev-architecture-refactor-design.md` + `docs/frontend-dev-standard.md`(specs 中服务 key 的 keys/map 原案已由同名 token 取代,以标准与源码为准)。
 
 - `src/shared/` — 无上层依赖的契约、纯逻辑与中性基础件:`services/*`(契约 + 数据类随契约归属;`core.ts` 服务访问机制核心:`ServiceToken`·`registry`·`useService`·`useServiceSnapshot` + 快照态 `LoadState`;`api-error`/`load-state`/`types` 已并入 services 后删除)、`ui/`(button/card/input/label/badge/select/chart-tooltip 中性视觉基础件 + `quiz/` 三题型 `Choice`/`ListenChoice`/`MatchGame` + `TypeBadge`(题型徽章)+ `speech.ts`(`speakCard`/`langFor`)+ `utils.ts`(`cn` 类名合并,同源 `tailwind-merge`,features 可引))
-- `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。业务分区:`auth`(登录门)、`archipelago`(群岛主页 `HomeEntry`/`ArchipelagoView`)、`lesson`(答题/结算/称号:`LessonEntry` + `WordLesson`/`WordDone`/`ComboDisplay` + `progress-rules.ts`(`SKILL_ORDER`/`enabledSkills`/`fullComplete`/`firstTargetId`/`titleForStars`,语义属主,经 `ProgressRulesService` 透传)、`lesson.ts`/`progress.ts`/`settlement.ts`/`praise.ts`)、`settings`(学习设置面板,`SettingsPanel` 纯 UI 收 `skillOrder` prop)、`question-engine`(运行时出题)、`vocabulary`(100 词词库 `words.ts` + 服务工厂)、`foundation`(基础引导自适应:词前短教 `TeachOverlay`(纯判分 4 选项)+ `FoundationStepGate`/`ColdStartWizard` + `teach-questions` 微出题 + `estimator`/`decompose`/`catalogs`/`basics-service`)、`progress`/`settings-state`/`api`/`audio`/`speech`/`combo`/`toast`/`celebrate`/`achievements`/`lucky-bonus`/`lingling`(服务工厂 + 必要组件)
+- `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。业务分区:`auth`(登录门)、`archipelago`(群岛主页 `HomeEntry`/`ArchipelagoView`)、`lesson`(答题/结算/称号:`LessonEntry` + `WordLesson`/`WordDone`/`ComboDisplay` + `progress-rules.ts`(`SKILL_ORDER`/`DOMAIN_SKILLS`/`enabledSkillsFor`+`enabledSkills` 域推导,`fullComplete`/`firstTargetId`/`titleForStars`,语义属主,经 `ProgressRulesService` 透传)、`lesson.ts`/`progress.ts`/`settlement.ts`/`praise.ts`)、`settings`(学习设置面板,`SettingsPanel` 纯 UI 收 `domainOrder` prop)、`question-engine`(运行时出题)、`vocabulary`(100 词词库 `words.ts` + 服务工厂)、`foundation`(基础引导自适应:词前短教 `TeachOverlay`(纯判分 4 选项)+ `FoundationStepGate`/`ColdStartWizard` + `teach-questions` 微出题 + `estimator`/`decompose`/`catalogs`/`basics-service`)、`progress`/`settings-state`/`api`/`audio`/`speech`/`combo`/`toast`/`celebrate`/`achievements`/`lucky-bonus`/`lingling`(服务工厂 + 必要组件)
 - `src/app/` — composition root:`bootstrap.ts`(**唯一生产 `registry.register` 点**)、`App.tsx`(登录态驱动 + 页面状态路由 + 跨 feature 组装;答题/结算/奖励/持久化规则不落 app)、`useAppState.ts`(phase 状态机)、`useCompletedWords.ts`、`ErrorBoundary.tsx`。`src/main.tsx` = HTML 入口(`bootstrap()` + `ToastProvider` + `<App/>`)
 
 **取用纪律**:`useService()` 仅允许在 page feature 的 `<Name>Entry.tsx` 与 `app/` 组装 hooks 内调用;接口与注册/取用 key **同名一体**(接口占 type 空间,`export const XService = Symbol(...) as ServiceToken<XService>` 同名 const 占 value 空间;`ServiceToken` 与 `registry`/`useService`/`useServiceSnapshot` 收 `services/core.ts` 一文件),`registry.register(ProgressService, impl)` 只在 bootstrap、`useService(ProgressService)` 取、`useServiceSnapshot(service)` 订阅(`getSnapshot` 须返稳定引用)。领域词库/规则按语义属主落 feature(vocabulary/lesson),跨 feature 消费经 shared 契约服务(`VocabularyService`/`ProgressRulesService`)与 `CATEGORY_LABELS` 这类 shared 常量;跨 feature 的组件在 app 组装传 props。数据流:`fetch('/api/...', { credentials: 'include' })`,封装在各 feature service。

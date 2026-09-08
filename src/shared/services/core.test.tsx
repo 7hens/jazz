@@ -14,8 +14,7 @@ function createApi(): ApiService {
     putProgress: async () => undefined,
     deleteProgress: async () => undefined,
     getSettings: async () => ({
-      enablePinyin: true,
-      enableHanzi: true,
+      enableChinese: true,
       enableEnglish: true,
       earnedAchievements: [],
       consecutiveDays: 0,

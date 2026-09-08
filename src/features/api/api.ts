@@ -35,8 +35,7 @@ function isWordProgress(value: unknown): value is ApiWordProgress {
 function isSettings(value: unknown): value is ApiUserSettings {
   if (!isObject(value)) return false
 
-  return typeof value.enablePinyin === 'boolean'
-    && typeof value.enableHanzi === 'boolean'
+  return typeof value.enableChinese === 'boolean'
     && typeof value.enableEnglish === 'boolean'
     && Array.isArray(value.earnedAchievements)
     && value.earnedAchievements.every((achievement) => typeof achievement === 'string')
@@ -131,8 +130,7 @@ export function createHttpApiService(fetcher: typeof fetch = fetch): ApiService 
     },
     async putSettings(settings) {
       const {
-        enablePinyin,
-        enableHanzi,
+        enableChinese,
         enableEnglish,
         earnedAchievements,
         consecutiveDays,
@@ -142,8 +140,7 @@ export function createHttpApiService(fetcher: typeof fetch = fetch): ApiService 
         method: 'PUT',
         body: JSON.stringify({
           settings: {
-            enablePinyin,
-            enableHanzi,
+            enableChinese,
             enableEnglish,
             earnedAchievements,
             consecutiveDays,

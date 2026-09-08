@@ -4,8 +4,22 @@ import type { ProgressRulesService, SkillKey, UserSettings, WordProgress } from 
 // 跨 feature 消费走 ProgressRulesService 透传,见 createProgressRulesService)。
 export const SKILL_ORDER: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
 
+// 领域→技能 捆绑(汉语=拼音+汉字,不可拆;英语=英语)。语义属主 lesson。
+export const DOMAIN_SKILLS: Record<'chinese' | 'english', readonly SkillKey[]> = {
+  chinese: ['pinyin', 'hanzi'],
+  english: ['english'],
+}
+
+/** 领域启用 → 技能列表,顺序恒 SKILL_ORDER(汉语两技能在前、英语在后)。双关返空,消费侧兜底。 */
+export function enabledSkillsFor(on: { enableChinese: boolean; enableEnglish: boolean }): SkillKey[] {
+  const out: SkillKey[] = []
+  if (on.enableChinese) out.push(...DOMAIN_SKILLS.chinese)
+  if (on.enableEnglish) out.push(...DOMAIN_SKILLS.english)
+  return out
+}
+
 export function enabledSkills(settings: UserSettings): SkillKey[] {
-  return SKILL_ORDER.filter((s) => settings[`enable${s[0].toUpperCase()}${s.slice(1)}` as 'enablePinyin'])
+  return enabledSkillsFor({ enableChinese: settings.enableChinese, enableEnglish: settings.enableEnglish })
 }
 
 export function fullComplete(p: WordProgress | undefined, settings: UserSettings): boolean {

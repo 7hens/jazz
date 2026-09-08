@@ -16,8 +16,7 @@ const workerProgress = [{
   starsEarned: 30,
 }]
 const settings = {
-  enablePinyin: true,
-  enableHanzi: false,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: ['first-word'],
   consecutiveDays: 3,
@@ -25,8 +24,7 @@ const settings = {
   updatedAt: '2026-09-04T00:00:00.000Z',
 }
 const workerSettings = {
-  enablePinyin: true,
-  enableHanzi: false,
+  enableChinese: true,
   enableEnglish: true,
   earnedAchievements: ['first-word'],
   consecutiveDays: 3,
@@ -147,9 +145,30 @@ describe('HTTP API service', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         settings: {
-          enablePinyin: true,
-          enableHanzi: false,
+          enableChinese: true,
           enableEnglish: true,
+          earnedAchievements: ['first-word'],
+          consecutiveDays: 3,
+          lastActiveDate: '2026-09-04',
+        },
+      }),
+    })
+  })
+
+  it('serializes a partial-off settings body carrying an explicit false', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    const partialOff = { ...settings, enableEnglish: false }
+
+    await createHttpApiService(fetcher).putSettings(partialOff)
+
+    expect(fetcher).toHaveBeenCalledWith('/api/settings', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        settings: {
+          enableChinese: true,
+          enableEnglish: false,
           earnedAchievements: ['first-word'],
           consecutiveDays: 3,
           lastActiveDate: '2026-09-04',

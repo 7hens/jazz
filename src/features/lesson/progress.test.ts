@@ -3,7 +3,7 @@ import { emptyProgress, isValidWordProgress, mergeProgress, settleWord, titleFor
 import { fullComplete } from './lesson'
 import type { UserSettings, WordProgress } from '@/shared/services'
 
-const allOn = (): UserSettings => ({ enablePinyin: true, enableHanzi: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })
+const allOn = (): UserSettings => ({ enableChinese: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })
 
 describe('progress 纯态', () => {
   it('空态与校验', () => {

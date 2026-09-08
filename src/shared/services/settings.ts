@@ -1,9 +1,17 @@
 import type { LoadState, ReactiveService, ServiceToken } from './core'
 
-/** 每 user 学习设置(启用模块 + 趣味字段)。 */
+/** 学习领域(启用粒度;汉语域内部恒捆绑 拼音+汉字 两技能步)。 */
+export type DomainKey = 'chinese' | 'english'
+
+export const DOMAIN_ORDER: readonly DomainKey[] = ['chinese', 'english']
+
+export function enableKeyOf(domain: DomainKey): 'enableChinese' | 'enableEnglish' {
+  return domain === 'chinese' ? 'enableChinese' : 'enableEnglish'
+}
+
+/** 每 user 学习设置(启用领域 + 趣味字段)。 */
 export type UserSettings = {
-  enablePinyin: boolean
-  enableHanzi: boolean
+  enableChinese: boolean
   enableEnglish: boolean
   earnedAchievements: string[]
   consecutiveDays: number

@@ -31,7 +31,7 @@ export function ColdStartWizard({ settings, basics, speak, playSound, onClose }:
   const items = useMemo<WizardItem[]>(() => {
     const out: WizardItem[] = []
     const tracks: Array<'pinyin' | 'english'> = []
-    if (settings.enablePinyin) tracks.push('pinyin')
+    if (settings.enableChinese) tracks.push('pinyin') // 汉语域(拼音+汉字捆绑,汉字无独立诊断轨)→ pinyin 探针
     if (settings.enableEnglish) tracks.push('english')
     for (const track of tracks) {
       for (const probe of COLDSTART_PROBES[track]) {
@@ -40,7 +40,7 @@ export function ColdStartWizard({ settings, basics, speak, playSound, onClose }:
       }
     }
     return out
-  }, [settings.enablePinyin, settings.enableEnglish])
+  }, [settings.enableChinese, settings.enableEnglish])
 
   const [phase, setPhase] = useState<Phase>('intro')
   const [qi, setQi] = useState(0)
@@ -57,7 +57,7 @@ export function ColdStartWizard({ settings, basics, speak, playSound, onClose }:
     [],
   )
 
-  // 家长把拼音/英语两轨都关 → 无探针可抽 → 无诊断可言,直接收尾回群岛。
+  // 家长把汉语/英语两域都关(面板防全关,此处为防御兜底)→ 无探针可抽 → 无诊断可言,直接收尾回群岛。
   useEffect(() => {
     if (items.length === 0) onClose()
     // eslint-disable-next-line react-hooks/exhaustive-deps

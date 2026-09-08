@@ -5,8 +5,7 @@ import { createSettingsService, defaultSettings } from './settings'
 
 function settings(overrides: Partial<UserSettings> = {}): UserSettings {
   return {
-    enablePinyin: true,
-    enableHanzi: true,
+    enableChinese: true,
     enableEnglish: true,
     earnedAchievements: [],
     consecutiveDays: 0,
@@ -25,8 +24,7 @@ function fakeApi(overrides: Partial<ApiService> = {}): ApiService {
     putProgress: async () => undefined,
     deleteProgress: async () => undefined,
     getSettings: async () => ({
-      enablePinyin: true,
-      enableHanzi: true,
+      enableChinese: true,
       enableEnglish: true,
       earnedAchievements: [],
       consecutiveDays: 0,
@@ -46,8 +44,7 @@ describe('SettingsService', () => {
     expect(service.getSnapshot()).toMatchObject({
       status: 'idle',
       data: {
-        enablePinyin: true,
-        enableHanzi: true,
+        enableChinese: true,
         enableEnglish: true,
         earnedAchievements: [],
         consecutiveDays: 0,
@@ -67,8 +64,7 @@ describe('SettingsService', () => {
     expect(service.getSnapshot().status).toBe('loading')
 
     resolveLoad({
-      enablePinyin: false,
-      enableHanzi: true,
+      enableChinese: true,
       enableEnglish: false,
       earnedAchievements: ['first'],
       consecutiveDays: 4,
@@ -79,8 +75,7 @@ describe('SettingsService', () => {
     expect(service.getSnapshot()).toMatchObject({
       status: 'ready',
       data: {
-        enablePinyin: false,
-        enableHanzi: true,
+        enableChinese: true,
         enableEnglish: false,
         earnedAchievements: ['first'],
         consecutiveDays: 4,
@@ -95,7 +90,7 @@ describe('SettingsService', () => {
     const service = createSettingsService(fakeApi({
       putSettings: () => new Promise<void>(resolve => { resolvePut = resolve }),
     }), { onUnauthorized: vi.fn(), onError: vi.fn() })
-    const next = settings({ enablePinyin: false })
+    const next = settings({ enableChinese: false })
 
     const saving = service.save(next)
     expect(service.getSnapshot()).toEqual({ status: 'ready', data: next })
@@ -128,9 +123,9 @@ describe('SettingsService', () => {
       onUnauthorized: vi.fn(),
       onError: vi.fn(),
     })
-    const newest = settings({ enablePinyin: false, enableEnglish: false })
+    const newest = settings({ enableChinese: false, enableEnglish: false })
 
-    const first = service.save(settings({ enablePinyin: false }))
+    const first = service.save(settings({ enableChinese: false }))
     const second = service.save(newest)
     resolveSecond()
     await second
@@ -152,8 +147,8 @@ describe('SettingsService', () => {
     })
     const base = service.getSnapshot()
 
-    const first = service.save(settings({ enablePinyin: false }))
-    const second = service.save(settings({ enablePinyin: false, enableEnglish: false }))
+    const first = service.save(settings({ enableChinese: false }))
+    const second = service.save(settings({ enableChinese: false, enableEnglish: false }))
     rejectSecond(new Error('second failed'))
     await expect(second).rejects.toThrow('second failed')
     rejectFirst(new Error('first failed'))
@@ -182,13 +177,12 @@ describe('SettingsService', () => {
     const service = createSettingsService(fakeApi({
       getSettings: () => new Promise(resolve => { resolveLoad = resolve }),
     }), { onUnauthorized: vi.fn(), onError: vi.fn() })
-    const saved = settings({ enablePinyin: false })
+    const saved = settings({ enableChinese: false })
 
     const loading = service.load()
     await service.save(saved)
     resolveLoad({
-      enablePinyin: true,
-      enableHanzi: true,
+      enableChinese: true,
       enableEnglish: true,
       earnedAchievements: [],
       consecutiveDays: 0,
@@ -205,7 +199,7 @@ describe('SettingsService', () => {
     const service = createSettingsService(fakeApi({
       getSettings: () => new Promise((_resolve, reject) => { rejectLoad = reject }),
     }), { onUnauthorized: vi.fn(), onError })
-    const saved = settings({ enablePinyin: false })
+    const saved = settings({ enableChinese: false })
 
     const loading = service.load()
     await service.save(saved)
@@ -233,7 +227,7 @@ describe('SettingsService', () => {
 
     void service.save(settings())
     unsubscribe()
-    void service.save(settings({ enableHanzi: false }))
+    void service.save(settings({ enableChinese: false }))
 
     expect(listener).toHaveBeenCalledOnce()
   })
