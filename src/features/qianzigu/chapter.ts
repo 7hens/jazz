@@ -1,0 +1,73 @@
+import type { SpeechRole } from '@/shared/services'
+
+export type SceneKind = 'dialogue' | 'task' | 'social' | 'break' | 'boss' | 'ending' | 'settle'
+export type WordLayer = 'sound' | 'shape'          // sound=拼音恢复,shape=汉字恢复
+
+export type ChapterLine = Readonly<{ role: SpeechRole; text: string }>
+
+export type SceneOption = Readonly<{
+  id: string
+  text: string                       // 选项文案(朗读文本即 text)
+  emoji?: string
+  consequence: 'good' | 'bad' | 'neutral'
+  response: string                   // 选择后月亮/灵灵的回应台词
+}>
+
+export type TaskSpec = Readonly<{
+  wordId: number
+  layer: WordLayer                   // 该任务恢复哪一层
+  minCorrect: number                 // 需答对次数才算恢复(默认 1,可留)
+}>
+
+export type TaskScene = Readonly<{
+  id: string
+  kind: 'task'
+  title: string                      // 任务名(如 拯救太阳)
+  intro: ChapterLine[]
+  task: TaskSpec
+  onDone: ChapterLine[]              // 恢复成功后的台词
+}>
+
+export type DialogueScene = Readonly<{
+  id: string
+  kind: 'dialogue'
+  lines: ChapterLine[]
+  choices?: never
+}>
+
+export type SocialScene = Readonly<{
+  id: string
+  kind: 'social'
+  lines: ChapterLine[]               // 情境引入(含 月亮 哭诉)
+  options: SceneOption[]
+  goodOptionId: string               // 正向后果选项(命中则 good 后果推进)
+  loop: ChapterLine[]                // 非 good 选择后 灵灵 引导词(重新弹选项)
+  onGood: ChapterLine[]              // 选中 good 的收尾台词
+}>
+
+export type BreakScene = Readonly<{ id: string; kind: 'break' }>
+
+export type BossScene = Readonly<{
+  id: string
+  kind: 'boss'
+  intro: ChapterLine[]
+  maxWrong: number                   // 失败阈值(默认 3)
+  win: ChapterLine[]
+  lose: ChapterLine[]
+}>
+
+export type EndingScene = Readonly<{ id: string; kind: 'ending'; lines: ChapterLine[] }>
+export type SettleScene = Readonly<{ id: string; kind: 'settle'; summary: ChapterLine[] }>
+
+export type Scene =
+  | TaskScene | DialogueScene | SocialScene | BreakScene | BossScene | EndingScene | SettleScene
+
+export type Chapter = Readonly<{
+  id: number
+  title: string
+  subtitle: string
+  emoji: string
+  wordIds: readonly number[]          // 有序 5 词
+  restoreOrder: readonly number[]     // 恢复点亮顺序的 wordId(可含重复元素,如太阳)
+  scenes: readonly Scene[]
+}>
