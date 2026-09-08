@@ -330,15 +330,15 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     )
   }
 
-  let content = sceneBody(scene)
-  if (pendingLines) {
-    content = <LineScene lines={pendingLines} speakRole={speakRole} onDone={() => setPendingLines(null)} />
-  }
+  const content = pendingLines
+    ? <LineScene lines={pendingLines} speakRole={speakRole} onDone={() => setPendingLines(null)} />
+    : sceneBody(scene)
 
   return (
     <Shell chapter={chapter} onExit={handleExit}>
       <SkyStrip chapter={chapter} restored={runState.restored} wordById={(id) => services.vocabulary.wordById(id)} />
-      {content}
+      {/* 按 scene.id 键控重挂:连续同 kind(task/social/boss)不串内部 UI 态 */}
+      <div key={scene.id}>{content}</div>
     </Shell>
   )
 }
