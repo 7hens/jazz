@@ -1,4 +1,4 @@
-import type { ChapterLine } from './chapter'
+import type { AtmosphereKey, ChapterLine, SceneKind } from './chapter'
 import type { SpeechRole } from '@/shared/services'
 
 const NARRATOR: SpeechRole = 'narrator'
@@ -24,4 +24,19 @@ export function restoreCount(restored: ReadonlyArray<{ wordId: number }>, wordId
   let n = 0
   for (const e of restored) if (e.wordId === wordId) n++
   return n
+}
+
+/** 氛围兜底:stage.atmosphere 缺失时按场景 kind 取默认。 */
+export function defaultAtmosphere(kind: SceneKind): AtmosphereKey {
+  switch (kind) {
+    case 'boss':
+      return 'dark'
+    case 'settle':
+    case 'ending':
+      return 'day'
+    case 'break':
+      return 'night'
+    default:
+      return 'dawn'
+  }
 }

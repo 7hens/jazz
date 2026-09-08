@@ -3,7 +3,12 @@ import type { SpeechRole } from '@/shared/services'
 export type SceneKind = 'dialogue' | 'task' | 'social' | 'break' | 'boss' | 'ending' | 'settle'
 export type WordLayer = 'sound' | 'shape'          // sound=拼音恢复,shape=汉字恢复
 
-export type ChapterLine = Readonly<{ role: SpeechRole; text: string }>
+export type AtmosphereKey = 'dawn' | 'day' | 'dusk' | 'night' | 'dark'
+export type SpeechMood = 'calm' | 'sad' | 'happy' | 'scary'
+/** 舞台元数据(全可选;引擎零读)。cast 顺序即站位偏好,自动分槽;narrator 永不出现在 cast。 */
+export type StageMeta = Readonly<{ cast?: readonly SpeechRole[]; atmosphere?: AtmosphereKey }>
+
+export type ChapterLine = Readonly<{ role: SpeechRole; text: string; mood?: SpeechMood }>
 
 export type SceneOption = Readonly<{
   id: string
@@ -26,6 +31,7 @@ export type TaskScene = Readonly<{
   intro: ChapterLine[]
   task: TaskSpec
   onDone: ChapterLine[]              // 恢复成功后的台词
+  stage?: StageMeta
 }>
 
 export type DialogueScene = Readonly<{
@@ -33,6 +39,7 @@ export type DialogueScene = Readonly<{
   kind: 'dialogue'
   lines: ChapterLine[]
   choices?: never
+  stage?: StageMeta
 }>
 
 export type SocialScene = Readonly<{
@@ -43,9 +50,10 @@ export type SocialScene = Readonly<{
   goodOptionId: string               // 正向后果选项(命中则 good 后果推进)
   loop: ChapterLine[]                // 非 good 选择后 灵灵 引导词(重新弹选项)
   onGood: ChapterLine[]              // 选中 good 的收尾台词
+  stage?: StageMeta
 }>
 
-export type BreakScene = Readonly<{ id: string; kind: 'break' }>
+export type BreakScene = Readonly<{ id: string; kind: 'break'; stage?: StageMeta }>
 
 export type BossScene = Readonly<{
   id: string
@@ -55,10 +63,11 @@ export type BossScene = Readonly<{
   questionCount: number              // 题目数(全对制,默认 5)
   win: ChapterLine[]
   lose: ChapterLine[]
+  stage?: StageMeta
 }>
 
-export type EndingScene = Readonly<{ id: string; kind: 'ending'; lines: ChapterLine[] }>
-export type SettleScene = Readonly<{ id: string; kind: 'settle'; summary: ChapterLine[] }>
+export type EndingScene = Readonly<{ id: string; kind: 'ending'; lines: ChapterLine[]; stage?: StageMeta }>
+export type SettleScene = Readonly<{ id: string; kind: 'settle'; summary: ChapterLine[]; stage?: StageMeta }>
 
 export type Scene =
   | TaskScene | DialogueScene | SocialScene | BreakScene | BossScene | EndingScene | SettleScene

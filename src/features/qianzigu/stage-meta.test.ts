@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChapterLine } from './chapter'
-import { castFor, isNarrator, restoreCount } from './stage-meta'
+import { castFor, defaultAtmosphere, isNarrator, restoreCount } from './stage-meta'
 
 const L = (role: ChapterLine['role']): ChapterLine => ({ role, text: 'x' })
 
@@ -29,5 +29,15 @@ describe('stage-meta', () => {
     expect(restoreCount(restored, 1)).toBe(2)
     expect(restoreCount(restored, 2)).toBe(1)
     expect(restoreCount(restored, 3)).toBe(0)
+  })
+
+  it('defaultAtmosphere: boss→dark;settle/ending→day;break→night;其余→dawn', () => {
+    expect(defaultAtmosphere('boss')).toBe('dark')
+    expect(defaultAtmosphere('settle')).toBe('day')
+    expect(defaultAtmosphere('ending')).toBe('day')
+    expect(defaultAtmosphere('break')).toBe('night')
+    expect(defaultAtmosphere('dialogue')).toBe('dawn')
+    expect(defaultAtmosphere('task')).toBe('dawn')
+    expect(defaultAtmosphere('social')).toBe('dawn')
   })
 })
