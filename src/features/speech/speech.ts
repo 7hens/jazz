@@ -1,4 +1,4 @@
-import type { SpeechService } from '@/shared/services'
+import type { SpeakRoleOptions, SpeechRole, SpeechService } from '@/shared/services'
 
 const HEAD_PROTECT_MS = 30
 
@@ -8,6 +8,16 @@ type WarmTarget = Pick<Window, 'addEventListener'> | null
 export type SpeechServiceOptions = {
   /** Fires on the first real interaction; the service uses it to warm the engine once. Defaults to window. */
   eventTarget?: WarmTarget
+}
+
+// 角色 → {rate,pitch}(spec §3.6 数值)。
+const SPEECH_ROLE_VOICE: Record<SpeechRole, { rate: number; pitch: number }> = {
+  lingling: { rate: 0.75, pitch: 1.2 },
+  sun: { rate: 0.65, pitch: 0.8 },
+  moon: { rate: 0.7, pitch: 1 },
+  jingmo: { rate: 0.6, pitch: 0.5 },
+  narrator: { rate: 0.8, pitch: 1 },
+  villager: { rate: 0.8, pitch: 1 },
 }
 
 function browserSynthesis(): SpeechSynthesis | null {
@@ -69,7 +79,8 @@ export function createSpeechService(
   }
 
   // The one utterance held back while the engine is still loading its voices.
-  let queued: { text: string; language: string } | null = null
+  type QueueItem = { text: string; language: string; rate: number; pitch?: number }
+  let queued: QueueItem | null = null
   let token = 0
   let deferId: ReturnType<typeof setTimeout> | null = null
   let primed = false
@@ -78,11 +89,12 @@ export function createSpeechService(
   // can emit `voiceschanged` is worth queueing for — otherwise a held phrase would never play.
   const canWaitForVoices = !!synthesis?.addEventListener
 
-  function play(text: string, language: string, voice: SpeechSynthesisVoice | null): void {
+  function play(text: string, language: string, voice: SpeechSynthesisVoice | null, rate: number, pitch?: number): void {
     const s = synthesis!
     const mk = createUtterance!
     const utterance = mk(text)
-    utterance.rate = 0.9
+    utterance.rate = rate
+    if (pitch !== undefined) utterance.pitch = pitch
     if (voice) {
       utterance.voice = voice
       utterance.lang = voice.lang
@@ -105,18 +117,18 @@ export function createSpeechService(
     }
   }
 
-  function attempt(text: string, language: string): boolean {
+  function attempt(text: string, language: string, rate: number, pitch?: number): boolean {
     const voices = refresh()
     const voice = findVoice(voices, language)
     if (voice || voices.length > 0) {
       // Matched voice, or the engine has voices to fall back to its default speaker.
       queued = null
-      play(text, language, voice)
+      play(text, language, voice, rate, pitch)
       return true
     }
     if (canWaitForVoices) {
       // Voices are still loading — hold the latest request instead of silently dropping it.
-      queued = { text, language }
+      queued = { text, language, rate, pitch }
       return true
     }
     return false
@@ -124,12 +136,12 @@ export function createSpeechService(
 
   function flushQueued(): void {
     if (!queued) return
-    const { text, language } = queued
+    const { text, language, rate, pitch } = queued
     const voices = refresh()
     const voice = findVoice(voices, language)
     if (voice || voices.length > 0) {
       queued = null
-      play(text, language, voice)
+      play(text, language, voice, rate, pitch)
     }
   }
 
@@ -171,7 +183,14 @@ export function createSpeechService(
   const service: SpeechService = {
     speak(text, language = 'zh-CN') {
       if (!synthesis || !createUtterance) return false
-      return attempt(text, language)
+      return attempt(text, language, 0.9)
+    },
+    speakRole(text, role, opts?: SpeakRoleOptions) {
+      if (!synthesis || !createUtterance) return false
+      const base = SPEECH_ROLE_VOICE[role]
+      const rate = opts?.rate ?? base.rate
+      const pitch = opts?.pitch ?? base.pitch
+      return attempt(text, 'zh-CN', rate, pitch)
     },
     stop() {
       token++

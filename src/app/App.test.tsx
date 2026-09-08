@@ -186,7 +186,7 @@ function registerAll() {
     unlock: () => undefined,
   }
 
-  const speech: SpeechService = { speak: () => true, stop: () => undefined }
+  const speech: SpeechService = { speak: () => true, speakRole: () => true, stop: () => undefined }
   const celebrate: CelebrateService = { play: vi.fn() }
   const toastStore = createStore<readonly ToastData[]>([])
   const toast: ToastService = {

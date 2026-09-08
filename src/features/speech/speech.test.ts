@@ -217,4 +217,87 @@ describe('SpeechService', () => {
     expect(cancel).toHaveBeenCalledOnce()
     expect(() => createSpeechService(null, null, { eventTarget: null }).stop()).not.toThrow()
   })
+
+  it('speakRole 按角色映射应用语速与音高', () => {
+    const synthesis = {
+      getVoices: () => [voice('cmn', 'Mandarin')],
+      speaking: false,
+      cancel: vi.fn(),
+      speak: vi.fn(),
+    } as unknown as SpeechSynthesis
+    const utterances: SpeechSynthesisUtterance[] = []
+    const service = createSpeechService(
+      synthesis,
+      () => {
+        const u = {} as SpeechSynthesisUtterance
+        utterances.push(u)
+        return u
+      },
+      { eventTarget: null },
+    )
+
+    expect(service.speakRole('早上好', 'jingmo')).toBe(true)
+    expect(utterances[0]).toMatchObject({ rate: 0.6, pitch: 0.5, lang: 'cmn' })
+
+    expect(service.speakRole('太棒了', 'lingling')).toBe(true)
+    expect(utterances[1]).toMatchObject({ rate: 0.75, pitch: 1.2 })
+  })
+
+  it('speakRole opts 可覆盖角色默认语速/音高', () => {
+    const synthesis = {
+      getVoices: () => [voice('cmn', 'Mandarin')],
+      speaking: false,
+      cancel: vi.fn(),
+      speak: vi.fn(),
+    } as unknown as SpeechSynthesis
+    const utterances: SpeechSynthesisUtterance[] = []
+    const service = createSpeechService(
+      synthesis,
+      () => {
+        const u = {} as SpeechSynthesisUtterance
+        utterances.push(u)
+        return u
+      },
+      { eventTarget: null },
+    )
+    service.speakRole('太阳', 'sun', { rate: 1, pitch: 1.1 })
+    expect(utterances[0]).toMatchObject({ rate: 1, pitch: 1.1 })
+  })
+
+  it('speakRole 无引擎时返回 false(UI 走降级)', () => {
+    const service = createSpeechService(null, null, { eventTarget: null })
+    expect(service.speakRole('你好', 'lingling')).toBe(false)
+  })
+
+  it('speakRole 角色未匹配 voice 时并入队列,voice 就绪后带角色配置补播', () => {
+    const cancel = vi.fn()
+    let voices: SpeechSynthesisVoice[] = []
+    const speak = vi.fn()
+    let pendingVoices: (() => void) | undefined
+    const synthesis = {
+      getVoices: () => voices,
+      speaking: false,
+      cancel,
+      speak,
+      addEventListener: vi.fn((type: string, cb: () => void) => {
+        if (type === 'voiceschanged') pendingVoices = cb
+      }),
+    } as unknown as SpeechSynthesis
+    const utterances: SpeechSynthesisUtterance[] = []
+    const service = createSpeechService(
+      synthesis,
+      () => {
+        const u = {} as SpeechSynthesisUtterance
+        utterances.push(u)
+        return u
+      },
+      { eventTarget: null },
+    )
+
+    expect(service.speakRole('月亮', 'moon')).toBe(true) // 无 voice → 入队
+    voices = [voice('cmn', 'Mandarin')]
+    pendingVoices?.()
+    const last = utterances[utterances.length - 1]
+    expect(last).toMatchObject({ rate: 0.7, pitch: 1 })
+  })
 })

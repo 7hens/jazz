@@ -97,7 +97,7 @@ it('renders the first enabled skill using only registered service composition', 
     play: () => undefined,
     unlock: () => undefined,
   }
-  const speech: SpeechService = { speak: () => true, stop: () => undefined }
+  const speech: SpeechService = { speak: () => true, speakRole: () => true, stop: () => undefined }
   const celebrate: CelebrateService = { play: () => undefined }
   const toast: ToastService = {
     getSnapshot: () => [],
