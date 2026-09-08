@@ -15,6 +15,8 @@ export type { ApiBasicsProgressRow, BasicsProgressData, BasicsProgressRow, Basic
 export { BASICS_UNIT_KEY_PATTERN, BasicsService } from './basics-progress'
 export type { CelebrateLevel } from './celebrate'
 export { CelebrateService } from './celebrate'
+export type { ApiChapterProgressRow, ChapterProgressData, ChapterProgressRow, ChapterProgressSnapshot } from './chapter-progress'
+export { ChapterService } from './chapter-progress'
 export type { AnswerKind, ComboSnapshot } from './combo'
 export { ComboService } from './combo'
 export type { FoundationNeed } from './foundation'
