@@ -92,6 +92,32 @@ function bossChapter(): Chapter {
   }
 }
 
+function socialChapter(): Chapter {
+  return {
+    id: 1,
+    title: '太阳的求救',
+    subtitle: '社交测试',
+    emoji: '🌅',
+    wordIds: [1],
+    restoreOrder: [1],
+    scenes: [
+      {
+        id: 'soc',
+        kind: 'social',
+        lines: [{ role: 'moon', text: '好孤单...' }],
+        options: [
+          { id: 'a', text: '你哭起来真难看。', emoji: '😠', consequence: 'bad', response: '月亮哭得更伤心了...' },
+          { id: 'b', text: '我也喜欢你!', emoji: '💕', consequence: 'good', response: '月亮笑了!' },
+        ],
+        goodOptionId: 'b',
+        loop: [{ role: 'lingling', text: '月亮更难过了...我们想想怎么安慰它?' }],
+        onGood: [{ role: 'moon', text: '真的吗?谢谢你!' }],
+      },
+      { id: 'after', kind: 'dialogue', lines: [{ role: 'lingling', text: '继续前进!' }] },
+    ],
+  }
+}
+
 function breakChapter(): Chapter {
   return {
     id: 1,
@@ -300,3 +326,52 @@ function bossWrong() {
   answer('月亮')
   fireEvent.click(screen.getByRole('button', { name: '下一题' }))
 }
+
+describe('ChapterRunnerView 社交选项两段式(先听后选)', () => {
+  function openOptions() {
+    // 社交 intro 一句 → 点继续进入选项区
+    expect(screen.getByText('好孤单...')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+  }
+
+  it('非 good:首点仅朗读选项文本(lingling),不触发后果;再点确认 → 后果反馈停留可再选', async () => {
+    const fakes = renderRunner(socialChapter())
+    openOptions()
+
+    const bad = /你哭起来真难看。/
+    fireEvent.click(screen.getByRole('button', { name: bad }))
+
+    // 首点:朗读选项文本(灵灵),未确认 → 无后果 / 未推进
+    expect(fakes.speech.speakRole).toHaveBeenCalledWith('你哭起来真难看。', 'lingling')
+    expect(screen.queryByText('月亮哭得更伤心了...')).not.toBeInTheDocument()
+    expect(screen.queryByText('继续前进!')).not.toBeInTheDocument()
+
+    // 再点同一项:确认 → consequence feedback 出现,仍停留(选项可重选、未推进)
+    fireEvent.click(screen.getByRole('button', { name: bad }))
+    expect(screen.getByText('月亮哭得更伤心了...')).toBeInTheDocument()
+    expect(screen.getByText('月亮更难过了...我们想想怎么安慰它?')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: bad })).toBeInTheDocument()
+    expect(screen.queryByText('继续前进!')).not.toBeInTheDocument()
+  })
+
+  it('good:首点仅朗读;再点确认 → onGood 收尾台词,走完放行推进下一 scene', async () => {
+    const fakes = renderRunner(socialChapter())
+    openOptions()
+
+    const good = /我也喜欢你!/
+    fireEvent.click(screen.getByRole('button', { name: good }))
+
+    // 首点仅朗读,未放行 onGood / 未推进
+    expect(fakes.speech.speakRole).toHaveBeenCalledWith('我也喜欢你!', 'lingling')
+    expect(screen.queryByText('真的吗?谢谢你!')).not.toBeInTheDocument()
+    expect(screen.queryByText('继续前进!')).not.toBeInTheDocument()
+
+    // 再点确认 → onGood 收尾台词(overlay)
+    fireEvent.click(screen.getByRole('button', { name: good }))
+    expect(screen.getByText('真的吗?谢谢你!')).toBeInTheDocument()
+
+    // 走完收尾 → social-choose 放行 → 推进到下一 scene
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('继续前进!')).toBeInTheDocument()
+  })
+})

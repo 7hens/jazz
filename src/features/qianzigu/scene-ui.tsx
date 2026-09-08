@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowRight, Moon } from 'lucide-react'
+import { cn } from '@/shared/ui/utils'
 import type { AudioCue, Question, SkillKey, SpeechRole, WordUnit } from '@/shared/services'
 import { Button } from '@/shared/ui/button'
 import { Choice } from '@/shared/ui/quiz/Choice'
@@ -370,6 +371,8 @@ export function SocialScene({
   const [introDone, setIntroDone] = useState(lines.length === 0)
   const [feedback, setFeedback] = useState<readonly ChapterLine[] | null>(null)
   const [goodOverlay, setGoodOverlay] = useState(false)
+  // 两段式选:首点=朗读选项文本进入「待确认」,再点同一项=确认选择。
+  const [pendingId, setPendingId] = useState<string | null>(null)
   const saidRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -413,6 +416,17 @@ export function SocialScene({
     setFeedback(linesToShow)
   }
 
+  /** 两段式:首点仅朗读(灵灵代读选项文案)并高亮待确认;再点同一项才走 choose。 */
+  function handleOptionTap(option: SceneOption) {
+    if (pendingId === option.id) {
+      setPendingId(null)
+      choose(option)
+      return
+    }
+    setPendingId(option.id)
+    speakRole(option.text, 'lingling')
+  }
+
   return (
     <div className="space-y-4">
       {feedback ? (
@@ -429,17 +443,26 @@ export function SocialScene({
       <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 shadow-card">
         <h2 className="text-center text-lg font-extrabold">你想怎么做?</h2>
         <div className="mt-4 space-y-2.5">
-          {options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => choose(option)}
-              className="flex w-full items-center gap-3 rounded-2xl border-2 border-hairline bg-surface px-4 py-3 text-left text-[15px] font-bold text-ink transition-colors hover:border-accent/60 hover:bg-accent-tint/50 active:scale-[0.99]"
-            >
-              {option.emoji ? <span className="text-2xl" aria-hidden>{option.emoji}</span> : null}
-              <span>{option.text}</span>
-            </button>
-          ))}
+          {options.map((option) => {
+            const pending = pendingId === option.id
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => handleOptionTap(option)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left text-[15px] font-bold text-ink transition-colors active:scale-[0.99]',
+                  pending
+                    ? 'border-accent bg-accent-tint shadow-card hover:bg-accent-tint'
+                    : 'border-hairline bg-surface hover:border-accent/60 hover:bg-accent-tint/50',
+                )}
+              >
+                {option.emoji ? <span className="text-2xl" aria-hidden>{option.emoji}</span> : null}
+                <span className="min-w-0 flex-1">{option.text}</span>
+                {pending ? <span className="shrink-0 text-xs font-semibold text-accent">再点一下选它</span> : null}
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
