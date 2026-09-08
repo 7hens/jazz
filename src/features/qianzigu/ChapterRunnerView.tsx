@@ -17,6 +17,8 @@ import type {
 import { cn } from '@/shared/ui/utils'
 import { Button } from '@/shared/ui/button'
 import type { Chapter, ChapterLine, Scene, WordLayer } from './chapter'
+import { DialoguePresenter } from './DialoguePresenter'
+import { defaultAtmosphere } from './stage-meta'
 import { createChapterRunner, type Runner, type RunnerAction, type RunnerState } from './engine'
 import {
   layerToSkill,
@@ -228,6 +230,14 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const speak: SpeakFn = (text, lang) => services.speech.speak(text, lang)
   const playSound = (cue: Parameters<AudioService['play']>[0]) => services.audio.play(cue)
 
+  /** 取本章词序的舞台词元素(dialogue/ending 整屏天空点灯用,语义同 SkyStrip)。 */
+  function skyWordsOf(): { id: number; emoji: string }[] {
+    return chapter.wordIds
+      .map((id) => services.vocabulary.wordById(id))
+      .filter((w): w is WordUnit => w !== undefined)
+      .map((w) => ({ id: w.id, emoji: w.emoji }))
+  }
+
   function sceneBody(current: Scene) {
     switch (current.kind) {
       case 'dialogue':
@@ -327,6 +337,26 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
           </Button>
         </div>
       </Shell>
+    )
+  }
+
+  const isStageScene = scene.kind === 'dialogue' || scene.kind === 'ending'
+  // dialogue/ending 整屏舞台化(过渡态;其余仍包旧 Shell,Plan 2 再统一 StageFrame)。
+  // pendingLines(任务收尾/BOSS win 台词)优先于舞台屏——它们属上一场景叙事,仍在 Shell 内承载。
+  if (isStageScene && !pendingLines) {
+    return (
+      <DialoguePresenter
+        key={scene.id}
+        lines={scene.lines}
+        atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(scene.kind)}
+        restored={runState.restored}
+        skyWords={skyWordsOf()}
+        cast={scene.stage?.cast}
+        speakRole={speakRole}
+        onDone={() => step({ type: 'advance' })}
+        onExit={handleExit}
+        ariaLabel="千字谷台词"
+      />
     )
   }
 

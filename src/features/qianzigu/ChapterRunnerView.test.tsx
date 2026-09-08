@@ -232,6 +232,16 @@ function answer(text: string) {
 }
 
 describe('ChapterRunnerView 逐 scene 运行器', () => {
+  it('dialogue 屏渲染为舞台屏:cast 站队 + 台词泡;点继续推进到下一屏', async () => {
+    renderRunner(flowChapter())
+    expect(await screen.findByText('你好,太阳!')).toBeInTheDocument()
+    // 整屏舞台帧:旧 Shell 标题头不再包裹 dialogue 屏
+    expect(screen.queryByText(/千字谷 · 第1章/)).not.toBeInTheDocument()
+    expect(screen.getByText('灵灵')).toBeInTheDocument() // 名字牌(cast 推导)
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('拯救声音')).toBeInTheDocument() // task 屏(旧 UI 过渡)
+  })
+
   it('dialogue → task:点继续进任务,出题;答对 2 次写 pinyin 进度到 settle', async () => {
     const { saveStep, onSettled } = renderRunner(flowChapter())
 
