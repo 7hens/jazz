@@ -7,6 +7,7 @@ import {
   AuthService,
   BasicsService,
   CelebrateService,
+  ChapterService,
   ComboService,
   FoundationService,
   LuckyBonusService,
@@ -22,6 +23,7 @@ import type {
   AuthSnapshot,
   BasicsProgressRow,
   BasicsProgressSnapshot,
+  ChapterProgressSnapshot,
   ChoiceQuestion,
   ComboSnapshot,
   ProgressSnapshot,
@@ -144,6 +146,18 @@ function registerAll() {
     wordById: (id) => (id === word.id ? word : undefined),
   }
 
+  const chapterStore = createStore<ChapterProgressSnapshot>({ status: 'idle', data: { row: null } })
+  const chapterLoad = vi.fn(async () => {
+    chapterStore.publish({ status: 'ready', data: chapterStore.getSnapshot().data })
+  })
+  const chapter: ChapterService = {
+    getSnapshot: chapterStore.getSnapshot,
+    subscribe: chapterStore.subscribe,
+    load: chapterLoad,
+    save: vi.fn(async () => undefined),
+    clear: vi.fn(async () => undefined),
+  }
+
   const questionEngine: QuestionEngineService = {
     optionCountFor: () => 2,
     textOf: (w) => w.hanzi,
@@ -221,6 +235,7 @@ function registerAll() {
   registry.register(AuthService, auth)
   registry.register(ProgressService, progress)
   registry.register(SettingsService, settingsService)
+  registry.register(ChapterService, chapter)
   registry.register(VocabularyService, vocabulary)
   registry.register(QuestionEngineService, questionEngine)
   registry.register(ComboService, combo)
@@ -244,6 +259,9 @@ function registerAll() {
     basicsRecord,
     basicsSaveAll,
     celebrate,
+    chapter,
+    chapterLoad,
+    chapterStore,
     play: audio.play,
     progressStore,
     settingsStore,
@@ -265,9 +283,12 @@ function mountApp(opts: { returning?: boolean } = {}) {
   return { svc, ...utils }
 }
 
-/** 老用户直达群岛(登录 + 并行加载完成,主页标题出现)。 */
+/** 老用户登录 → 双世界壳 → 点「字母林」直达群岛(主页标题出现)。 */
 async function renderAuthenticatedHome() {
   const { svc } = mountApp({ returning: true })
+  // 登录后首落世界壳
+  await waitFor(() => expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: /字母林/ }))
   await waitFor(() => expect(screen.getByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument())
   return svc
 }
@@ -303,6 +324,7 @@ describe('App 路由', () => {
     await waitFor(() => expect(svc.progressLoad).toHaveBeenCalled())
     await waitFor(() => expect(svc.settingsLoad).toHaveBeenCalled())
     await waitFor(() => expect(svc.basicsLoad).toHaveBeenCalled())
+    await waitFor(() => expect(svc.chapterLoad).toHaveBeenCalled())
     expect(screen.queryByRole('heading', { name: '魔法入门小测' })).not.toBeInTheDocument()
   })
 
@@ -312,6 +334,18 @@ describe('App 路由', () => {
     act(() => svc.authStore.publish({ status: 'anonymous' }))
 
     expect(await screen.findByRole('button', { name: /进入魔法岛/ })).toBeInTheDocument()
+  })
+
+  it('world → qianzigu-map:世界壳点千字谷进章节地图,返回回世界壳', async () => {
+    const { svc } = mountApp({ returning: true })
+    await waitFor(() => expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /千字谷/ }))
+    expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '返回世界' }))
+    expect(await screen.findByRole('heading', { name: '选择你的世界' })).toBeInTheDocument()
+    await waitFor(() => expect(svc.chapterLoad).toHaveBeenCalled())
   })
 
   it('home → lesson:点可用词进入对应词的答题屏', async () => {
@@ -348,7 +382,7 @@ describe('App 冷启动诊断', () => {
     await screen.findByRole('heading', { name: '魔法入门小测' })
     fireEvent.click(screen.getByRole('button', { name: '跳过小测' }))
 
-    expect(await screen.findByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '选择你的世界' })).toBeInTheDocument()
 
     act(() => { svc.progressStore.publish({ status: 'ready', data: {} }) })
     act(() => { svc.basicsStore.publish({ status: 'ready', data: {} }) })
@@ -377,7 +411,7 @@ describe('App 冷启动诊断', () => {
       const rows = svc.basicsSaveAll.mock.calls[0][0] as readonly BasicsProgressRow[]
       expect(rows.length).toBeGreaterThan(0)
       expect(svc.basicsRecord).not.toHaveBeenCalled() // 逐题零写,基线只在「开始游戏」一次性落库
-      expect(screen.getByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }

@@ -8,12 +8,14 @@ import { ColdStartWizard, FoundationStepGate } from '@/features/foundation'
 import { LingLing } from '@/features/lingling'
 import { LessonEntry, type LessonCelebration } from '@/features/lesson'
 import { LuckyBonus } from '@/features/lucky-bonus'
+import { QianziguEntry } from '@/features/qianzigu'
 import { SettingsEntry } from '@/features/settings'
 import {
   AudioService,
   AuthService,
   BasicsService,
   CelebrateService,
+  ChapterService,
   FoundationService,
   ProgressService,
   SettingsService,
@@ -23,6 +25,7 @@ import type { Achievement, SkillKey, WordUnit } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { useAppState } from './useAppState'
 import { useCompletedWords } from './useCompletedWords'
+import { WorldShell } from './WorldShell'
 
 // 覆盖层单槽:结算协调器入队的成就串行弹出,队列清空后才放幸运奖励效果。
 type Celebration = Readonly<{
@@ -43,6 +46,7 @@ export default function App() {
   const auth = useService(AuthService)
   const progress = useService(ProgressService)
   const settingsService = useService(SettingsService)
+  const chapterService = useService(ChapterService)
   const celebrateService = useService(CelebrateService)
   const foundation = useService(FoundationService)
   const basics = useService(BasicsService)
@@ -53,7 +57,7 @@ export default function App() {
   const settingsSnap = useServiceSnapshot(settingsService)
   const basicsSnap = useServiceSnapshot(basics)
 
-  const { phase, currentWordId, actions } = useAppState()
+  const { phase, currentWordId, currentChapterId, actions } = useAppState()
   const completedWords = useCompletedWords()
   const [celebration, setCelebration] = useState<Celebration | null>(null)
   const [showDiagnosis, setShowDiagnosis] = useState(false)
@@ -65,7 +69,7 @@ export default function App() {
     void auth.check()
   }, [auth])
 
-  // 从非认证态进入已登录态:回主页并拉取进度与设置。
+  // 从非认证态进入已登录态:回世界壳并拉取进度/设置/章节态。
   // actions 每次渲染新建引用,不进依赖;服务实例稳定。
   useEffect(() => {
     const previous = previousAuthStatus.current
@@ -74,6 +78,7 @@ export default function App() {
     actions.exitToHome()
     void progress.load()
     void settingsService.load()
+    void chapterService.load()
     void basics.load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authSnap])
@@ -140,7 +145,7 @@ export default function App() {
   } else if (authSnap.status !== 'authenticated') {
     content = <AuthEntry />
   } else if (showDiagnosis) {
-    // 冷启动小测盖在群岛前;onClose 后回落下方 home/settings 分支,0 星不进群岛。
+    // 冷启动小测盖在双世界壳前;onClose 后回落下方 world 分支,0 星不进任何世界。
     content = (
       <ColdStartWizard
         settings={settingsSnap.data}
@@ -162,14 +167,39 @@ export default function App() {
     )
   } else if (phase === 'settings') {
     content = <SettingsEntry onClose={actions.closeSettings} />
-  } else {
-    // 认证后的 boot 与 home 阶段都派生为群岛主页。
+  } else if (phase === 'qianzigu-map') {
+    content = <QianziguEntry onBack={actions.enterWorld} onEnterChapter={actions.enterChapter} />
+  } else if (phase === 'chapter') {
+    // 章节运行器在 Task3/4 落地;此处分支先以轻量占位保持相位可路由。
+    content = (
+      <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center text-ink">
+        <p className="text-6xl" aria-hidden>🌅</p>
+        <p className="mt-3 text-lg font-extrabold">千字谷 · 第{currentChapterId ?? 1}章</p>
+        <p className="mt-1 text-sm text-ink-2">章节正在苏醒中…</p>
+        <button
+          type="button"
+          onClick={actions.closeChapter}
+          className="mt-6 rounded-full bg-accent px-6 py-2.5 font-bold text-white shadow-card transition-transform active:scale-95"
+        >
+          回地图
+        </button>
+      </div>
+    )
+  } else if (phase === 'letter-forest') {
     content = (
       <HomeEntry
         lingling={<LingLing completedWords={completedWords} />}
         onEnterLesson={actions.enterLesson}
         onOpenSettings={actions.openSettings}
         onLogout={() => { void auth.logout() }}
+      />
+    )
+  } else {
+    // 认证后的 boot 与 world 相位都派生为双世界壳首页。
+    content = (
+      <WorldShell
+        onQianzigu={actions.enterQianziguMap}
+        onLetterForest={actions.enterLetterForest}
       />
     )
   }
