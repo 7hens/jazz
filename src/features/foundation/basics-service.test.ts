@@ -11,6 +11,8 @@ function fakeApi(): ApiService {
     putSettings: vi.fn(),
     getBasicsProgress: vi.fn(async () => []),
     putBasicsProgress: vi.fn(async () => undefined),
+    getChapterProgress: vi.fn(async () => null),
+    putChapterProgress: vi.fn(async () => undefined),
   }
 }
 

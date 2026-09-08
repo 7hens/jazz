@@ -23,6 +23,8 @@ function fakeApi(overrides: Partial<ApiService> = {}): ApiService {
     putSettings: async () => undefined,
     getBasicsProgress: async () => [],
     putBasicsProgress: async () => undefined,
+    getChapterProgress: async () => null,
+    putChapterProgress: async () => undefined,
     ...overrides,
   }
 }

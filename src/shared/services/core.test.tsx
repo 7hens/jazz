@@ -24,6 +24,8 @@ function createApi(): ApiService {
     putSettings: async () => undefined,
     getBasicsProgress: async () => [],
     putBasicsProgress: async () => undefined,
+    getChapterProgress: async () => null,
+    putChapterProgress: async () => undefined,
   }
 }
 
