@@ -88,7 +88,8 @@ Expected: FAIL(模块 `./stage-meta` 不存在)。
 - [ ] **Step 3: 实现 stage-meta.ts(前三个函数)**
 
 ```ts
-import type { ChapterLine, SpeechRole } from './chapter'
+import type { ChapterLine } from './chapter'
+import type { SpeechRole } from '@/shared/services'
 
 const NARRATOR: SpeechRole = 'narrator'
 
@@ -197,7 +198,8 @@ export type ChapterLine = Readonly<{ role: SpeechRole; text: string; mood?: Spee
 - [ ] **Step 4: 在 stage-meta.ts 补 defaultAtmosphere**
 
 ```ts
-import type { AtmosphereKey, ChapterLine, SceneKind, SpeechRole } from './chapter'
+import type { AtmosphereKey, ChapterLine, SceneKind } from './chapter'
+import type { SpeechRole } from '@/shared/services'
 // …castFor/restoreCount 保持不变…
 
 /** 氛围兜底:stage.atmosphere 缺失时按场景 kind 取默认。 */
@@ -216,7 +218,7 @@ export function defaultAtmosphere(kind: SceneKind): AtmosphereKey {
 }
 ```
 
-> 同步:把该文件顶部 `import type { ChapterLine, SpeechRole } from './chapter'` 扩成含 `AtmosphereKey, SceneKind`。
+> 同步:把该文件顶部的 `./chapter` type import 扩成含 `AtmosphereKey, SceneKind`;`SpeechRole` 保持从 `@/shared/services` 导入(chapter.ts 只 import 不 re-export SpeechRole)。
 
 - [ ] **Step 5: 跑测试确认通过 + 类型与全量回归**
 
@@ -284,7 +286,8 @@ Expected: FAIL(模块不存在)。
 - [ ] **Step 3: 实现 stage-visuals.ts**
 
 ```ts
-import type { AtmosphereKey, SpeechMood, SpeechRole } from './chapter'
+import type { AtmosphereKey, SpeechMood } from './chapter'
+import type { SpeechRole } from '@/shared/services'
 
 /** 角色形象比例(emoji 放大系数;静默大反派)。
  *  位图接缝:将来换立绘只改此映射 + stage-visuals 同文件 atmosphere 表,组件零改。 */
