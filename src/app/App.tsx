@@ -8,7 +8,7 @@ import { ColdStartWizard, FoundationStepGate } from '@/features/foundation'
 import { LingLing } from '@/features/lingling'
 import { LessonEntry, type LessonCelebration } from '@/features/lesson'
 import { LuckyBonus } from '@/features/lucky-bonus'
-import { QianziguEntry } from '@/features/qianzigu'
+import { CHAPTER_1, ChapterRunnerView, QianziguEntry } from '@/features/qianzigu'
 import { SettingsEntry } from '@/features/settings'
 import {
   AudioService,
@@ -17,9 +17,12 @@ import {
   CelebrateService,
   ChapterService,
   FoundationService,
+  ProgressRulesService,
   ProgressService,
+  QuestionEngineService,
   SettingsService,
   SpeechService,
+  VocabularyService,
 } from '@/shared/services'
 import type { Achievement, SkillKey, WordUnit } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
@@ -52,10 +55,14 @@ export default function App() {
   const basics = useService(BasicsService)
   const speech = useService(SpeechService)
   const audio = useService(AudioService)
+  const questionEngine = useService(QuestionEngineService)
+  const vocabulary = useService(VocabularyService)
+  const rules = useService(ProgressRulesService)
   const authSnap = useServiceSnapshot(auth)
   const progressSnap = useServiceSnapshot(progress)
   const settingsSnap = useServiceSnapshot(settingsService)
   const basicsSnap = useServiceSnapshot(basics)
+  const chapterSnap = useServiceSnapshot(chapterService)
 
   const { phase, currentWordId, currentChapterId, actions } = useAppState()
   const completedWords = useCompletedWords()
@@ -114,6 +121,12 @@ export default function App() {
     setCelebration({ achievements: info.achievements, luckyReward: info.luckyReward })
   }
 
+  // 章节退出/结算收敛:回千字谷地图并刷新章节行(进度在 run 内已落库)。
+  function handleChapterExit() {
+    actions.closeChapter()
+    void chapterService.load()
+  }
+
   // 词课步前教学门:data 为熟度快照(ready 前兜底空表 → judge 按「未评估→mandatory」走首词首步补教一次即收敛)。
   // render 的 key 使 gate 跨词/跨技能切换时重挂 TeachOverlay。
   const data = basicsSnap.data ?? {}
@@ -170,20 +183,26 @@ export default function App() {
   } else if (phase === 'qianzigu-map') {
     content = <QianziguEntry onBack={actions.enterWorld} onEnterChapter={actions.enterChapter} />
   } else if (phase === 'chapter') {
-    // 章节运行器在 Task3/4 落地;此处分支先以轻量占位保持相位可路由。
+    // 仅 ch1 可玩;运行器消费当前章节行做断点续玩,退出/结算回地图。
     content = (
-      <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center text-ink">
-        <p className="text-6xl" aria-hidden>🌅</p>
-        <p className="mt-3 text-lg font-extrabold">千字谷 · 第{currentChapterId ?? 1}章</p>
-        <p className="mt-1 text-sm text-ink-2">章节正在苏醒中…</p>
-        <button
-          type="button"
-          onClick={actions.closeChapter}
-          className="mt-6 rounded-full bg-accent px-6 py-2.5 font-bold text-white shadow-card transition-transform active:scale-95"
-        >
-          回地图
-        </button>
-      </div>
+      <ChapterRunnerView
+        key={`chapter-${currentChapterId ?? CHAPTER_1.id}`}
+        chapter={CHAPTER_1}
+        initialRow={chapterSnap.data.row}
+        onExit={handleChapterExit}
+        onSettled={handleChapterExit}
+        services={{
+          progress,
+          chapter: chapterService,
+          vocabulary,
+          questionEngine,
+          settings: settingsService,
+          rules,
+          speech,
+          audio,
+          celebrate: celebrateService,
+        }}
+      />
     )
   } else if (phase === 'letter-forest') {
     content = (

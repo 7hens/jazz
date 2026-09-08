@@ -348,6 +348,21 @@ describe('App 路由', () => {
     await waitFor(() => expect(svc.chapterLoad).toHaveBeenCalled())
   })
 
+  it('world → qianzigu-map → ch1 开始 → chapter 相位跑首幕,返回回地图', async () => {
+    const { svc } = mountApp({ returning: true })
+    await waitFor(() => expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /千字谷/ }))
+    expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '开始' }))
+    expect(await screen.findByText(/千字谷到了/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '返回地图' }))
+    expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()
+    await waitFor(() => expect(svc.chapterLoad).toHaveBeenCalled())
+  })
+
   it('home → lesson:点可用词进入对应词的答题屏', async () => {
     await renderAuthenticatedHome()
 
