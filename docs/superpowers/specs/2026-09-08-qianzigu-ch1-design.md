@@ -100,7 +100,7 @@ export type SpeakOptions = { rate?: number; pitch?: number }
 export const speakRole: (text: string, role: SpeechRole, opts?: SpeakOptions) => void   // 契约签名(token 见服务注册)
 ```
 
-- 角色 → {rate,pitch} 映射与实现放 `features/speech/`(现 `speak(text, lang?)` 之上加 role 维度,复用既有队列/防掐头/暖机;默认 role 参数可省)。台词自动朗读、选项「逐个弹出+自动朗读」由 qianzigu 引擎驱动调用;静音降级走现有 speech 降级(无 voices → 静默 + UI 加大字/emoji)。
+- 角色 → {rate,pitch} 映射与实现放 `features/speech/`(现 `speak(text, lang?)` 之上加 role 维度,复用既有队列/防掐头,复用 voice 预取;默认 role 参数可省;不做引擎暖机——取舍见 dev-reference speech 首响治理)。台词自动朗读、选项「逐个弹出+自动朗读」由 qianzigu 引擎驱动调用;静音降级走现有 speech 降级(无 voices → 静默 + UI 加大字/emoji)。
 - 全部走 SpeechSynthesis,**不引入 TTS 音频资产**(非目标)。
 
 > 接缝注:`speakRole` 作为新的 speech 契约方法注册,不新建独立服务 token;若实现需区分「无角色朗读」兼容现调用,则以可选 `role` 参数形式扩展,旧调用不破坏。

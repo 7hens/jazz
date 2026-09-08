@@ -3,12 +3,6 @@ import type { SpeakRoleOptions, SpeechRole, SpeechService } from '@/shared/servi
 const HEAD_PROTECT_MS = 30
 
 type UtteranceFactory = ((text: string) => SpeechSynthesisUtterance) | null
-type WarmTarget = Pick<Window, 'addEventListener'> | null
-
-export type SpeechServiceOptions = {
-  /** Fires on the first real interaction; the service uses it to warm the engine once. Defaults to window. */
-  eventTarget?: WarmTarget
-}
 
 // 角色 → {rate,pitch}(spec §3.6 数值)。
 const SPEECH_ROLE_VOICE: Record<SpeechRole, { rate: number; pitch: number }> = {
@@ -28,10 +22,6 @@ function browserSynthesis(): SpeechSynthesis | null {
 function browserUtteranceFactory(): UtteranceFactory {
   if (typeof SpeechSynthesisUtterance === 'undefined') return null
   return text => new SpeechSynthesisUtterance(text)
-}
-
-function browserEventTarget(): WarmTarget {
-  return typeof window === 'undefined' ? null : window
 }
 
 function normalizedLanguage(language: string): string {
@@ -62,10 +52,7 @@ function findVoice(voices: readonly SpeechSynthesisVoice[], language: string): S
 export function createSpeechService(
   synthesis: SpeechSynthesis | null = browserSynthesis(),
   createUtterance: UtteranceFactory = browserUtteranceFactory(),
-  options: SpeechServiceOptions = {},
 ): SpeechService {
-  const eventTarget = options.eventTarget === undefined ? browserEventTarget() : options.eventTarget
-
   // --- Voice cache: Chrome returns [] on the first getVoices() and fills in asynchronously, so
   // prime at creation, refresh on voiceschanged, and keep the last non-empty table — an empty
   // poll must never wipe a good cache. ---
@@ -83,7 +70,6 @@ export function createSpeechService(
   let queued: QueueItem | null = null
   let token = 0
   let deferId: ReturnType<typeof setTimeout> | null = null
-  let primed = false
 
   // A real engine exposes addEventListener (EventTarget); test fakes may not. Only an engine that
   // can emit `voiceschanged` is worth queueing for — otherwise a held phrase would never play.
@@ -145,40 +131,16 @@ export function createSpeechService(
     }
   }
 
-  // Chrome boots its TTS engine lazily on the first real utterance, which delays and truncates
-  // that first word. Waking it needs actual audio samples — an empty utterance is skipped by the
-  // engine and warms nothing. So prime once with a real, short syllable at volume 0 (inaudible),
-  // as soon as voices arrive; if the user interacts before that (or voices only load on gesture),
-  // the same capture listeners prime on the first pointer/key.
-  function primeEngine(): void {
-    if (primed || !synthesis || !createUtterance) return
-    primed = true
-    try {
-      const first = refresh()[0]
-      const utterance = createUtterance('a')
-      utterance.rate = 0.9
-      utterance.volume = 0
-      if (first) {
-        utterance.voice = first
-        utterance.lang = first.lang
-      }
-      synthesis.speak(utterance)
-    } catch {
-      // Priming is best-effort; it must never break the page.
-    }
-  }
-
+  // 注:不做引擎预热(放弃 volume=0「无声暖机」)—— Firefox/Chrome 平台 TTS 后端未遵守
+  // utterance.volume=0,暖机句 `'a'` 会真实发声(会话首次交互即突兀响一声)。首次朗读的引擎
+  // 冷启动延迟/掐头代价换取无无关声音(取舍见 spec §3.6 / PLAN)。
   function onVoicesChanged(): void {
     refresh()
-    primeEngine()
     flushQueued()
   }
 
   synthesis?.addEventListener?.('voiceschanged', onVoicesChanged)
   refresh() // kick off the async voice load as early as possible
-
-  eventTarget?.addEventListener('pointerdown', primeEngine, { capture: true })
-  eventTarget?.addEventListener('keydown', primeEngine, { capture: true })
 
   const service: SpeechService = {
     speak(text, language = 'zh-CN') {
