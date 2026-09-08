@@ -35,7 +35,7 @@ describe('questionForUnit', () => {
 
   it('ch/r/s 锚点词首即该声母,题干诚实不误导', () => {
     const cases: Array<[string, string]> = [
-      ['pinyin:ch', '车'],
+      ['pinyin:ch', '尺'],
       ['pinyin:r', '日'],
       ['pinyin:s', '伞'],
     ]
