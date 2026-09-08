@@ -106,6 +106,10 @@ export const WORDS: WordUnit[] = [
   { id: 98, emoji: '🕯️', pinyin: 'là zhú', hanzi: '蜡烛', english: 'candle', category: 'object', teaser: '蜡烛暖洋洋,窗外那位白白胖胖、等你给它戴红围巾和胡萝卜鼻子的朋友…是谁呀?' },
   { id: 99, emoji: '⛄', pinyin: 'xuě rén', hanzi: '雪人', english: 'snowman', category: 'object', teaser: '雪人挥手说再见!传说天上还有一位鳞片闪闪、会喷火又会飞的神奇大朋友…是谁呀?' },
   { id: 100, emoji: '🐉', pinyin: 'lóng', hanzi: '龙', english: 'dragon', category: 'object', teaser: '骑上威武的大龙,一百颗星尘收齐啦!灵灵鼓掌:小魔法师真棒…还想再来冒险吗?' },
+  // story 101-103(千字谷 ch1 补词;不进 letter-forest 主题网格)
+  { id: 101, emoji: '⬆️', pinyin: 'shēng qǐ', hanzi: '升起', english: 'rise', category: 'story', partOfSpeech: 'verb', chapterId: 1, teaser: '红红的太阳从山后探出圆脑袋,慢慢往天上爬…这个动作叫什么呀?' },
+  { id: 102, emoji: '✨', pinyin: 'liàng', hanzi: '亮', english: 'bright', category: 'story', partOfSpeech: 'adjective', chapterId: 1, teaser: '黑夜退啦,天空洒满光,不再黑漆漆…这时候的感觉是哪个词呀?' },
+  { id: 103, emoji: '🌅', pinyin: 'zǎo shang hǎo', hanzi: '早上好', english: 'good morning', category: 'story', partOfSpeech: 'social', chapterId: 1, teaser: '太阳升起来啦!见着它,先笑一笑说句问候的话…该说什么呀?' },
 ]
 
 export function wordById(id: number): WordUnit | undefined {
