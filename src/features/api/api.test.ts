@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import type { ApiService, ApiUserSettings, ApiWordProgress } from '@/shared/services/api'
-import type { ApiBasicsProgressRow, BasicsProgressRow, UserSettings, WordProgress } from '@/shared/services'
+import type { ApiBasicsProgressRow, ApiChapterProgressRow, BasicsProgressRow, ChapterProgressRow, UserSettings, WordProgress } from '@/shared/services'
 import { createHttpApiService } from './api'
 
 const user = { id: 'u', email: 'e', name: 'n' }
@@ -43,12 +43,22 @@ const workerBasicsRows = [{
   correctStreak: 2,
   taughtCount: 3,
 }]
+const workerChapterRow: ApiChapterProgressRow = {
+  chapterId: 1,
+  resumeSceneId: 't1-core',
+  restoreState: '[]',
+}
+const chapterRow: ChapterProgressRow = {
+  ...workerChapterRow,
+  updatedAt: '2026-09-08T00:00:00.000Z',
+}
 
 describe('HTTP API service', () => {
   it('exposes timestamp-free Worker shapes for GET responses', () => {
     expectTypeOf<ApiService['getProgress']>().returns.toEqualTypeOf<Promise<ApiWordProgress[]>>()
     expectTypeOf<ApiService['getSettings']>().returns.toEqualTypeOf<Promise<ApiUserSettings>>()
     expectTypeOf<ApiService['getBasicsProgress']>().returns.toEqualTypeOf<Promise<ApiBasicsProgressRow[]>>()
+    expectTypeOf<ApiService['getChapterProgress']>().returns.toEqualTypeOf<Promise<ApiChapterProgressRow | null>>()
     expectTypeOf<ApiWordProgress>().toEqualTypeOf<Omit<WordProgress, 'updatedAt'>>()
     expectTypeOf<ApiUserSettings>().toEqualTypeOf<Omit<UserSettings, 'updatedAt'>>()
   })
@@ -227,5 +237,44 @@ describe('HTTP API service', () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ user }), { status: 200 }))
 
     await expect(createHttpApiService(fetcher).login('secret')).rejects.toMatchObject({ status: 200, message: 'Invalid API response' })
+  })
+
+  it('returns the chapter progress row from the Worker envelope', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ row: workerChapterRow }), { status: 200 }))
+
+    await expect(createHttpApiService(fetcher).getChapterProgress()).resolves.toEqual(workerChapterRow)
+    expect(fetcher).toHaveBeenCalledWith('/api/chapter-progress', { credentials: 'include' })
+  })
+
+  it('resolves getChapterProgress to null when the Worker has no row', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ row: null }), { status: 200 }))
+
+    await expect(createHttpApiService(fetcher).getChapterProgress()).resolves.toBeNull()
+  })
+
+  it('rejects a chapter progress response with a malformed row', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      row: { ...workerChapterRow, chapterId: 'one' },
+    }), { status: 200 }))
+
+    await expect(createHttpApiService(fetcher).getChapterProgress()).rejects.toMatchObject({
+      status: 200,
+      message: 'Invalid API response',
+    })
+  })
+
+  it('serializes the chapter row under the envelope without the client timestamp', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+
+    await createHttpApiService(fetcher).putChapterProgress(chapterRow)
+
+    expect(fetcher).toHaveBeenCalledWith('/api/chapter-progress', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        row: { chapterId: 1, resumeSceneId: 't1-core', restoreState: '[]' },
+      }),
+    })
   })
 })

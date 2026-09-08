@@ -1,5 +1,5 @@
 import { ApiError } from '@/shared/services'
-import type { ApiBasicsProgressRow } from '@/shared/services'
+import type { ApiBasicsProgressRow, ApiChapterProgressRow } from '@/shared/services'
 import type { ApiService, ApiUserSettings, ApiWordProgress, User } from '@/shared/services/api'
 
 type JsonObject = Record<string, unknown>
@@ -11,6 +11,7 @@ type ProgressResponse = { progress: ApiWordProgress[] }
 type SettingsResponse = { settings: ApiUserSettings }
 type OkResponse = { ok: true }
 type BasicsProgressResponse = { rows: ApiBasicsProgressRow[] }
+type ChapterProgressResponse = { row: ApiChapterProgressRow | null }
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -70,6 +71,19 @@ function isBasicsRow(value: unknown): value is ApiBasicsProgressRow {
 
 function isBasicsProgressResponse(value: unknown): value is BasicsProgressResponse {
   return isObject(value) && Array.isArray(value.rows) && value.rows.every(isBasicsRow)
+}
+
+function isChapterProgressRow(value: unknown): value is ApiChapterProgressRow {
+  if (!isObject(value)) return false
+  const resumeSceneId = value.resumeSceneId
+  const restoreState = value.restoreState
+  return typeof value.chapterId === 'number' && Number.isInteger(value.chapterId) && value.chapterId >= 1
+    && (resumeSceneId === null || typeof resumeSceneId === 'string')
+    && typeof restoreState === 'string'
+}
+
+function isChapterProgressResponse(value: unknown): value is ChapterProgressResponse {
+  return isObject(value) && (value.row === null || isChapterProgressRow(value.row))
 }
 
 function isOkResponse(value: unknown): value is OkResponse {
@@ -156,6 +170,21 @@ export function createHttpApiService(fetcher: typeof fetch = fetch): ApiService 
       await request('/api/basics-progress', {
         method: 'PUT',
         body: JSON.stringify({ rows }),
+      }, isOkResponse)
+    },
+    async getChapterProgress() {
+      return (await request('/api/chapter-progress', {}, isChapterProgressResponse)).row
+    },
+    async putChapterProgress(row) {
+      await request('/api/chapter-progress', {
+        method: 'PUT',
+        body: JSON.stringify({
+          row: {
+            chapterId: row.chapterId,
+            resumeSceneId: row.resumeSceneId,
+            restoreState: row.restoreState,
+          },
+        }),
       }, isOkResponse)
     },
   }
