@@ -18,7 +18,6 @@ export type DialoguePresenterProps = {
   onDone(): void
   onExit?: () => void
   doneLabel?: string
-  ariaLabel?: string
 }
 
 function tail() {
@@ -101,12 +100,8 @@ export function DialoguePresenter({
 
       <StageCast cast={displayCast} speaker={speaker} bubble={showBubble ? <Bubble line={line} /> : undefined} />
 
-      <button
-        type="button"
-        aria-label="下一句"
-        onClick={advance}
-        className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-      />
+      {/* 非交互指针层:整屏点击推进;不进 tab 序、无 aria(a11y/UX)。真实键盘/AT 出口 = 底部 Continue(z-20)。 */}
+      <div aria-hidden className="absolute inset-0 z-10 cursor-pointer" onClick={advance} />
 
       <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <span aria-hidden className="text-sm font-bold text-ink/70 drop-shadow">

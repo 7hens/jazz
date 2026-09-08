@@ -230,7 +230,8 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const speak: SpeakFn = (text, lang) => services.speech.speak(text, lang)
   const playSound = (cue: Parameters<AudioService['play']>[0]) => services.audio.play(cue)
 
-  /** 取本章词序的舞台词元素(dialogue/ending 整屏天空点灯用,语义同 SkyStrip)。 */
+  /** 取本章词序的舞台词元素(dialogue/ending 整屏天空点灯用)。
+   *  过渡期与旧 SkyStrip 的词点亮并存、值略异(SkyStrip 于 Plan 2 删除后自消),勿强改对齐。 */
   function skyWordsOf(): { id: number; emoji: string }[] {
     return chapter.wordIds
       .map((id) => services.vocabulary.wordById(id))
@@ -240,9 +241,6 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
 
   function sceneBody(current: Scene) {
     switch (current.kind) {
-      case 'dialogue':
-      case 'ending':
-        return <LineScene lines={current.lines} speakRole={speakRole} onDone={() => step({ type: 'advance' })} />
       case 'break':
         return <BreakScene onContinue={() => step({ type: 'advance' })} onExit={handleExit} />
       case 'task': {
@@ -355,7 +353,6 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         speakRole={speakRole}
         onDone={() => step({ type: 'advance' })}
         onExit={handleExit}
-        ariaLabel="千字谷台词"
       />
     )
   }
