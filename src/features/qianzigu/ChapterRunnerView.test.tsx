@@ -346,6 +346,8 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     }
     renderRunner(chapter)
     expect(screen.getByText('听!这是太阳的声音…')).toBeInTheDocument()
+    // 整屏舞台判别:DialoguePresenter/StageCast 才渲染角色旁泡(data-stage-bubble);旧卡片 LineScene 无此物
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
     expect(screen.queryByText('选出太阳的拼音')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '继续' }))
     expect(await screen.findByText('选出太阳的拼音')).toBeInTheDocument()

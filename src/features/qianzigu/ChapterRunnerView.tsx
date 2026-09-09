@@ -237,7 +237,7 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         <Button variant="ghost" size="icon" aria-label="返回地图" onClick={handleExit} className="absolute right-3 top-3 z-30">
           <X className="h-5 w-5" />
         </Button>
-        {/* 浮层体按 scene.id 重挂:连续同 kind(task/social/boss…)场景不串内部 UI 态(introDone/题面/session)。 */}
+        {/* 浮层体按 scene.id 重挂:连续同 kind(task/social/boss…)场景不串内部 UI 态(题面/session)。 */}
         <ScenePanel key={scene.id}>{body}</ScenePanel>
       </StageFrame>
     )
