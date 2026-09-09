@@ -260,7 +260,6 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
             skill={skill}
             makeQuestions={() => services.questionEngine.makeStepQuestions(word, skill, Math.random)}
             speak={speak}
-            speakRole={speakRole}
             playSound={playSound}
             onCorrect={handleTaskCorrect}
           />

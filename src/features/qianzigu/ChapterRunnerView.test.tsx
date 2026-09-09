@@ -353,6 +353,25 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(await screen.findByText('选出太阳的拼音')).toBeInTheDocument()
   })
 
+  it('task onDone 台词整屏对白,点继续进结算', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        { id: 't1', kind: 'task', title: '拯救声音', intro: [], task: { wordId: 1, layer: 'sound', minCorrect: 2 },
+          onDone: [{ role: 'lingling', text: '太棒了!' }] },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    answer('太阳')
+    answer('太阳')
+    expect(await screen.findByText('太棒了!')).toBeInTheDocument()
+    // onDone 收尾也是整屏 DialoguePresenter(角色旁泡 data-stage-bubble),非旧卡片 LineScene
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('第1章完成!')).toBeInTheDocument()
+  })
+
   it('BOSS 错满 → 勇气台词逐句出现、末句「回地图」;不再写后续词进度', async () => {
     const fakes = renderRunner(bossChapter())
 
