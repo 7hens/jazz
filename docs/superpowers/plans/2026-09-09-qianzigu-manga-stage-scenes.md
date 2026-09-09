@@ -567,6 +567,8 @@ git commit -m "refactor(qianzigu): onDone 整屏回归守卫 + 退役旧 LineSce
 ---
 ### Task 6: 全场景跑章手动走查 + 视觉打磨锚点
 
+> ⚠️ **执行次序(2026-09-09)**:spec §15 补充批(舞台布景实景化 + 太阳复原)将替换本批 StageSky 词点灯条视觉。**本走查延后到 backdrop plan(`2026-09-09-qianzigu-manga-stage-backdrop.md`)落地后一并做**,避免给将被替换的旧视觉走查两遍(见 spec §15.6)。延后期间本 Task 维持 pending。
+
 **Files:**
 - 不改代码为主;若人工走查发现配色/间距问题,改 `src/index.css`(`.stage-sky--*`、ScenePanel 间距)与少量 `stage.tsx` 类。
 
