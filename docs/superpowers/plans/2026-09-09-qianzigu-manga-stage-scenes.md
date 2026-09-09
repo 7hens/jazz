@@ -22,44 +22,45 @@
 
 ---
 
-### Task 1: 统一舞台壳(StageFrame + ScenePanel + 氛围点亮;删 Shell/SkyStrip)
+### Task 1: 统一舞台壳(StageFrame + ScenePanel + 氛围点亮;删 Shell/SkyStrip;BOSS 失败整屏化)
 
 **Files:**
 - Modify: `src/features/qianzigu/stage.tsx`(加 `ScenePanel`)
 - Test: `src/features/qianzigu/stage.test.tsx`(补 ScenePanel 用例)
-- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(渲染收敛)
-- Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`(适配)
+- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(渲染收敛;删 Shell/SkyStrip + 两个渲染助手)
+- Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`(适配 + 新增)
+- Modify: `src/features/qianzigu/scene-ui.tsx`(给 `BreakScene` 外层包一张 surface 卡,便于在夜景天空上阅读;仅此一处)
 
 **Interfaces:**
 - Consumes: Plan 1 `StageFrame/StageSky/DialoguePresenter`、`defaultAtmosphere`、chapter `stage?`。
 - Produces:
   - `ScenePanel({ children, className? }: { children: ReactNode; className?: string })`:舞台上的居中浮层面板(不透明浅底、圆角、内可滚动),用于承载任务/选项/结算等非对白内容。
-  - runner 内部收敛为:`renderDialogue(lines, opts)` 与 `stageChrome(children, atmosphere)` 两助手,见下。
+  - runner 内两个渲染助手 `renderDialogue(lines, opts)` 与 `renderStage(body, kind)`,见 Step 4。Task 2-5 复用。
 
-- [ ] **Step 1: 写失败测试(ScenePanel + 点亮氛围)**
+> **对账(core 落地后的事实,替代原草稿)**:`skyWordsOf()` 组件内已存在(复用,不新建);dialogue/ending 已整屏走 DialoguePresenter(抽进 renderDialogue);`pendingLines` 现走旧 `<LineScene>`(本 task 切 renderDialogue);`Shell`/`SkyStrip`/`LineScene`/`ROLE_META`/`ArrowLeft`/`cn` 在 runner 内的用途全部随之消失(一并删 import);**BOSS 失败分支仍返回旧 `Shell` 卡,必须在删 Shell 的同一 task 整屏化**,否则编译失败(原草稿把它留给 Task 4 是自相矛盾)。
 
-`stage.test.tsx` 追加:
+- [ ] **Step 1: 写失败测试(ScenePanel + task 屏氛围点亮)**
+
+`stage.test.tsx` 追加(ScenePanel 渲染内容于浮层)。现文件顶部是 `import { render, screen } from '@testing-library/react'` 与 `import { StageCast, StageSky } from './stage'` —— 只需把 `ScenePanel` 并入该 import,勿重复 import 行。
 
 ```tsx
-import { ScenePanel, StageFrame, StageSky } from './stage'
-
-it('ScenePanel: 渲染内容于可滚动浮层', () => {
-  const { container } = render(
-    <StageFrame>
-      <ScenePanel>
-        <span>答题卡内容</span>
-      </ScenePanel>
-    </StageFrame>,
-  )
-  expect(screen.getByText('答题卡内容')).toBeInTheDocument()
-  expect(container.querySelector('button')).toBeNull()
+describe('ScenePanel', () => {
+  it('渲染内容于可滚动浮层(自身无按钮)', () => {
+    const { container } = render(
+      <StageFrame>
+        <ScenePanel><span>答题卡内容</span></ScenePanel>
+      </StageFrame>,
+    )
+    expect(screen.getByText('答题卡内容')).toBeInTheDocument()
+    expect(container.querySelector('button')).toBeNull()
+  })
 })
 ```
 
-`ChapterRunnerView.test.tsx` 追加(接入 task 屏后天空点亮 + 浮层氛围):
+`ChapterRunnerView.test.tsx` 追加(task 屏整屏舞台化:氛围=scene.stage.atmosphere;作答后 sky 词随恢复档点亮):
 
 ```tsx
-it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后 sky 词点亮', async () => {
+it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后 sky 词随恢复档点亮', async () => {
   const chapter = {
     ...flowChapter(),
     scenes: [
@@ -72,22 +73,25 @@ it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后 sky 词点�
     ],
   }
   renderRunner(chapter)
-  const sky = document.querySelector('.stage-sky--night')
-  expect(sky).not.toBeNull()
+  // 场景 0 = task → 已走统一舞台壳,天空氛围 class 出现(非旧 Shell)
+  expect(document.querySelector('.stage-sky--night')).not.toBeNull()
   answer('太阳') // 现有 helper:点选项 → 确定
   answer('太阳')
-  // 词 1 恢复 2 次 → sky 词全亮
+  // 引擎仅记一层恢复(每层一条 restore entry)→ restoreCount=1 → 半亮档 opacity-70
   const word = document.querySelectorAll('.stage-word')[0] as HTMLElement
-  expect(word.className).toContain('opacity-100')
+  expect(word.className).toContain('opacity-70')
 })
 ```
+> 为什么不是 opacity-100:引擎 task 答对满 minCorrect 时只往 `restored` push **一条** `{wordId, layer}`(见 engine.ts task case);单层任务完成 → `restoreCount=1` → `StageSky` 给 `opacity-70 grayscale-[.55]`(半亮)。全亮(opacity-100)需同一词 sound+shape 两层都恢复(两条 entry),属 StageSky 单元测试已覆盖(见 stage.test.tsx),runner 集成测试只证「task 屏挂上了舞台壳 + 词随档点亮」。
 
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx src/features/qianzigu/stage.test.tsx`
-Expected: FAIL(ScenePanel 不存在;task 屏仍是旧 Shell,无 `.stage-sky--night`)。
+Expected: FAIL(`ScenePanel` 不存在;task 屏仍是旧 Shell,无 `.stage-sky--night`/`.stage-word`)。
 
-- [ ] **Step 3: stage.tsx 加 ScenePanel**
+- [ ] **Step 3: stage.tsx 加 ScenePanel + scene-ui BreakScene 补表面卡**
+
+stage.tsx 尾部新增:
 
 ```tsx
 /** 舞台浮层面板:内容叠在天空上,可纵向滚动(舞台帧本身不滚)。 */
@@ -101,36 +105,34 @@ export function ScenePanel({ children, className }: { children: ReactNode; class
   )
 }
 ```
-> ScenePanel 内部内容沿用现有卡片视觉(白底圆角)不必改观感;只把"放哪"改成舞台浮层。
 
-- [ ] **Step 4: 收敛 ChapterRunnerView 渲染(删 Shell/SkyStrip)**
-
-重构目标(替换文件尾部的 `Shell`/`SkyStrip`/`content` 渲染区):
-
-1. 删 `SkyStrip` 定义(其点亮语义已迁 StageSky)。词元素装配复用 helper:
+scene-ui.tsx `BreakScene` 返回外层包表面卡(旧 <main> 白底不再,夜景天空需不透明底才可读;保持内部内容/按钮不变):
 
 ```tsx
-function skyWords(chapter: Chapter): { id: number; emoji: string }[] {
-  return chapter.wordIds
-    .map((id) => services.vocabulary.wordById(id))
-    .filter((w): w is WordUnit => w !== undefined)
-    .map((w) => ({ id: w.id, emoji: w.emoji }))
-}
+return (
+  <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 text-center shadow-card">
+    {/* 原 flex flex-col items-center px-2 py-8 text-center 内容照搬至此内层 */}
+  </div>
+)
 ```
-(置于组件内,闭包拿 `services`;类型 `WordUnit` 已 import。)
 
-2. 定义两个渲染助手(组件内):
+- [ ] **Step 4: 收敛 ChapterRunnerView 渲染(删 Shell/SkyStrip;两助手;BOSS 失败整屏化)**
+
+当前结构(core 后):顶部模块级 `SkyStrip`(词点亮旧实现,语义已迁 StageSky)、文件尾 `Shell`(header+main 卡)、组件内已有 `skyWordsOf()` 与顶部 `scene` 变量、`pendingLines` 走 `<LineScene>`、BOSS 失败分支返回 `Shell` 卡。
+
+1. **删**模块级 `SkyStrip` 与文件尾 `Shell` 两个函数定义。
+2. **复用**组件内 `skyWordsOf()`(已存在,闭包拿 services),不新建词装配 helper。
+3. 组件内新增两个助手(闭包拿顶部 `scene`/`runState`/`services`;`scene` = `chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]`):
 
 ```tsx
-/** 整屏对话演出(自带 StageFrame):用在 dialogue/ending/intro/收尾 overlay。 */
-function renderDialogue(lines: readonly ChapterLine[], opts: { onDone: () => void; doneLabel?: string; onExit?: () => void } ) {
-  const scene = chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]
+/** 整屏对话演出(自带 StageFrame):dialogue/ending/pendingLines/各 scene intro/收尾 overlay 共用。 */
+function renderDialogue(lines: readonly ChapterLine[], opts: { onDone: () => void; doneLabel?: string; onExit?: () => void }) {
   return (
     <DialoguePresenter
       lines={lines}
       atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(scene.kind)}
       restored={runState.restored}
-      skyWords={skyWords(chapter)}
+      skyWords={skyWordsOf()}
       cast={scene.stage?.cast}
       speakRole={speakRole}
       onDone={opts.onDone}
@@ -140,14 +142,13 @@ function renderDialogue(lines: readonly ChapterLine[], opts: { onDone: () => voi
   )
 }
 
-/** 非对白屏的统一舞台壳:背景氛围 + 词点亮 + 退出钮 + 浮层面板。 */
+/** 非对白屏统一舞台壳:天空氛围 + 词点亮 + 右上退出 + 浮层面板。 */
 function renderStage(body: ReactNode, kind: SceneKind) {
-  const scene = chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]
   return (
     <StageFrame>
       <StageSky
         atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(kind)}
-        words={skyWords(chapter)}
+        words={skyWordsOf()}
         restored={runState.restored}
       />
       <Button variant="ghost" size="icon" aria-label="返回地图" onClick={handleExit} className="absolute right-3 top-3 z-30">
@@ -158,14 +159,19 @@ function renderStage(body: ReactNode, kind: SceneKind) {
   )
 }
 ```
-`X` 从 lucide import(现文件已 import `X`,`ArrowLeft`)。`SceneKind`/`ChapterLine` 从 `./chapter` import(现文件已 import 部分;补足)。
 
-3. 顶部渲染收敛(替换现 `content` + `return <Shell…>` 段):保留 BOSS 失败特殊分支(改走舞台化,见 Task 4)之外的通用:
+4. 顶部渲染收敛:把现「BOSS 失败分支(317-339)→ dialogue/ending 整屏(341-358)→ `content = pendingLines ? <LineScene> : sceneBody` + `return <Shell>…`(360-370)」整段替换为:
 
 ```tsx
-const scene = chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]
+// BOSS 失败:保留已恢复进度,播勇气台词后回地图(整屏;doneLabel 即「回地图」)。
+if (runState.finished && !runState.bossWon && scene.kind === 'boss') {
+  const lose = scene.lose.length > 0
+    ? scene.lose
+    : [{ role: 'lingling' as const, text: '已经很棒了!我们先回去休息,下次再来挑战!' }]
+  return renderDialogue(lose, { doneLabel: '回地图', onDone: handleExit, onExit: handleExit })
+}
 
-// 对话类整屏(含收尾 overlay lines):先于浮层判断
+// 收尾/叙事台词(pendingLines = task.onDone / boss.win)整屏优先于当前 scene —— 它们属上一幕叙事。
 if (pendingLines) {
   return renderDialogue(pendingLines, { onDone: () => setPendingLines(null) })
 }
@@ -174,67 +180,50 @@ switch (scene.kind) {
   case 'dialogue':
   case 'ending':
     return renderDialogue(scene.lines, { onDone: () => step({ type: 'advance' }), onExit: handleExit })
+  // task/social/boss/break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
   default:
-    return null // 具体在 sceneBody 里按 kind 返回(见后续 Task);此处由 sceneBody 决定 body
-}
-```
-而 `sceneBody` 改由 Task 2-5 逐 kind 收敛(本 task 先让 **break/settle** 两种走 `renderStage`):
-
-```tsx
-function sceneBody(current: Scene): ReactNode {
-  switch (current.kind) {
-    case 'break':
-      return renderStage(<BreakScene onContinue={() => step({ type: 'advance' })} onExit={handleExit} />, current.kind)
-    case 'settle': {
-      // …settle 现逻辑(5 词/星尘/结算卡)取 words/total/gained 不变…
-      return renderStage(
-        <SettleCard emoji={chapter.emoji} heading={`第${chapter.id}章完成!`} subtitle={`${chapter.title} · ${chapter.subtitle}`}
-          words={words} gainedStars={...} totalStars={...} summary={current.summary} speakRole={speakRole} onBack={handleSettled} />,
-        current.kind,
-      )
-    }
-    // task/social/boss 由 Task 2-4 接入;本 task 若中途提交,可先保留旧卡片返回(不改语义),最后统一。
-  }
+    return renderStage(sceneBody(scene), scene.kind)
 }
 ```
 
-> 过渡注:task/social/boss 若仍返回旧 `Shell`-样式卡片会导致运行器闪回旧壳;稳妥做法是本 task 先把 dialogue/ending/break/settle + pendingLines 切到新屏,**task/social/boss 暂时也并入 `renderStage`(body 用现有 TaskScene/SocialScene/BossScene 原样卡片,先不做 intro 拆移)**,使其视觉至少统一全屏化;intro 台词舞台化在 Task 2-4 再拆。据此本 task 的 `sceneBody` default 分支保持对 task/social/boss 原样调用 TaskScene/SocialScene/BossScene 并包 `renderStage`。删除 `Shell` 定义与 import 中不再用的 `glass-strong` 依赖(若有)。
+5. `sceneBody`(逐 kind 返回裸内容)保持不动即可被 default 分支包裹;**不要**在 sceneBody 内再加 frame/ScenePanel(避免双层)。
+6. **import 收敛**:scene-ui import 删 `LineScene`、`ROLE_META`(旧 BOSS 卡才用),留 `BossScene/BreakScene/SettleCard/SocialScene/TaskScene` 与类型 `SpeakFn/SpeakRoleFn`;lucide 删 `ArrowLeft`(仅 Shell 用)留 `X`;删 `cn`(仅 SkyStrip 用);`useRef` 仍用于 engineRef/currentStateRef/localProgressRef(保留)。
+
+> 过渡注(task/social/boss 的 intro 相):TaskScene/SocialScene/BossScene 现仍自带 intro 卡片(introDone state)——本 task **不拆**,它们被 renderStage 包成浮层卡片即先统一全屏视觉;intro 台词整屏舞台化在 Task 2-4 拆。本 task 只把 `pendingLines`(task onDone/boss win)与 BOSS 失败切整屏。
 
 - [ ] **Step 5: 跑测试确认通过 + 适配既有断言**
 
-Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx`
-Expected: 新用例 PASS。既有 7 例若因结构断言失败(SkyStrip/header 删除)逐条修复——断言多为文本/按钮,应多数自动通过;个别若引用 header 标题(第1章…)迁移到 sky 词或浮层面板内(如有则把期望改成该文本仍出现于 ScenePanel)。
+Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx src/features/qianzigu/stage.test.tsx`
+Expected: 新用例 PASS。既有用例多为文本/按钮断言,应自动通过;仅注意「dialogue 屏…旧 Shell 标题不再包裹」负断言(`queryByText(/千字谷 · 第1章/)` not in document)在删 Shell 后仍成立;BOSS 失败用例断言 `已经很棒了` + 按钮 `回地图` —— 新 renderDialogue 的 doneLabel=`回地图`,成立。
 
-Run: `npx vitest run src/features/qianzigu/stage.test.tsx && npm test`
-Expected: 全绿。
+Run: `npx tsc -b && npm test && npm run lint`
+Expected: 全绿、无未用 import/类型报错。
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/features/qianzigu/stage.tsx src/features/qianzigu/stage.test.tsx src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/ChapterRunnerView.test.tsx
-git commit -m "feat(qianzigu): runner 统一舞台壳(StageFrame+ScenePanel+氛围点亮,删 Shell/SkyStrip)"
+git add src/features/qianzigu/stage.tsx src/features/qianzigu/stage.test.tsx src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/ChapterRunnerView.test.tsx src/features/qianzigu/scene-ui.tsx
+git commit -m "feat(qianzigu): runner 统一舞台壳(StageFrame+ScenePanel+氛围点亮;删 Shell/SkyStrip;BOSS 失败整屏化)"
 ```
 
 ---
-
-### Task 2: task 屏首幕台词舞台化(runner 拆 intro → DialoguePresenter)
+### Task 2: task 屏首幕台词舞台化(runner 顶部开关拆 intro → DialoguePresenter)
 
 **Files:**
 - Modify: `src/features/qianzigu/scene-ui.tsx`(`TaskScene` 移除自身 intro 相,只留答题)
-- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(task case 管理 intro 状态)
+- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(顶部 switch 加 `case 'task':` intro 门;`sceneBody` task case 保留为答题体)
 - Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`(补 intro 用例)
-- Test: 若 `ChapterRunnerView.test` 有 task intro 相关旧断言则适配
 
 **Interfaces:**
-- Consumes: `DialoguePresenter`、`defaultAtmosphere`、`SceneKind/ChapterLine`。
-- Produces: runner 每 task scene 的"首幕已放行"本地记录(key=scene.id),答题相只出内容(交 `renderStage`)。
+- Consumes: Task 1 `renderDialogue/renderStage`(闭包)、顶部 `scene`/`runState` 变量、`sceneBody`。
+- Produces: runner 顶部开关 `case 'task'`:intro 空 → 直接 `renderStage(sceneBody(scene))`;非空且首幕未放行 → `renderDialogue(scene.intro)`。放行记录 = 组件内 `introPassed` state(`Record<sceneId, true>`)。
 
 - [ ] **Step 1: 写失败测试**
 
-`ChapterRunnerView.test.tsx` 追加:
+`ChapterRunnerView.test.tsx` 追加。关键断言 `灵灵` 名字牌:整屏 `DialoguePresenter` 才有 cast 站队(卡片 intro 无名字牌),故能区分「真·整屏」与「TaskScene 卡片内 intro」:
 
 ```tsx
-it('task 屏:先整屏台词演出 intro,点继续才出题', async () => {
+it('task 屏:先整屏台词演出 intro(cast 名字牌),点继续才出题', async () => {
   const chapter = {
     ...flowChapter(),
     scenes: [
@@ -249,6 +238,7 @@ it('task 屏:先整屏台词演出 intro,点继续才出题', async () => {
   renderRunner(chapter)
   expect(screen.getByText('听!这是太阳的声音…')).toBeInTheDocument()
   expect(screen.queryByText('选出太阳的拼音')).not.toBeInTheDocument()
+  expect(screen.getByText('灵灵')).toBeInTheDocument() // 整屏 cast 名字牌(card intro 无)→ 真·舞台化
   fireEvent.click(screen.getByRole('button', { name: '继续' }))
   expect(await screen.findByText('选出太阳的拼音')).toBeInTheDocument()
 })
@@ -257,98 +247,91 @@ it('task 屏:先整屏台词演出 intro,点继续才出题', async () => {
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx`
-Expected: FAIL(现 intro 走 TaskScene 内旧卡片对白,仍在答题前出现——但当前是旧卡片样式,尚无"先台词不出题"断言之外的问题;关键在于让新用例通过需要 runner 接管 intro)。
+Expected: FAIL 于 `getByText('灵灵')`(Task 1 后 intro 仍是 TaskScene 内卡片,无 cast 名字牌)。文本与「未出题」断言单独看会过(卡片 intro 也先显示台词、后出题)——**名字牌是决定性断言**。
 
 - [ ] **Step 3: scene-ui.tsx 瘦身 TaskScene**
 
-在 `TaskScene` 内删除"intro 相":去掉 `introDone` state、`if (!introDone) return <卡片+LineScene/>` 分支、`scene.intro` 读取;`title` 仍显示于答题标题行(保留)。`TaskScene` 签名去掉对 intro 的承载(保留原 props 其余不变),成为"纯答题交互卡"。
+删除 `TaskScene` 内 intro 相:去掉 `introDone` state、`if (!introDone) return <卡片+LineScene/>` 分支、对 `scene.intro` 的读取。保留 `title` 答题标题行、round/qIndex/questions/`QuestionCard` 逻辑。`TaskSceneProps` 不变(仍收 `scene`,答题仍读 `scene.task`;intro 字段不再被读,但数据里留着无妨)。
 
-- [ ] **Step 4: runner task case 接管 intro**
+- [ ] **Step 4: runner 顶部开关接管 intro(门在 switch,不入 sceneBody)**
 
-在 `ChapterRunnerView` 加一个本地 `const [introPassed, setIntroPassed] = useState<Record<string, boolean>>({})`。`sceneBody` 的 task case 改为:
+在 `ChapterRunnerView` 组件内 `pendingLines` state 旁新增:
+```tsx
+const [introPassed, setIntroPassed] = useState<Record<string, boolean>>({})
+```
+在顶部渲染 `switch (scene.kind)` 内、`default` 之前**新增 `case 'task':`**:
 
 ```tsx
 case 'task': {
-  const word = services.vocabulary.wordById(current.task.wordId)
-  if (!word) return null
-  if (!introPassed[current.id]) {
-    return renderDialogue(current.intro, {
-      onDone: () => setIntroPassed((m) => ({ ...m, [current.id]: true })),
+  // intro 空 → 直接出题;非空且首幕未放行 → 整屏对白;否则答题浮层。
+  if (scene.intro.length > 0 && !introPassed[scene.id]) {
+    return renderDialogue(scene.intro, {
+      onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
       onExit: handleExit,
     })
   }
-  const skill = layerToSkill(current.task.layer)
-  return renderStage(
-    <TaskScene
-      scene={current}
-      word={word}
-      skill={skill}
-      makeQuestions={() => services.questionEngine.makeStepQuestions(word, skill, Math.random)}
-      speak={speak}
-      speakRole={speakRole}
-      playSound={playSound}
-      onCorrect={handleTaskCorrect}
-    />,
-    current.kind,
-  )
+  return renderStage(sceneBody(scene), scene.kind)
 }
 ```
-> 引擎语义不变:TaskScene 仍以 `onCorrect` 对满 `minCorrect` 才 advance;intro 纯 UI 前置,不影响 `restore`/进度。
+> `sceneBody` 的 task case **保留不动**(它已构建答题体 `TaskScene`,只删其内部 intro 相);`length > 0 &&` 空 intro 守卫**必须**:否则空 intro 的 task 会先落入 DialoguePresenter 空态(单颗推进钮),破坏现流程测试「进 task 即出题」。引擎语义不变:intro 纯 UI 前置,不影响 restore/进度。
 
 - [ ] **Step 5: 跑测试确认通过 + 全量回归**
 
-Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx && npm test`
-Expected: 全绿(现有 task intro 多句的 ch1 数据要等 Plan 3 才进入 stage?不,ch1.ts 数据已是现内容,intro 数组即走 DialoguePresenter —— 本地 dev 可看;自动化 fixture 已覆盖)。
+Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx && npx tsc -b && npm test`
+Expected: 全绿(现 ch1 数据 intro 即走 DialoguePresenter;流程 fixture intro 空 → 守卫跳过直出题,旧断言不破)。
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/features/qianzigu/scene-ui.tsx src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/ChapterRunnerView.test.tsx
-git commit -m "feat(qianzigu): task 屏 intro 台词舞台化(runner 接管,TaskScene 瘦身为答题卡)"
+git commit -m "feat(qianzigu): task 屏 intro 整屏对白化(runner 顶部开关接管,TaskScene 瘦身为答题卡)"
 ```
 
 ---
-
 ### Task 3: social 屏舞台化(首幕 + 选项 + 收尾 onGood)
 
 **Files:**
-- Modify: `src/features/qianzigu/scene-ui.tsx`(`SocialScene` 改为只出"选项+两段确认+非 good 反馈"浮层体,删其内 intro/goodOverlay 全屏管理)
-- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(social case 管 intro 与 onGood 两段)
+- Modify: `src/features/qianzigu/scene-ui.tsx`(`SocialScene` 改为只出「选项+两段确认+非 good 反馈」;删 intro/goodOverlay 相;props 去 `lines`/`onGood`)
+- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(顶部 switch 加 `case 'social':`;`sceneBody` social case 更新到新 props)
 - Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`(social 用例适配/新增)
 
 **Interfaces:**
-- Consumes: 同上。
-- Produces: runner 对 social scene 的三相裁决:`lines` 首幕(整屏对白)→ 选项浮层 → 选 good 后 `onGood` 收尾(整屏对白)→ 引擎 `social-choose(good)` advance。
+- Consumes: `renderDialogue/renderStage`、`introPassed`(Task 2 已建)、`sceneBody`。
+- Produces: runner 对 social scene 三相裁决——`lines` 首幕整屏对白 → `SocialScene` 选项浮层 → 确认 good 后 `onGood` 整屏收尾 → `step({type:'social-choose'})` advance。放行记录:good 确认用组件内 `socialGoodAt`(`string|null`,值=scene.id)。
 
 - [ ] **Step 1: 写失败测试**
 
-`ChapterRunnerView.test.tsx` 新增(基于现 `socialChapter` fixture):
+`ChapterRunnerView.test.tsx` 新增(基于现 `socialChapter` fixture;`灵灵`/`月亮` 名字牌断言证「整屏舞台」):
 
 ```tsx
-it('social:哭诉首幕整屏对白 → 点继续出选项 → 两段确认 good → 播 onGood 收尾 → advance', async () => {
+it('social:哭诉首幕整屏对白 → 点继续出选项 → 两段确认 good → onGood 整屏收尾 → advance', async () => {
   renderRunner(socialChapter())
   expect(await screen.findByText('好孤单...')).toBeInTheDocument()
+  expect(screen.getByText('月亮')).toBeInTheDocument() // 首幕整屏 cast 名字牌
   fireEvent.click(screen.getByRole('button', { name: '继续' }))
   expect(await screen.findByText('你想怎么做?')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: '我也喜欢你!' })) // 首点=朗读/待确认
   fireEvent.click(screen.getByRole('button', { name: '我也喜欢你!' })) // 再点=确认 good
-  expect(await screen.findByText('真的吗?谢谢你!')).toBeInTheDocument() // onGood 收尾
+  expect(await screen.findByText('真的吗?谢谢你!')).toBeInTheDocument() // onGood 整屏收尾
+  expect(screen.getByText('月亮')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: '继续' }))
   expect(await screen.findByText('继续前进!')).toBeInTheDocument() // 下一 dialogue
 })
 ```
-(若现两段式标签文案是「再点一下选它」提示而非重复点同名按钮,以现有 `handleOptionTap` 语义为准——现实现:首点进入 pending、再点同一项确认。上文两击同名按钮即此语义。)
 
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx`
-Expected: FAIL(现 SocialScene 内 intro 是卡片对白、goodOverlay 也是卡片内对白,非整屏对白;断言以新形态为准)。
+Expected: FAIL 于首幕 `getByText('月亮')`(Task 2 后 social intro 仍为 SocialScene 内卡片,无 cast 名字牌)。既有 social 两例仍绿(Task 2 未动 social 渲染路径)。
 
-- [ ] **Step 3: 拆 SocialScene**
+- [ ] **Step 3: 拆 SocialScene(scene-ui.tsx)**
 
-`SocialScene` 删:自身 `introDone`/`goodOverlay` 的**整屏管理**(`if (!introDone)` 分支返回卡片对白、`goodOverlay` 分支返回卡片收尾),保留:
-- 选项列表(两段式 pending 确认)、非 good 的 feedback(后果 + loop 引导,停留)。
-组件签名去掉对 `lines`/`onGood` 的整屏承载,新增 props:
+`SocialScene` 删 intro 相与 goodOverlay 相:
+- 删 `introDone` state、`if (!introDone) return <卡片+LineScene/>` 分支;
+- 删 `goodOverlay` state 与其 `<卡片+LineScene onDone={onChooseGood}>` 分支;
+- 保留:选项列表(两段式 pendingId 确认)、非 good feedback(后果台词 + loop 引导,停留重弹)。确认 good → `playSound('correct')` 后**直接 `onChooseGood()`**(不再内播收尾、不再 speak response)。
+
+签名改为(去掉 `lines`/`onGood` 承载):
 ```tsx
 export type SocialSceneProps = {
   options: readonly SceneOption[]
@@ -356,74 +339,82 @@ export type SocialSceneProps = {
   loop: readonly ChapterLine[]
   speakRole: SpeakRoleFn
   playSound(cue: AudioCue): void
-  onChooseGood(): void       // 确认 good 后由 runner 进入 onGood 收尾
+  onChooseGood(): void       // 确认 good 后由 runner 进入 onGood 整屏收尾
 }
 ```
-内部:保留 feedback(非 good)、pending 两段式;确认 good → 直接调 `onChooseGood`(runner 改播 onGood),不再内播 goodOverlay。
 
-- [ ] **Step 4: runner social case 三相裁决**
+- [ ] **Step 4: runner 三相裁决(顶部 case 'social')**
 
-在 runner 加本地状态 `const [socialGood, setSocialGood] = useState(false)`(或并入 map,按 scene.id 防同场景重玩残留)。`sceneBody` 的 social case:
+`ChapterRunnerView` 顶部 state 旁新增 `const [socialGoodAt, setSocialGoodAt] = useState<string | null>(null)`。顶部 `switch (scene.kind)` 内、`default` 前**新增 `case 'social':`**:
 
 ```tsx
 case 'social': {
-  if (!introPassed[current.id]) {
-    return renderDialogue(current.lines, {
-      onDone: () => setIntroPassed((m) => ({ ...m, [current.id]: true })),
+  // 首幕哭诉整屏 → 选项浮层 → 确认 good 后 onGood 整屏收尾(advance 由 onDone 触发)。
+  if (scene.lines.length > 0 && !introPassed[scene.id]) {
+    return renderDialogue(scene.lines, {
+      onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
       onExit: handleExit,
     })
   }
-  if (socialGood) {
-    return renderDialogue(current.onGood, {
-      onDone: () => step({ type: 'social-choose', optionId: current.goodOptionId }),
+  if (socialGoodAt === scene.id) {
+    return renderDialogue(scene.onGood, {
+      onDone: () => step({ type: 'social-choose', optionId: scene.goodOptionId }),
       onExit: handleExit,
     })
   }
-  return renderStage(
+  return renderStage(sceneBody(scene), scene.kind)
+}
+```
+
+`sceneBody` 的 social case 同步更新到新 props(去 `lines`/`onGood`,`onChooseGood` 置 `socialGoodAt`):
+
+```tsx
+case 'social':
+  return (
     <SocialScene
       options={current.options}
       goodOptionId={current.goodOptionId}
       loop={current.loop}
       speakRole={speakRole}
       playSound={playSound}
-      onChooseGood={() => setSocialGood(true)}
-    />,
-    current.kind,
+      onChooseGood={() => setSocialGoodAt(current.id)}
+    />
   )
-}
 ```
+> 非 good 语义不变:引擎停在 social scene(`social-choose` 非 good 被引擎忽略),feedback 停留重弹。两段式首点仅朗读、再点确认的行为保留在 SocialScene 内。
 
 - [ ] **Step 5: 跑测试确认通过 + 全量回归**
 
-Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx && npm test`
-Expected: 全绿(旧 social 断言:现测试在 social 两段 bad→仍停留、good→推进 已覆盖,适配点差=按钮/文案断言对照上面语义微调)。
+Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx && npx tsc -b && npm test`
+Expected: 全绿(social 旧两例断言适配点:确认 good 后不再是卡片 overlay 而是整屏——它们断言文本与按钮名,不受影响;新增用例证整屏)。
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/features/qianzigu/scene-ui.tsx src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/ChapterRunnerView.test.tsx
-git commit -m "feat(qianzigu): social 屏舞台化(首幕/选项/onGood 三相;SocialScene 瘦身)"
+git commit -m "feat(qianzigu): social 屏舞台化(首幕/选项/onGood 三相整屏,SocialScene 瘦身)"
 ```
 
 ---
-
 ### Task 4: boss 屏舞台化(静默登台 + intro/win/lose 对白化)
 
 **Files:**
-- Modify: `src/features/qianzigu/scene-ui.tsx`(`BossScene` 删 intro 相;留纯 BOSS 题卡)
-- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(boss case + win/lose overlay + BOSS 失败分支舞台化)
+- Modify: `src/features/qianzigu/scene-ui.tsx`(`BossScene` 删 intro 相与 `intro` prop;留纯 BOSS 题卡)
+- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(顶部 switch 加 `case 'boss':`;`sceneBody` boss case 去掉 `intro` prop)
 - Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`
 
 **Interfaces:**
-- Consumes: `renderDialogue/renderStage`、`runState.bossWon/finished`。
-- Produces: boss 屏裁决——`intro` 首幕对白 → BOSS 题浮层 → 全对触发引擎 `bossWon` 后播 `win` overlay → 前进;错满 `maxWrong` 引擎 `finished&&!bossWon` → 播 `lose` 整屏 + 「回地图」。
+- Consumes: `renderDialogue/renderStage`、`introPassed`、`runState.bossWon/finished`、`sceneBody`。
+- Produces: boss 屏裁决——`intro` 首幕整屏对白 → BOSS 题浮层 → 全对引擎 `bossWon` 后播 `win`(Task 1 已把 win overlay 走 `pendingLines` → renderDialogue,本 task 不动)→ 前进;错满 `maxWrong` 引擎 `finished && !bossWon` → `lose` 整屏 + 「回地图」(Task 1 已整屏化,本 task 不动)。
+
+> **对账**:BOSS win/lose 两个 overlay 都已在 Task 1 走 `renderDialogue`(win = `setPendingLines(beforeScene.win)`、lose = 顶部 finished 分支 `doneLabel:'回地图'`)。本 task 只补:BossScene 去 intro、runner 顶部 `case 'boss'` 管 intro 门。
 
 - [ ] **Step 1: 写失败测试**
 
-沿用现 `bossChapter`(intro 空)。追加:
+沿用现 `bossChapter`(intro 空)。追加(有 intro 的 fixture 走整屏登台):
 
 ```tsx
-it('boss:win 收尾台词整屏对白,点继续后进入下一屏', async () => {
+it('boss:intro 整屏对白 → 点继续出题 → 答对触发 win 整屏 → 点继续进下一屏', async () => {
   const chapter = {
     ...bossChapter(),
     scenes: [
@@ -434,10 +425,11 @@ it('boss:win 收尾台词整屏对白,点继续后进入下一屏', async () => 
   }
   renderRunner(chapter)
   expect(await screen.findByText('我是静默!')).toBeInTheDocument() // intro 整屏
+  expect(screen.getByText('静默')).toBeInTheDocument() // cast 名字牌(jingmo → 静默)
   fireEvent.click(screen.getByRole('button', { name: '继续' }))
   expect(await screen.findByText('BOSS · 静默')).toBeInTheDocument() // 题卡徽章
   answer('太阳')
-  expect(await screen.findByText('不可能...!')).toBeInTheDocument() // win overlay
+  expect(await screen.findByText('不可能...!')).toBeInTheDocument() // win 整屏(静默落败台词)
   fireEvent.click(screen.getByRole('button', { name: '继续' }))
   expect(await screen.findByText('继续前进!')).toBeInTheDocument()
 })
@@ -446,27 +438,36 @@ it('boss:win 收尾台词整屏对白,点继续后进入下一屏', async () => 
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx`
-Expected: FAIL(现 intro 是卡片对白;BossScene 内含 intro 相)。
+Expected: FAIL 于首幕 `getByText('静默')`(Task 3 后 boss intro 仍为 BossScene 内卡片,无 cast 名字牌)。既有「BOSS 错满」用例仍绿(Task 1 已把失败分支整屏化)。
 
-- [ ] **Step 3: 拆 BossScene**
+- [ ] **Step 3: 拆 BossScene(scene-ui.tsx)**
 
-删 `BossScene` 的 `introDone` 与 `if (!introDone) return <卡片+LineScene>` 分支,保留纯 BOSS 题卡(BOSS 徽章「BOSS · 静默」+ `QuestionCard`)。签名去掉 intro 承载(其余不变)。
+删 `BossScene` 的 `introDone` state、`if (!introDone) return <卡片+LineScene doneLabel="开始挑战">` 分支、以及 `intro` prop(**签名去 `intro`,其余不变**)。保留纯 BOSS 题卡:`BOSS · 静默` 徽章 + `QuestionCard`(retryLabel `下一题`、pick/session 轮换)。
 
-- [ ] **Step 4: runner boss case + win/lose**
+- [ ] **Step 4: runner 顶部 case 'boss' + sceneBody 更新**
 
-1. 现 runner 处理 BOSS win 是 `pendingLines = beforeScene.win`,那套已并入本 Task 的整屏对白渲染(`pendingLines` → `renderDialogue`),无需改,但确认 `setPendingLines(beforeScene.win)` 保留。
-2. boss case:
+顶部 `switch (scene.kind)` 内、`default` 前**新增 `case 'boss':`**:
 
 ```tsx
 case 'boss': {
-  if (!introPassed[current.id]) {
-    return renderDialogue(current.intro, {
-      onDone: () => setIntroPassed((m) => ({ ...m, [current.id]: true })),
+  if (scene.intro.length > 0 && !introPassed[scene.id]) {
+    return renderDialogue(scene.intro, {
+      onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
       onExit: handleExit,
     })
   }
-  const pool = chapter.wordIds.map((id) => services.vocabulary.wordById(id)).filter((w): w is WordUnit => w !== undefined)
-  return renderStage(
+  return renderStage(sceneBody(scene), scene.kind)
+}
+```
+
+`sceneBody` 的 boss case 去掉 `intro={current.intro}`(BossScene 已无该 prop;body 其余不变):
+
+```tsx
+case 'boss': {
+  const pool = chapter.wordIds
+    .map((id) => services.vocabulary.wordById(id))
+    .filter((w): w is WordUnit => w !== undefined)
+  return (
     <BossScene
       wordPool={pool}
       makeQuestion={(word, skill) => services.questionEngine.makeStepQuestions(word, skill, Math.random)[0]}
@@ -475,51 +476,42 @@ case 'boss': {
       playSound={playSound}
       onBossCorrect={handleBossCorrect}
       onBossWrong={handleBossWrong}
-    />,
-    current.kind,
+    />
   )
 }
 ```
 
-3. BOSS 失败分支(现文件顶部 `if (runState.finished && !runState.bossWon && scene.kind==='boss')` 返回 Shell 卡)改为整屏对白 + 回地图:
-
-```tsx
-if (runState.finished && !runState.bossWon && scene.kind === 'boss') {
-  const lose = scene.lose.length > 0 ? scene.lose : [{ role: 'lingling', text: '已经很棒了!先回去休息,下次再来挑战!' }]
-  return renderDialogue(lose, { doneLabel: '回地图', onDone: handleExit, onExit: handleExit })
-}
-```
-
-> 保持"失败保留进度、播勇气台词后回地图"语义(引擎 finished 已真,`restore` 保留)。
+> BOSS win/lose overlay 已由 Task 1 承载,勿重复处理。保持"失败保留进度、播勇气台词后回地图"语义(引擎 finished 已真,restore 保留)。
 
 - [ ] **Step 5: 跑测试确认通过 + 全量回归**
 
-Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx && npm test`
+Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx && npx tsc -b && npm test`
 Expected: 全绿(boss 流程既有断言适配;`questionCount:1` fixture 下 answer 一次即 win)。
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/features/qianzigu/scene-ui.tsx src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/ChapterRunnerView.test.tsx
-git commit -m "feat(qianzigu): boss 屏舞台化(静默 intro/win/lose 对白 + 失败保留回地图)"
+git commit -m "feat(qianzigu): boss 屏舞台化(静默 intro/win/lose 整屏对白;BossScene 去 intro)"
 ```
 
 ---
-
-### Task 5: onDone/收尾 overlay 统一 + 断点/结算舞台壳收口
+### Task 5: 收尾回归守卫 + 死代码清理(LineScene 退役确认;断点/结算壳复查)
 
 **Files:**
-- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(pendingLines → renderDialogue;清理残留)
-- Modify: `src/features/qianzigu/scene-ui.tsx`(若 `ROLE_META` 仅余旧引用则保留;不做删除)
-- Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`(断言收尾/断点/结算)
+- Modify: `src/features/qianzigu/scene-ui.tsx`(Task 2-4 后 `LineScene`/`LineBubble` 已无引用 → 删定义;`ROLE_META` 保留,scene-ui feedback 与 stage.tsx StageCast 仍在用)
+- Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`(补 task onDone 整屏 + 结算回归守卫)
+- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(若 scene-ui 删除后仍有 import 残留则清)
 
 **Interfaces:**
-- Consumes: 前 4 task。
-- Produces: `pendingLines`(task onDone、boss win)统一整屏对白;break 走夜景浮层;settle 走彩化天空结算;无旧 Shell 残留。
+- Consumes: Task 1-4 产物(renderDialogue/renderStage、顶部开关各 case、sceneBody 各 case)。
+- Produces: 收口——task onDone overlay 走整屏(防回归)、break 夜景浮层 + settle 彩化天空仍在、qianzigu 内无旧 `LineScene`/`Shell`/`SkyStrip` 残留。
 
-- [ ] **Step 1: 写失败测试(收尾 overlay 整屏 + 结算仍在)**
+> **对账**:`pendingLines` → `renderDialogue`、break/settle 进 `renderStage` 都已在 Task 1 完成;本 task 不重做,只加回归守卫并清残留。
 
-现有测试已含 onDone/结算流程断言(`「大山那边有什么呢」`、`「第1章完成!」`)。本 task 补一条确保 task onDone 台词整屏出现后才进下一屏:
+- [ ] **Step 1: 写回归守卫(task onDone 整屏后进结算)**
+
+`ChapterRunnerView.test.tsx` 追加(task.onDone 非空时,答满后先整屏 onDone 台词,点继续才到结算):
 
 ```tsx
 it('task onDone 台词整屏对白,点继续进结算', async () => {
@@ -534,45 +526,45 @@ it('task onDone 台词整屏对白,点继续进结算', async () => {
   renderRunner(chapter)
   answer('太阳')
   answer('太阳')
-  expect(await screen.findByText('太棒了!')).toBeInTheDocument()
+  expect(await screen.findByText('太棒了!')).toBeInTheDocument() // onDone 整屏(renderDialogue)
+  expect(screen.getByText('灵灵')).toBeInTheDocument() // 整屏 cast 名字牌(非旧 LineScene)
   fireEvent.click(screen.getByRole('button', { name: '继续' }))
-  expect(await screen.findByText('第1章完成!')).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: '第1章完成!' })).toBeInTheDocument() // 结算仍在
 })
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [ ] **Step 2: 跑测试确认通过(守卫本应已绿)**
 
 Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx`
-Expected: 现状 pendingLines 走旧 `LineScene`(非整屏)——用例在 onDone 渲染语义上应能过(文本出现),若已过则此用例作**回归保护**;关键新意是把它切换成 `renderDialogue` 后仍绿。若首跑即绿可跳到 Step 3,用 Step 1 当防回归用例。
+Expected: 本用例 **PASS**(Task 1 已把 pendingLines 切 renderDialogue——此用例是防回归守卫,不要求先红)。若红 → 说明 Task 1 的 pendingLines 整屏化未生效,先查 runner 顶部 `pendingLines` 分支。
 
-- [ ] **Step 3: pendingLines 改走 renderDialogue**
+- [ ] **Step 3: 清理 scene-ui 死代码**
 
-把渲染区 `content = pendingLines ? <LineScene …/> : sceneBody(scene)` 改为统一在上层:
+Task 2-4 已把 TaskScene/SocialScene/BossScene 的 intro/goodOverlay 相都改为整屏(或移除),qianzigu 内 `LineScene` 与 `LineBubble`(scene-ui 顶部的逐句台词卡 + 其角色泡)应已无引用。确认:
 
-```tsx
-const scene = chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]
-if (pendingLines) return renderDialogue(pendingLines, { onDone: () => setPendingLines(null) })
+```bash
+grep -rn "LineScene" src/features/qianzigu/ || echo "no LineScene refs"
 ```
-并确认 dialogue/ending/task-intro/social-onGood/boss-intro 各处优先于此裁决(Task 2-4 已各自在 sceneBody 内,顺序:先 pendingLines,再按 scene.kind 分派)。删除对 `LineScene` 的引用(整仓 qianzigu 内不再用旧 LineScene 时,可一并删 scene-ui 的 LineScene/LineBubble 定义;若尚有 TaskScene 等残留引用先清理)。
 
-- [ ] **Step 4: break/settle 外壳确认**
+无引用则删 `scene-ui.tsx` 中 `LineScene` 与 `LineBubble` 定义(连同 `LineBubble` 顶部的 import 若只剩它用)。**`ROLE_META` 勿删**(SocialScene feedback 与 stage.tsx StageCast 仍用)。若 grep 仍有引用 → 停,查引用方(不该有,若有则是某 task 漏拆,先处理再删)。
 
-`break` → `renderStage(<BreakScene …/>, 'break')` 已是 Task 1;断点语义(继续 → advance;明天再来 → 落库回地图 `handleExit`)不动。`settle` 同理。跑全量确认无旧 `Shell` 引用(TypeScript 报错即删净)。
+- [ ] **Step 4: 复查 break/settle 外壳 + import 收敛**
 
-- [ ] **Step 5: 全量回归 + tsc**
+确认 runner 顶部:break/settle 由 `default: renderStage(sceneBody(scene), scene.kind)` 承载,断点语义(继续 → advance;明天再来 → 落库回地图 `handleExit`)与 settle(彩化天空 + 结算卡 + onBack `handleSettled`)未回归;runner import 无 `LineScene`/`Shell`/`SkyStrip`/`ROLE_META` 残留(TypeScript 报错即删净)。
 
-Run: `npx tsc -b && npm test`
-Expected: 全绿;无未用 import 告警残留(oxlint 会查,`npm run lint` 过)。
+- [ ] **Step 5: 全量回归 + tsc + lint**
+
+Run: `npx tsc -b && npm test && npm run lint`
+Expected: 全绿;无未用 import/死代码告警。
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/scene-ui.tsx src/features/qianzigu/ChapterRunnerView.test.tsx
-git commit -m "feat(qianzigu): pendingLines/onDone 统一整屏对白 + 断点结算舞台壳收口"
+git add src/features/qianzigu/ChapterRunnerView.test.tsx src/features/qianzigu/scene-ui.tsx src/features/qianzigu/ChapterRunnerView.tsx
+git commit -m "refactor(qianzigu): onDone 整屏回归守卫 + 退役旧 LineScene/LineBubble"
 ```
 
 ---
-
 ### Task 6: 全场景跑章手动走查 + 视觉打磨锚点
 
 **Files:**
