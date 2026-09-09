@@ -18,7 +18,7 @@ import { Button } from '@/shared/ui/button'
 import type { Chapter, ChapterLine, Scene, SceneKind, WordLayer } from './chapter'
 import { DialoguePresenter } from './DialoguePresenter'
 import { ScenePanel, StageFrame, StageSky } from './stage'
-import { defaultAtmosphere } from './stage-meta'
+import { defaultAtmosphere, progressFraction } from './stage-meta'
 import { createChapterRunner, type Runner, type RunnerAction, type RunnerState } from './engine'
 import {
   layerToSkill,
@@ -123,6 +123,9 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const settingsRef = useRef(services.settings.getSnapshot().data)
 
   const scene = chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]
+  // 布景复原进度 = 已 restored 层数 / 章内 task 层总数(词点灯条退役后改喂太阳档 + 世界回春)。
+  const taskLayerCount = chapter.scenes.filter((s) => s.kind === 'task').length
+  const skyFraction = progressFraction(runState.restored.length, taskLayerCount)
 
   function restoreSkill(wordId: number, layer: WordLayer) {
     const prev = localProgressRef.current[wordId]
@@ -201,14 +204,6 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const speak: SpeakFn = (text, lang) => services.speech.speak(text, lang)
   const playSound = (cue: Parameters<AudioService['play']>[0]) => services.audio.play(cue)
 
-  /** 取本章词序的舞台词元素(dialogue/ending 整屏天空点灯用)。 */
-  function skyWordsOf(): { id: number; emoji: string }[] {
-    return chapter.wordIds
-      .map((id) => services.vocabulary.wordById(id))
-      .filter((w): w is WordUnit => w !== undefined)
-      .map((w) => ({ id: w.id, emoji: w.emoji }))
-  }
-
   /** 整屏对话演出(自带 StageFrame):dialogue/ending/pendingLines/各 scene intro/收尾 overlay 共用。 */
   function renderDialogue(lines: readonly ChapterLine[], opts: { onDone: () => void; doneLabel?: string; onExit?: () => void }) {
     return (
@@ -216,8 +211,7 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         key={scene.id}
         lines={lines}
         atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(scene.kind)}
-        restored={runState.restored}
-        skyWords={skyWordsOf()}
+        fraction={skyFraction}
         cast={scene.stage?.cast}
         speakRole={speakRole}
         onDone={opts.onDone}
@@ -227,15 +221,11 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     )
   }
 
-  /** 非对白屏统一舞台壳:天空氛围 + 词点亮 + 右上退出 + 浮层面板。 */
+  /** 非对白屏统一舞台壳:实景布景 + 右上退出 + 浮层面板。 */
   function renderStage(body: ReactNode, kind: SceneKind) {
     return (
       <StageFrame>
-        <StageSky
-          atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(kind)}
-          words={skyWordsOf()}
-          restored={runState.restored}
-        />
+        <StageSky atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(kind)} fraction={skyFraction} />
         <Button variant="ghost" size="icon" aria-label="返回地图" onClick={handleExit} className="absolute right-3 top-3 z-30">
           <X className="h-5 w-5" />
         </Button>

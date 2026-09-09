@@ -321,26 +321,29 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(screen.queryByText('拯救声音')).not.toBeInTheDocument()
   })
 
-  it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后 sky 词随恢复档点亮', async () => {
+  it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后布景太阳随进度复原', async () => {
     const chapter: Chapter = {
       ...flowChapter(),
       scenes: [
         {
           id: 't1', kind: 'task', title: '拯救声音', intro: [],
           task: { wordId: 1, layer: 'sound', minCorrect: 2 }, onDone: [],
-          stage: { atmosphere: 'night' as const, cast: ['lingling'] },
+          stage: { atmosphere: 'dusk' as const, cast: ['lingling'] },
         },
         { id: 'settle', kind: 'settle', summary: [] },
       ],
     }
     renderRunner(chapter)
-    // 场景 0 = task → 已走统一舞台壳,天空氛围 class 出现(非旧 Shell)
-    expect(document.querySelector('.stage-sky--night')).not.toBeNull()
+    // 场景 0 = task → 已走统一舞台壳,天空氛围 class 出现(dusk ≠ task 默认 dawn → 证明 override)
+    expect(document.querySelector('.stage-sky--dusk')).not.toBeNull()
+    // 词点灯条退役:布景层不再渲染任何 .stage-word
+    expect(document.querySelector('.stage-word')).toBeNull()
+    // 进度 0 → 太阳位 = 烧焦蛋档(非 dusk 真夜,太阳仍挂天幕)
+    expect(document.querySelector('.stage-sun--burnt')).not.toBeNull()
     answer('太阳') // 现有 helper:点选项 → 确定
     answer('太阳')
-    // 引擎仅记一层恢复(每层一条 restore entry)→ restoreCount=1 → 半亮档 opacity-70
-    const word = document.querySelectorAll('.stage-word')[0] as HTMLElement
-    expect(word.className).toContain('opacity-70')
+    // 引擎仅记一层恢复(task 场景 1 层)→ fraction=restored/总层=1 → 太阳复原到 full 档
+    expect(document.querySelector('.stage-sun--full')).not.toBeNull()
   })
 
   it('task 屏:先整屏台词演出 intro,点继续才出题', async () => {

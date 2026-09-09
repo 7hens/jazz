@@ -25,3 +25,14 @@ export const SUN_STAGE_EMOJI: Record<SunStage, { emoji: string; className?: stri
 export function worldDesatClass(fraction: number): string {
   return fraction >= 0.8 ? '' : fraction >= 0.5 ? 'stage-world--half' : fraction >= 0.2 ? 'stage-world--light' : 'stage-world--dim'
 }
+
+/** 布景元素位图映射(位置接缝:换位图/改元素只改此表 + index.css token,组件零改)。 */
+export const STAGE_BODIES = {
+  clouds: '☁️  ☁️  ☁️  ☁️',
+  moon: '🌙',
+  stars: '⭐ ✨',
+  mountains: '⛰️ ⛰️ ⛰️',
+  village: '🏠 🏘️ 🌳',
+  river: '🏞️',
+  waves: '💧 🌊 💧',
+} as const

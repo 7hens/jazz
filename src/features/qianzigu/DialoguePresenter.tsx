@@ -11,8 +11,8 @@ import { moodBorder } from './stage-visuals'
 export type DialoguePresenterProps = {
   lines: readonly ChapterLine[]
   atmosphere: AtmosphereKey
-  restored?: ReadonlyArray<{ wordId: number }>
-  skyWords?: ReadonlyArray<{ id: number; emoji: string }>
+  /** 布景复原进度(0..1;驱动太阳 4 档 + 世界回春)。缺省 0 = 烧焦蛋/满灰;runner 已喂真值。 */
+  fraction?: number
   cast?: readonly SpeechRole[]
   speakRole(text: string, role: SpeechRole): boolean
   onDone(): void
@@ -45,8 +45,7 @@ function Bubble({ line }: { line: ChapterLine }) {
 export function DialoguePresenter({
   lines,
   atmosphere,
-  restored,
-  skyWords,
+  fraction = 0,
   cast,
   speakRole,
   onDone,
@@ -83,7 +82,7 @@ export function DialoguePresenter({
 
   return (
     <StageFrame>
-      <StageSky atmosphere={atmosphere} words={skyWords ?? []} restored={restored} />
+      <StageSky atmosphere={atmosphere} fraction={fraction} />
       {onExit ? (
         <Button variant="ghost" size="icon" aria-label="返回地图" onClick={onExit} className="absolute left-3 top-3 z-20">
           <ArrowLeft className="h-5 w-5" />
