@@ -23,6 +23,7 @@ export const CHAPTER_1: Chapter = {
     {
       id: 'open',
       kind: 'dialogue',
+      stage: { sky: ['sun'] },
       lines: [
         { role: 'lingling', text: '欢迎来到千字谷——锵锵锵！' },
         { role: 'lingling', text: '这可是世界上最热闹的山谷！' },
@@ -113,6 +114,7 @@ export const CHAPTER_1: Chapter = {
     {
       id: 'social-moon',
       kind: 'social',
+      stage: { atmosphere: 'night', cast: ['lingling', 'moon'] },
       lines: [
         { role: 'lingling', text: '咦...月亮在哭...' },
         { role: 'moon', text: '大家都喜欢太阳...没有人喜欢我...' },
