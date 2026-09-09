@@ -310,7 +310,29 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(screen.queryByText('拯救声音')).not.toBeInTheDocument()
   })
 
-  it('BOSS 错满 → 勇气台词出现、不再写后续词进度', async () => {
+  it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后 sky 词随恢复档点亮', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音', intro: [],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 }, onDone: [],
+          stage: { atmosphere: 'night' as const, cast: ['lingling'] },
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    // 场景 0 = task → 已走统一舞台壳,天空氛围 class 出现(非旧 Shell)
+    expect(document.querySelector('.stage-sky--night')).not.toBeNull()
+    answer('太阳') // 现有 helper:点选项 → 确定
+    answer('太阳')
+    // 引擎仅记一层恢复(每层一条 restore entry)→ restoreCount=1 → 半亮档 opacity-70
+    const word = document.querySelectorAll('.stage-word')[0] as HTMLElement
+    expect(word.className).toContain('opacity-70')
+  })
+
+  it('BOSS 错满 → 勇气台词逐句出现、末句「回地图」;不再写后续词进度', async () => {
     const fakes = renderRunner(bossChapter())
 
     // 先完成词 1 pinyin(saveStep 1 次)
@@ -323,9 +345,12 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     bossWrong()
     bossWrong()
 
+    // BOSS 失败走整屏对白:首句勇气台词即现;逐句推进后末句 doneLabel=「回地图」
     expect(await screen.findByText(/已经很棒了/)).toBeInTheDocument()
     // 前面任务已保留;BOSS 本身不写任何词进度
     expect(fakes.saveStep).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(screen.getByText(/我们先回去休息/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '回地图' })).toBeInTheDocument()
   })
 })

@@ -1,6 +1,18 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { StageCast, StageSky } from './stage'
+import { ScenePanel, StageCast, StageFrame, StageSky } from './stage'
+
+describe('ScenePanel', () => {
+  it('渲染内容于可滚动浮层(自身无按钮)', () => {
+    const { container } = render(
+      <StageFrame>
+        <ScenePanel><span>答题卡内容</span></ScenePanel>
+      </StageFrame>,
+    )
+    expect(screen.getByText('答题卡内容')).toBeInTheDocument()
+    expect(container.querySelector('button')).toBeNull()
+  })
+})
 
 describe('StageSky', () => {
   it('按 atmosphere 出 class;词 emoji 随 restored 档位点亮', () => {

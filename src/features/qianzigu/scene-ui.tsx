@@ -99,19 +99,22 @@ export function LineScene({
   )
 }
 
-/** 自然断点:「继续拯救」→ advance;「明天再来」→ 落库并回地图。 */
+/** 自然断点:「继续拯救」→ advance;「明天再来」→ 落库并回地图。
+ *  外层 surface 卡:断点屏叠在夜景天空浮层上,需不透明底才可读(旧 <main> 白底已删)。 */
 export function BreakScene({ onContinue, onExit }: { onContinue(): void; onExit(): void }) {
   return (
-    <div className="flex flex-col items-center px-2 py-8 text-center">
-      <p className="text-5xl" aria-hidden>🌙</p>
-      <p className="mt-4 text-lg font-extrabold text-ink">天黑了,先休息一下吧?</p>
-      <p className="mt-2 max-w-60 text-sm text-ink-2">进度会自动保存,下次从这里继续!</p>
-      <Button size="lg" className="mt-6 w-full" onClick={onContinue}>
-        继续拯救 <ArrowRight className="ml-1 h-4 w-4" />
-      </Button>
-      <Button variant="outline" size="lg" className="mt-2.5 w-full" onClick={onExit}>
-        <Moon className="mr-2 h-4 w-4" /> 明天再来
-      </Button>
+    <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 text-center shadow-card">
+      <div className="flex flex-col items-center">
+        <p className="text-5xl" aria-hidden>🌙</p>
+        <p className="mt-4 text-lg font-extrabold text-ink">天黑了,先休息一下吧?</p>
+        <p className="mt-2 max-w-60 text-sm text-ink-2">进度会自动保存,下次从这里继续!</p>
+        <Button size="lg" className="mt-6 w-full" onClick={onContinue}>
+          继续拯救 <ArrowRight className="ml-1 h-4 w-4" />
+        </Button>
+        <Button variant="outline" size="lg" className="mt-2.5 w-full" onClick={onExit}>
+          <Moon className="mr-2 h-4 w-4" /> 明天再来
+        </Button>
+      </div>
     </div>
   )
 }

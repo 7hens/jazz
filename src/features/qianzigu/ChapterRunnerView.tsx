@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, X } from 'lucide-react'
+import { Fragment, useRef, useState, type ReactNode } from 'react'
+import { X } from 'lucide-react'
 import type {
   AudioService,
   CelebrateService,
@@ -14,10 +14,10 @@ import type {
   VocabularyService,
   WordUnit,
 } from '@/shared/services'
-import { cn } from '@/shared/ui/utils'
 import { Button } from '@/shared/ui/button'
-import type { Chapter, ChapterLine, Scene, WordLayer } from './chapter'
+import type { Chapter, ChapterLine, Scene, SceneKind, WordLayer } from './chapter'
 import { DialoguePresenter } from './DialoguePresenter'
+import { ScenePanel, StageFrame, StageSky } from './stage'
 import { defaultAtmosphere } from './stage-meta'
 import { createChapterRunner, type Runner, type RunnerAction, type RunnerState } from './engine'
 import {
@@ -30,8 +30,6 @@ import {
 import {
   BossScene,
   BreakScene,
-  LineScene,
-  ROLE_META,
   SettleCard,
   SocialScene,
   TaskScene,
@@ -101,37 +99,6 @@ function resumeFromRow(engine: Runner, chapter: Chapter, row: ChapterProgressRow
     }
   }
   return state
-}
-
-function SkyStrip({ chapter, restored, wordById }: {
-  chapter: Chapter
-  restored: RunnerState['restored']
-  wordById(id: number): WordUnit | undefined
-}) {
-  const words = chapter.wordIds
-    .map((id) => wordById(id))
-    .filter((w): w is WordUnit => w !== undefined)
-  const lit = new Map<number, number>()
-  for (const entry of restored) lit.set(entry.wordId, (lit.get(entry.wordId) ?? 0) + 1)
-  return (
-    <div className="flex items-center justify-center gap-3 py-3" aria-hidden>
-      <span className="text-2xl drop-shadow-sm">{chapter.emoji}</span>
-      {words.map((word) => {
-        const count = lit.get(word.id) ?? 0
-        return (
-          <span
-            key={word.id}
-            className={cn(
-              'text-2xl transition-all duration-700',
-              count >= 2 ? 'opacity-100' : count === 1 ? 'opacity-70 grayscale-[.55]' : 'opacity-45 grayscale',
-            )}
-          >
-            {word.emoji}
-          </span>
-        )
-      })}
-    </div>
-  )
 }
 
 export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, services }: ChapterRunnerViewProps) {
@@ -230,13 +197,47 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const speak: SpeakFn = (text, lang) => services.speech.speak(text, lang)
   const playSound = (cue: Parameters<AudioService['play']>[0]) => services.audio.play(cue)
 
-  /** 取本章词序的舞台词元素(dialogue/ending 整屏天空点灯用)。
-   *  过渡期与旧 SkyStrip 的词点亮并存、值略异(SkyStrip 于 Plan 2 删除后自消),勿强改对齐。 */
+  /** 取本章词序的舞台词元素(dialogue/ending 整屏天空点灯用)。 */
   function skyWordsOf(): { id: number; emoji: string }[] {
     return chapter.wordIds
       .map((id) => services.vocabulary.wordById(id))
       .filter((w): w is WordUnit => w !== undefined)
       .map((w) => ({ id: w.id, emoji: w.emoji }))
+  }
+
+  /** 整屏对话演出(自带 StageFrame):dialogue/ending/pendingLines/各 scene intro/收尾 overlay 共用。 */
+  function renderDialogue(lines: readonly ChapterLine[], opts: { onDone: () => void; doneLabel?: string; onExit?: () => void }) {
+    return (
+      <DialoguePresenter
+        key={scene.id}
+        lines={lines}
+        atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(scene.kind)}
+        restored={runState.restored}
+        skyWords={skyWordsOf()}
+        cast={scene.stage?.cast}
+        speakRole={speakRole}
+        onDone={opts.onDone}
+        onExit={opts.onExit}
+        doneLabel={opts.doneLabel}
+      />
+    )
+  }
+
+  /** 非对白屏统一舞台壳:天空氛围 + 词点亮 + 右上退出 + 浮层面板。 */
+  function renderStage(body: ReactNode, kind: SceneKind) {
+    return (
+      <StageFrame>
+        <StageSky
+          atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(kind)}
+          words={skyWordsOf()}
+          restored={runState.restored}
+        />
+        <Button variant="ghost" size="icon" aria-label="返回地图" onClick={handleExit} className="absolute right-3 top-3 z-30">
+          <X className="h-5 w-5" />
+        </Button>
+        <ScenePanel>{body}</ScenePanel>
+      </StageFrame>
+    )
   }
 
   function sceneBody(current: Scene) {
@@ -314,79 +315,30 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     }
   }
 
-  // BOSS 失败:保留已恢复进度,播勇气台词后回地图。
+  // BOSS 失败:保留已恢复进度,播勇气台词后回地图(整屏;doneLabel 即「回地图」)。
   if (runState.finished && !runState.bossWon && scene.kind === 'boss') {
-    const lose = scene.lose.length > 0 ? scene.lose : [{ role: 'lingling' as const, text: '已经很棒了!我们先回去休息,下次再来挑战!' }]
+    const lose = scene.lose.length > 0
+      ? scene.lose
+      : [{ role: 'lingling' as const, text: '已经很棒了!我们先回去休息,下次再来挑战!' }]
+    return renderDialogue(lose, { doneLabel: '回地图', onDone: handleExit, onExit: handleExit })
+  }
+
+  // 收尾/叙事台词(pendingLines = task.onDone / boss.win)整屏优先于当前 scene —— 它们属上一幕叙事。
+  // 外层 Fragment 固定 key:与下文的 scene 整屏对白区分根节点,清 overlay 后 DialoguePresenter 重挂(防台词 index 串场)。
+  if (pendingLines) {
     return (
-      <Shell chapter={chapter} onExit={handleExit}>
-        <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 text-center shadow-card">
-          <p className="text-4xl" aria-hidden>🖤</p>
-          <p className="mt-2 text-lg font-extrabold text-ink">静默太强了…先回去休息吧!</p>
-          <div className="mt-4 space-y-2.5 text-left">
-            {lose.map((line, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="text-2xl" aria-hidden>{ROLE_META[line.role].emoji}</span>
-                <p className="text-sm font-semibold leading-relaxed text-ink-2">{line.text}</p>
-              </div>
-            ))}
-          </div>
-          <Button size="lg" className="mt-5 w-full" onClick={handleExit}>
-            回地图
-          </Button>
-        </div>
-      </Shell>
+      <Fragment key="overlay">
+        {renderDialogue(pendingLines, { onDone: () => setPendingLines(null) })}
+      </Fragment>
     )
   }
 
-  const isStageScene = scene.kind === 'dialogue' || scene.kind === 'ending'
-  // dialogue/ending 整屏舞台化(过渡态;其余仍包旧 Shell,Plan 2 再统一 StageFrame)。
-  // pendingLines(任务收尾/BOSS win 台词)优先于舞台屏——它们属上一场景叙事,仍在 Shell 内承载。
-  if (isStageScene && !pendingLines) {
-    return (
-      <DialoguePresenter
-        key={scene.id}
-        lines={scene.lines}
-        atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(scene.kind)}
-        restored={runState.restored}
-        skyWords={skyWordsOf()}
-        cast={scene.stage?.cast}
-        speakRole={speakRole}
-        onDone={() => step({ type: 'advance' })}
-        onExit={handleExit}
-      />
-    )
+  switch (scene.kind) {
+    case 'dialogue':
+    case 'ending':
+      return renderDialogue(scene.lines, { onDone: () => step({ type: 'advance' }), onExit: handleExit })
+    // task/social/boss/break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
+    default:
+      return renderStage(sceneBody(scene), scene.kind)
   }
-
-  const content = pendingLines
-    ? <LineScene lines={pendingLines} speakRole={speakRole} onDone={() => setPendingLines(null)} />
-    : sceneBody(scene)
-
-  return (
-    <Shell chapter={chapter} onExit={handleExit}>
-      <SkyStrip chapter={chapter} restored={runState.restored} wordById={(id) => services.vocabulary.wordById(id)} />
-      {/* 按 scene.id 键控重挂:连续同 kind(task/social/boss)不串内部 UI 态 */}
-      <div key={scene.id}>{content}</div>
-    </Shell>
-  )
-}
-
-function Shell({ chapter, onExit, children }: { chapter: Chapter; onExit(): void; children: ReactNode }) {
-  return (
-    <div className="min-h-screen text-ink">
-      <header className="glass-strong sticky top-0 z-30 border-b border-hairline">
-        <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-4">
-          <Button variant="ghost" size="icon" onClick={onExit} aria-label="返回地图">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <span className="truncate text-[15px] font-bold">
-            {chapter.emoji} 千字谷 · 第{chapter.id}章 {chapter.title}
-          </span>
-          <button type="button" onClick={onExit} aria-label="退出章节" className="ml-auto text-ink-3 hover:text-ink">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      </header>
-      <main className="mx-auto max-w-xl px-4 pb-24 pt-2">{children}</main>
-    </div>
-  )
 }

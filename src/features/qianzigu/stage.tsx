@@ -96,3 +96,14 @@ export function StageCast({
     </div>
   )
 }
+
+/** 舞台浮层面板:内容叠在天空上,可纵向滚动(舞台帧本身不滚)。 */
+export function ScenePanel({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn('pointer-events-auto absolute inset-x-0 bottom-0 top-auto z-20 flex justify-center', className)}>
+      <div className="mx-auto max-h-[76dvh] w-full max-w-xl overflow-y-auto px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
+        {children}
+      </div>
+    </div>
+  )
+}
