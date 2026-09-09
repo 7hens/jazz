@@ -339,30 +339,24 @@ export function TaskScene({
 /* ------------------------------ Social ------------------------------ */
 
 export type SocialSceneProps = {
-  lines: readonly ChapterLine[]
   options: readonly SceneOption[]
   goodOptionId: string
   loop: readonly ChapterLine[]
-  onGood: readonly ChapterLine[]
   speakRole: SpeakRoleFn
   playSound(cue: AudioCue): void
-  /** 选对后收尾台词放行 → 引擎推进。 */
+  /** 确认 good 后交还 runner 播 onGood 收尾(整屏对白),不再内播卡片 overlay。 */
   onChooseGood(): void
 }
 
 export function SocialScene({
-  lines,
   options,
   goodOptionId,
   loop,
-  onGood,
   speakRole,
   playSound,
   onChooseGood,
 }: SocialSceneProps) {
-  const [introDone, setIntroDone] = useState(lines.length === 0)
   const [feedback, setFeedback] = useState<readonly ChapterLine[] | null>(null)
-  const [goodOverlay, setGoodOverlay] = useState(false)
   // 两段式选:首点=朗读选项文本进入「待确认」,再点同一项=确认选择。
   const [pendingId, setPendingId] = useState<string | null>(null)
   const saidRef = useRef<string | null>(null)
@@ -373,30 +367,11 @@ export function SocialScene({
     for (const line of feedback) speakRole(line.text, line.role)
   }, [feedback, speakRole])
 
-  if (!introDone) {
-    return (
-      <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 shadow-card">
-        <p className="text-center text-lg font-extrabold">安慰月亮</p>
-        <LineScene lines={lines} speakRole={speakRole} onDone={() => setIntroDone(true)} />
-      </div>
-    )
-  }
-
-  if (goodOverlay) {
-    // 收尾台词走完 → 引擎放行 social-choose(good)
-    const overlayLines = [...onGood]
-    return (
-      <div className="rounded-[1.75rem] border border-emerald/40 bg-surface p-5 shadow-card">
-        <LineScene lines={overlayLines} speakRole={speakRole} doneLabel="继续" onDone={onChooseGood} />
-      </div>
-    )
-  }
-
   function choose(option: SceneOption) {
     if (option.id === goodOptionId) {
+      // good:确认即交 runner(整屏 onGood 收尾承载 canonical 台词,故不再朗读 option.response)
       playSound('correct')
-      speakRole(option.response, 'moon')
-      setGoodOverlay(true)
+      onChooseGood()
       return
     }
     // 非 good:读后果 + 依情景取 loop 引导,停留重弹选项(引擎保持在 social scene)

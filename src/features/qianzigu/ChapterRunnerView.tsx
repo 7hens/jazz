@@ -114,8 +114,10 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   })
   if (currentStateRef.current === null) currentStateRef.current = runState
   const [pendingLines, setPendingLines] = useState<readonly ChapterLine[] | null>(null)
-  // task 屏首幕台词放行记录(key=scene.id):intro 整屏演出一次,不落引擎。
+  // task/social 屏首幕台词放行记录(key=scene.id):intro/lines 整屏演出一次,不落引擎。
   const [introPassed, setIntroPassed] = useState<Record<string, boolean>>({})
+  // social good 确认后的 onGood 收尾放行标记(值=scene.id):整屏对白走完才 social-choose advance。
+  const [socialGoodAt, setSocialGoodAt] = useState<string | null>(null)
   const localProgressRef = useRef<ProgressData>({ ...services.progress.getSnapshot().data })
   const startTotalRef = useRef<number>(totalStars(localProgressRef.current))
   const settingsRef = useRef(services.settings.getSnapshot().data)
@@ -265,16 +267,15 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         )
       }
       case 'social':
+        // 纯选项 + 两段确认 + 非 good 反馈浮层;intro(lines)/onGood 由顶层 switch 整屏接管。
         return (
           <SocialScene
-            lines={current.lines}
             options={current.options}
             goodOptionId={current.goodOptionId}
             loop={current.loop}
-            onGood={current.onGood}
             speakRole={speakRole}
             playSound={playSound}
-            onChooseGood={() => step({ type: 'social-choose', optionId: current.goodOptionId })}
+            onChooseGood={() => setSocialGoodAt(current.id)}
           />
         )
       case 'boss': {
@@ -350,7 +351,23 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
       }
       return renderStage(sceneBody(scene), scene.kind)
     }
-    // social/boss/break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
+    // social 三相:首幕(lines)整屏对白 → 放行后出选项浮层 → good 确认后 onGood 整屏收尾 → social-choose advance
+    case 'social': {
+      if (scene.lines.length > 0 && !introPassed[scene.id]) {
+        return renderDialogue(scene.lines, {
+          onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
+          onExit: handleExit,
+        })
+      }
+      if (socialGoodAt === scene.id) {
+        return renderDialogue(scene.onGood, {
+          onDone: () => step({ type: 'social-choose', optionId: scene.goodOptionId }),
+          onExit: handleExit,
+        })
+      }
+      return renderStage(sceneBody(scene), scene.kind)
+    }
+    // boss/break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
     default:
       return renderStage(sceneBody(scene), scene.kind)
   }

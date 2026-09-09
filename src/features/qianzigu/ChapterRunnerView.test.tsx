@@ -430,4 +430,21 @@ describe('ChapterRunnerView 社交选项两段式(先听后选)', () => {
     fireEvent.click(screen.getByRole('button', { name: '继续' }))
     expect(await screen.findByText('继续前进!')).toBeInTheDocument()
   })
+
+  it('social:哭诉首幕整屏对白 → 点继续出选项 → 两段确认 good → 播 onGood 收尾 → advance', async () => {
+    renderRunner(socialChapter())
+    // 首幕(lines)是整屏 DialoguePresenter(角色旁泡 data-stage-bubble),非旧卡片 intro
+    expect(await screen.findByText('好孤单...')).toBeInTheDocument()
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('你想怎么做?')).toBeInTheDocument()
+    const good = /我也喜欢你!/
+    fireEvent.click(screen.getByRole('button', { name: good })) // 首点=朗读/待确认
+    fireEvent.click(screen.getByRole('button', { name: good })) // 再点=确认 good
+    // onGood 收尾也是整屏 DialoguePresenter(角色旁泡),走完才 advance
+    expect(await screen.findByText('真的吗?谢谢你!')).toBeInTheDocument()
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('继续前进!')).toBeInTheDocument() // 下一 dialogue
+  })
 })
