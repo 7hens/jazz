@@ -439,11 +439,9 @@ export function SocialScene({
 /* ------------------------------- BOSS ------------------------------- */
 
 export type BossSceneProps = {
-  intro: readonly ChapterLine[]
   wordPool: readonly WordUnit[]
   makeQuestion(word: WordUnit, skill: SkillKey): Question
   speak: SpeakFn
-  speakRole: SpeakRoleFn
   playSound(cue: AudioCue): void
   /** 每答对一题;BossWon 时返回 true(引擎推进离开 boss)。 */
   onBossCorrect(): boolean
@@ -454,28 +452,15 @@ export type BossSceneProps = {
 const BOSS_SKILLS: readonly SkillKey[] = ['pinyin', 'hanzi']
 
 export function BossScene({
-  intro,
   wordPool,
   makeQuestion,
   speak,
-  speakRole,
   playSound,
   onBossCorrect,
   onBossWrong,
 }: BossSceneProps) {
-  const [introDone, setIntroDone] = useState(intro.length === 0)
   const [pick, setPick] = useState(() => 0)
   const [session, setSession] = useState(0)
-
-  if (!introDone) {
-    return (
-      <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 shadow-card">
-        <p className="text-center text-4xl" aria-hidden>🖤</p>
-        <p className="mt-1 text-center text-lg font-extrabold">静默的挑战</p>
-        <LineScene lines={intro} speakRole={speakRole} doneLabel="开始挑战" onDone={() => setIntroDone(true)} />
-      </div>
-    )
-  }
 
   const word = wordPool[pick % wordPool.length] ?? wordPool[0]
   if (!word) return null

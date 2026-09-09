@@ -374,6 +374,38 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(screen.getByText(/我们先回去休息/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '回地图' })).toBeInTheDocument()
   })
+
+  it('boss:静默 intro 整屏登台对白 → 点继续出题卡 → 全对播 win 收尾 → 进入下一屏', async () => {
+    const chapter: Chapter = {
+      ...bossChapter(),
+      scenes: [
+        {
+          id: 'boss', kind: 'boss',
+          intro: [{ role: 'jingmo', text: '我是静默!' }],
+          maxWrong: 2,
+          questionCount: 1,
+          win: [{ role: 'jingmo', text: '不可能...!' }],
+          lose: [{ role: 'lingling', text: '下次再来!' }],
+        },
+        { id: 'end', kind: 'dialogue', lines: [{ role: 'lingling', text: '继续前进!' }] },
+      ],
+    }
+    renderRunner(chapter)
+    // intro 是整屏舞台对白:仅 DialoguePresenter/StageCast 渲染角色旁泡(data-stage-bubble),
+    // 旧卡片 LineScene 无此物 → 判别真实舞台化(boss intro 行角色=静默,非 narrator → 泡渲染)。
+    expect(await screen.findByText('我是静默!')).toBeInTheDocument()
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    expect(screen.queryByText('BOSS · 静默')).not.toBeInTheDocument() // 题卡尚未浮出
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    // 放行后交浮层:BOSS 题卡徽章 + 出题
+    expect(await screen.findByText('BOSS · 静默')).toBeInTheDocument()
+    expect(screen.getByText('选出太阳的拼音')).toBeInTheDocument()
+    answer('太阳') // questionCount:1 → 一次全对即 bossWon
+    // win overlay:整屏对白(非卡)
+    expect(await screen.findByText('不可能...!')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('继续前进!')).toBeInTheDocument()
+  })
 })
 
 /** 造成一次 BOSS 双错(boss-wrong):选错两次 + 点「下一题」放行。 */

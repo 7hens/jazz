@@ -284,11 +284,9 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
           .filter((w): w is WordUnit => w !== undefined)
         return (
           <BossScene
-            intro={current.intro}
             wordPool={pool}
             makeQuestion={(word, skill) => services.questionEngine.makeStepQuestions(word, skill, Math.random)[0]}
             speak={speak}
-            speakRole={speakRole}
             playSound={playSound}
             onBossCorrect={handleBossCorrect}
             onBossWrong={handleBossWrong}
@@ -367,7 +365,17 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
       }
       return renderStage(sceneBody(scene), scene.kind)
     }
-    // boss/break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
+    // boss 首幕台词:intro 整屏舞台演出(静默登台;本地放行记录,不入引擎);通过后才交浮层出 BOSS 题卡。
+    case 'boss': {
+      if (scene.intro.length > 0 && !introPassed[scene.id]) {
+        return renderDialogue(scene.intro, {
+          onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
+          onExit: handleExit,
+        })
+      }
+      return renderStage(sceneBody(scene), scene.kind)
+    }
+    // break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
     default:
       return renderStage(sceneBody(scene), scene.kind)
   }
