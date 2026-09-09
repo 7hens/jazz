@@ -608,12 +608,12 @@ git commit -m "style(qianzigu): 舞台走查配色/间距打磨"
 
 ## Self-Review
 
-**Spec 覆盖(scenes 部分):** §6.2 适配矩阵 dialogue/ending(Plan1 Task6)→ task intro 浮层(Task2)→ social 三相(Task3)→ boss 登台(Task4)→ break/settle(Task5/Task1)→ pendingLines 收尾(Task5);§7.1 两态点亮全屏化 + 氛围 key(Task1);§6.3 推进按钮语义保留(Task5 统一)。
+**Spec 覆盖(scenes 部分,已对账 core 落地后结构):** §6.2 适配矩阵——dialogue/ending(Plan1)+ pendingLines/win/lose 整屏统一(Task1)→ task intro 门(Task2)→ social 三相(Task3)→ boss intro 门(Task4)→ 断点/结算壳复查 + LineScene 退役(Task5)→ 走查(Task6);§7.1 两态点亮全屏化 + 氛围 key(Task1);§6.3 推进按钮语义保留(各处 onDone 统一经 DialoguePresenter)。
 
 **未覆盖(Plan 3):** ch1 数据舞台字段补编(cast/atmosphere/mood)、验收清单 §13 全量(含 mood 观感)、配色精修。
 
 **占位扫描:** 各 step 给接口/修改点/代码片段;整文件替换以结构描述 + 锚点给出(UI 文件较大,避免整份 dump 造成漂移);无 TBD。
 
-**类型一致性:** `renderDialogue(lines, {onDone,doneLabel?,onExit?})`/`renderStage(body, kind)` 在 Task1 定义、Task2-5 调用;`introPassed/socialGood` 均为 runner 内 state(不入引擎)。`BossScene/SocialScene/TaskScene` 瘦身后的新签名在 Task2-4 各自定义并被 runner 消费;`answer()`/fixtures 复用现有测试 helper。
+**类型一致性:** `renderDialogue(lines,{onDone,doneLabel?,onExit?})`/`renderStage(body,kind)` 在 Task1 定义、Task2-4 顶部 case 调用;各 intro **门一律在顶部 switch 的 case 内**(Task2-4 各把自己的 kind 从 `default` 抽走),`sceneBody` 只出裸内容,杜绝「renderDialogue 被 renderStage 嵌套」的双 frame。每个门带 `length > 0 &&` 空 intro 守卫(intro 空 → 直接浮层),避免 DialoguePresenter 空态卡屏。runner 内 state:`introPassed`(Task2)、`socialGoodAt`(Task3),均不入引擎。`TaskScene/SocialScene/BossScene` 瘦身签名在 Task2-4 各自定义并被 sceneBody 对应 case 消费;`answer()`/fixtures 复用现有测试 helper。
 
-**风险注:** Task1 是大收敛,既有流程测试可能需少量适配——Step 5 已给策略;此为本 plan 最高风险点,子代理执行时若遇整批 DOM 断言失效,优先保文本/按钮断言、再补 class 级断言,勿图省事删保护性用例。
+**风险注:** Task1 是大收敛,既有流程测试可能需少量适配——Step 5 已给策略;此为本 plan 最高风险点。Task2-4 的门若误放 sceneBody(而非顶部 case)会致整屏 DialoguePresenter 被 renderStage 二次包裹——实现与评审都要盯「无嵌套 frame」。子代理遇整批 DOM 断言失效,优先保文本/按钮断言、再补 class/名字牌断言,勿图省事删保护性用例。
