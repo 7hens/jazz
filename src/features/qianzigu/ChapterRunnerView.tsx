@@ -114,6 +114,8 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   })
   if (currentStateRef.current === null) currentStateRef.current = runState
   const [pendingLines, setPendingLines] = useState<readonly ChapterLine[] | null>(null)
+  // task 屏首幕台词放行记录(key=scene.id):intro 整屏演出一次,不落引擎。
+  const [introPassed, setIntroPassed] = useState<Record<string, boolean>>({})
   const localProgressRef = useRef<ProgressData>({ ...services.progress.getSnapshot().data })
   const startTotalRef = useRef<number>(totalStars(localProgressRef.current))
   const settingsRef = useRef(services.settings.getSnapshot().data)
@@ -338,7 +340,17 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     case 'dialogue':
     case 'ending':
       return renderDialogue(scene.lines, { onDone: () => step({ type: 'advance' }), onExit: handleExit })
-    // task/social/boss/break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
+    // task 首幕台词:intro 整屏舞台演出(本地放行记录,不入引擎);通过后才交 sceneBody 出答题卡。
+    case 'task': {
+      if (scene.intro.length > 0 && !introPassed[scene.id]) {
+        return renderDialogue(scene.intro, {
+          onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
+          onExit: handleExit,
+        })
+      }
+      return renderStage(sceneBody(scene), scene.kind)
+    }
+    // social/boss/break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
     default:
       return renderStage(sceneBody(scene), scene.kind)
   }

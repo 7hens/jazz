@@ -332,6 +332,25 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(word.className).toContain('opacity-70')
   })
 
+  it('task 屏:先整屏台词演出 intro,点继续才出题', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音',
+          intro: [{ role: 'lingling', text: '听!这是太阳的声音…' }],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 }, onDone: [],
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    expect(screen.getByText('听!这是太阳的声音…')).toBeInTheDocument()
+    expect(screen.queryByText('选出太阳的拼音')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('选出太阳的拼音')).toBeInTheDocument()
+  })
+
   it('BOSS 错满 → 勇气台词逐句出现、末句「回地图」;不再写后续词进度', async () => {
     const fakes = renderRunner(bossChapter())
 

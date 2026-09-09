@@ -285,23 +285,12 @@ export function TaskScene({
   skill,
   makeQuestions,
   speak,
-  speakRole,
   playSound,
   onCorrect,
 }: TaskSceneProps) {
-  const [introDone, setIntroDone] = useState(scene.intro.length === 0)
   const [round, setRound] = useState(0)
   const [questions, setQuestions] = useState<Question[]>(() => makeQuestions())
   const [qIndex, setQIndex] = useState(0)
-
-  if (!introDone) {
-    return (
-      <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 shadow-card">
-        <p className="text-center text-lg font-extrabold">{scene.title}</p>
-        <LineScene lines={scene.intro} speakRole={speakRole} onDone={() => setIntroDone(true)} />
-      </div>
-    )
-  }
 
   const question = questions[qIndex]
 
