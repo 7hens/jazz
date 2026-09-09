@@ -8,7 +8,7 @@ import { ColdStartWizard, FoundationStepGate } from '@/features/foundation'
 import { LingLing } from '@/features/lingling'
 import { LessonEntry, type LessonCelebration } from '@/features/lesson'
 import { LuckyBonus } from '@/features/lucky-bonus'
-import { CHAPTER_1, ChapterRunnerView, QianziguEntry } from '@/features/qianzigu'
+import { CHAPTER_1, ChapterRunnerView, QianziguEntry, resolveDebugRow } from '@/features/qianzigu'
 import { SettingsEntry } from '@/features/settings'
 import {
   AudioService,
@@ -24,7 +24,7 @@ import {
   SpeechService,
   VocabularyService,
 } from '@/shared/services'
-import type { Achievement, SkillKey, WordUnit } from '@/shared/services'
+import type { Achievement, ChapterProgressRow, SkillKey, WordUnit } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { useAppState } from './useAppState'
 import { useCompletedWords } from './useCompletedWords'
@@ -67,6 +67,8 @@ export default function App() {
   const { phase, currentWordId, currentChapterId, actions } = useAppState()
   const completedWords = useCompletedWords()
   const [celebration, setCelebration] = useState<Celebration | null>(null)
+  // dev-only URL 直达(?s=1.1.N)的一次性伪起点:消费一次即清,生产构建不解析参数。
+  const [debugRow, setDebugRow] = useState<ChapterProgressRow | null>(null)
   const [showDiagnosis, setShowDiagnosis] = useState(false)
   const diagnosisOffered = useRef(false)
   const previousAuthStatus = useRef(authSnap.status)
@@ -82,6 +84,24 @@ export default function App() {
     const previous = previousAuthStatus.current
     previousAuthStatus.current = authSnap.status
     if (authSnap.status !== 'authenticated' || previous === 'authenticated') return
+    // dev-only:?s=<world>.<chapter>.<sceneNumber> 直达某幕(千字谷 debug,见 resolveDebugRow)。
+    // 命中即消费一次(清参防刷新/退出后「再学一次」被回跳)直接进章;否则照旧回世界壳。
+    if (import.meta.env.DEV) {
+      const debug = resolveDebugRow(CHAPTER_1, new URLSearchParams(window.location.search).get('s'))
+      if (debug?.resumeSceneId) {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('s')
+        window.history.replaceState(null, '', url)
+        setDebugRow(debug)
+        actions.enterChapter(CHAPTER_1.id)
+        void progress.load()
+        void settingsService.load()
+        void chapterService.load()
+        void basics.load()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        return
+      }
+    }
     actions.exitToHome()
     void progress.load()
     void settingsService.load()
@@ -122,7 +142,9 @@ export default function App() {
   }
 
   // 章节退出/结算收敛:回千字谷地图并刷新章节行(进度在 run 内已落库)。
+  // debugRow 在此消费清空 —— 直达只对当次进章生效,退出后再「开始/再学一次」走正常服务端续玩。
   function handleChapterExit() {
+    setDebugRow(null)
     actions.closeChapter()
     void chapterService.load()
   }
@@ -188,7 +210,7 @@ export default function App() {
       <ChapterRunnerView
         key={`chapter-${currentChapterId ?? CHAPTER_1.id}`}
         chapter={CHAPTER_1}
-        initialRow={chapterSnap.data.row}
+        initialRow={debugRow ?? chapterSnap.data.row}
         onExit={handleChapterExit}
         onSettled={handleChapterExit}
         services={{

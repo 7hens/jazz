@@ -17,7 +17,9 @@ import type {
   WordUnit,
 } from '@/shared/services'
 import type { Chapter } from './chapter'
+import { CHAPTER_1 } from './ch1'
 import { ChapterRunnerView, type ChapterRunnerServices } from './ChapterRunnerView'
+import { resolveDebugRow } from './debug-jump'
 
 const word: WordUnit = {
   id: 1,
@@ -232,6 +234,15 @@ function answer(text: string) {
 }
 
 describe('ChapterRunnerView 逐 scene 运行器', () => {
+  it('debug 直达 ?s=1.1.16:伪 initialRow 快进落在 boss 幕(不回头卡在开场)', async () => {
+    const row = resolveDebugRow(CHAPTER_1, '1.1.16')
+    expect(row).not.toBeNull()
+    renderRunner(CHAPTER_1, row)
+    // boss intro 首句整屏对白出现 = resumeFromRow 已穿场快进(open/t1..t5 全跳过)
+    expect(await screen.findByText('你们...居然唤醒了太阳...')).toBeInTheDocument()
+    expect(screen.queryByText(/欢迎来到千字谷/)).not.toBeInTheDocument()
+  })
+
   it('dialogue 屏渲染为舞台屏:cast 站队 + 台词泡;点继续推进到下一屏', async () => {
     renderRunner(flowChapter())
     expect(await screen.findByText('你好,太阳!')).toBeInTheDocument()
