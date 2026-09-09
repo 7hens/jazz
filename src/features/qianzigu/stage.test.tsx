@@ -84,20 +84,25 @@ describe('StageCast', () => {
     expect(container.querySelectorAll('[data-stage-bubble]').length).toBe(1)
   })
 
-  it('sky 分流:天空体不入地面行;地面行只留 ground', () => {
+  it('sky 分流:天空体绝不占地面行;说者(天空体)泡/名牌锚天幕,静默天空体零多余 DOM', () => {
     const { container } = render(
-      <StageCast cast={['lingling', 'sun', 'moon']} sky={['sun', 'moon']} speaker="sun" />,
+      <StageCast cast={['lingling', 'sun', 'moon']} sky={['sun', 'moon']} speaker="sun" bubble={<span>救救我</span>} />,
     )
+    // 地面行只留 ground(灵灵);天空体(太阳/月亮)不落地
     const ground = container.querySelector('[data-stage-ground]')!
     expect(ground).not.toBeNull()
     const groundNames = Array.from(ground.querySelectorAll('span')).map((n) => n.textContent)
     expect(groundNames).toContain('灵灵')
     expect(groundNames).not.toContain('太阳')
     expect(groundNames).not.toContain('月亮')
-    // 天空体落到专门天空槽(顶栏简单呈现;深接泡锚定交 Task 3)
-    const skySlot = container.querySelector('[data-stage-sky]')
-    expect(skySlot).not.toBeNull()
-    expect(skySlot!.textContent).toContain('太阳')
-    expect(skySlot!.textContent).toContain('月亮')
+    // 顶栏槽退役:不再渲染 [data-stage-sky] 重复小头像槽(§15.4 无双太阳)
+    expect(container.querySelector('[data-stage-sky]')).toBeNull()
+    // 说者是天空体(太阳)时:泡 + 名牌锚天幕位;泡只一个,静默月亮零重复头像
+    expect(screen.getByText('救救我')).toBeInTheDocument()
+    const skySpeaker = container.querySelector('[data-stage-sky-speaker]')!
+    expect(skySpeaker).not.toBeNull()
+    expect(skySpeaker.textContent).toContain('太阳')
+    expect(container.querySelectorAll('[data-stage-bubble]').length).toBe(1)
+    expect(container.textContent).not.toContain('月亮')
   })
 })

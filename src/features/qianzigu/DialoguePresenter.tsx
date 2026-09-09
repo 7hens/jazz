@@ -14,6 +14,8 @@ export type DialoguePresenterProps = {
   /** 布景复原进度(0..1;驱动太阳 4 档 + 世界回春)。缺省 0 = 烧焦蛋/满灰;runner 已喂真值。 */
   fraction?: number
   cast?: readonly SpeechRole[]
+  /** 当幕作「天空体」的角色(§15.3):不入地面行,由布景本体呈现;说者是天空体时泡/名牌锚天幕。 */
+  sky?: readonly SpeechRole[]
   speakRole(text: string, role: SpeechRole): boolean
   onDone(): void
   onExit?: () => void
@@ -47,6 +49,7 @@ export function DialoguePresenter({
   atmosphere,
   fraction = 0,
   cast,
+  sky,
   speakRole,
   onDone,
   onExit,
@@ -97,7 +100,7 @@ export function DialoguePresenter({
         </div>
       ) : null}
 
-      <StageCast cast={displayCast} speaker={speaker} bubble={showBubble ? <Bubble line={line} /> : undefined} />
+      <StageCast cast={displayCast} sky={sky} speaker={speaker} bubble={showBubble ? <Bubble line={line} /> : undefined} />
 
       {/* 非交互指针层:整屏点击推进;不进 tab 序、无 aria(a11y/UX)。真实键盘/AT 出口 = 底部 Continue(z-20)。 */}
       <div aria-hidden className="absolute inset-0 z-10 cursor-pointer" onClick={advance} />

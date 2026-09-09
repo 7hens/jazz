@@ -62,29 +62,22 @@ export function StageSky({
   )
 }
 
-/** 单个站队角色:说话者弹跳 + 高亮名字牌;bubble 渲染在其上方。compact = 天空体(顶栏简排,Task 3 前兜底)。 */
+/** 单个站队角色(地面行):说话者弹跳 + 高亮名字牌;bubble 渲染在其上方。 */
 function CastFigure({
   role,
   talking,
   bubble,
   reduce,
-  compact = false,
 }: {
   role: SpeechRole
   talking: boolean
   bubble?: ReactNode
   reduce: boolean | null
-  compact?: boolean
 }) {
   const meta = ROLE_META[role]
   return (
-    <div className={cn('relative flex flex-col items-center', compact ? '' : 'min-w-0 flex-1')}>
-      <div
-        className={cn(
-          'flex w-full items-end justify-center',
-          compact ? 'h-4' : 'mb-1 h-[3.5rem] max-w-[46vw] sm:max-w-xs',
-        )}
-      >
+    <div className="relative flex min-w-0 flex-1 flex-col items-center">
+      <div className="mb-1 flex h-[3.5rem] w-full max-w-[46vw] items-end justify-center sm:max-w-xs">
         {talking && bubble ? <div data-stage-bubble>{bubble}</div> : null}
       </div>
       <motion.div
@@ -96,8 +89,7 @@ function CastFigure({
         <span
           aria-hidden
           className={cn(
-            'leading-none drop-shadow-sm',
-            compact ? 'text-3xl sm:text-4xl' : 'text-6xl sm:text-7xl',
+            'leading-none drop-shadow-sm text-6xl sm:text-7xl',
             talking ? 'drop-shadow-lg' : 'opacity-75 saturate-50',
           )}
         >
@@ -106,7 +98,7 @@ function CastFigure({
         <span
           className={cn(
             'mt-1 rounded-full px-2 py-0.5 text-xs font-bold text-white',
-            talking ? 'bg-accent' : compact ? 'bg-ink/55' : 'bg-ink/60',
+            talking ? 'bg-accent' : 'bg-ink/60',
           )}
         >
           {meta.name}
@@ -117,9 +109,9 @@ function CastFigure({
 }
 
 /**
- * 角色站队(地面行,底部):说话者弹跳 + 高亮名字牌;bubble 在其上方。
- * sky 分流:传入 sky 后,天空体(skySplit)不进地面 flex,改落天幕顶栏简排(data-stage-sky);
- * 深接「天空体就地出泡锚太阳位」由 Task 3 做,本层保证天空体不占地面行。
+ * 角色站队:天空体(sky 分流)绝不落地面行、也不渲染任何重复头像/顶栏槽——天幕本体
+ * 由 StageSky 布景呈现(§15.4 就地说,无双太阳)。当**当前说者**恰是天空体时,把该句
+ * 泡泡 + 名牌锚到天幕位(.stage-sky-speaker,紧邻天幕本体);非说者的天空体零多余 DOM。
  */
 export function StageCast({
   cast,
@@ -134,16 +126,15 @@ export function StageCast({
 }) {
   const reduce = useReducedMotion()
   const { ground, sky: skyRoles } = skySplit(cast, sky)
+  const skySpeaker = speaker && skyRoles.includes(speaker) ? speaker : null
   return (
     <>
-      {skyRoles.length > 0 ? (
-        <div
-          data-stage-sky
-          className="pointer-events-none absolute inset-x-0 top-1 z-[5] flex items-start justify-center gap-5 px-4"
-        >
-          {skyRoles.map((role) => (
-            <CastFigure key={role} role={role} talking={role === speaker} bubble={bubble} reduce={reduce} compact />
-          ))}
+      {skySpeaker ? (
+        <div data-stage-sky-speaker className="stage-sky-speaker">
+          {bubble ? <div data-stage-bubble>{bubble}</div> : null}
+          <span className="mt-1.5 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-white">
+            {ROLE_META[skySpeaker].name}
+          </span>
         </div>
       ) : null}
       <div

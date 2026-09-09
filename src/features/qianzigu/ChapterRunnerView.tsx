@@ -213,6 +213,7 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(scene.kind)}
         fraction={skyFraction}
         cast={scene.stage?.cast}
+        sky={scene.stage?.sky}
         speakRole={speakRole}
         onDone={opts.onDone}
         onExit={opts.onExit}

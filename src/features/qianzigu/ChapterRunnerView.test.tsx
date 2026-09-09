@@ -253,6 +253,34 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(await screen.findByText('拯救声音')).toBeInTheDocument() // task 屏(旧 UI 过渡)
   })
 
+  it('open 屏:太阳作天空体从布景出泡(sun 不进地面行;无重复头像)', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 'open',
+          kind: 'dialogue',
+          lines: [{ role: 'sun', text: '救救我' }],
+          stage: { atmosphere: 'dawn', sky: ['sun'] },
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    expect(await screen.findByText('救救我')).toBeInTheDocument()
+    // 布景本体(烧焦蛋)在天幕(进度 0)
+    expect(document.querySelector('.stage-sun--burnt')).not.toBeNull()
+    // 地面行无太阳;顶栏槽 [data-stage-sky] 已退役
+    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('太阳')
+    expect(document.querySelector('[data-stage-sky]')).toBeNull()
+    // 仅一个说话泡,落在天空说者区(非地面行),含名牌
+    expect(document.querySelectorAll('[data-stage-bubble]').length).toBe(1)
+    const skySpeaker = document.querySelector('[data-stage-sky-speaker]')!
+    expect(skySpeaker).not.toBeNull()
+    expect(skySpeaker.textContent).toContain('太阳')
+    expect(document.body.textContent).not.toContain('☀️') // 本体=烧焦蛋 🍳,无第二颗太阳头像
+  })
+
   it('dialogue → task:点继续进任务,出题;答对 2 次写 pinyin 进度到 settle', async () => {
     const { saveStep, onSettled } = renderRunner(flowChapter())
 

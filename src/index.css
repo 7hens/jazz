@@ -228,6 +228,20 @@
 .stage-sun--glow { filter: brightness(1.05) saturate(1.05); text-shadow: 0 0 16px rgb(255 205 90 / 0.65); }
 .stage-sun--full { filter: none; text-shadow: 0 0 26px rgb(255 195 70 / 0.85); }
 
+/* 天空体说者泡锚位(§15.4):sky 角色开口时,该句泡 + 名牌挂天幕本体旁,不复制第二头像。 */
+.stage-sky-speaker {
+  position: absolute;
+  top: 3%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(46vw, 20rem);
+  pointer-events: none;
+}
+
 /* 布景地(山/村/河):世界回春灰档叠于此(低进度满灰失血 → 复原撤灰上彩)。 */
 .stage-mountains {
   position: absolute;

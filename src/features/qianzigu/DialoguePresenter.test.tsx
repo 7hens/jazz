@@ -47,6 +47,33 @@ it('同框:cast=[lingling,sun],台词轮换时名字牌都在,说者随句切换
   expect(badge('灵灵')?.className).not.toContain('bg-accent')
 })
 
+it('sky 透传:天空体不入地面行;sun 说者泡/名牌锚天幕(无第二头像)', () => {
+  const { container } = renderLines(
+    [
+      { role: 'lingling', text: '你好' },
+      { role: 'sun', text: '救救我' },
+    ],
+    { cast: ['lingling', 'sun'], sky: ['sun'] },
+  )
+  const ground = () => container.querySelector('[data-stage-ground]')!
+  // 首句=灵灵(地面):地面有灵灵名牌、太阳不在;布景烧焦蛋本体在;顶栏槽不存在
+  expect(ground().textContent).toContain('灵灵')
+  expect(ground().textContent).not.toContain('太阳')
+  expect(container.querySelector('.stage-sun--burnt')).not.toBeNull()
+  expect(container.querySelector('[data-stage-sky]')).toBeNull()
+
+  fireEvent.click(screen.getByRole('button', { name: '继续' }))
+  // 次句=太阳(sky 角色):文本可见、地面仍无太阳、天空说者区含泡 + 名牌、无第二 ☀️ 头像
+  expect(screen.getByText('救救我')).toBeInTheDocument()
+  expect(ground().textContent).not.toContain('太阳')
+  const skySpeaker = container.querySelector('[data-stage-sky-speaker]')!
+  expect(skySpeaker).not.toBeNull()
+  expect(skySpeaker.textContent).toContain('救救我')
+  expect(skySpeaker.textContent).toContain('太阳')
+  expect(container.querySelectorAll('[data-stage-bubble]').length).toBe(1)
+  expect(container.textContent).not.toContain('☀️')
+})
+
 it('narrator 台词走旁白叙述框,不占站队', () => {
   const { container } = renderLines([{ role: 'narrator', text: '千字谷,很久很久以前…' }])
   expect(screen.getByText('千字谷,很久很久以前…')).toBeInTheDocument()
