@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, X } from 'lucide-react'
+import { Fragment, useRef, useState, type ReactNode } from 'react'
+import { X } from 'lucide-react'
 import type {
   AudioService,
   CelebrateService,
@@ -14,9 +14,11 @@ import type {
   VocabularyService,
   WordUnit,
 } from '@/shared/services'
-import { cn } from '@/shared/ui/utils'
 import { Button } from '@/shared/ui/button'
-import type { Chapter, ChapterLine, Scene, WordLayer } from './chapter'
+import type { Chapter, ChapterLine, Scene, SceneKind, StageMeta, WordLayer } from './chapter'
+import { DialoguePresenter } from './DialoguePresenter'
+import { ScenePanel, StageFrame, StageSky } from './stage'
+import { defaultAtmosphere, progressFraction } from './stage-meta'
 import { createChapterRunner, type Runner, type RunnerAction, type RunnerState } from './engine'
 import {
   layerToSkill,
@@ -28,8 +30,6 @@ import {
 import {
   BossScene,
   BreakScene,
-  LineScene,
-  ROLE_META,
   SettleCard,
   SocialScene,
   TaskScene,
@@ -56,6 +56,14 @@ export type ChapterRunnerViewProps = {
   onExit(): void
   onSettled(): void
   services: ChapterRunnerServices
+}
+
+/** 台词 overlay(task.onDone / boss.win)所归属的叙事幕上下文:引擎已推进到下一 scene,
+ *  舞台元数据(atmosphere/cast/sky)须随台词一并携带,渲染才不回落到后 scene。 */
+type PendingNarration = {
+  lines: readonly ChapterLine[]
+  kind: SceneKind
+  stage?: StageMeta
 }
 
 function totalStars(data: ProgressData): number {
@@ -101,37 +109,6 @@ function resumeFromRow(engine: Runner, chapter: Chapter, row: ChapterProgressRow
   return state
 }
 
-function SkyStrip({ chapter, restored, wordById }: {
-  chapter: Chapter
-  restored: RunnerState['restored']
-  wordById(id: number): WordUnit | undefined
-}) {
-  const words = chapter.wordIds
-    .map((id) => wordById(id))
-    .filter((w): w is WordUnit => w !== undefined)
-  const lit = new Map<number, number>()
-  for (const entry of restored) lit.set(entry.wordId, (lit.get(entry.wordId) ?? 0) + 1)
-  return (
-    <div className="flex items-center justify-center gap-3 py-3" aria-hidden>
-      <span className="text-2xl drop-shadow-sm">{chapter.emoji}</span>
-      {words.map((word) => {
-        const count = lit.get(word.id) ?? 0
-        return (
-          <span
-            key={word.id}
-            className={cn(
-              'text-2xl transition-all duration-700',
-              count >= 2 ? 'opacity-100' : count === 1 ? 'opacity-70 grayscale-[.55]' : 'opacity-45 grayscale',
-            )}
-          >
-            {word.emoji}
-          </span>
-        )
-      })}
-    </div>
-  )
-}
-
 export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, services }: ChapterRunnerViewProps) {
   const engineRef = useRef<Runner | null>(null)
   // 引擎 next() 返回值即当前态(engine.state 是创建期快照,不可作实时读);这里以 ref 镜像当前态。
@@ -144,12 +121,19 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     return resumed
   })
   if (currentStateRef.current === null) currentStateRef.current = runState
-  const [pendingLines, setPendingLines] = useState<readonly ChapterLine[] | null>(null)
+  const [pendingNarration, setPendingNarration] = useState<PendingNarration | null>(null)
+  // task/social 屏首幕台词放行记录(key=scene.id):intro/lines 整屏演出一次,不落引擎。
+  const [introPassed, setIntroPassed] = useState<Record<string, boolean>>({})
+  // social good 确认后的 onGood 收尾放行标记(值=scene.id):整屏对白走完才 social-choose advance。
+  const [socialGoodAt, setSocialGoodAt] = useState<string | null>(null)
   const localProgressRef = useRef<ProgressData>({ ...services.progress.getSnapshot().data })
   const startTotalRef = useRef<number>(totalStars(localProgressRef.current))
   const settingsRef = useRef(services.settings.getSnapshot().data)
 
   const scene = chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]
+  // 布景复原进度 = 已 restored 层数 / 章内 task 层总数(词点灯条退役后改喂太阳档 + 世界回春)。
+  const taskLayerCount = chapter.scenes.filter((s) => s.kind === 'task').length
+  const skyFraction = progressFraction(runState.restored.length, taskLayerCount)
 
   function restoreSkill(wordId: number, layer: WordLayer) {
     const prev = localProgressRef.current[wordId]
@@ -189,12 +173,14 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     setRunState(next)
     for (const effect of effects) {
       if (effect.type === 'restore') {
-        if (beforeScene.kind === 'task' && beforeScene.onDone.length > 0) setPendingLines(beforeScene.onDone)
+        if (beforeScene.kind === 'task' && beforeScene.onDone.length > 0) {
+          setPendingNarration({ lines: beforeScene.onDone, kind: beforeScene.kind, stage: beforeScene.stage })
+        }
         restoreSkill(effect.wordId, effect.layer)
       }
     }
     if (action.type === 'boss-correct' && next.bossWon && beforeScene.kind === 'boss') {
-      setPendingLines(beforeScene.win)
+      setPendingNarration({ lines: beforeScene.win, kind: beforeScene.kind, stage: beforeScene.stage })
     }
     if (next.finished || next.sceneIndex !== before.sceneIndex) persist(next)
     return next
@@ -228,11 +214,47 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const speak: SpeakFn = (text, lang) => services.speech.speak(text, lang)
   const playSound = (cue: Parameters<AudioService['play']>[0]) => services.audio.play(cue)
 
+  /** 整屏对话演出(自带 StageFrame):dialogue/ending/各 scene intro/收尾 overlay 共用。
+   *  ctx = overlay 所属叙事幕上下文(引擎已推进,stage 不得取后 scene);缺省读当前 scene。 */
+  function renderDialogue(
+    lines: readonly ChapterLine[],
+    opts: { onDone: () => void; doneLabel?: string; onExit?: () => void },
+    ctx?: { kind: SceneKind; stage?: StageMeta },
+  ) {
+    const kind = ctx?.kind ?? scene.kind
+    const stage = ctx ? ctx.stage : scene.stage
+    return (
+      <DialoguePresenter
+        key={scene.id}
+        lines={lines}
+        atmosphere={stage?.atmosphere ?? defaultAtmosphere(kind)}
+        fraction={skyFraction}
+        cast={stage?.cast}
+        sky={stage?.sky}
+        speakRole={speakRole}
+        onDone={opts.onDone}
+        onExit={opts.onExit}
+        doneLabel={opts.doneLabel}
+      />
+    )
+  }
+
+  /** 非对白屏统一舞台壳:实景布景 + 右上退出 + 浮层面板。 */
+  function renderStage(body: ReactNode, kind: SceneKind) {
+    return (
+      <StageFrame>
+        <StageSky atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(kind)} fraction={skyFraction} />
+        <Button variant="ghost" size="icon" aria-label="返回地图" onClick={handleExit} className="absolute right-3 top-3 z-30">
+          <X className="h-5 w-5" />
+        </Button>
+        {/* 浮层体按 scene.id 重挂:连续同 kind(task/social/boss…)场景不串内部 UI 态(题面/session)。 */}
+        <ScenePanel key={scene.id}>{body}</ScenePanel>
+      </StageFrame>
+    )
+  }
+
   function sceneBody(current: Scene) {
     switch (current.kind) {
-      case 'dialogue':
-      case 'ending':
-        return <LineScene lines={current.lines} speakRole={speakRole} onDone={() => step({ type: 'advance' })} />
       case 'break':
         return <BreakScene onContinue={() => step({ type: 'advance' })} onExit={handleExit} />
       case 'task': {
@@ -246,23 +268,21 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
             skill={skill}
             makeQuestions={() => services.questionEngine.makeStepQuestions(word, skill, Math.random)}
             speak={speak}
-            speakRole={speakRole}
             playSound={playSound}
             onCorrect={handleTaskCorrect}
           />
         )
       }
       case 'social':
+        // 纯选项 + 两段确认 + 非 good 反馈浮层;intro(lines)/onGood 由顶层 switch 整屏接管。
         return (
           <SocialScene
-            lines={current.lines}
             options={current.options}
             goodOptionId={current.goodOptionId}
             loop={current.loop}
-            onGood={current.onGood}
             speakRole={speakRole}
             playSound={playSound}
-            onChooseGood={() => step({ type: 'social-choose', optionId: current.goodOptionId })}
+            onChooseGood={() => setSocialGoodAt(current.id)}
           />
         )
       case 'boss': {
@@ -271,11 +291,9 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
           .filter((w): w is WordUnit => w !== undefined)
         return (
           <BossScene
-            intro={current.intro}
             wordPool={pool}
             makeQuestion={(word, skill) => services.questionEngine.makeStepQuestions(word, skill, Math.random)[0]}
             speak={speak}
-            speakRole={speakRole}
             playSound={playSound}
             onBossCorrect={handleBossCorrect}
             onBossWrong={handleBossWrong}
@@ -306,60 +324,69 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     }
   }
 
-  // BOSS 失败:保留已恢复进度,播勇气台词后回地图。
+  // BOSS 失败:保留已恢复进度,播勇气台词后回地图(整屏;doneLabel 即「回地图」)。
   if (runState.finished && !runState.bossWon && scene.kind === 'boss') {
-    const lose = scene.lose.length > 0 ? scene.lose : [{ role: 'lingling' as const, text: '已经很棒了!我们先回去休息,下次再来挑战!' }]
+    const lose = scene.lose.length > 0
+      ? scene.lose
+      : [{ role: 'lingling' as const, text: '已经很棒了!我们先回去休息,下次再来挑战!' }]
+    return renderDialogue(lose, { doneLabel: '回地图', onDone: handleExit, onExit: handleExit })
+  }
+
+  // 收尾/叙事台词(pendingNarration = task.onDone / boss.win)整屏优先于当前 scene —— 它们属上一幕叙事。
+  // 外层 Fragment 固定 key:与下文的 scene 整屏对白区分根节点,清 overlay 后 DialoguePresenter 重挂(防台词 index 串场)。
+  if (pendingNarration) {
     return (
-      <Shell chapter={chapter} onExit={handleExit}>
-        <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 text-center shadow-card">
-          <p className="text-4xl" aria-hidden>🖤</p>
-          <p className="mt-2 text-lg font-extrabold text-ink">静默太强了…先回去休息吧!</p>
-          <div className="mt-4 space-y-2.5 text-left">
-            {lose.map((line, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="text-2xl" aria-hidden>{ROLE_META[line.role].emoji}</span>
-                <p className="text-sm font-semibold leading-relaxed text-ink-2">{line.text}</p>
-              </div>
-            ))}
-          </div>
-          <Button size="lg" className="mt-5 w-full" onClick={handleExit}>
-            回地图
-          </Button>
-        </div>
-      </Shell>
+      <Fragment key="overlay">
+        {renderDialogue(pendingNarration.lines, { onDone: () => setPendingNarration(null) }, {
+          kind: pendingNarration.kind,
+          stage: pendingNarration.stage,
+        })}
+      </Fragment>
     )
   }
 
-  const content = pendingLines
-    ? <LineScene lines={pendingLines} speakRole={speakRole} onDone={() => setPendingLines(null)} />
-    : sceneBody(scene)
-
-  return (
-    <Shell chapter={chapter} onExit={handleExit}>
-      <SkyStrip chapter={chapter} restored={runState.restored} wordById={(id) => services.vocabulary.wordById(id)} />
-      {/* 按 scene.id 键控重挂:连续同 kind(task/social/boss)不串内部 UI 态 */}
-      <div key={scene.id}>{content}</div>
-    </Shell>
-  )
-}
-
-function Shell({ chapter, onExit, children }: { chapter: Chapter; onExit(): void; children: ReactNode }) {
-  return (
-    <div className="min-h-screen text-ink">
-      <header className="glass-strong sticky top-0 z-30 border-b border-hairline">
-        <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-4">
-          <Button variant="ghost" size="icon" onClick={onExit} aria-label="返回地图">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <span className="truncate text-[15px] font-bold">
-            {chapter.emoji} 千字谷 · 第{chapter.id}章 {chapter.title}
-          </span>
-          <button type="button" onClick={onExit} aria-label="退出章节" className="ml-auto text-ink-3 hover:text-ink">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      </header>
-      <main className="mx-auto max-w-xl px-4 pb-24 pt-2">{children}</main>
-    </div>
-  )
+  switch (scene.kind) {
+    case 'dialogue':
+    case 'ending':
+      return renderDialogue(scene.lines, { onDone: () => step({ type: 'advance' }), onExit: handleExit })
+    // task 首幕台词:intro 整屏舞台演出(本地放行记录,不入引擎);通过后才交 sceneBody 出答题卡。
+    case 'task': {
+      if (scene.intro.length > 0 && !introPassed[scene.id]) {
+        return renderDialogue(scene.intro, {
+          onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
+          onExit: handleExit,
+        })
+      }
+      return renderStage(sceneBody(scene), scene.kind)
+    }
+    // social 三相:首幕(lines)整屏对白 → 放行后出选项浮层 → good 确认后 onGood 整屏收尾 → social-choose advance
+    case 'social': {
+      if (scene.lines.length > 0 && !introPassed[scene.id]) {
+        return renderDialogue(scene.lines, {
+          onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
+          onExit: handleExit,
+        })
+      }
+      if (socialGoodAt === scene.id) {
+        return renderDialogue(scene.onGood, {
+          onDone: () => step({ type: 'social-choose', optionId: scene.goodOptionId }),
+          onExit: handleExit,
+        })
+      }
+      return renderStage(sceneBody(scene), scene.kind)
+    }
+    // boss 首幕台词:intro 整屏舞台演出(静默登台;本地放行记录,不入引擎);通过后才交浮层出 BOSS 题卡。
+    case 'boss': {
+      if (scene.intro.length > 0 && !introPassed[scene.id]) {
+        return renderDialogue(scene.intro, {
+          onDone: () => setIntroPassed((m) => ({ ...m, [scene.id]: true })),
+          onExit: handleExit,
+        })
+      }
+      return renderStage(sceneBody(scene), scene.kind)
+    }
+    // break/settle:统一舞台壳;body 由 sceneBody 给裸内容(不加 frame)。
+    default:
+      return renderStage(sceneBody(scene), scene.kind)
+  }
 }

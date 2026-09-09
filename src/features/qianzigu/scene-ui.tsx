@@ -21,97 +21,22 @@ export const ROLE_META: Record<SpeechRole, { name: string; emoji: string }> = {
 export type SpeakFn = (text: string, language?: string) => boolean
 export type SpeakRoleFn = (text: string, role: SpeechRole, opts?: { rate?: number; pitch?: number }) => boolean
 
-/** 台词角色气泡(供 LineScene 显示当前一句)。 */
-function LineBubble({ line }: { line: ChapterLine }) {
-  const meta = ROLE_META[line.role]
-  return (
-    <div className="flex items-start gap-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-xl" aria-hidden>
-        {meta.emoji}
-      </span>
-      <div className="min-w-0 max-w-[85%]">
-        <p className="text-xs font-bold text-ink-3">{meta.name}</p>
-        <p className="mt-1 rounded-2xl rounded-tl-sm border border-hairline bg-surface px-4 py-2.5 text-[15px] font-semibold leading-relaxed text-ink shadow-card">
-          {line.text}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-/**
- * 逐句台词面板:进入自动朗读当前句,「继续」逐条推进;末句再点触发 onDone(场景推进)。
- * 用于 dialogue/ending/断点后叙事/恢复收尾 onDone/onGood/BOSS win 等台词承载。
- */
-export function LineScene({
-  lines,
-  speakRole,
-  onDone,
-  doneLabel = '继续',
-  ariaLabel,
-}: {
-  lines: readonly ChapterLine[]
-  speakRole: SpeakRoleFn
-  onDone(): void
-  doneLabel?: string
-  ariaLabel?: string
-}) {
-  const [index, setIndex] = useState(0)
-  const saidRef = useRef<number | null>(null)
-  const line = lines[Math.min(index, lines.length - 1)]
-
-  useEffect(() => {
-    if (saidRef.current === index && line) return
-    saidRef.current = index
-    if (line) speakRole(line.text, line.role)
-  }, [index, line, speakRole])
-
-  // 空台词列表:直接呈现一颗推进按钮,不卡死。
-  if (!line) {
-    return (
-      <div className="flex flex-col items-center py-10">
-        <Button size="lg" onClick={onDone}>{doneLabel}</Button>
-      </div>
-    )
-  }
-
-  const isLast = index >= lines.length - 1
-  return (
-    <div role={ariaLabel} className="flex flex-col">
-      <div className="flex min-h-40 flex-col justify-center px-1 py-6">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-          >
-            <LineBubble line={line} />
-          </motion.div>
-        </AnimatePresence>
-      </div>
-      <Button size="lg" className="w-full" onClick={() => (isLast ? onDone() : setIndex((i) => i + 1))}>
-        {isLast ? doneLabel : '继续'}
-        {isLast ? <ArrowRight className="ml-1 h-4 w-4" /> : null}
-      </Button>
-    </div>
-  )
-}
-
-/** 自然断点:「继续拯救」→ advance;「明天再来」→ 落库并回地图。 */
+/** 自然断点:「继续拯救」→ advance;「明天再来」→ 落库并回地图。
+ *  外层 surface 卡:断点屏叠在夜景天空浮层上,需不透明底才可读(旧 <main> 白底已删)。 */
 export function BreakScene({ onContinue, onExit }: { onContinue(): void; onExit(): void }) {
   return (
-    <div className="flex flex-col items-center px-2 py-8 text-center">
-      <p className="text-5xl" aria-hidden>🌙</p>
-      <p className="mt-4 text-lg font-extrabold text-ink">天黑了,先休息一下吧?</p>
-      <p className="mt-2 max-w-60 text-sm text-ink-2">进度会自动保存,下次从这里继续!</p>
-      <Button size="lg" className="mt-6 w-full" onClick={onContinue}>
-        继续拯救 <ArrowRight className="ml-1 h-4 w-4" />
-      </Button>
-      <Button variant="outline" size="lg" className="mt-2.5 w-full" onClick={onExit}>
-        <Moon className="mr-2 h-4 w-4" /> 明天再来
-      </Button>
+    <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 text-center shadow-card">
+      <div className="flex flex-col items-center">
+        <p className="text-5xl" aria-hidden>🌙</p>
+        <p className="mt-4 text-lg font-extrabold text-ink">天黑了,先休息一下吧?</p>
+        <p className="mt-2 max-w-60 text-sm text-ink-2">进度会自动保存,下次从这里继续!</p>
+        <Button size="lg" className="mt-6 w-full" onClick={onContinue}>
+          继续拯救 <ArrowRight className="ml-1 h-4 w-4" />
+        </Button>
+        <Button variant="outline" size="lg" className="mt-2.5 w-full" onClick={onExit}>
+          <Moon className="mr-2 h-4 w-4" /> 明天再来
+        </Button>
+      </div>
     </div>
   )
 }
@@ -270,7 +195,6 @@ export type TaskSceneProps = {
   skill: SkillKey
   makeQuestions(): Question[]
   speak: SpeakFn
-  speakRole: SpeakRoleFn
   playSound(cue: AudioCue): void
   /** 答对满 minCorrect 后引擎推进 → 返回 true;false 表示还需在同层继续积累。 */
   onCorrect(wordId: number, layer: TaskSceneData['task']['layer']): boolean
@@ -282,23 +206,12 @@ export function TaskScene({
   skill,
   makeQuestions,
   speak,
-  speakRole,
   playSound,
   onCorrect,
 }: TaskSceneProps) {
-  const [introDone, setIntroDone] = useState(scene.intro.length === 0)
   const [round, setRound] = useState(0)
   const [questions, setQuestions] = useState<Question[]>(() => makeQuestions())
   const [qIndex, setQIndex] = useState(0)
-
-  if (!introDone) {
-    return (
-      <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 shadow-card">
-        <p className="text-center text-lg font-extrabold">{scene.title}</p>
-        <LineScene lines={scene.intro} speakRole={speakRole} onDone={() => setIntroDone(true)} />
-      </div>
-    )
-  }
 
   const question = questions[qIndex]
 
@@ -347,30 +260,24 @@ export function TaskScene({
 /* ------------------------------ Social ------------------------------ */
 
 export type SocialSceneProps = {
-  lines: readonly ChapterLine[]
   options: readonly SceneOption[]
   goodOptionId: string
   loop: readonly ChapterLine[]
-  onGood: readonly ChapterLine[]
   speakRole: SpeakRoleFn
   playSound(cue: AudioCue): void
-  /** 选对后收尾台词放行 → 引擎推进。 */
+  /** 确认 good 后交还 runner 播 onGood 收尾(整屏对白),不再内播卡片 overlay。 */
   onChooseGood(): void
 }
 
 export function SocialScene({
-  lines,
   options,
   goodOptionId,
   loop,
-  onGood,
   speakRole,
   playSound,
   onChooseGood,
 }: SocialSceneProps) {
-  const [introDone, setIntroDone] = useState(lines.length === 0)
   const [feedback, setFeedback] = useState<readonly ChapterLine[] | null>(null)
-  const [goodOverlay, setGoodOverlay] = useState(false)
   // 两段式选:首点=朗读选项文本进入「待确认」,再点同一项=确认选择。
   const [pendingId, setPendingId] = useState<string | null>(null)
   const saidRef = useRef<string | null>(null)
@@ -381,30 +288,11 @@ export function SocialScene({
     for (const line of feedback) speakRole(line.text, line.role)
   }, [feedback, speakRole])
 
-  if (!introDone) {
-    return (
-      <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 shadow-card">
-        <p className="text-center text-lg font-extrabold">安慰月亮</p>
-        <LineScene lines={lines} speakRole={speakRole} onDone={() => setIntroDone(true)} />
-      </div>
-    )
-  }
-
-  if (goodOverlay) {
-    // 收尾台词走完 → 引擎放行 social-choose(good)
-    const overlayLines = [...onGood]
-    return (
-      <div className="rounded-[1.75rem] border border-emerald/40 bg-surface p-5 shadow-card">
-        <LineScene lines={overlayLines} speakRole={speakRole} doneLabel="继续" onDone={onChooseGood} />
-      </div>
-    )
-  }
-
   function choose(option: SceneOption) {
     if (option.id === goodOptionId) {
+      // good:确认即交 runner(整屏 onGood 收尾承载 canonical 台词,故不再朗读 option.response)
       playSound('correct')
-      speakRole(option.response, 'moon')
-      setGoodOverlay(true)
+      onChooseGood()
       return
     }
     // 非 good:读后果 + 依情景取 loop 引导,停留重弹选项(引擎保持在 social scene)
@@ -472,11 +360,9 @@ export function SocialScene({
 /* ------------------------------- BOSS ------------------------------- */
 
 export type BossSceneProps = {
-  intro: readonly ChapterLine[]
   wordPool: readonly WordUnit[]
   makeQuestion(word: WordUnit, skill: SkillKey): Question
   speak: SpeakFn
-  speakRole: SpeakRoleFn
   playSound(cue: AudioCue): void
   /** 每答对一题;BossWon 时返回 true(引擎推进离开 boss)。 */
   onBossCorrect(): boolean
@@ -487,28 +373,15 @@ export type BossSceneProps = {
 const BOSS_SKILLS: readonly SkillKey[] = ['pinyin', 'hanzi']
 
 export function BossScene({
-  intro,
   wordPool,
   makeQuestion,
   speak,
-  speakRole,
   playSound,
   onBossCorrect,
   onBossWrong,
 }: BossSceneProps) {
-  const [introDone, setIntroDone] = useState(intro.length === 0)
   const [pick, setPick] = useState(() => 0)
   const [session, setSession] = useState(0)
-
-  if (!introDone) {
-    return (
-      <div className="rounded-[1.75rem] border border-hairline bg-surface p-5 shadow-card">
-        <p className="text-center text-4xl" aria-hidden>🖤</p>
-        <p className="mt-1 text-center text-lg font-extrabold">静默的挑战</p>
-        <LineScene lines={intro} speakRole={speakRole} doneLabel="开始挑战" onDone={() => setIntroDone(true)} />
-      </div>
-    )
-  }
 
   const word = wordPool[pick % wordPool.length] ?? wordPool[0]
   if (!word) return null

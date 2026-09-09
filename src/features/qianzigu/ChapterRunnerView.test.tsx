@@ -17,7 +17,9 @@ import type {
   WordUnit,
 } from '@/shared/services'
 import type { Chapter } from './chapter'
+import { CHAPTER_1 } from './ch1'
 import { ChapterRunnerView, type ChapterRunnerServices } from './ChapterRunnerView'
+import { resolveDebugRow } from './debug-jump'
 
 const word: WordUnit = {
   id: 1,
@@ -232,6 +234,53 @@ function answer(text: string) {
 }
 
 describe('ChapterRunnerView 逐 scene 运行器', () => {
+  it('debug 直达 ?s=1.1.16:伪 initialRow 快进落在 boss 幕(不回头卡在开场)', async () => {
+    const row = resolveDebugRow(CHAPTER_1, '1.1.16')
+    expect(row).not.toBeNull()
+    renderRunner(CHAPTER_1, row)
+    // boss intro 首句整屏对白出现 = resumeFromRow 已穿场快进(open/t1..t5 全跳过)
+    expect(await screen.findByText('你们...居然唤醒了太阳...')).toBeInTheDocument()
+    expect(screen.queryByText(/欢迎来到千字谷/)).not.toBeInTheDocument()
+  })
+
+  it('dialogue 屏渲染为舞台屏:cast 站队 + 台词泡;点继续推进到下一屏', async () => {
+    renderRunner(flowChapter())
+    expect(await screen.findByText('你好,太阳!')).toBeInTheDocument()
+    // 整屏舞台帧:dialogue 屏真的挂在 StageFrame/StageSky 上(旧 Shell 标题头已删)
+    expect(document.querySelector('.stage-sky')).not.toBeNull()
+    expect(screen.getByText('灵灵')).toBeInTheDocument() // 名字牌(cast 推导)
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('拯救声音')).toBeInTheDocument() // task 屏(旧 UI 过渡)
+  })
+
+  it('open 屏:太阳作天空体从布景出泡(sun 不进地面行;无重复头像)', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 'open',
+          kind: 'dialogue',
+          lines: [{ role: 'sun', text: '救救我' }],
+          stage: { atmosphere: 'dawn', sky: ['sun'] },
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    expect(await screen.findByText('救救我')).toBeInTheDocument()
+    // 布景本体(烧焦蛋)在天幕(进度 0)
+    expect(document.querySelector('.stage-sun--burnt')).not.toBeNull()
+    // 地面行无太阳;顶栏槽 [data-stage-sky] 已退役
+    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('太阳')
+    expect(document.querySelector('[data-stage-sky]')).toBeNull()
+    // 仅一个说话泡,落在天空说者区(非地面行),含名牌
+    expect(document.querySelectorAll('[data-stage-bubble]').length).toBe(1)
+    const skySpeaker = document.querySelector('[data-stage-sky-speaker]')!
+    expect(skySpeaker).not.toBeNull()
+    expect(skySpeaker.textContent).toContain('太阳')
+    expect(document.body.textContent).not.toContain('☀️') // 本体=烧焦蛋 🍳,无第二颗太阳头像
+  })
+
   it('dialogue → task:点继续进任务,出题;答对 2 次写 pinyin 进度到 settle', async () => {
     const { saveStep, onSettled } = renderRunner(flowChapter())
 
@@ -300,7 +349,127 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(screen.queryByText('拯救声音')).not.toBeInTheDocument()
   })
 
-  it('BOSS 错满 → 勇气台词出现、不再写后续词进度', async () => {
+  it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后布景太阳随进度复原', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音', intro: [],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 }, onDone: [],
+          stage: { atmosphere: 'dusk' as const, cast: ['lingling'] },
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    // 场景 0 = task → 已走统一舞台壳,天空氛围 class 出现(dusk ≠ task 默认 dawn → 证明 override)
+    expect(document.querySelector('.stage-sky--dusk')).not.toBeNull()
+    // 词点灯条退役:布景层不再渲染任何 .stage-word
+    expect(document.querySelector('.stage-word')).toBeNull()
+    // 进度 0 → 太阳位 = 烧焦蛋档(非 dusk 真夜,太阳仍挂天幕)
+    expect(document.querySelector('.stage-sun--burnt')).not.toBeNull()
+    answer('太阳') // 现有 helper:点选项 → 确定
+    answer('太阳')
+    // 引擎仅记一层恢复(task 场景 1 层)→ fraction=restored/总层=1 → 太阳复原到 full 档
+    expect(document.querySelector('.stage-sun--full')).not.toBeNull()
+  })
+
+  it('task 屏:先整屏台词演出 intro,点继续才出题', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音',
+          intro: [{ role: 'lingling', text: '听!这是太阳的声音…' }],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 }, onDone: [],
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    expect(screen.getByText('听!这是太阳的声音…')).toBeInTheDocument()
+    // 整屏舞台判别:DialoguePresenter/StageCast 才渲染角色旁泡(data-stage-bubble);旧卡片 LineScene 无此物
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    expect(screen.queryByText('选出太阳的拼音')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('选出太阳的拼音')).toBeInTheDocument()
+  })
+
+  it('task onDone 台词整屏对白,点继续进结算', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        { id: 't1', kind: 'task', title: '拯救声音', intro: [], task: { wordId: 1, layer: 'sound', minCorrect: 2 },
+          onDone: [{ role: 'lingling', text: '太棒了!' }] },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+    renderRunner(chapter)
+    answer('太阳')
+    answer('太阳')
+    expect(await screen.findByText('太棒了!')).toBeInTheDocument()
+    // onDone 收尾也是整屏 DialoguePresenter(角色旁泡 data-stage-bubble),非旧卡片 LineScene
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('第1章完成!')).toBeInTheDocument()
+  })
+
+  it('onDone overlay 携起源幕 kind 兜底氛围(不取后 scene 的夜 break)', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音', intro: [],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 },
+          onDone: [{ role: 'lingling', text: '太阳复活了!' }],
+        },
+        // 下一幕是 break(缺省 night)——bug 会让 onDone 搭错夜空
+        { id: 'br', kind: 'break' },
+      ],
+    }
+    renderRunner(chapter)
+    answer('太阳')
+    answer('太阳')
+    expect(await screen.findByText('太阳复活了!')).toBeInTheDocument()
+    // 引擎已推进到 br,但 overlay 应按起源幕 task 的 kind 兜底氛围(dawn),不是下一幕 night
+    expect(document.querySelector('.stage-sky--dawn')).not.toBeNull()
+    expect(document.querySelector('.stage-sky--night')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    // overlay 清后进入真正的夜 break
+    expect(await screen.findByRole('button', { name: /继续拯救/ })).toBeInTheDocument()
+    expect(document.querySelector('.stage-sky--night')).not.toBeNull()
+  })
+
+  it('onDone overlay 携起源幕 stage.sky:太阳从天空出泡(不落地面/不双太阳)', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音', intro: [],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 },
+          onDone: [{ role: 'sun', text: '早上好!' }],
+          stage: { sky: ['sun'] },
+        },
+        // 后 scene 无 sky 也无该氛围——bug 会让 sun 落地面行 + 布景仍画天阳(双太阳)
+        { id: 'br', kind: 'break' },
+      ],
+    }
+    renderRunner(chapter)
+    answer('太阳')
+    answer('太阳')
+    expect(await screen.findByText('早上好!')).toBeInTheDocument()
+    // 起源幕 task 兜底 dawn(非下一幕 night);sun 从天空出泡(天空说者区),地面行无太阳
+    expect(document.querySelector('.stage-sky--dawn')).not.toBeNull()
+    expect(document.querySelector('.stage-sky--night')).toBeNull()
+    const skySpeaker = document.querySelector('[data-stage-sky-speaker]')!
+    expect(skySpeaker).not.toBeNull()
+    expect(skySpeaker.textContent).toContain('早上好!')
+    expect(skySpeaker.textContent).toContain('太阳')
+    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('太阳')
+    expect(document.querySelectorAll('[data-stage-bubble]').length).toBe(1)
+  })
+
+  it('BOSS 错满 → 勇气台词逐句出现、末句「回地图」;不再写后续词进度', async () => {
     const fakes = renderRunner(bossChapter())
 
     // 先完成词 1 pinyin(saveStep 1 次)
@@ -313,10 +482,45 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     bossWrong()
     bossWrong()
 
+    // BOSS 失败走整屏对白:首句勇气台词即现;逐句推进后末句 doneLabel=「回地图」
     expect(await screen.findByText(/已经很棒了/)).toBeInTheDocument()
     // 前面任务已保留;BOSS 本身不写任何词进度
     expect(fakes.saveStep).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(screen.getByText(/我们先回去休息/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '回地图' })).toBeInTheDocument()
+  })
+
+  it('boss:静默 intro 整屏登台对白 → 点继续出题卡 → 全对播 win 收尾 → 进入下一屏', async () => {
+    const chapter: Chapter = {
+      ...bossChapter(),
+      scenes: [
+        {
+          id: 'boss', kind: 'boss',
+          intro: [{ role: 'jingmo', text: '我是静默!' }],
+          maxWrong: 2,
+          questionCount: 1,
+          win: [{ role: 'jingmo', text: '不可能...!' }],
+          lose: [{ role: 'lingling', text: '下次再来!' }],
+        },
+        { id: 'end', kind: 'dialogue', lines: [{ role: 'lingling', text: '继续前进!' }] },
+      ],
+    }
+    renderRunner(chapter)
+    // intro 是整屏舞台对白:仅 DialoguePresenter/StageCast 渲染角色旁泡(data-stage-bubble),
+    // 旧卡片 LineScene 无此物 → 判别真实舞台化(boss intro 行角色=静默,非 narrator → 泡渲染)。
+    expect(await screen.findByText('我是静默!')).toBeInTheDocument()
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    expect(screen.queryByText('BOSS · 静默')).not.toBeInTheDocument() // 题卡尚未浮出
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    // 放行后交浮层:BOSS 题卡徽章 + 出题
+    expect(await screen.findByText('BOSS · 静默')).toBeInTheDocument()
+    expect(screen.getByText('选出太阳的拼音')).toBeInTheDocument()
+    answer('太阳') // questionCount:1 → 一次全对即 bossWon
+    // win overlay:整屏对白(非卡)
+    expect(await screen.findByText('不可能...!')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('继续前进!')).toBeInTheDocument()
   })
 })
 
@@ -373,5 +577,22 @@ describe('ChapterRunnerView 社交选项两段式(先听后选)', () => {
     // 走完收尾 → social-choose 放行 → 推进到下一 scene
     fireEvent.click(screen.getByRole('button', { name: '继续' }))
     expect(await screen.findByText('继续前进!')).toBeInTheDocument()
+  })
+
+  it('social:哭诉首幕整屏对白 → 点继续出选项 → 两段确认 good → 播 onGood 收尾 → advance', async () => {
+    renderRunner(socialChapter())
+    // 首幕(lines)是整屏 DialoguePresenter(角色旁泡 data-stage-bubble),非旧卡片 intro
+    expect(await screen.findByText('好孤单...')).toBeInTheDocument()
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('你想怎么做?')).toBeInTheDocument()
+    const good = /我也喜欢你!/
+    fireEvent.click(screen.getByRole('button', { name: good })) // 首点=朗读/待确认
+    fireEvent.click(screen.getByRole('button', { name: good })) // 再点=确认 good
+    // onGood 收尾也是整屏 DialoguePresenter(角色旁泡),走完才 advance
+    expect(await screen.findByText('真的吗?谢谢你!')).toBeInTheDocument()
+    expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    expect(await screen.findByText('继续前进!')).toBeInTheDocument() // 下一 dialogue
   })
 })

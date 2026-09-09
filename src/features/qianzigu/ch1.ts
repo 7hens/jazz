@@ -4,6 +4,7 @@ import type { Chapter } from './chapter'
  * 千字谷 · 第 1 章《太阳的求救》内容数据。
  * 台本逐条照录自 docs/ideas/260908-01-001.md §4.1-§4.10,role 映射:
  * 🦊→lingling / ☀️→sun / 🌙→moon / 🖤→jingmo / 🐰→villager。
+ * 台本句长规则:单句台词去标点推荐 ≤18 汉字、硬线 ≤20;超 20 必按意群拆(ch1-script.test.ts 守卫)。
  * 场景结构遵循 P3 引擎/控制器约束:
  *  - 每词两个连续 task scene(先 sound 后 shape),minCorrect 均 2(R2);
  *  - 断点恰 3 个(词1 后 / 词2 后 / 社交事件后,对齐 idea §2 流程);
@@ -17,18 +18,34 @@ export const CHAPTER_1: Chapter = {
   wordIds: [1, 101, 102, 103, 3],
   restoreOrder: [1, 1, 101, 101, 102, 102, 103, 103, 3, 3],
   scenes: [
-    // §4.1 开场:灰白天空区,太阳暗淡。双按钮分支线性化(❓ 的重新解释并入灵灵台词,R4b)。
+    // §4.1 开场:灰白天空区,太阳暗淡。开场台词依产品反馈改写(欢迎 + 幽默介绍千字谷 + 借太阳哭诉立起静默/墨迹两个反派),非逐字照录;
+    // 原 R4b「❓ 的重新解释」已内化进哭诉对话本身,故删去尾部重解释行,无需分支。
     {
       id: 'open',
       kind: 'dialogue',
+      stage: { sky: ['sun'] },
       lines: [
-        { role: 'lingling', text: '千字谷到了！但是...好暗啊...' },
-        { role: 'lingling', text: '太阳...你怎么了？' },
-        { role: 'sun', text: '救...救救我...我的声音...被吃掉了...' },
-        { role: 'lingling', text: '太阳在求救！它的声音被静默吃掉了！' },
-        { role: 'lingling', text: '它的形状也被墨迹涂花了！' },
-        { role: 'lingling', text: '你是成长守护者，你能帮帮它！' },
-        { role: 'lingling', text: '太阳发不出声音了，字也被弄花了！我们要救它！' },
+        { role: 'lingling', text: '欢迎来到千字谷——锵锵锵！' },
+        { role: 'lingling', text: '这可是世界上最热闹的山谷！' },
+        { role: 'lingling', text: '山壁上刻着亮晶晶的汉字，空气里飘着拼音！' },
+        { role: 'lingling', text: '天天叮叮咚咚的，像在开演唱会！' },
+        { role: 'lingling', text: '诶？今天怎么这么安静？连个“叮”都没有……' },
+        { role: 'lingling', text: '咦，太阳怎么灰扑扑的？太阳——你还好吗？！' },
+        { role: 'sun', text: '救……救我……我的声音……被吃掉了……脸……也被画花了……' },
+        { role: 'lingling', text: '什么？！谁干的？！' },
+        { role: 'sun', text: '一个黑乎乎的家伙……它说它叫……静默……' },
+        { role: 'sun', text: '然后……啊呜一口……把我的声音……全吞掉了……' },
+        { role: 'lingling', text: '静默！我知道——专偷声音的贪吃鬼！' },
+        { role: 'lingling', text: '声音一到它嘴里，咕咚一声就没影啦！' },
+        { role: 'lingling', text: '那你的脸呢？又是谁画的？' },
+        { role: 'sun', text: '是墨迹……它说要给我画个超——帅的新造型……' },
+        { role: 'lingling', text: '扑哧——这叫超帅造型？' },
+        { role: 'lingling', text: '明明就是一颗煎糊了的荷包蛋嘛！' },
+        { role: 'sun', text: '呜哇——你、你还笑！' },
+        { role: 'sun', text: '没声音、顶着鸡蛋脸，我还怎么照亮大家嘛！' },
+        { role: 'lingling', text: '别怕！咱俩专治偷声音、乱涂鸦！' },
+        { role: 'lingling', text: '你——就是千字谷的成长守护者！' },
+        { role: 'lingling', text: '走，咱们把太阳的声音和帅脸抢回来！' },
       ],
     },
 
@@ -97,6 +114,7 @@ export const CHAPTER_1: Chapter = {
     {
       id: 'social-moon',
       kind: 'social',
+      stage: { atmosphere: 'night', cast: ['lingling', 'moon'] },
       lines: [
         { role: 'lingling', text: '咦...月亮在哭...' },
         { role: 'moon', text: '大家都喜欢太阳...没有人喜欢我...' },
@@ -152,6 +170,7 @@ export const CHAPTER_1: Chapter = {
     {
       id: 't4-sound',
       kind: 'task',
+      stage: { sky: ['sun'] },
       title: '说早上好 · 声音',
       intro: [
         { role: 'lingling', text: '太阳升起来了！现在是早上！' },
@@ -166,6 +185,7 @@ export const CHAPTER_1: Chapter = {
     {
       id: 't4-shape',
       kind: 'task',
+      stage: { sky: ['sun'] },
       title: '说早上好 · 字形',
       intro: [
         { role: 'lingling', text: '你也来说早上好！' },

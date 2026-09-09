@@ -88,7 +88,8 @@ Expected: FAIL(模块 `./stage-meta` 不存在)。
 - [ ] **Step 3: 实现 stage-meta.ts(前三个函数)**
 
 ```ts
-import type { ChapterLine, SpeechRole } from './chapter'
+import type { ChapterLine } from './chapter'
+import type { SpeechRole } from '@/shared/services'
 
 const NARRATOR: SpeechRole = 'narrator'
 
@@ -197,7 +198,8 @@ export type ChapterLine = Readonly<{ role: SpeechRole; text: string; mood?: Spee
 - [ ] **Step 4: 在 stage-meta.ts 补 defaultAtmosphere**
 
 ```ts
-import type { AtmosphereKey, ChapterLine, SceneKind, SpeechRole } from './chapter'
+import type { AtmosphereKey, ChapterLine, SceneKind } from './chapter'
+import type { SpeechRole } from '@/shared/services'
 // …castFor/restoreCount 保持不变…
 
 /** 氛围兜底:stage.atmosphere 缺失时按场景 kind 取默认。 */
@@ -216,7 +218,7 @@ export function defaultAtmosphere(kind: SceneKind): AtmosphereKey {
 }
 ```
 
-> 同步:把该文件顶部 `import type { ChapterLine, SpeechRole } from './chapter'` 扩成含 `AtmosphereKey, SceneKind`。
+> 同步:把该文件顶部的 `./chapter` type import 扩成含 `AtmosphereKey, SceneKind`;`SpeechRole` 保持从 `@/shared/services` 导入(chapter.ts 只 import 不 re-export SpeechRole)。
 
 - [ ] **Step 5: 跑测试确认通过 + 类型与全量回归**
 
@@ -284,7 +286,8 @@ Expected: FAIL(模块不存在)。
 - [ ] **Step 3: 实现 stage-visuals.ts**
 
 ```ts
-import type { AtmosphereKey, SpeechMood, SpeechRole } from './chapter'
+import type { AtmosphereKey, SpeechMood } from './chapter'
+import type { SpeechRole } from '@/shared/services'
 
 /** 角色形象比例(emoji 放大系数;静默大反派)。
  *  位图接缝:将来换立绘只改此映射 + stage-visuals 同文件 atmosphere 表,组件零改。 */
@@ -555,7 +558,7 @@ export type DialoguePresenterProps = {
   /** 左上退出(返回地图);缺省不显示 */
   onExit?: () => void
   doneLabel?: string
-  ariaLabel?: string
+  // final-review:ariaLabel 已删(未用死 prop;整屏可点层 aria-hidden,键盘/AT 出口 = 底部 Continue)
 }
 ```
 
@@ -641,7 +644,6 @@ export type DialoguePresenterProps = {
   onDone(): void
   onExit?: () => void
   doneLabel?: string
-  ariaLabel?: string
 }
 
 function tail() {
@@ -676,7 +678,6 @@ export function DialoguePresenter({
   onDone,
   onExit,
   doneLabel = '继续',
-  ariaLabel,
 }: DialoguePresenterProps) {
   const [index, setIndex] = useState(0)
   const saidRef = useRef<number | null>(null)
@@ -690,7 +691,8 @@ export function DialoguePresenter({
 
   if (!line) {
     return (
-      <StageFrame role={ariaLabel}>
+      <StageFrame>
+        {/* final-review:ariaLabel 不传 StageFrame(其签名无 role;空态同主态) */}
         <div className="flex h-full items-center justify-center">
           <Button size="lg" onClick={onDone}>
             {doneLabel}
@@ -707,7 +709,8 @@ export function DialoguePresenter({
   const displayCast = castFor(lines, cast) // narrator 已被 castFor 滤除
 
   return (
-    <StageFrame role={ariaLabel}>
+    <StageFrame>
+      {/* final-review:ariaLabel 不传 StageFrame(其签名无 role) */}
       <StageSky atmosphere={atmosphere} words={skyWords ?? []} restored={restored} />
       {onExit ? (
         <Button variant="ghost" size="icon" aria-label="返回地图" onClick={onExit} className="absolute left-3 top-3 z-20">
@@ -827,7 +830,6 @@ if (scene.kind === 'dialogue' || scene.kind === 'ending') {
       speakRole={speakRole}
       onDone={() => step({ type: 'advance' })}
       onExit={handleExit}
-      ariaLabel="千字谷台词"
     />
   )
 }
