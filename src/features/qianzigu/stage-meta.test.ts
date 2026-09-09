@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChapterLine } from './chapter'
-import { castFor, defaultAtmosphere, isNarrator, restoreCount } from './stage-meta'
+import { castFor, defaultAtmosphere, isNarrator, progressFraction, restoreCount, showMoonStars, skySplit, sunStage } from './stage-meta'
 
 const L = (role: ChapterLine['role']): ChapterLine => ({ role, text: 'x' })
 
@@ -39,5 +39,36 @@ describe('stage-meta', () => {
     expect(defaultAtmosphere('dialogue')).toBe('dawn')
     expect(defaultAtmosphere('task')).toBe('dawn')
     expect(defaultAtmosphere('social')).toBe('dawn')
+  })
+})
+
+describe('太阳档 / 回春 / 月星 / 天空体', () => {
+  it('sunStage 按进度分档', () => {
+    expect(sunStage(0)).toBe('burnt')
+    expect(sunStage(0.1)).toBe('burnt')
+    expect(sunStage(0.2)).toBe('crack')
+    expect(sunStage(0.5)).toBe('glow')
+    expect(sunStage(0.79)).toBe('glow')
+    expect(sunStage(0.8)).toBe('full')
+    expect(sunStage(1)).toBe('full')
+  })
+  it('showMoonStars:真夜(dark/night)恒显;失光(dawn 低进度)显;day 复原高进度隐', () => {
+    expect(showMoonStars(0, 'night')).toBe(true)
+    expect(showMoonStars(1, 'night')).toBe(true)   // 真夜不管进度
+    expect(showMoonStars(0, 'dawn')).toBe(true)     // 失光才见星月
+    expect(showMoonStars(0.5, 'dawn')).toBe(true)
+    expect(showMoonStars(0.9, 'dawn')).toBe(false)
+    expect(showMoonStars(1, 'day')).toBe(false)
+  })
+  it('skySplit:只保留出现在 cast 的天空体;narrator 不进 sky', () => {
+    const cast = ['lingling', 'sun', 'moon'] as const
+    expect(skySplit([...cast], ['sun', 'narrator'])).toEqual({ ground: ['lingling', 'moon'], sky: ['sun'] })
+    expect(skySplit([...cast], undefined)).toEqual({ ground: ['lingling', 'sun', 'moon'], sky: [] })
+  })
+  it('progressFraction 夹 [0,1]', () => {
+    expect(progressFraction(0, 10)).toBe(0)
+    expect(progressFraction(5, 10)).toBe(0.5)
+    expect(progressFraction(10, 10)).toBe(1)
+    expect(progressFraction(12, 10)).toBe(1)
   })
 })

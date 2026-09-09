@@ -40,3 +40,37 @@ export function defaultAtmosphere(kind: SceneKind): AtmosphereKey {
       return 'dawn'
   }
 }
+
+export type SunStage = 'burnt' | 'crack' | 'glow' | 'full'
+
+export function progressFraction(restoredLen: number, totalLayers: number): number {
+  if (totalLayers <= 0) return 0
+  return Math.min(1, Math.max(0, restoredLen / totalLayers))
+}
+
+export function sunStage(fraction: number): SunStage {
+  if (fraction < 0.2) return 'burnt'
+  if (fraction < 0.5) return 'crack'
+  if (fraction < 0.8) return 'glow'
+  return 'full'
+}
+
+export function showMoonStars(fraction: number, atmosphere: AtmosphereKey): boolean {
+  if (atmosphere === 'night' || atmosphere === 'dark' || atmosphere === 'dusk') return true
+  return fraction < 0.8
+}
+
+export function skySplit(
+  cast: readonly SpeechRole[],
+  sky: readonly SpeechRole[] | undefined,
+): { ground: SpeechRole[]; sky: SpeechRole[] } {
+  const skySet = new Set<SpeechRole>(sky ?? [])
+  skySet.delete('narrator')
+  const ground: SpeechRole[] = []
+  const skyOut: SpeechRole[] = []
+  for (const role of cast) {
+    if (skySet.has(role)) skyOut.push(role)
+    else ground.push(role)
+  }
+  return { ground, sky: skyOut }
+}

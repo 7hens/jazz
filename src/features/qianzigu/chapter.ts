@@ -6,7 +6,12 @@ export type WordLayer = 'sound' | 'shape'          // sound=拼音恢复,shape=�
 export type AtmosphereKey = 'dawn' | 'day' | 'dusk' | 'night' | 'dark'
 export type SpeechMood = 'calm' | 'sad' | 'happy' | 'scary'
 /** 舞台元数据(全可选;引擎零读)。cast 顺序即站位偏好,自动分槽;narrator 永不出现在 cast。 */
-export type StageMeta = Readonly<{ cast?: readonly SpeechRole[]; atmosphere?: AtmosphereKey }>
+export type StageMeta = Readonly<{
+  cast?: readonly SpeechRole[]
+  atmosphere?: AtmosphereKey
+  /** 当幕作「天空体」的角色(缺省 = 全员地面):不入 StageCast 地面行,其台词就地由布景对应天体出泡。 */
+  sky?: readonly SpeechRole[]
+}>
 
 export type ChapterLine = Readonly<{ role: SpeechRole; text: string; mood?: SpeechMood }>
 
