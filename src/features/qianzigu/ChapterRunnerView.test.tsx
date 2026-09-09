@@ -414,6 +414,61 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(await screen.findByText('第1章完成!')).toBeInTheDocument()
   })
 
+  it('onDone overlay 携起源幕 kind 兜底氛围(不取后 scene 的夜 break)', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音', intro: [],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 },
+          onDone: [{ role: 'lingling', text: '太阳复活了!' }],
+        },
+        // 下一幕是 break(缺省 night)——bug 会让 onDone 搭错夜空
+        { id: 'br', kind: 'break' },
+      ],
+    }
+    renderRunner(chapter)
+    answer('太阳')
+    answer('太阳')
+    expect(await screen.findByText('太阳复活了!')).toBeInTheDocument()
+    // 引擎已推进到 br,但 overlay 应按起源幕 task 的 kind 兜底氛围(dawn),不是下一幕 night
+    expect(document.querySelector('.stage-sky--dawn')).not.toBeNull()
+    expect(document.querySelector('.stage-sky--night')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '继续' }))
+    // overlay 清后进入真正的夜 break
+    expect(await screen.findByRole('button', { name: /继续拯救/ })).toBeInTheDocument()
+    expect(document.querySelector('.stage-sky--night')).not.toBeNull()
+  })
+
+  it('onDone overlay 携起源幕 stage.sky:太阳从天空出泡(不落地面/不双太阳)', async () => {
+    const chapter: Chapter = {
+      ...flowChapter(),
+      scenes: [
+        {
+          id: 't1', kind: 'task', title: '拯救声音', intro: [],
+          task: { wordId: 1, layer: 'sound', minCorrect: 2 },
+          onDone: [{ role: 'sun', text: '早上好!' }],
+          stage: { sky: ['sun'] },
+        },
+        // 后 scene 无 sky 也无该氛围——bug 会让 sun 落地面行 + 布景仍画天阳(双太阳)
+        { id: 'br', kind: 'break' },
+      ],
+    }
+    renderRunner(chapter)
+    answer('太阳')
+    answer('太阳')
+    expect(await screen.findByText('早上好!')).toBeInTheDocument()
+    // 起源幕 task 兜底 dawn(非下一幕 night);sun 从天空出泡(天空说者区),地面行无太阳
+    expect(document.querySelector('.stage-sky--dawn')).not.toBeNull()
+    expect(document.querySelector('.stage-sky--night')).toBeNull()
+    const skySpeaker = document.querySelector('[data-stage-sky-speaker]')!
+    expect(skySpeaker).not.toBeNull()
+    expect(skySpeaker.textContent).toContain('早上好!')
+    expect(skySpeaker.textContent).toContain('太阳')
+    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('太阳')
+    expect(document.querySelectorAll('[data-stage-bubble]').length).toBe(1)
+  })
+
   it('BOSS 错满 → 勇气台词逐句出现、末句「回地图」;不再写后续词进度', async () => {
     const fakes = renderRunner(bossChapter())
 

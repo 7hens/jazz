@@ -170,6 +170,7 @@ export const CHAPTER_1: Chapter = {
     {
       id: 't4-sound',
       kind: 'task',
+      stage: { sky: ['sun'] },
       title: '说早上好 · 声音',
       intro: [
         { role: 'lingling', text: '太阳升起来了！现在是早上！' },
@@ -184,6 +185,7 @@ export const CHAPTER_1: Chapter = {
     {
       id: 't4-shape',
       kind: 'task',
+      stage: { sky: ['sun'] },
       title: '说早上好 · 字形',
       intro: [
         { role: 'lingling', text: '你也来说早上好！' },

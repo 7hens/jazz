@@ -15,7 +15,7 @@ import type {
   WordUnit,
 } from '@/shared/services'
 import { Button } from '@/shared/ui/button'
-import type { Chapter, ChapterLine, Scene, SceneKind, WordLayer } from './chapter'
+import type { Chapter, ChapterLine, Scene, SceneKind, StageMeta, WordLayer } from './chapter'
 import { DialoguePresenter } from './DialoguePresenter'
 import { ScenePanel, StageFrame, StageSky } from './stage'
 import { defaultAtmosphere, progressFraction } from './stage-meta'
@@ -56,6 +56,14 @@ export type ChapterRunnerViewProps = {
   onExit(): void
   onSettled(): void
   services: ChapterRunnerServices
+}
+
+/** 台词 overlay(task.onDone / boss.win)所归属的叙事幕上下文:引擎已推进到下一 scene,
+ *  舞台元数据(atmosphere/cast/sky)须随台词一并携带,渲染才不回落到后 scene。 */
+type PendingNarration = {
+  lines: readonly ChapterLine[]
+  kind: SceneKind
+  stage?: StageMeta
 }
 
 function totalStars(data: ProgressData): number {
@@ -113,7 +121,7 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     return resumed
   })
   if (currentStateRef.current === null) currentStateRef.current = runState
-  const [pendingLines, setPendingLines] = useState<readonly ChapterLine[] | null>(null)
+  const [pendingNarration, setPendingNarration] = useState<PendingNarration | null>(null)
   // task/social 屏首幕台词放行记录(key=scene.id):intro/lines 整屏演出一次,不落引擎。
   const [introPassed, setIntroPassed] = useState<Record<string, boolean>>({})
   // social good 确认后的 onGood 收尾放行标记(值=scene.id):整屏对白走完才 social-choose advance。
@@ -165,12 +173,14 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     setRunState(next)
     for (const effect of effects) {
       if (effect.type === 'restore') {
-        if (beforeScene.kind === 'task' && beforeScene.onDone.length > 0) setPendingLines(beforeScene.onDone)
+        if (beforeScene.kind === 'task' && beforeScene.onDone.length > 0) {
+          setPendingNarration({ lines: beforeScene.onDone, kind: beforeScene.kind, stage: beforeScene.stage })
+        }
         restoreSkill(effect.wordId, effect.layer)
       }
     }
     if (action.type === 'boss-correct' && next.bossWon && beforeScene.kind === 'boss') {
-      setPendingLines(beforeScene.win)
+      setPendingNarration({ lines: beforeScene.win, kind: beforeScene.kind, stage: beforeScene.stage })
     }
     if (next.finished || next.sceneIndex !== before.sceneIndex) persist(next)
     return next
@@ -204,16 +214,23 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const speak: SpeakFn = (text, lang) => services.speech.speak(text, lang)
   const playSound = (cue: Parameters<AudioService['play']>[0]) => services.audio.play(cue)
 
-  /** 整屏对话演出(自带 StageFrame):dialogue/ending/pendingLines/各 scene intro/收尾 overlay 共用。 */
-  function renderDialogue(lines: readonly ChapterLine[], opts: { onDone: () => void; doneLabel?: string; onExit?: () => void }) {
+  /** 整屏对话演出(自带 StageFrame):dialogue/ending/各 scene intro/收尾 overlay 共用。
+   *  ctx = overlay 所属叙事幕上下文(引擎已推进,stage 不得取后 scene);缺省读当前 scene。 */
+  function renderDialogue(
+    lines: readonly ChapterLine[],
+    opts: { onDone: () => void; doneLabel?: string; onExit?: () => void },
+    ctx?: { kind: SceneKind; stage?: StageMeta },
+  ) {
+    const kind = ctx?.kind ?? scene.kind
+    const stage = ctx ? ctx.stage : scene.stage
     return (
       <DialoguePresenter
         key={scene.id}
         lines={lines}
-        atmosphere={scene.stage?.atmosphere ?? defaultAtmosphere(scene.kind)}
+        atmosphere={stage?.atmosphere ?? defaultAtmosphere(kind)}
         fraction={skyFraction}
-        cast={scene.stage?.cast}
-        sky={scene.stage?.sky}
+        cast={stage?.cast}
+        sky={stage?.sky}
         speakRole={speakRole}
         onDone={opts.onDone}
         onExit={opts.onExit}
@@ -315,12 +332,15 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     return renderDialogue(lose, { doneLabel: '回地图', onDone: handleExit, onExit: handleExit })
   }
 
-  // 收尾/叙事台词(pendingLines = task.onDone / boss.win)整屏优先于当前 scene —— 它们属上一幕叙事。
+  // 收尾/叙事台词(pendingNarration = task.onDone / boss.win)整屏优先于当前 scene —— 它们属上一幕叙事。
   // 外层 Fragment 固定 key:与下文的 scene 整屏对白区分根节点,清 overlay 后 DialoguePresenter 重挂(防台词 index 串场)。
-  if (pendingLines) {
+  if (pendingNarration) {
     return (
       <Fragment key="overlay">
-        {renderDialogue(pendingLines, { onDone: () => setPendingLines(null) })}
+        {renderDialogue(pendingNarration.lines, { onDone: () => setPendingNarration(null) }, {
+          kind: pendingNarration.kind,
+          stage: pendingNarration.stage,
+        })}
       </Fragment>
     )
   }
