@@ -61,6 +61,7 @@
 - [ ] `P1` 千字谷 场景两态升级 — 待 ch 数据带 scene-elements(村庄/月亮/天空元素)后按 spec §3.3 全场景灰度→点亮 + ending 白闪,并接线 `celebrate`(现死)/消费 `restoreOrder`;当前 = 顶部 SkyStrip 逐词点亮(纵切片最小实现);★ 灰白→彩色点亮核心子集已随「跑章漫画舞台化」P1 行(下)推进,逐元素精确编排等仍留本行后续 — [spec](superpowers/specs/2026-09-09-qianzigu-manga-stage-design.md)
 - [ ] `P1` 千字谷 绘画/部件拼装子项 — 拍照→亮度抠图→贴图进场景(P1 绘画题型同源)+ 汉字部件拖拽拼装;ch1 竖切按 spec §3.0 跳过,接缝已标 R4a 留缝
 - [ ] `P1` 千字谷 跑章漫画舞台化 — 千字谷跑章视觉重构:全窗即舞台 + 同框多人(数据驱动 `cast`)+ 角色旁动态气泡对话 + 氛围灰白→彩色点亮;引擎/进度/语音零动,`stage-visuals.ts` 留位图接缝;本轮部分消费「场景两态升级」行(见其注)— [spec](superpowers/specs/2026-09-09-qianzigu-manga-stage-design.md)
+- [ ] `P2` 千字谷 漫画视觉语言增强 — (跑章舞台化后的后续子集)借鉴漫画风格设计蓝图:对白气泡**情绪造型**+按文本自适应(呐喊锯齿/思考云泡/字号)、**拟声词艺术字**即时弹出(BOOM!/咚咚,重击/答对爆点)、**镜头语言**(motion 特写/推拉/抖振做情绪与词点亮强调)、角色**站位朝向阵营感/三分法**编排;待 Plan2/3(stage-scenes + ch1 数据)合入后评估 —— React 2D 落地 = CSS + motion,DialoguePresenter/StageFrame 上扩展,引擎零动;台词泡/同框/氛围点亮已有(勿重建)。来源:漫画风格游戏设计蓝图会话贴入 2026-09-09
 - [ ] `P2` 千字谷 章节 done 标记 / 结局回放 — settle 现即 `chapter.clear` 清行重玩,完成度由 per-word 承载;「已通关重看结局」需 done 列
 - [ ] `P2` 千字谷 双语 wordBonus 口径 — 默认 enableEnglish 下 `fullComplete` 含英语域,ch1 只写汉语域 → 整词 +20 恒不发(故事词 101-103 字母林永不涉足);「千字谷仅汉语域」的 +20 判定待产品对齐(full-review N1)
 - [ ] `P2` 千字谷 UX 打磨 — neutral 社交选项误播 wrong 音(N2)/ BOSS 题形恒 choice(N3,题序词池×[pinyin,hanzi] 轮转)/ 地图「继续」标签(有断点仍显「开始」)/ 重登落点定夺(回上次世界 vs 每次回世界壳,现 lastMapRef 保留)
