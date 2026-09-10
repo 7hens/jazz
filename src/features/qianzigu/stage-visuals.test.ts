@@ -5,7 +5,6 @@ describe('stage-visuals', () => {
   it('roleScale: changmo 放大,其余 1', () => {
     expect(roleScale('changmo')).toBe(1.5)
     expect(roleScale('lingling')).toBe(1)
-    expect(roleScale('lingling')).toBe(1)
   })
   it('atmosphereToClass: 映射唯一 stage-sky 类', () => {
     expect(atmosphereToClass('night')).toBe('stage-sky stage-sky--night')
