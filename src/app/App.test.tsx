@@ -189,6 +189,7 @@ function registerAll() {
       answerMap: { a: 'a' },
     }),
     makeStepQuestions: () => [firstChoice, secondChoice],
+    makeSentenceQuestions: () => [],
   }
 
   const comboStore = createStore<ComboSnapshot>({ combo: 0, maxCombo: 0 })

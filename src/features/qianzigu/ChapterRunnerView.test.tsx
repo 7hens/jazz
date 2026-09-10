@@ -190,6 +190,7 @@ function makeFakes(progressData: ProgressData = {}, row: ChapterProgressRow | nu
     makeListen: () => ({ kind: 'listen-choice', prompt: 'x', promptSpeak: 'x', options: [], answerId: 'a' }),
     makeMatch: () => ({ kind: 'match', prompt: 'x', left: [], right: [], answerMap: {} }),
     makeStepQuestions: vi.fn(() => [choiceQ]),
+    makeSentenceQuestions: () => [],
   }
   const audio: AudioService = {
     getSnapshot: () => true,

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createVocabularyService } from '@/features/vocabulary'
-import { WORDS } from '@/features/vocabulary/words'
+import { WORDS, wordById } from '@/features/vocabulary/words'
+import { sentenceSetFor } from '@/features/vocabulary/sentences'
 import { createQuestionEngineService, optionCountFor, speakOf, textOf } from './engine'
 import type { MatchQuestion, Question, WordUnit } from '@/shared/services'
 
-const { distractorsFor, makeStepQuestions } = createQuestionEngineService(createVocabularyService())
+const engine = createQuestionEngineService(createVocabularyService())
+const { distractorsFor, makeStepQuestions } = engine
 
 it('uses the injected vocabulary to build question options', () => {
   const words: WordUnit[] = [
@@ -218,6 +220,39 @@ describe('附加不变量(防回归)', () => {
           expect(x.pinyin).not.toBe(w.pinyin)
         }
       }
+    }
+  })
+})
+
+describe('makeSentenceQuestions', () => {
+  const word = wordById(14)!            // 钥匙
+  const set = sentenceSetFor(14)!
+
+  it('恒 3 题,kind 全为 choice', () => {
+    const qs = engine.makeSentenceQuestions(word, set, () => 0.5)
+    expect(qs).toHaveLength(3)
+    for (const q of qs) expect(q.kind).toBe('choice')
+  })
+
+  it('每题 4 项,answerId 指向正确句,且正确句在选项中', () => {
+    const qs = engine.makeSentenceQuestions(word, set, () => 0.5)
+    qs.forEach((q, i) => {
+      expect(q.options).toHaveLength(4)
+      const answer = q.options.find((o) => o.id === q.answerId)
+      expect(answer?.text).toBe(set.tiers[i].correct)
+    })
+  })
+
+  it('选项 id 唯一、文本不重复', () => {
+    for (const q of engine.makeSentenceQuestions(word, set, () => 0.5)) {
+      expect(new Set(q.options.map((o) => o.id)).size).toBe(4)
+      expect(new Set(q.options.map((o) => o.text)).size).toBe(4)
+    }
+  })
+
+  it('选项可朗读(speak 与 text 一致)', () => {
+    for (const q of engine.makeSentenceQuestions(word, set, () => 0.5)) {
+      for (const o of q.options) expect(o.speak).toBe(o.text)
     }
   })
 })

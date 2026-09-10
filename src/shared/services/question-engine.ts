@@ -41,6 +41,15 @@ export type Question = ListenChoiceQuestion | ChoiceQuestion | MatchQuestion
 
 export type Rng = () => number
 
+/** 句型题入参的最小结构(shared 不得依赖 features 的具体类型)。 */
+export type SentenceTextSet = {
+  readonly tiers: readonly [
+    { readonly correct: string; readonly wrong: readonly [string, string, string] },
+    { readonly correct: string; readonly wrong: readonly [string, string, string] },
+    { readonly correct: string; readonly wrong: readonly [string, string, string] },
+  ]
+}
+
 export interface QuestionEngineService {
   optionCountFor(wordId: number): number
   textOf(word: WordUnit, skill: SkillKey): string
@@ -50,6 +59,8 @@ export interface QuestionEngineService {
   makeListen(word: WordUnit, skill: SkillKey, rng: Rng, step?: number): ListenChoiceQuestion
   makeMatch(word: WordUnit, skill: SkillKey, rng: Rng, step?: number): MatchQuestion
   makeStepQuestions(word: WordUnit, skill: SkillKey, rng?: Rng): Question[]
+  /** 句型步:恒 3 题,顺序 = 档 1 → 档 3;每题 4 句选一(1 正 + 3 错)。 */
+  makeSentenceQuestions(word: WordUnit, set: SentenceTextSet, rng?: Rng): ChoiceQuestion[]
 }
 
 export const QuestionEngineService = Symbol('QuestionEngineService') as unknown as ServiceToken<QuestionEngineService>

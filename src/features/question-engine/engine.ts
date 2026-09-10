@@ -1,4 +1,4 @@
-import type { QuestionEngineService, Rng } from '@/shared/services/question-engine'
+import type { QuestionEngineService, Rng, SentenceTextSet } from '@/shared/services/question-engine'
 import type { VocabularyService } from '@/shared/services/vocabulary'
 import type {
   BaseOption,
@@ -192,6 +192,28 @@ function makeStepQuestions(
   return [first, second]
 }
 
+/** 句型题文案(题干用图 + 一句话;选项是完整句子)。 */
+const SENTENCE_PROMPT = '哪句话说对了?'
+
+/**
+ * 句型步:把每档的 1 正确句 + 3 错句 shuffle 成 4 选项的 choice 题。
+ * 恒 3 题,顺序即档 1 → 档 3(由易到难);选项 speak = 句子本身,TTS 可整句朗读。
+ */
+function makeSentenceQuestions(
+  word: WordUnit,
+  set: SentenceTextSet,
+  rng: Rng = defaultRng(),
+): ChoiceQuestion[] {
+  return set.tiers.map((tier, i) => {
+    const tierNo = i + 1
+    const seed = `${word.id}-${tierNo}-s-sentence`
+    const texts = shuffle([tier.correct, ...tier.wrong], rng)
+    const options = texts.map((text, n) => ({ id: `${seed}-${n}`, text, speak: text }))
+    const answerId = options.find((o) => o.text === tier.correct)!.id
+    return { kind: 'choice', prompt: SENTENCE_PROMPT, options, answerId }
+  })
+}
+
 export function createQuestionEngineService(vocabulary: VocabularyService): QuestionEngineService {
   return {
     optionCountFor,
@@ -202,5 +224,6 @@ export function createQuestionEngineService(vocabulary: VocabularyService): Ques
     makeListen: (word, skill, rng, step) => makeListen(vocabulary, word, skill, rng, step),
     makeMatch: (word, skill, rng, step) => makeMatch(vocabulary, word, skill, rng, step),
     makeStepQuestions: (word, skill, rng) => makeStepQuestions(vocabulary, word, skill, rng),
+    makeSentenceQuestions: (word, set, rng) => makeSentenceQuestions(word, set, rng),
   }
 }

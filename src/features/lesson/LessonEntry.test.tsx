@@ -64,6 +64,7 @@ it('renders the first enabled skill using only registered service composition', 
     makeListen: () => ({ ...question, kind: 'listen-choice', promptSpeak: word.hanzi }),
     makeMatch: () => ({ kind: 'match', prompt: 'match', left: [], right: [], answerMap: {} }),
     makeStepQuestions: vi.fn(() => [question, question]),
+    makeSentenceQuestions: () => [],
   }
   const progressSnapshot = { status: 'ready', data: {} } as const
   const progress: ProgressService = {
