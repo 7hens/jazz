@@ -356,7 +356,8 @@ describe('App 路由', () => {
     expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '开始' }))
-    expect(await screen.findByText(/欢迎来到千字谷/)).toBeInTheDocument()
+    // 首幕标记:open 以旁白起头(ch1.ts),故断言首行。
+    expect(await screen.findByText(/早上的千字谷镇/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '返回地图' }))
     expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()

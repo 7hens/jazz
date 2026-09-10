@@ -24,8 +24,8 @@ function sceneLines(s: Scene): readonly ChapterLine[] {
 }
 
 describe('ch1 数据完整性', () => {
-  it('5 词有序且与 P1 词库 story/复用词对齐', () => {
-    expect(CHAPTER_1.wordIds).toEqual([1, 101, 102, 103, 3])
+  it('5 词有序(搬家语义场:房子→门→钥匙→窗户→台灯)', () => {
+    expect(CHAPTER_1.wordIds).toEqual([13, 7, 14, 8, 19])
   })
   it('每个词都至少一个 task scene 覆盖 sound 与 shape', () => {
     const tasks = CHAPTER_1.scenes.filter((s): s is Extract<typeof s, { kind: 'task' }> => s.kind === 'task')
@@ -41,8 +41,8 @@ describe('ch1 数据完整性', () => {
       expect(kinds.has(k as never), `缺 ${k}`).toBe(true)
     }
   })
-  it('台本行 role 合法(限 SpeechRole 六值)', () => {
-    const allowed = new Set(['lingling', 'sun', 'moon', 'jingmo', 'narrator', 'villager'])
+  it('台本行 role 合法(限本章用到的角色)', () => {
+    const allowed = new Set(['lingling', 'xuwannian', 'pixiaonao', 'narrator'])
     const roles = CHAPTER_1.scenes.flatMap((s) => sceneLines(s).map((l) => l.role))
     for (const r of roles) expect(allowed.has(r), `非法 role ${String(r)}`).toBe(true)
   })
