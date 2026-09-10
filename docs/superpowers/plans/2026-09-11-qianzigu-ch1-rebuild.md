@@ -30,13 +30,22 @@
 - Modify: `src/shared/services/progress.ts`
 - Modify: `src/features/lesson/progress.ts`
 - Modify: `src/features/qianzigu/word-progress.ts:24-31`(`emptyWordProgress`)
+- Modify: `src/features/progress/progress.ts`(运行时真正走的 merge + 校验)
+- Modify: `src/features/api/api.ts`(`isWordProgress` 响应校验)
 - Create: `migrations/0006_sentence_step.sql`
 - Modify: `worker/progress.ts`
-- Test: `src/features/lesson/progress.test.ts`
+- Test: `src/features/lesson/progress.test.ts`、`src/features/progress/progress.test.ts`、`src/features/api/api.test.ts`
 
 **Interfaces:**
 - Consumes: 无
-- Produces: `WordProgress.sentenceLevel: number`(0..3);`emptyProgress(wordId)` / `emptyWordProgress(wordId)` 返回对象含 `sentenceLevel: 0`;worker 读写 `sentence_level` 列
+- Produces: `WordProgress.sentenceLevel: number`(0..3);`emptyProgress(wordId)` / `emptyWordProgress(wordId)` 返回对象含 `sentenceLevel: 0`;worker 读写 `sentence_level` 列;ProgressService 的 merge 同取 `MAX`
+
+> **为何含 `features/progress` 与 `features/api`(预检发现)**:`WordProgress` 加必填字段后,**所有**
+> 构造与校验点都得跟上,否则 `tsc -b` 红或运行时丢数据。除本任务已列的四处外,还有两处:
+> `features/progress/progress.ts`(`ProgressService` 实际使用的 `mergeProgress`,漏了会**静默丢句步进度**)
+> 与 `features/api/api.ts`(校验服务端整包响应,漏了整包被拒)。
+> `shared/services/api.ts:24` 的 `ApiWordProgress = Omit<WordProgress,'updatedAt'>` 自动带上该字段,无需改;
+> `features/lesson/settlement.ts:128` 用 `...current` 展开,无需改。
 
 - [ ] **Step 1: 写失败测试**
 
@@ -209,16 +218,82 @@ ALTER TABLE progress ADD COLUMN sentence_level INTEGER NOT NULL DEFAULT 0;
 
 6. `.bind(...)` 在 `bool(c.english)` 后插 `level`
 
-- [ ] **Step 8: 跑测试 + 类型检查**
+- [ ] **Step 8: 补 `ProgressService` 与 api 校验(漏了会静默丢句步进度)**
 
-Run: `npx vitest run src/features/lesson/progress.test.ts && npm run lint && npx tsc -b`
+`src/features/progress/progress.ts` —— 加常量与校验,并把 `MAX` 语义带进 merge:
+
+```ts
+const MAX_SENTENCE_LEVEL = 3
+
+function isSentenceLevel(v: unknown): boolean {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= MAX_SENTENCE_LEVEL
+}
+
+function isValidWordProgress(value: unknown): value is WordProgress {
+  // …前段不动(第 11-17 行)…
+  if (!ALL_SKILLS.every(skill => typeof completed[skill] === 'boolean')) return false
+  if (!isSentenceLevel(progress.sentenceLevel)) return false
+  return typeof progress.starsEarned === 'number' && Number.isFinite(progress.starsEarned)
+}
+
+function mergeProgress(local: WordProgress, remote: WordProgress): WordProgress {
+  return {
+    wordId: local.wordId,
+    completed: {
+      pinyin: local.completed.pinyin || remote.completed.pinyin,
+      hanzi: local.completed.hanzi || remote.completed.hanzi,
+      english: local.completed.english || remote.completed.english,
+    },
+    sentenceLevel: Math.max(local.sentenceLevel, remote.sentenceLevel),
+    starsEarned: Math.max(local.starsEarned, remote.starsEarned),
+    updatedAt: new Date().toISOString(),
+  }
+}
+```
+
+`src/features/api/api.ts` 的 `isWordProgress`(第 27-34 行)末尾改为:
+
+```ts
+  return typeof value.completed.pinyin === 'boolean'
+    && typeof value.completed.hanzi === 'boolean'
+    && typeof value.completed.english === 'boolean'
+    && typeof value.sentenceLevel === 'number'
+    && Number.isInteger(value.sentenceLevel)
+    && value.sentenceLevel >= 0
+    && value.sentenceLevel <= 3
+```
+
+**既有测试夹具必须同步**(否则整包被拒 / 类型不过):
+- `src/features/progress/progress.test.ts:6` 的 `progress()` 工厂加第 4 参 `sentenceLevel = 0`,返回对象带该字段。
+- `src/features/api/api.test.ts:7` 的 `progress` 与 `:13` 的 `workerProgress` 两个夹具各加 `sentenceLevel: 0`。
+
+**新增用例**:
+- `progress.test.ts`(照第 423 行「monotonic」那例的写法):
+
+```ts
+  it('keeps monotonic sentenceLevel when saveAll receives regressive rows', async () => {
+    const service = createProgressService(fakeApi(), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([progress(1, true, 90, 3)])
+
+    await service.saveAll({ 1: progress(1, false, 0, 1) })
+
+    expect(service.getSnapshot().data[1]).toMatchObject({ sentenceLevel: 3, starsEarned: 90 })
+  })
+```
+
+- `api.test.ts`(照第 141 行「Invalid API response」那例的写法):`getProgress` 返回的行带 `sentenceLevel: 4`
+  → `rejects.toMatchObject({ message: 'Invalid API response' })`。
+
+- [ ] **Step 9: 跑测试 + 类型检查**
+
+Run: `npx vitest run src/features/lesson/progress.test.ts src/features/progress/progress.test.ts src/features/api/api.test.ts && npm run lint && npx tsc -b`
 Expected: PASS + 无 lint 错 + 无类型错(含 `worker/tsconfig.json` 被 `tsc -b` 检查)。
 
-- [ ] **Step 9: 提交**
+- [ ] **Step 10: 提交**
 
 ```bash
-git add src/shared/services/progress.ts src/features/lesson/progress.ts src/features/qianzigu/word-progress.ts migrations/0006_sentence_step.sql worker/progress.ts src/features/lesson/progress.test.ts
-git commit -m "feat(progress): 加 sentenceLevel 字段 + 0006 迁移 + worker 读写"
+git add src/shared/services/progress.ts src/features/lesson/progress.ts src/features/qianzigu/word-progress.ts src/features/progress/progress.ts src/features/api/api.ts migrations/0006_sentence_step.sql worker/progress.ts src/features/lesson/progress.test.ts src/features/progress/progress.test.ts src/features/api/api.test.ts
+git commit -m "feat(progress): sentenceLevel 贯穿 shared/lesson/qianzigu/progress/api/worker + 0006 迁移"
 ```
 
 ---
@@ -228,10 +303,20 @@ git commit -m "feat(progress): 加 sentenceLevel 字段 + 0006 迁移 + worker �
 **Files:**
 - Create: `src/features/vocabulary/sentences.ts`
 - Create: `src/features/vocabulary/sentences.test.ts`
+- Modify: `src/shared/services/vocabulary.ts`(加 `SentenceItem` / `SentenceSet` 类型 + 服务方法)
+- Modify: `src/features/vocabulary/vocabulary.ts`(实现 `sentenceSetFor`)
 
 **Interfaces:**
-- Consumes: `WORDS` / `wordById`(`./words`)
-- Produces: `SentenceTier`、`SentenceItem`、`SentenceSet`、`SENTENCES`、`sentenceSetFor(wordId)`
+- Consumes: `WORDS` / `wordById`(`./words`);`SentenceSet` 类型来自 `@/shared/services/vocabulary`
+- Produces: `SENTENCES`、`sentenceSetFor(wordId)`(`./sentences` 导出);`VocabularyService.sentenceSetFor(wordId)`
+
+> **为何要绕服务(预检发现,架构红线)**:句库落在 `features/vocabulary`,但 Task 6 要在
+> `features/qianzigu/ChapterRunnerView.tsx`(**生产代码**)里取句集。`src/architecture.test.ts:43`
+> 明令「features 不得 import 其它 feature」,而该测试**只豁免 `.test.` 文件** —— 直接
+> `import { sentenceSetFor } from '@/features/vocabulary/sentences'` 会让 `npm test` 变红。
+> 架构既定的跨 feature 通路是「经 shared 契约服务流出」,故类型进 `shared/services/vocabulary.ts`、
+> 实现进 `vocabulary.ts`,Task 6 走 `services.vocabulary.sentenceSetFor(word.id)`。
+> (Task 2 / Task 3 的**测试**文件仍可直接 import `@/features/vocabulary/sentences`。)
 
 **难度轴(spec §4.2)**:① 动词完全不搭 → ② 目标词位置换成别的库内名词 → ③ 成分错位 / 语序颠倒。正确句长上限 **6 / 10 / 14** 字。
 
@@ -317,7 +402,9 @@ Expected: FAIL —— 模块不存在。
 `src/features/vocabulary/sentences.ts`:
 
 ```ts
-import type { WordUnit } from '@/shared/services'
+import type { SentenceSet } from '@/shared/services/vocabulary'
+
+export type { SentenceItem, SentenceSet } from '@/shared/services/vocabulary'
 
 /**
  * 汉语句型步句库(ch1 五词切片)。
@@ -325,18 +412,8 @@ import type { WordUnit } from '@/shared/services'
  * 难度轴:① 动词完全不搭 → ② 目标词位置换成别的库内名词 → ③ 成分错位 / 语序颠倒。
  * 硬线:正确句 ≤ 6 / 10 / 14 汉字(逐档),任一句 ≤ 20(sentences.test.ts 守卫)。
  * 干扰词约束:档 2 的替换名词必须是词库内已有的词(同上测试守卫)。
+ * 类型(§SentenceSet)定义在 shared 契约里 —— 这样 VocabularyService 能跨 feature 供给句集。
  */
-export type SentenceTier = 1 | 2 | 3
-
-export type SentenceItem = Readonly<{
-  correct: string
-  wrong: readonly [string, string, string]
-}>
-
-export type SentenceSet = Readonly<{
-  wordId: number
-  tiers: readonly [SentenceItem, SentenceItem, SentenceItem]
-}>
 
 export const SENTENCES: readonly SentenceSet[] = [
   // 词 13 房子
@@ -446,23 +523,54 @@ export const SENTENCES: readonly SentenceSet[] = [
 export function sentenceSetFor(wordId: number): SentenceSet | undefined {
   return SENTENCES.find((s) => s.wordId === wordId)
 }
+```
 
-/** 目标词的句型句集;无句集(非 ch1 词)返回 undefined,调用方回落既有题型。 */
-export function sentenceSetOf(word: WordUnit): SentenceSet | undefined {
-  return sentenceSetFor(word.id)
+> 不导出 `sentenceSetOf(word)` 之类的便利包装 —— 无消费方(预检:只有 `sentenceSetFor(word.id)` 被用),
+> 加了即 YAGNI。
+
+- [ ] **Step 4: 把句集接进 `VocabularyService`**
+
+`src/shared/services/vocabulary.ts` 加类型与接口方法:
+
+```ts
+/** 句型句集:每词 3 档(由易到难),每档 1 正确句 + 3 错句。数据在 features/vocabulary/sentences.ts。 */
+export type SentenceItem = Readonly<{ correct: string; wrong: readonly [string, string, string] }>
+export type SentenceSet = Readonly<{ wordId: number; tiers: readonly [SentenceItem, SentenceItem, SentenceItem] }>
+
+export interface VocabularyService {
+  getAllWords(): readonly WordUnit[]
+  wordById(id: number): WordUnit | undefined
+  /** 千字谷句型步:该词的句集;非句型词返回 undefined(调用方回落既有题型)。 */
+  sentenceSetFor(wordId: number): SentenceSet | undefined
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+`src/features/vocabulary/vocabulary.ts`(同 feature 内 import,不触红线):
 
-Run: `npx vitest run src/features/vocabulary/sentences.test.ts`
-Expected: PASS(6 个用例全绿)。
+```ts
+import type { VocabularyService } from '@/shared/services/vocabulary'
+import { WORDS, wordById } from './words'
+import { sentenceSetFor } from './sentences'
 
-- [ ] **Step 5: 提交**
+export function createVocabularyService(): VocabularyService {
+  return {
+    getAllWords: () => WORDS.filter((w) => w.category !== 'story'),
+    wordById,
+    sentenceSetFor,
+  }
+}
+```
+
+- [ ] **Step 5: 跑测试确认通过**
+
+Run: `npx vitest run src/features/vocabulary/ && npm run lint && npx tsc -b`
+Expected: PASS(6 个用例全绿)+ 无类型错。
+
+- [ ] **Step 6: 提交**
 
 ```bash
-git add src/features/vocabulary/sentences.ts src/features/vocabulary/sentences.test.ts
-git commit -m "feat(vocabulary): ch1 句型句库(五词 × 三档 × 四句)+ 守卫测试"
+git add src/features/vocabulary/sentences.ts src/features/vocabulary/sentences.test.ts src/features/vocabulary/vocabulary.ts src/shared/services/vocabulary.ts
+git commit -m "feat(vocabulary): ch1 句型句库(五词 × 三档 × 四句)+ 经 VocabularyService 供给"
 ```
 
 ---
@@ -844,31 +952,86 @@ git commit -m "feat(qianzigu): WordLayer 加 sentence 层,存档解析与技能�
 ### Task 6: `TaskScene` 句步渲染 + 原地重出 + 接线
 
 **Files:**
-- Modify: `src/features/qianzigu/scene-ui.tsx:202-257`(`TaskScene`)、`TaskSceneProps`
-- Modify: `src/features/qianzigu/ChapterRunnerView.tsx:260-275`
-- Test: `src/features/qianzigu/ChapterRunnerView.test.tsx`
+- Modify: `src/features/qianzigu/scene-ui.tsx:202-257`(`TaskScene`)
+- Modify: `src/features/qianzigu/ChapterRunnerView.tsx`(`case 'task'` @260-275、boss `makeQuestion` @295、新增 `taskContext()`)
+- Create: `src/features/qianzigu/scene-ui.test.tsx`(直接渲染 `TaskScene`)
 
 **Interfaces:**
-- Consumes: Task 2 `sentenceSetFor`;Task 3 `makeSentenceQuestions`;Task 5 `WordLayer`;Task 4 `QuestionContext`
+- Consumes: Task 2 `VocabularyService.sentenceSetFor(wordId)`;Task 3 `makeSentenceQuestions`;Task 5 `WordLayer`;Task 4 `QuestionContext`
 - Produces: `TaskSceneProps.makeQuestions(): Question[]` 语义不变;新增行为 = `layer === 'sentence'` 时重出错题**保留 `qIndex`**
+
+> **取句集走服务,不直接 import**(预检发现):`ChapterRunnerView.tsx` 是生产代码,import
+> `@/features/vocabulary/sentences` 会触 `architecture.test.ts` 的跨 feature 红线。用
+> `services.vocabulary.sentenceSetFor(word.id)`(Task 2 Step 4 已把它接进契约)。
+> **本任务不碰 `ChapterRunnerView.test.tsx`** —— 它依赖 ch1 幕数据,而 `t{n}-sentence` 到 Task 8 才存在。
 
 - [ ] **Step 1: 写失败测试**
 
-`src/features/qianzigu/ChapterRunnerView.test.tsx` 追加一个用例:渲染 ch1 走到 `t1-sentence`(用既有测试的推进辅助),断言:
+新建 `src/features/qianzigu/scene-ui.test.tsx` —— 直接渲染 `TaskScene`,不依赖 ch1 数据:
 
-```ts
-// 1) 题面出现「哪句话说对了?」
-// 2) 连续两次错答 → 重出后仍是同一档(题干不变,不回到档 1)
+```tsx
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { wordById } from '@/features/vocabulary/words'
+import { TaskScene } from './scene-ui'
+import type { TaskSceneData } from './chapter'
+
+const scene = {
+  id: 't1-sentence',
+  kind: 'task',
+  title: '用「房子」说句话',
+  intro: [],
+  task: { wordId: 13, layer: 'sentence', minCorrect: 3 },
+  onDone: [],
+} as TaskSceneData
+
+// 三档各 1 正 3 错,正确句恒为「档 1 第 1 项」,便于断言重出后停在同一档。
+const questions = [
+  { kind: 'choice', prompt: '哪句话说对了?', options: [
+    { id: 'a', text: '档1正确' }, { id: 'b', text: '档1错1' }, { id: 'c', text: '档1错2' }, { id: 'd', text: '档1错3' },
+  ], answerId: 'a' },
+  // …档 2、档 3 同形,正确 id 恒为各自首项
+] as never
+
+it('句步答错两次后重出,仍停在同一档(不回到档 1)', async () => {
+  const user = userEvent.setup()
+  const onCorrect = vi.fn(() => false)
+  render(
+    <TaskScene
+      scene={scene}
+      word={wordById(13)!}
+      skill="hanzi"
+      makeQuestions={() => questions}
+      speak={vi.fn()}
+      playSound={vi.fn()}
+      onCorrect={onCorrect}
+    />,
+  )
+
+  // 先过档 1 → 进入档 2(题干/选项换成档 2 的文本)
+  await user.click(screen.getByText('档1正确'))
+  expect(screen.getByText('档2正确')).toBeDefined()
+
+  // 档 2 连续错两次 → 触发 onDoubleWrong → 重出
+  await user.click(screen.getByText('档2错1'))
+  await user.click(screen.getByText('档2错1'))
+  await user.click(screen.getByRole('button', { name: /再试一次/ }))
+
+  // 仍是档 2,不是档 1
+  expect(screen.getByText('档2正确')).toBeDefined()
+  expect(screen.queryByText('档1正确')).toBeNull()
+})
 ```
 
-> 实现者注:按该文件既有渲染/推进风格写。若推进到指定幕不便,退而用 `TaskScene` 的独立组件测试(直接给 props 渲染 `layer: 'sentence'`),断言重出保留 `qIndex` 的行为。
+> 断言的**核心语义**只有一条:重出后停在同一档。`QuestionCard` 的错答/揭晓交互细节按
+> `scene-ui.tsx` 既有实现写(第 1 次错标记错项、第 2 次错出「再试一次吧」按钮);
+> 若既有测试(`stage.test.tsx` / `DialoguePresenter.test.tsx`)已建立渲染辅助,复用之。
 
 - [ ] **Step 2: 跑测试确认失败**
 
-Run: `npx vitest run src/features/qianzigu/ChapterRunnerView.test.tsx`
-Expected: FAIL —— `t1-sentence` 尚不存在(该幕在 Task 8 才加),或重出回到档 1。
-
-> 因 `t1-sentence` 由 Task 8 落地,本任务的测试**先针对 `TaskScene` 独立渲染**写(不依赖 ch1 数据)。
+Run: `npx vitest run src/features/qianzigu/scene-ui.test.tsx`
+Expected: FAIL —— 现有 `handleRetry` 会把 `qIndex` 重置为 0,重出回到档 1。
 
 - [ ] **Step 3: 改 `TaskScene`**
 
@@ -901,7 +1064,7 @@ Expected: FAIL —— `t1-sentence` 尚不存在(该幕在 Task 8 才加),或重
         const context = taskContext()
         const makeQuestions = current.task.layer === 'sentence'
           ? () => {
-              const set = sentenceSetFor(word.id)
+              const set = services.vocabulary.sentenceSetFor(word.id)
               return set ? services.questionEngine.makeSentenceQuestions(word, set, Math.random) : []
             }
           : () => services.questionEngine.makeStepQuestions(word, skill, Math.random, context)
@@ -939,19 +1102,21 @@ Expected: FAIL —— `t1-sentence` 尚不存在(该幕在 Task 8 才加),或重
               services.questionEngine.makeStepQuestions(word, skill, Math.random, taskContext())[0]}
 ```
 
-`ChapterRunnerView.tsx` 顶部 import 加 `sentenceSetFor` from `@/features/vocabulary/sentences`、`QuestionContext` 类型。
+`ChapterRunnerView.tsx` 顶部只在既有 `@/shared/services` 类型 import 里加 `QuestionContext`
+(**不要** import `@/features/vocabulary/sentences` —— 跨 feature 红线)。
 
-> ⚠ 若 `chapter` 在该组件里不是 in-scope 变量,按该文件既有取章节的方式取(查 `chapter` 或 `CHAPTER_1` 的现有引用点)。
+`chapter` 已是该组件的 prop(`ChapterRunnerViewProps.chapter`),`localProgressRef` 也已在作用域内,
+`taskContext()` 可直接用,无需额外取章节。
 
 - [ ] **Step 5: 跑测试确认通过**
 
-Run: `npx vitest run src/features/qianzigu/ && npm run lint`
-Expected: PASS + lint 干净。
+Run: `npx vitest run src/features/qianzigu/ && npm run lint && npm test`
+Expected: PASS(含 `architecture.test.ts` 边界用例)+ lint 干净。
 
 - [ ] **Step 6: 提交**
 
 ```bash
-git add src/features/qianzigu/scene-ui.tsx src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/ChapterRunnerView.test.tsx
+git add src/features/qianzigu/scene-ui.tsx src/features/qianzigu/ChapterRunnerView.tsx src/features/qianzigu/scene-ui.test.tsx
 git commit -m "feat(qianzigu): TaskScene 句步渲染 + 原地重出;ChapterRunnerView 注入场景池"
 ```
 
@@ -961,7 +1126,7 @@ git commit -m "feat(qianzigu): TaskScene 句步渲染 + 原地重出;ChapterRunn
 
 **Files:**
 - Modify: `src/features/qianzigu/word-progress.ts`(`settleChapterStep`、`chapterWordDone`)
-- Test: `src/features/qianzigu/chapter-progress.test.ts` 或新建 `src/features/qianzigu/word-progress.test.ts`
+- Create: `src/features/qianzigu/word-progress.test.ts`
 
 **Interfaces:**
 - Consumes: Task 1 `sentenceLevel`
@@ -1058,7 +1223,12 @@ export function settleChapterStep(
 }
 ```
 
-> **口径变更**:`wasComplete` / `isComplete` 由 `rules.fullComplete` 改为 `chapterWordDone` —— 整词 +20 现在含句步(spec §8)。`rules` 参数**保留**在签名里(调用方不变),但本函数不再用它;若 lint 报未使用参数,改为 `_rules` 或从签名移除并同步调用点(`ChapterRunnerView` 的结算调用处)。
+> **口径变更**:`wasComplete` / `isComplete` 由 `rules.fullComplete` 改为 `chapterWordDone` —— 整词 +20 现在含句步(spec §8)。
+>
+> `rules` 与 `settings` 两个参数随之都不再被读取。**保留 5 参签名**(不改调用点):调用方
+> `ChapterRunnerView.tsx:140-146` 传 `services.rules` / `settingsRef.current`,本任务的测试也按 5 参写。
+> 若 `npm run lint` 报未使用参数,把形参改名为 `_rules` / `_settings`(不要删参数 —— 那会连带动调用点,
+> 收益为零)。
 
 - [ ] **Step 4: 跑测试确认通过**
 
