@@ -20,7 +20,8 @@ export type SceneOption = Readonly<{
   text: string                       // 选项文案(朗读文本即 text)
   emoji?: string
   consequence: 'good' | 'bad' | 'neutral'
-  response: string                   // 选择后月亮/灵灵的回应台词
+  response: string                   // 选择后角色回应台词
+  responder?: SpeechRole             // 谁说 response(缺省 narrator)
 }>
 
 export type TaskSpec = Readonly<{

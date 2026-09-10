@@ -302,7 +302,7 @@ export function SocialScene({
     playSound('wrong')
     const guideIndex = option.consequence === 'neutral' ? 1 : 0
     const guide = loop[guideIndex]
-    const linesToShow: ChapterLine[] = [{ role: 'moon', text: option.response }]
+    const linesToShow: ChapterLine[] = [{ role: option.responder ?? 'narrator', text: option.response }]
     if (guide) linesToShow.push(guide)
     setFeedback(linesToShow)
   }
