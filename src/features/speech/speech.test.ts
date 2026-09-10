@@ -166,7 +166,7 @@ describe('SpeechService', () => {
       },
     )
 
-    expect(service.speakRole('早上好', 'jingmo')).toBe(true)
+    expect(service.speakRole('早上好', 'changmo')).toBe(true)
     expect(utterances[0]).toMatchObject({ rate: 0.6, pitch: 0.5, lang: 'cmn' })
 
     expect(service.speakRole('太棒了', 'lingling')).toBe(true)
@@ -189,7 +189,7 @@ describe('SpeechService', () => {
         return u
       },
     )
-    service.speakRole('太阳', 'sun', { rate: 1, pitch: 1.1 })
+    service.speakRole('太阳', 'xuwannian', { rate: 1, pitch: 1.1 })
     expect(utterances[0]).toMatchObject({ rate: 1, pitch: 1.1 })
   })
 
@@ -222,10 +222,10 @@ describe('SpeechService', () => {
       },
     )
 
-    expect(service.speakRole('月亮', 'moon')).toBe(true) // 无 voice → 入队
+    expect(service.speakRole('月亮', 'pixiaonao')).toBe(true) // 无 voice → 入队
     voices = [voice('cmn', 'Mandarin')]
     pendingVoices?.()
     const last = utterances[utterances.length - 1]
-    expect(last).toMatchObject({ rate: 0.7, pitch: 1 })
+    expect(last).toMatchObject({ rate: 1, pitch: 1.15 })
   })
 })

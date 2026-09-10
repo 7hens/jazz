@@ -84,7 +84,7 @@ function bossChapter(): Chapter {
         intro: [],
         maxWrong: 2,
         questionCount: 2,
-        win: [{ role: 'jingmo', text: '不可能...!' }],
+        win: [{ role: 'changmo', text: '不可能...!' }],
         lose: [
           { role: 'lingling', text: '已经很棒了!太阳、月亮都被你救了!' },
           { role: 'lingling', text: '我们先回去休息,下次再来挑战静默!' },
@@ -106,14 +106,14 @@ function socialChapter(): Chapter {
       {
         id: 'soc',
         kind: 'social',
-        lines: [{ role: 'moon', text: '好孤单...' }],
+        lines: [{ role: 'pixiaonao', text: '好孤单...' }],
         options: [
           { id: 'a', text: '你哭起来真难看。', emoji: '😠', consequence: 'bad', response: '月亮哭得更伤心了...' },
           { id: 'b', text: '我也喜欢你!', emoji: '💕', consequence: 'good', response: '月亮笑了!' },
         ],
         goodOptionId: 'b',
         loop: [{ role: 'lingling', text: '月亮更难过了...我们想想怎么安慰它?' }],
-        onGood: [{ role: 'moon', text: '真的吗?谢谢你!' }],
+        onGood: [{ role: 'pixiaonao', text: '真的吗?谢谢你!' }],
       },
       { id: 'after', kind: 'dialogue', lines: [{ role: 'lingling', text: '继续前进!' }] },
     ],
@@ -240,7 +240,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     renderRunner(CHAPTER_1, row)
     // boss intro 首句整屏对白出现 = resumeFromRow 已穿场快进(open/t1..t5 全跳过)
     expect(await screen.findByText('哎哟……我今天忘得也太多了。')).toBeInTheDocument()
-    expect(screen.queryByText(/欢迎来到千字谷/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/早上的千字谷镇/)).not.toBeInTheDocument()
   })
 
   it('dialogue 屏渲染为舞台屏:cast 站队 + 台词泡;点继续推进到下一屏', async () => {
@@ -248,7 +248,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(await screen.findByText('你好,太阳!')).toBeInTheDocument()
     // 整屏舞台帧:dialogue 屏真的挂在 StageFrame/StageSky 上(旧 Shell 标题头已删)
     expect(document.querySelector('.stage-sky')).not.toBeNull()
-    expect(screen.getByText('灵灵')).toBeInTheDocument() // 名字牌(cast 推导)
+    expect(screen.getByText('苏灵灵')).toBeInTheDocument() // 名字牌(cast 推导)
     fireEvent.click(screen.getByRole('button', { name: '继续' }))
     expect(await screen.findByText('拯救声音')).toBeInTheDocument() // task 屏(旧 UI 过渡)
   })
@@ -260,8 +260,8 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
         {
           id: 'open',
           kind: 'dialogue',
-          lines: [{ role: 'sun', text: '救救我' }],
-          stage: { atmosphere: 'dawn', sky: ['sun'] },
+          lines: [{ role: 'xuwannian', text: '救救我' }],
+          stage: { atmosphere: 'dawn', sky: ['xuwannian'] },
         },
         { id: 'settle', kind: 'settle', summary: [] },
       ],
@@ -271,13 +271,13 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     // 布景太阳本体在天幕(不再分档)
     expect(document.querySelector('[data-sun]')).not.toBeNull()
     // 地面行无太阳;顶栏槽 [data-stage-sky] 已退役
-    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('太阳')
+    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('徐万年')
     expect(document.querySelector('[data-stage-sky]')).toBeNull()
     // 仅一个说话泡,落在天空说者区(非地面行),含名牌
     expect(document.querySelectorAll('[data-stage-bubble]').length).toBe(1)
     const skySpeaker = document.querySelector('[data-stage-sky-speaker]')!
     expect(skySpeaker).not.toBeNull()
-    expect(skySpeaker.textContent).toContain('太阳')
+    expect(skySpeaker.textContent).toContain('徐万年')
     // 天幕说者区不含第二颗太阳头像(本体仍在布景层)
     expect(skySpeaker.textContent).not.toContain('☀️')
   })
@@ -450,8 +450,8 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
         {
           id: 't1', kind: 'task', title: '拯救声音', intro: [],
           task: { wordId: 1, layer: 'sound', minCorrect: 2 },
-          onDone: [{ role: 'sun', text: '早上好!' }],
-          stage: { sky: ['sun'] },
+          onDone: [{ role: 'xuwannian', text: '早上好!' }],
+          stage: { sky: ['xuwannian'] },
         },
         // 后 scene 无 sky 也无该氛围——bug 会让 sun 落地面行 + 布景仍画天阳(双太阳)
         { id: 'br', kind: 'break' },
@@ -467,8 +467,8 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     const skySpeaker = document.querySelector('[data-stage-sky-speaker]')!
     expect(skySpeaker).not.toBeNull()
     expect(skySpeaker.textContent).toContain('早上好!')
-    expect(skySpeaker.textContent).toContain('太阳')
-    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('太阳')
+    expect(skySpeaker.textContent).toContain('徐万年')
+    expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('徐万年')
     expect(document.querySelectorAll('[data-stage-bubble]').length).toBe(1)
   })
 
@@ -500,10 +500,10 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
       scenes: [
         {
           id: 'boss', kind: 'boss',
-          intro: [{ role: 'jingmo', text: '我是静默!' }],
+          intro: [{ role: 'changmo', text: '我是静默!' }],
           maxWrong: 2,
           questionCount: 1,
-          win: [{ role: 'jingmo', text: '不可能...!' }],
+          win: [{ role: 'changmo', text: '不可能...!' }],
           lose: [{ role: 'lingling', text: '下次再来!' }],
         },
         { id: 'end', kind: 'dialogue', lines: [{ role: 'lingling', text: '继续前进!' }] },

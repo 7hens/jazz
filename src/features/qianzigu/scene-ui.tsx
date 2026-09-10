@@ -10,12 +10,8 @@ import { MatchGame } from '@/shared/ui/quiz/MatchGame'
 import type { ChapterLine, SceneOption, TaskScene as TaskSceneData } from './chapter'
 
 export const ROLE_META: Record<SpeechRole, { name: string; emoji: string }> = {
-  lingling: { name: '灵灵', emoji: '🦊' },
-  sun: { name: '太阳', emoji: '☀️' },
-  moon: { name: '月亮', emoji: '🌙' },
-  jingmo: { name: '静默', emoji: '🖤' },
+  lingling: { name: '苏灵灵', emoji: '🦊' },
   narrator: { name: '旁白', emoji: '📖' },
-  villager: { name: '居民', emoji: '🐰' },
   xuwannian: { name: '徐万年', emoji: '🦥' },
   pixiaonao: { name: '皮小闹', emoji: '🦝' },
   changmo: { name: '吴铭', emoji: '🦇' },

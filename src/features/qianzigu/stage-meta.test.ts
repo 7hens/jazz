@@ -11,13 +11,13 @@ describe('stage-meta', () => {
   })
 
   it('castFor: 无 presets 时按台词首现序推角色(滤 narrator、去重)', () => {
-    const lines = [L('lingling'), L('narrator'), L('sun'), L('lingling'), L('sun')]
-    expect(castFor(lines)).toEqual(['lingling', 'sun'])
+    const lines = [L('lingling'), L('narrator'), L('xuwannian'), L('lingling'), L('xuwannian')]
+    expect(castFor(lines)).toEqual(['lingling', 'xuwannian'])
   })
 
   it('castFor: presets 常驻且优先,台词新角色按序补入,重复与 narrator 均滤除', () => {
-    const lines = [L('sun'), L('villager')]
-    expect(castFor(lines, ['lingling', 'moon', 'moon', 'narrator'])).toEqual(['lingling', 'moon', 'sun', 'villager'])
+    const lines = [L('xuwannian'), L('changmo')]
+    expect(castFor(lines, ['lingling', 'pixiaonao', 'pixiaonao', 'narrator'])).toEqual(['lingling', 'pixiaonao', 'xuwannian', 'changmo'])
   })
 
   it('castFor: 空台词 + 无 presets → 空阵容', () => {
@@ -44,9 +44,9 @@ describe('stage-meta', () => {
 
 describe('天空体 / 进度', () => {
   it('skySplit:只保留出现在 cast 的天空体;narrator 不进 sky', () => {
-    const cast = ['lingling', 'sun', 'moon'] as const
-    expect(skySplit([...cast], ['sun', 'narrator'])).toEqual({ ground: ['lingling', 'moon'], sky: ['sun'] })
-    expect(skySplit([...cast], undefined)).toEqual({ ground: ['lingling', 'sun', 'moon'], sky: [] })
+    const cast = ['lingling', 'xuwannian', 'pixiaonao'] as const
+    expect(skySplit([...cast], ['xuwannian', 'narrator'])).toEqual({ ground: ['lingling', 'pixiaonao'], sky: ['xuwannian'] })
+    expect(skySplit([...cast], undefined)).toEqual({ ground: ['lingling', 'xuwannian', 'pixiaonao'], sky: [] })
   })
   it('progressFraction 夹 [0,1]', () => {
     expect(progressFraction(0, 10)).toBe(0)

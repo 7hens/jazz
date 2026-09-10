@@ -3,9 +3,9 @@ import { atmosphereToClass, moodBorder, roleScale } from './stage-visuals'
 
 describe('stage-visuals', () => {
   it('roleScale: 静默放大,其余 1', () => {
-    expect(roleScale('jingmo')).toBe(1.5)
+    expect(roleScale('changmo')).toBe(1.5)
     expect(roleScale('lingling')).toBe(1)
-    expect(roleScale('sun')).toBe(1)
+    expect(roleScale('lingling')).toBe(1)
   })
   it('atmosphereToClass: 映射唯一 stage-sky 类', () => {
     expect(atmosphereToClass('night')).toBe('stage-sky stage-sky--night')

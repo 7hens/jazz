@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { SpeechRole } from './speech'
 
 describe('speech 契约', () => {
-  it('SpeechRole 含九角色字面量(新三角色已接入)', () => {
+  it('SpeechRole 含五角色字面量(旧四角色已退役)', () => {
     const roles: SpeechRole[] = [
-      'lingling', 'sun', 'moon', 'jingmo', 'narrator', 'villager',
-      'xuwannian', 'pixiaonao', 'changmo',
+      'lingling', 'xuwannian', 'pixiaonao', 'changmo', 'narrator',
     ]
-    expect(roles).toHaveLength(9)
+    expect(roles).toHaveLength(5)
   })
 })

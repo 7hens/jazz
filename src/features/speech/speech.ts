@@ -7,11 +7,7 @@ type UtteranceFactory = ((text: string) => SpeechSynthesisUtterance) | null
 // 角色 → {rate,pitch}(spec §3.6 数值)。
 const SPEECH_ROLE_VOICE: Record<SpeechRole, { rate: number; pitch: number }> = {
   lingling: { rate: 0.75, pitch: 1.2 },
-  sun: { rate: 0.65, pitch: 0.8 },
-  moon: { rate: 0.7, pitch: 1 },
-  jingmo: { rate: 0.6, pitch: 0.5 },
   narrator: { rate: 0.8, pitch: 1 },
-  villager: { rate: 0.8, pitch: 1 },
   xuwannian: { rate: 0.6, pitch: 0.85 },
   pixiaonao: { rate: 1, pitch: 1.15 },
   changmo: { rate: 0.6, pitch: 0.5 },
