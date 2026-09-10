@@ -120,9 +120,11 @@ ch1 切片数据量:5 词 × 3 档 × 4 句 = **60 句手写**。
 
 | 档 | 正确句长度 | 错句造法 | 例(钥匙) |
 | --- | --- | --- | --- |
-| 1 易 | ≤ 6 字 | 动作 / 对象**荒谬** | ✅ 我用钥匙开门。 ❌ 我用钥匙吃饭。/ 我用钥匙穿鞋。/ 我用钥匙扫地。 |
-| 2 中 | ≤ 10 字 | **同类词替换**(动作对,工具错) | ✅ 爷爷掏出钥匙开门。 ❌ 爷爷掏出筷子开门。/ …勺子… / …杯子… |
-| 3 难 | ≤ 14 字 | 搭配**接近但语义不通** | ✅ 钥匙一转,门就开了。 ❌ 钥匙一闻,门就开了。/ …一跳… / …一唱… |
+| 1 易 | ≤ 6 字 | **动词完全不搭**(一眼荒谬) | ✅ 我用钥匙开门。 ❌ 我用钥匙吃饭。/ 我用钥匙穿鞋。/ 我用钥匙扫地。 |
+| 2 中 | ≤ 10 字 | 目标词位置**换成别的库内名词** | ✅ 爷爷掏出钥匙开门。 ❌ 爷爷掏出帽子开门。/ …杯子… / …鞋子… |
+| 3 难 | ≤ 14 字 | **成分错位 / 语序颠倒**(目标词与句中其他成分对调) | ✅ 钥匙在爷爷的口袋里,一摸就摸到了。 ❌ 爷爷在钥匙的口袋里,一摸就摸到了。 |
+
+> **2026-09-11 修订**:原「档 2 = 同类词替换 / 档 3 = 搭配接近但语义不通」在 ch1 五词上**不能一致落地** —— 场所 / 事物类词(房子 / 窗户 / 台灯)找不到「同类但用错」的名词(换「城堡」句子仍成立,换「帽子」退回档 1);档 3 的搭配精细度也**超出 5 岁儿童的判读能力**,实际会退化成档 1,三档塌成两档。现轴:难度来自 **①荒谬度 → ②名词替换 → ③句长 + 语序**,三档各自可判、可统一、可测试。
 
 **干扰词约束(2026-09-11 产品口径)**:错句中**替换目标词位置的那个名词**(如档 2 的「筷子」)必须**取自词库 `WORDS`**;句子其余成分(动词、修饰语、虚词)不受此限。词库不足时**允许扩充**,机制见 §4.6。
 
@@ -155,21 +157,28 @@ makeSentenceQuestions(word: WordUnit, set: SentenceSet, rng?: Rng): ChoiceQuesti
 - 句子选项**一律可点读**(TTS 读整句)→ 满足「指令、题干、选项可朗读」硬线;不识字的孩子靠听完成
 - **不要求孩子开口**、不判音准(守住「坚决不做:语音识别」红线)
 
-### 4.6 词库扩充:新增 `proxy` 分类
+### 4.6 词库扩充:新增 `proxy` 分类(**就位待启用;本轮词条集为空**)
+
+> **现状(2026-09-11 复核)**:档 2 放宽为「换成别的库内名词」后,ch1 五词的替换名词**全部能在现有 103 词内找到**(钥匙→帽子 / 杯子 / 鞋子,房子→雨伞 / 台灯…),**本轮不需要扩任何词**。
+> 因此 `proxy` 分类**本轮不建** —— `words.test.ts` 有「每类 ≥ 8 词」断言,一个 0 词的分类反而要给它加特例,是负收益(YAGNI)。
+> **首次写作中发现库内无合适替换名词时**,按本节机制扩库(机制已设计完毕,可直接启用)。
 
 为满足「干扰词限定在词库内」,允许往 `WORDS` 补词;补进来的词**只做句子干扰项,不成为可学课程词**。
 
 - 新增 `CategoryKey: 'proxy'` + `CATEGORY_LABELS.proxy = '干扰用词'`
 - proxy 词**追加在 `words.ts` 末尾**(id 顺延,保持「id = 下标 + 1」不变式)
 - 进 `WORDS` → 可被朗读、可被 `wordById` 查到、可被 `distractorsFor` 取用
-- **必须排除**在以下消费点之外(每个点都要显式排,漏一个 = proxy 词混进课程):
+- **排除点只需改一处**:`createVocabularyService().getAllWords()`(`vocabulary.ts:6`,现为 `category !== 'story'` → 改为同时排 `proxy`)。该函数是**唯一收口** —— 主题网格 / 学习路径 `firstTargetId` / 出题引擎 `distractorsFor` / 短教 / `useCompletedWords` 全部经它取词
 
-| 消费点 | 现状如何排 `story` | 本轮追加 |
+| 消费点 | 取值路径 | 是否随 `getAllWords()` 自动排除 |
 | --- | --- | --- |
-| 主题网格(letter-forest) | 按 `category !== 'story'` | 再排 `proxy` |
-| 学习路径 `firstTargetId` / 选词 | 遍历 vocabulary | 排除 `proxy`(否则学习路径停在不可学的词上) |
-| `words.test.ts` 的 CATS(`每类 ≥ 8`) | 过滤掉 `story` | 过滤掉 `proxy` |
-| `words.test.ts` teaser 断言 | 全量词都要 teaser | **排除 `proxy`**(干扰词不讲悬念) |
+| 主题网格 + 学习路径 | `HomeEntry` → `getAllWords()` | ✅ |
+| 出题引擎干扰项 | `distractorsFor` → `getAllWords()` | ✅ |
+| 短教单元 | `foundation/service.ts` → `getAllWords()` | ✅ |
+| 完成词统计 | `useCompletedWords.ts` → `getAllWords()` | ✅ |
+| `words.test.ts` 的 CATS(`每类 ≥ 8`) | 直接读 `WORDS` | ❌ **需单独排** |
+| `words.test.ts` teaser 断言 | 直接读 `WORDS` | ❌ **需单独排** |
+| worker `MAX_WORD_ID` | 硬编码 `103` | ❌ **随 id 上限更新**(否则 proxy 词进度写不进去) |
 
 **测试守卫(唯一强保证)**:
 - `sentences.ts` 内所有替换名词必须能在 `WORDS` 中查到(逐句断言)→ 这条是「干扰词限定词库内」的**机器判据**,不靠人工自觉
@@ -288,8 +297,8 @@ open
 | `qianzigu/chapter-progress.test.ts` | `parseRestoreState` 接受 `'sentence'`;按 `chapterId` 解析词表 |
 | `qianzigu/engine.test.ts` | `taskHits` 三键独立(`13:sound` / `13:shape` / `13:sentence`) |
 | `lesson/progress.test.ts` | `sentenceLevel` 校验与合并(取 max、非法降级 0) |
-| `vocabulary/vocabulary.test.ts` | `SENTENCES` 完整性:每词 3 档、每档 4 句、无重复文本、词表覆盖 |
-| `vocabulary/words.test.ts` | 非 proxy 词恰 103;`CATS` 排除 `proxy`;teaser 断言排除 `proxy`;越界断言随 id 上限更新 |
+| `vocabulary/sentences.test.ts`(新) | 每词 3 档 × 每档 4 句;无重复文本;**句长上限 6 / 10 / 14**;档 2 替换名词**必须能在 `WORDS` 查到** —— 这是「干扰词限定词库内」的**机器判据** |
+| `vocabulary/words.test.ts` | **本轮不动**(零扩库) |
 | `architecture.test.ts` | 须保持绿(新增文件不得越过 3 层边界) |
 
 ## 10 文档同步清单
