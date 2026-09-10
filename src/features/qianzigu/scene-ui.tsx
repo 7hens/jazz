@@ -16,6 +16,9 @@ export const ROLE_META: Record<SpeechRole, { name: string; emoji: string }> = {
   jingmo: { name: '静默', emoji: '🖤' },
   narrator: { name: '旁白', emoji: '📖' },
   villager: { name: '居民', emoji: '🐰' },
+  xuwannian: { name: '徐万年', emoji: '🦥' },
+  pixiaonao: { name: '皮小闹', emoji: '🦝' },
+  changmo: { name: '吴铭', emoji: '🦇' },
 }
 
 export type SpeakFn = (text: string, language?: string) => boolean

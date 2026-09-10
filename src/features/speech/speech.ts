@@ -12,6 +12,9 @@ const SPEECH_ROLE_VOICE: Record<SpeechRole, { rate: number; pitch: number }> = {
   jingmo: { rate: 0.6, pitch: 0.5 },
   narrator: { rate: 0.8, pitch: 1 },
   villager: { rate: 0.8, pitch: 1 },
+  xuwannian: { rate: 0.6, pitch: 0.85 },
+  pixiaonao: { rate: 1, pitch: 1.15 },
+  changmo: { rate: 0.6, pitch: 0.5 },
 }
 
 function browserSynthesis(): SpeechSynthesis | null {
