@@ -56,10 +56,10 @@ it('sky 透传:天空体不入地面行;sun 说者泡/名牌锚天幕(无第二�
     { cast: ['lingling', 'sun'], sky: ['sun'] },
   )
   const ground = () => container.querySelector('[data-stage-ground]')!
-  // 首句=灵灵(地面):地面有灵灵名牌、太阳不在;布景烧焦蛋本体在;顶栏槽不存在
+  // 首句=灵灵(地面):地面有灵灵名牌、太阳不在;布景太阳本体恒在天幕;顶栏槽不存在
   expect(ground().textContent).toContain('灵灵')
   expect(ground().textContent).not.toContain('太阳')
-  expect(container.querySelector('.stage-sun--burnt')).not.toBeNull()
+  expect(container.querySelector('[data-sun]')).not.toBeNull()
   expect(container.querySelector('[data-stage-sky]')).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: '继续' }))
@@ -71,7 +71,8 @@ it('sky 透传:天空体不入地面行;sun 说者泡/名牌锚天幕(无第二�
   expect(skySpeaker.textContent).toContain('救救我')
   expect(skySpeaker.textContent).toContain('太阳')
   expect(container.querySelectorAll('[data-stage-bubble]').length).toBe(1)
-  expect(container.textContent).not.toContain('☀️')
+  // 天幕说者区只锚泡 + 名牌,不含第二颗太阳头像(本体仍在布景层)
+  expect(skySpeaker.textContent).not.toContain('☀️')
 })
 
 it('narrator 台词走旁白叙述框,不占站队', () => {

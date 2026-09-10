@@ -4,37 +4,30 @@ import type { SpeechRole } from '@/shared/services'
 import { cn } from '@/shared/ui/utils'
 import type { AtmosphereKey } from './chapter'
 import { ROLE_META } from './scene-ui'
-import { showMoonStars, skySplit, sunStage, type SunStage } from './stage-meta'
-import { atmosphereToClass, roleScale, STAGE_BODIES, SUN_STAGE_EMOJI, worldDesatClass } from './stage-visuals'
+import { skySplit } from './stage-meta'
+import { atmosphereToClass, roleScale, STAGE_BODIES, worldDesatClass } from './stage-visuals'
 
 /** 全窗不滚舞台帧(dvh 防移动端地址栏)。 */
 export function StageFrame({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn('relative h-dvh w-full overflow-hidden bg-canvas', className)}>{children}</div>
 }
 
-/** 真夜幕(break/social/boss 用的 night/dark)太阳不现身,天幕只留月星(§15.4)。 */
+/** 真夜幕(break/social/boss 用的 night/dark)太阳不现身。 */
 const HIDES_SUN = (atmosphere: AtmosphereKey): boolean => atmosphere === 'night' || atmosphere === 'dark'
 
 /**
- * 千字谷实景布景层(全窗竖分,§15.1):氛围渐变底 + 世界回春灰档,
- * 上层叠 天顶云 → 月/星(失光或真夜显)→ 太阳位(4 档进度尺)→ 山壁 → 村庄 → 河流横贯。
- * 太阳档由 fraction 经 sunStage 推出(可显式注入覆盖);月星由 showMoonStars 裁决。
+ * 千字谷实景布景层:氛围渐变底 + 世界回春灰档,上层叠 天顶云 → 太阳位 → 山壁 → 村庄 → 河流。
  */
 export function StageSky({
   atmosphere,
   fraction,
-  sun = sunStage(fraction),
-  moonStars = showMoonStars(fraction, atmosphere),
 }: {
   atmosphere: AtmosphereKey
   fraction: number
-  sun?: SunStage
-  moonStars?: boolean
 }) {
-  const { emoji, className } = SUN_STAGE_EMOJI[sun]
   return (
     <div aria-hidden className={cn('absolute inset-0', atmosphereToClass(atmosphere))}>
-      {/* 世界回春:灰档叠在布景层(山/村/河)上,随太阳复原撤灰上彩;太阳/月星不受世界灰档压制 */}
+      {/* 世界回春:灰档叠在布景层(山/村/河)上,随进度撤灰上彩 */}
       <div className={cn('absolute inset-0', worldDesatClass(fraction))}>
         <div className="stage-mountains">{STAGE_BODIES.mountains}</div>
         <div className="stage-village">{STAGE_BODIES.village}</div>
@@ -43,20 +36,9 @@ export function StageSky({
           <span className="stage-river-waves">{STAGE_BODIES.waves}</span>
         </div>
       </div>
-      {/* 天顶云(常飘,reduced-motion 尊重) */}
       <div className="stage-clouds">{STAGE_BODIES.clouds}</div>
-      {/* 月/星:失光(烧焦蛋未愈)或真夜幕显;day 复原后隐 */}
-      {moonStars ? (
-        <div data-sky-bodies className="stage-sky-bodies">
-          <span className="stage-moon">{STAGE_BODIES.moon}</span>
-          <span className="stage-stars">{STAGE_BODIES.stars}</span>
-        </div>
-      ) : null}
-      {/* 天幕主位:太阳星体(进度尺;真夜幕隐) */}
       {!HIDES_SUN(atmosphere) ? (
-        <div data-sun className={cn('stage-sun', className)}>
-          {emoji}
-        </div>
+        <div data-sun className="stage-sun">{STAGE_BODIES.sun}</div>
       ) : null}
     </div>
   )

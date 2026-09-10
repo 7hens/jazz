@@ -268,8 +268,8 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     }
     renderRunner(chapter)
     expect(await screen.findByText('救救我')).toBeInTheDocument()
-    // 布景本体(烧焦蛋)在天幕(进度 0)
-    expect(document.querySelector('.stage-sun--burnt')).not.toBeNull()
+    // 布景太阳本体在天幕(不再分档)
+    expect(document.querySelector('[data-sun]')).not.toBeNull()
     // 地面行无太阳;顶栏槽 [data-stage-sky] 已退役
     expect(document.querySelector('[data-stage-ground]')!.textContent).not.toContain('太阳')
     expect(document.querySelector('[data-stage-sky]')).toBeNull()
@@ -278,7 +278,8 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     const skySpeaker = document.querySelector('[data-stage-sky-speaker]')!
     expect(skySpeaker).not.toBeNull()
     expect(skySpeaker.textContent).toContain('太阳')
-    expect(document.body.textContent).not.toContain('☀️') // 本体=烧焦蛋 🍳,无第二颗太阳头像
+    // 天幕说者区不含第二颗太阳头像(本体仍在布景层)
+    expect(skySpeaker.textContent).not.toContain('☀️')
   })
 
   it('dialogue → task:点继续进任务,出题;答对 2 次写 pinyin 进度到 settle', async () => {
@@ -349,7 +350,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(screen.queryByText('拯救声音')).not.toBeInTheDocument()
   })
 
-  it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;答对后布景太阳随进度复原', async () => {
+  it('task 屏整屏舞台化:氛围=scene.stage.atmosphere;太阳位恒在、回春随进度撤灰', async () => {
     const chapter: Chapter = {
       ...flowChapter(),
       scenes: [
@@ -366,12 +367,14 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(document.querySelector('.stage-sky--dusk')).not.toBeNull()
     // 词点灯条退役:布景层不再渲染任何 .stage-word
     expect(document.querySelector('.stage-word')).toBeNull()
-    // 进度 0 → 太阳位 = 烧焦蛋档(非 dusk 真夜,太阳仍挂天幕)
-    expect(document.querySelector('.stage-sun--burnt')).not.toBeNull()
+    // 进度 0 → 回春满灰档;太阳位恒挂天幕(不再分档)
+    expect(document.querySelector('.stage-world--dim')).not.toBeNull()
+    expect(document.querySelector('[data-sun]')).not.toBeNull()
     answer('太阳') // 现有 helper:点选项 → 确定
     answer('太阳')
-    // 引擎仅记一层恢复(task 场景 1 层)→ fraction=restored/总层=1 → 太阳复原到 full 档
-    expect(document.querySelector('.stage-sun--full')).not.toBeNull()
+    // 引擎仅记一层恢复(task 场景 1 层)→ fraction=1 → 撤灰上彩;太阳位仍在
+    expect(document.querySelector('[class*="stage-world--"]')).toBeNull()
+    expect(document.querySelector('[data-sun]')).not.toBeNull()
   })
 
   it('task 屏:先整屏台词演出 intro,点继续才出题', async () => {

@@ -15,47 +15,23 @@ describe('ScenePanel', () => {
 })
 
 describe('StageSky 实景布景', () => {
-  it('烧焦蛋档渲染 .stage-sun--burnt;词点灯条不再存在', () => {
+  it('天幕恒有太阳位;月星/词点灯条不再存在', () => {
     const { container } = render(<StageSky atmosphere="dawn" fraction={0} />)
     // 氛围底仍在(atmosphereToClass)
     expect(container.querySelector('.stage-sky--dawn')).not.toBeNull()
-    // 太阳位 = 烧焦蛋档(进度 0)
-    expect(container.querySelector('.stage-sun--burnt')).not.toBeNull()
+    // 太阳位恒在(不再按 fraction 分档;真夜幕除外)
+    expect(container.querySelector('[data-sun]')).not.toBeNull()
+    // 月星裁决退役:不再渲染月星体
+    expect(container.querySelector('[data-sky-bodies]')).toBeNull()
     // 词 emoji 点灯条退役:不再渲染任何 .stage-word
     expect(container.querySelector('.stage-word')).toBeNull()
   })
 
-  it('太阳档随 fraction 进阶:burnt → crack → glow → full', () => {
-    const at = (fraction: number) => render(<StageSky atmosphere="dawn" fraction={fraction} />).container
-    expect(at(0).querySelector('.stage-sun--burnt')).not.toBeNull()
-    expect(at(0.2).querySelector('.stage-sun--crack')).not.toBeNull()
-    expect(at(0.5).querySelector('.stage-sun--glow')).not.toBeNull()
-    expect(at(0.8).querySelector('.stage-sun--full')).not.toBeNull()
-    expect(at(1).querySelector('.stage-sun--full')).not.toBeNull()
-  })
-
-  it('月星在 showMoonStars true 时出现、false 时消失', () => {
-    const yes = render(<StageSky atmosphere="dawn" fraction={0} />)
-    expect(yes.container.querySelector('[data-sky-bodies]')).not.toBeNull()
-    const no = render(<StageSky atmosphere="day" fraction={1} />)
-    expect(no.container.querySelector('[data-sky-bodies]')).toBeNull()
-  })
-
-  it('真夜(night/dark)太阳隐、月星显(靠 moonStars 表现)', () => {
+  it('真夜(night/dark)太阳隐', () => {
     const night = render(<StageSky atmosphere="night" fraction={1} />)
     expect(night.container.querySelector('[data-sun]')).toBeNull()
-    expect(night.container.querySelector('[data-sky-bodies]')).not.toBeNull()
     const dark = render(<StageSky atmosphere="dark" fraction={0} />)
     expect(dark.container.querySelector('[data-sun]')).toBeNull()
-    expect(dark.container.querySelector('[data-sky-bodies]')).not.toBeNull()
-  })
-
-  it('可显式注入 sun 档与 moonStars(sky 分流接线用)', () => {
-    const { container } = render(<StageSky atmosphere="day" fraction={0} sun="full" moonStars={false} />)
-    // day + fraction=0 默认应是 burnt;显式 sun="full" 覆盖
-    expect(container.querySelector('.stage-sun--full')).not.toBeNull()
-    expect(container.querySelector('.stage-sun--burnt')).toBeNull()
-    expect(container.querySelector('[data-sky-bodies]')).toBeNull()
   })
 })
 
