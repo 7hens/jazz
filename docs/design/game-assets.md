@@ -160,7 +160,7 @@ sky #bfe3ff · accent orange #ff8a2a · emerald #10b981 · sky-blue #0ea5e9 · i
 | dawn | 开场 / 多数 task / social | 淡橙 `#ff8a2a` → 浅蓝 `#bfe3ff` |
 | day | ending / settle | 明亮天空蓝 `#bfe3ff` → 白 |
 | dusk | 转场(本章未用) | 橙红 → 蓝紫 |
-| night | `t5` 台灯两幕(全场唯一真夜戏) | 深蓝 → 墨 `#1f3a5f` |
+| night | `t5` 台灯三幕(全场唯一真夜戏) | 深蓝 → 墨 `#1f3a5f` |
 | dark | BOSS 幕 | 近黑墨蓝,低对比 |
 
 **回春滤镜**:低进度叠灰降饱和(失血感),高进度还原;仅作用布景层,**不得覆盖 UI 与对白泡**(可读性红线)。

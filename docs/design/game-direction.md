@@ -2,7 +2,7 @@
 
 > **定位**:回答「每一幕**怎么演**」—— 镜头、转场、交互点、反馈、演出钩子。补 `ch1.ts`「**说什么**」之上的**设计层**。
 > **单一事实源红线**:台词 / 选项文本 / 题量与判分的权威 = `src/features/qianzigu/ch1.ts`(受 `ch1.test.ts` + `ch1-script.test.ts` 守卫)。**本文严禁复制台词**,只写演出意图;两处冲突以 `ch1.ts` 为准。
-> **组结构**(`chapter.ts`):每词两个连续 `task`(先 `sound` 后 `shape`);断点恰 3 个;社交 1 场;BOSS 1 场;ending + settle 各 1;共 **18 幕**。
+> **组结构**(`chapter.ts`):每词**三个**连续 `task`(声 → 形 → 句);断点恰 3 个;社交 1 场;BOSS 1 场;ending + settle 各 1;共 **23 幕**。
 > **本轮重设**:2026-09-10 千字谷镇重设,ch1 内容重写为《徐爷爷忘掉的名字》,详见 `docs/superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md`。
 > ⚠ 现状大量为 **P2 未建**(镜头编排 / 拟声词艺术字 / 材质网点 = `game-visual.md` 标「现无」)。本文标注每项的**现状**,**勿把规划当已落地**。
 
@@ -22,7 +22,7 @@
 
 **节奏基线**(技能起步值,本项目**未实测**):紧张 **2s** / 抒情 **5s** 最短停留。实测回填前,此表是意图不是事实。
 
-## 1 逐幕分镜表(18 幕)
+## 1 逐幕分镜表(23 幕)
 
 字段:`舞台数据` = `ch1.ts` 的 `stage` 实况 · `交互` = 玩家实际动作 · `演出钩子` = 该幕要传达的事。
 
@@ -41,10 +41,12 @@
 | --- | --- | --- | --- | --- |
 | `t1-sound` | 声音层恢复 | 缺省 | intro 整屏 → 2 题 | 徐万年说不出家在哪;叫回「房子」 |
 | `t1-shape` | 形状层恢复 | 缺省 | 2 题 → `onDone` 3 行 | **想起家在哪 = 第一个小高潮**(`fraction` 前进一档) |
+| `t1-sentence` | 句型层恢复 | 缺省 | 3 题 → `onDone` 2 行 | 用「房子」说进一句完整的话(三档由易到难,选对句) |
 
 - **题序**(`makeStepQuestions`,`engine.ts`):首题恒 `choice`;次题 `pinyin` 技能下 = 50% `listen-choice` / 50% `choice`。`minCorrect: 2`。
+- **句型题序**(`makeSentenceQuestions`,`engine.ts`):该词句集三档 → **恒定 3 题**(档 1 → 档 3 由易到难),每题 1 正确句 + 3 错句,`minCorrect: 3`。
 - **答题反馈**:每题 **2 次机会**;答对立即放行并重挂下一题;第 1 次错标记错项,第 2 次错进 `reveal` 揭示答案。
-- ⚠ `t1-shape.onDone` 含**自然断点前的休息提示**(BreakScene 无台词槽,并入上一幕收尾)—— 文案归 `ch1.ts`。
+- ⚠ `t1-sentence.onDone` 含**自然断点前的休息提示**(BreakScene 无台词槽,并入上一幕收尾)—— 文案归 `ch1.ts`。
 
 ### 1.3 词 2「门」(7)
 
@@ -52,6 +54,7 @@
 | --- | --- | --- | --- | --- |
 | `t2-sound` | 声音层 | 缺省 | intro 整屏 → 2 题 | 站在家门口,忘了这叫「门」,推也推不动 |
 | `t2-shape` | 形状层 | 缺省 | 2 题 → `onDone` 2 行 | 认出「门」→ 知道该往里推;苏灵灵点破刚才拉反了 |
+| `t2-sentence` | 句型层 | 缺省 | 3 题 → `onDone` 1 行 | 用「门」说进一句完整的话 |
 
 - **演出要点**:`onDone` 是**同一拍的两半** —— 徐万年先认出、苏灵灵补一句调侃。先认后笑,不可换。
 
@@ -74,7 +77,7 @@
 ```
 
 - **现状**:非 good **不给独立整屏演出** —— 先显 `option.response`(应答者行),再按 `consequence` 取 `loop` 引导词,停留重弹选项。这是**有意的教育性重试**(儿童向,不惩罚);「给 bad/neutral 一次性独特演出后仍引回正轨」列为候选升级,见 `docs/PLAN.md` 想法池,**未立项**。
-- **视觉**:本章社交戏在白天(`dawn`),**不是夜戏**;全场唯一真夜戏是 `t5` 台灯两幕(`atmosphere:'night'`)。皮小闹情绪由 `mood` 承载(`scary` → `happy`)。
+- **视觉**:本章社交戏在白天(`dawn`),**不是夜戏**;全场唯一真夜戏是 `t5` 台灯三幕(`atmosphere:'night'`)。皮小闹情绪由 `mood` 承载(`scary` → `happy`)。
 
 ### 1.5 词 3「钥匙」(14) / 词 4「窗户」(8) / 词 5「台灯」(19)
 
@@ -82,13 +85,16 @@
 | --- | --- | --- | --- | --- |
 | `t3-sound` | 声音层 | 缺省 | intro 整屏 → 2 题 | 门锁着;钥匙在口袋,叫不出名就摸不着 |
 | `t3-shape` | 形状层 | 缺省 | 2 题 → `onDone` 2 行 | 认出「钥匙」→ 到手 → 旁白一句收束这一场(门开) |
+| `t3-sentence` | 句型层 | 缺省 | 3 题 → `onDone` 1 行 | 用「钥匙」说进一句完整的话 |
 | `t4-sound` | 声音层 | 缺省 | intro 整屏 → 2 题 | 进屋闷得慌,想要个通风的口子 |
 | `t4-shape` | 形状层 | 缺省 | 2 题 → `onDone` 2 行 | 叫回「窗户」→ 风进来;皮小闹补一句——屋里亮了 |
+| `t4-sentence` | 句型层 | 缺省 | 3 题 → `onDone` 1 行 | 用「窗户」说进一句完整的话 |
 | `t5-sound` | 声音层 | `atmosphere:'night'` | intro 整屏 → 2 题 | 天黑了;叫回「台灯」 |
 | `t5-shape` | 形状层 | `atmosphere:'night'` | 2 题 → `onDone` 2 行 | 灯亮 → 屋子暖起来 = **这一天成了** |
+| `t5-sentence` | 句型层 | `atmosphere:'night'` | 3 题 → `onDone` 1 行 | 用「台灯」说进一句完整的话 |
 
 - **题序**(`hanzi` 技能):首题恒 `choice`;次题 = 50% `match` / 50% `choice`。`match` = `MatchGame` 整组配对,**配对成功即通过(`attempt` 恒 1,无二次机会)** —— 与其余题型的两次机会**不一致,属既有行为**。
-- **布景状态**:`t5` 两幕标 `atmosphere:'night'`,真夜幕**隐去布景太阳**(`StageSky` 的 `HIDES_SUN`);`fraction` 随恢复进度推进世界回春,**无太阳分档**(太阳为固定单态布景,见 `game-visual.md`)。
+- **布景状态**:`t5` 三幕标 `atmosphere:'night'`,真夜幕**隐去布景太阳**(`StageSky` 的 `HIDES_SUN`);`fraction` 随恢复进度推进世界回春,**无太阳分档**(太阳为固定单态布景,见 `game-visual.md`)。
 
 ### 1.6 BOSS:徐爷爷的记忆闹剧
 
@@ -113,13 +119,13 @@
 ## 2 章节级交互流
 
 ```text
-open → t1-sound → t1-shape → br1
-                               ↓
-              t2-sound → t2-shape → br2
-                                     ↓
+open → t1-sound → t1-shape → t1-sentence → br1
+                                             ↓
+              t2-sound → t2-shape → t2-sentence → br2
+                                                   ↓
                         social-pixiaonao → br3
                                             ↓
-   t3-sound → t3-shape → t4-sound → t4-shape → t5-sound → t5-shape → boss → ending → settle
+   t3-sound → t3-shape → t3-sentence → t4-sound → t4-shape → t4-sentence → t5-sound → t5-shape → t5-sentence → boss → ending → settle
 
 br1 / br2 / br3 另有「明天再来」出口 → 落库并回章节地图
 ```
@@ -141,7 +147,8 @@ br1 / br2 / br3 另有「明天再来」出口 → 落库并回章节地图
 
 | 项 | 状态 |
 | --- | --- |
-| 18 幕可玩、断点 3、social 3 选项、BOSS 全对制 | ✅ 已落地 |
+| 23 幕可玩、断点 3、social 3 选项、BOSS 全对制 | ✅ 已落地 |
+| 句型步(每词声 → 形 → 句,`minCorrect` 2 / 2 / 3,句库 `sentences.ts`) | ✅ 已落地 |
 | ch1 内容重写为《徐爷爷忘掉的名字》(新班底 / 新 5 词 / 轻线) | ✅ 2026-09-10 |
 | 旁白叙述位启用 | ✅ 已落地 |
 | **`mood` 全章 3 处**(social 皮小闹 `scary` / social `onGood` `happy` / boss `win` `happy`) | ✅ 2026-09-10 核实 |
