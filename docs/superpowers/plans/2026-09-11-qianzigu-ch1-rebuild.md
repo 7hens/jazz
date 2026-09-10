@@ -20,7 +20,7 @@
 - **迁移只增不改**:新增 `0006_*.sql`,不动 `0001` 基线;顺序**先升库后升代码**。
 - **3 层边界**(`src/architecture.test.ts` 守卫):`shared/` 无上层依赖;`features/<f>/` 公共面 = 目录 `index.ts`,feature 间禁编译期互引;`useService()` 只在 page feature 的 `<Name>Entry.tsx` 与 `app/` hooks 内,注册只在 `bootstrap.ts`。
 - **`npm test` 与 `npm run lint` 必须绿**。
-- 本轮**零词库扩充**(spec §4.6:proxy 分类就位待启用、词条集为空),`words.test.ts` 不动。
+- **本轮零词库扩充**(spec §4.6):候选词/干扰词只从**现有 100 个课程词**(`WORDS` 中 `category !== 'story'`)里选,不新增词条、不留空分类。`words.ts` / `words.test.ts` / worker `MAX_WORD_ID` 三者零改动。
 
 ---
 
@@ -1301,7 +1301,7 @@ git commit -m "fix(qianzigu): ch1 走查修复"
 | §4.3 引擎 | Task 3 |
 | §4.4 判分(`minCorrect 3` / 原地重出) | Task 6、8 |
 | §4.5 无障碍(可朗读) | Task 3 Step 4(`speak` = 句子)、Task 10 Step 3.3 |
-| §4.6 proxy 分类 | **本轮不建**(spec 已改;Task 2 的守卫测试替代) |
+| §4.6 词库不扩充 | **零改动**(候选词只从现有 100 词里选;由 Task 2 的逐句 `wordById` 守卫测试保证) |
 | §5 干扰项场景池 | Task 4、6 |
 | §6 叙事重写(高潮/笑点) | Task 8 Step 5、Task 9 |
 | §7 幕数 18 → 23 | Task 8 |

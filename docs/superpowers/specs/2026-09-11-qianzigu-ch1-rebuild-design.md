@@ -42,6 +42,7 @@
 - 整句乱序拼装(数据 ×3,留二期)
 - 字母林侧句步(本轮只打千字谷)
 - 称号阈值重算(见 §1 #9)
+- **词库扩充**(新增「干扰用词」分类)—— 见 §4.6:候选词只从**现有 100 个课程词**里选,本轮零新增、零空分类
 - **`chapter-progress.ts` 硬编码 `CHAPTER_1.wordIds` 的修复** —— 独立 PLAN `P1` 行,与本 spec 无耦合(`belongsToChapter` 只查 `wordId`),留在想法池
 - 视觉/听觉域改动(素材、音效、气泡造型——本 spec 不触及)
 
@@ -157,35 +158,13 @@ makeSentenceQuestions(word: WordUnit, set: SentenceSet, rng?: Rng): ChoiceQuesti
 - 句子选项**一律可点读**(TTS 读整句)→ 满足「指令、题干、选项可朗读」硬线;不识字的孩子靠听完成
 - **不要求孩子开口**、不判音准(守住「坚决不做:语音识别」红线)
 
-### 4.6 词库扩充:新增 `proxy` 分类(**就位待启用;本轮词条集为空**)
+### 4.6 词库不扩充(候选词只从现有 100 词里选)
 
-> **现状(2026-09-11 复核)**:档 2 放宽为「换成别的库内名词」后,ch1 五词的替换名词**全部能在现有 103 词内找到**(钥匙→帽子 / 杯子 / 鞋子,房子→雨伞 / 台灯…),**本轮不需要扩任何词**。
-> 因此 `proxy` 分类**本轮不建** —— `words.test.ts` 有「每类 ≥ 8 词」断言,一个 0 词的分类反而要给它加特例,是负收益(YAGNI)。
-> **首次写作中发现库内无合适替换名词时**,按本节机制扩库(机制已设计完毕,可直接启用)。
+> **口径(2026-09-11 修订)**:候选词/干扰词**只从现有 100 个课程词**(`WORDS` 中 `category !== 'story'` 的 id 1–100)里选,**本轮不新增任何词条**。原「新增 `proxy` 分类」方案**作废** —— 档 2 放宽为「换成别的库内名词」后,ch1 五词所需替换名词(钥匙→帽子 / 杯子 / 鞋子,房子→雨伞 / 台灯…)全部已在库内,为 0 需求预建一套扩库机制是负收益(YAGNI)。
 
-为满足「干扰词限定在词库内」,允许往 `WORDS` 补词;补进来的词**只做句子干扰项,不成为可学课程词**。
-
-- 新增 `CategoryKey: 'proxy'` + `CATEGORY_LABELS.proxy = '干扰用词'`
-- proxy 词**追加在 `words.ts` 末尾**(id 顺延,保持「id = 下标 + 1」不变式)
-- 进 `WORDS` → 可被朗读、可被 `wordById` 查到、可被 `distractorsFor` 取用
-- **排除点只需改一处**:`createVocabularyService().getAllWords()`(`vocabulary.ts:6`,现为 `category !== 'story'` → 改为同时排 `proxy`)。该函数是**唯一收口** —— 主题网格 / 学习路径 `firstTargetId` / 出题引擎 `distractorsFor` / 短教 / `useCompletedWords` 全部经它取词
-
-| 消费点 | 取值路径 | 是否随 `getAllWords()` 自动排除 |
-| --- | --- | --- |
-| 主题网格 + 学习路径 | `HomeEntry` → `getAllWords()` | ✅ |
-| 出题引擎干扰项 | `distractorsFor` → `getAllWords()` | ✅ |
-| 短教单元 | `foundation/service.ts` → `getAllWords()` | ✅ |
-| 完成词统计 | `useCompletedWords.ts` → `getAllWords()` | ✅ |
-| `words.test.ts` 的 CATS(`每类 ≥ 8`) | 直接读 `WORDS` | ❌ **需单独排** |
-| `words.test.ts` teaser 断言 | 直接读 `WORDS` | ❌ **需单独排** |
-| worker `MAX_WORD_ID` | 硬编码 `103` | ❌ **随 id 上限更新**(否则 proxy 词进度写不进去) |
-
-**测试守卫(唯一强保证)**:
-- `sentences.ts` 内所有替换名词必须能在 `WORDS` 中查到(逐句断言)→ 这条是「干扰词限定词库内」的**机器判据**,不靠人工自觉
-- `words.test.ts` 硬计数改为「**非 proxy 词恰 103**」;proxy 数量另有专属断言
-- `wordById` 越界断言随 id 上限更新
-
-> proxy 词自成 category → 不会随机混入普通词课的干扰项(跨类兜底才可能命中),符合预期。
+- `src/features/vocabulary/words.ts` **本轮不动**;`words.test.ts`(硬断言 103)不动;worker `MAX_WORD_ID = 103` 不动。三者零改动 = 零迁移风险。
+- **机器判据不变**:`sentences.ts` 内所有替换名词必须能在 `WORDS` 中 `wordById` 查到(逐句断言);引擎干扰项池只从 `getAllWords()` 取。这是「干扰词限定词库内」的硬保证,不靠人工自觉。
+- **将来真要扩库的触发条件**:写作中发现库内**确实**无合适替换名词 → 回 `PLAN.md` 想法池立项(走阶段 0 变更闸门),**不在本轮预建机制、不留空分类**。
 
 ## 5 干扰项场景池
 
