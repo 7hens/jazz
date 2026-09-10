@@ -60,6 +60,7 @@ npm run deploy:preview # build && wrangler deploy --env preview(独立 D1,冒烟
 | 部署/版本/tag/迁移/后端 handler 事实 | `docs/dev-reference.md` |
 | 前端操作细则 | `docs/frontend-dev-standard.md` |
 | 需求/任务/优先级 | `docs/PLAN.md` |
+| 千字谷剧情/角色/演出/素材 | `docs/design/`:故事圣经(设定·角色台账·伏笔)/ game-direction(逐幕分镜)/ game-assets(素材 prompt)/ game-visual(视觉接缝) |
 
 ## 注意
 
