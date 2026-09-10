@@ -877,9 +877,11 @@ git commit -m "feat(question-engine): QuestionContext 场景池,干扰项优先�
 
 **Files:**
 - Modify: `src/features/qianzigu/chapter.ts:4`
-- Modify: `src/features/qianzigu/word-progress.ts`(`layerToSkill`、`restoredKey`、`parseRestoreState`)
-- Modify: `src/features/qianzigu/engine.ts`(`taskKey` 无需改,但测试要覆盖三键)
-- Test: `src/features/qianzigu/engine.test.ts`、`src/features/qianzigu/chapter-progress.test.ts`
+- Modify: `src/features/qianzigu/word-progress.ts`(`layerToSkill` 注释 + `parseRestoreState` 合法层集合)
+- Test: **新建** `src/features/qianzigu/word-progress.test.ts`、`src/features/qianzigu/engine.test.ts` 追加
+
+> `restoredKey`(`word-progress.ts:20`)**无需改动** —— 它用模板串 `` `${wordId}:${layer}` ``,宽度随 `WordLayer` 自动扩展。
+> `engine.ts` 生产代码**无需改动** —— `taskKey`(`engine.ts:124`)同理。本任务只加类型宽度 + 存档解析,外加两者的一致性测试。
 
 **Interfaces:**
 - Consumes: Task 1 的 `WordProgress.sentenceLevel`
@@ -887,9 +889,12 @@ git commit -m "feat(question-engine): QuestionContext 场景池,干扰项优先�
 
 - [ ] **Step 1: 写失败测试**
 
-`src/features/qianzigu/chapter-progress.test.ts` 追加:
+**新建** `src/features/qianzigu/word-progress.test.ts`:
 
 ```ts
+import { describe, expect, it } from 'vitest'
+import { layerToSkill, parseRestoreState } from './word-progress'
+
 describe('restoreState 支持 sentence 层', () => {
   it('parseRestoreState 保留 sentence 条目', () => {
     const json = JSON.stringify([{ wordId: 13, layer: 'sound' }, { wordId: 13, layer: 'sentence' }])
@@ -902,26 +907,60 @@ describe('restoreState 支持 sentence 层', () => {
   it('未知 layer 仍被过滤', () => {
     expect(parseRestoreState(JSON.stringify([{ wordId: 13, layer: 'bogus' }]))).toEqual([])
   })
+
+  it('layerToSkill 把 sentence 走汉字通道', () => {
+    expect(layerToSkill('sound')).toBe('pinyin')
+    expect(layerToSkill('shape')).toBe('hanzi')
+    expect(layerToSkill('sentence')).toBe('hanzi')
+  })
 })
 ```
 
-`src/features/qianzigu/engine.test.ts` 追加:
+`src/features/qianzigu/engine.test.ts` 追加(注意:需在文件顶部补 `import type { Chapter, Scene, WordLayer } from './chapter'` —— 现有文件只导入了 `Scene`):
 
 ```ts
 it('同词三层计数互不串数', () => {
-  const runner = createChapterRunner(CHAPTER_1)
-  // 用一个只含 task 三幕的假章节更稳;此处直接对 ch1 的 task 场景发事件
-  const t1 = CHAPTER_1.scenes.find((s) => s.id === 't1-sound')!
-  // …(按既有测试的推进模式,从 start 走到 t1-sound,再发 sentence 层事件)
+  const mkTask = (id: string, layer: WordLayer): Scene => ({
+    id,
+    kind: 'task',
+    title: id,
+    intro: [],
+    task: { wordId: 13, layer, minCorrect: 2 },
+    onDone: [],
+  })
+  const fake: Chapter = {
+    id: 99,
+    title: 't',
+    subtitle: 't',
+    emoji: '🧪',
+    wordIds: [13],
+    restoreOrder: [13, 13, 13],
+    scenes: [mkTask('a-sound', 'sound'), mkTask('b-shape', 'shape'), mkTask('c-sentence', 'sentence')],
+  }
+  const r = createChapterRunner(fake)
+  r.start()
+  let out = r.next({ type: 'task-correct', wordId: 13, layer: 'sound' })
+  out = r.next({ type: 'task-correct', wordId: 13, layer: 'sound' })
+  expect(out.state.sceneIndex).toBe(1)
+  out = r.next({ type: 'task-correct', wordId: 13, layer: 'shape' })
+  out = r.next({ type: 'task-correct', wordId: 13, layer: 'shape' })
+  expect(out.state.sceneIndex).toBe(2)
+  out = r.next({ type: 'task-correct', wordId: 13, layer: 'sentence' })
+  out = r.next({ type: 'task-correct', wordId: 13, layer: 'sentence' })
+  expect(out.state.sceneIndex).toBe(3)
+  expect(out.state.taskHits).toEqual({ '13:sound': 2, '13:shape': 2, '13:sentence': 2 })
 })
 ```
 
-> 实现者注:若既有 `engine.test.ts` 已有「推进到指定 task 场景」的辅助函数,复用它;没有就按该文件既有风格写最小推进循环。**断言**:对同一 `wordId` 分别发 `task-correct`(sound)与 `task-correct`(sentence),`taskHits` 应为 `{'13:sound': 1, '13:sentence': 1}` 两条独立键。
+> **这条是防回归不变量,不是 RED 测试** —— 引擎本就按 `${wordId}:${layer}` 分键,类型放宽后它直接通过。
+> 不要为了让它在 RED 阶段变红去改 `engine.ts`。用假章节而非 `CHAPTER_1`,是因为 ch1 至今**没有** `layer: 'sentence'` 的 task 幕(Task 8 才加),拿真章节写这条测试会卡死。
 
 - [ ] **Step 2: 跑测试确认失败**
 
-Run: `npx vitest run src/features/qianzigu/chapter-progress.test.ts`
-Expected: FAIL —— `sentence` 条目被过滤掉。
+Run: `npx vitest run src/features/qianzigu/word-progress.test.ts`
+Expected: FAIL —— `parseRestoreState` 把 `sentence` 条目过滤掉,首条断言得到 `[{ wordId: 13, layer: 'sound' }]`。
+
+再跑 `npx tsc -b`,Expected: FAIL —— `engine.test.ts` 的 `layer: 'sentence'` 不在 `WordLayer` 联合内(这是本任务真正的类型层 RED)。
 
 - [ ] **Step 3: 改类型与解析**
 
@@ -950,13 +989,13 @@ const LAYERS: readonly WordLayer[] = ['sound', 'shape', 'sentence']
 
 - [ ] **Step 4: 跑测试确认通过**
 
-Run: `npx vitest run src/features/qianzigu/chapter-progress.test.ts src/features/qianzigu/engine.test.ts`
-Expected: PASS。
+Run: `npx vitest run src/features/qianzigu/word-progress.test.ts src/features/qianzigu/engine.test.ts`
+Expected: PASS。再跑 `npx tsc -b` + `npm run lint`,均须干净。
 
 - [ ] **Step 5: 提交**
 
 ```bash
-git add src/features/qianzigu/chapter.ts src/features/qianzigu/word-progress.ts src/features/qianzigu/engine.test.ts src/features/qianzigu/chapter-progress.test.ts
+git add src/features/qianzigu/chapter.ts src/features/qianzigu/word-progress.ts src/features/qianzigu/word-progress.test.ts src/features/qianzigu/engine.test.ts
 git commit -m "feat(qianzigu): WordLayer 加 sentence 层,存档解析与技能映射同步"
 ```
 
@@ -1120,7 +1159,8 @@ Expected: FAIL —— 现有 `handleRetry` 会把 `qIndex` 重置为 0,重出回
 新增 `taskContext()`(组件内,用已有的 `localProgressRef`):
 
 ```tsx
-  /** 出题上下文:本章场景词 + 已学复习词(排除不在场景内的本章已完成词,避免重复)。 */
+  /** 出题上下文:本章场景词 + 全部已学复习词。learnedWordIds 含本章词是有意的 ——
+   *  去重收口在引擎侧 distractorsFor(Task 4 修复轮已按 id 去重),此处不做过滤。 */
   function taskContext(): QuestionContext {
     const progress = localProgressRef.current
     const learned = Object.values(progress)
@@ -1161,7 +1201,7 @@ git commit -m "feat(qianzigu): TaskScene 句步渲染 + 原地重出;ChapterRunn
 
 **Files:**
 - Modify: `src/features/qianzigu/word-progress.ts`(`settleChapterStep`、`chapterWordDone`)
-- Create: `src/features/qianzigu/word-progress.test.ts`
+- Modify: `src/features/qianzigu/word-progress.test.ts`(**追加** —— 该文件由 Task 5 新建,勿覆盖)
 
 **Interfaces:**
 - Consumes: Task 1 `sentenceLevel`
@@ -1169,35 +1209,45 @@ git commit -m "feat(qianzigu): TaskScene 句步渲染 + 原地重出;ChapterRunn
 
 - [ ] **Step 1: 写失败测试**
 
+在 `src/features/qianzigu/word-progress.test.ts` 末尾**追加**(文件头补需要的 import):
+
 ```ts
 describe('句步结算', () => {
   const rules = createProgressRulesService()
   const settings = { enableChinese: true, enableEnglish: false } as UserSettings
+  const twoSkill = { ...emptyWordProgress(13), completed: { pinyin: true, hanzi: true, english: false } }
 
-  it('句步首过(+30)且 sentenceLevel 记 3', () => {
-    const prev = { ...emptyWordProgress(13), completed: { pinyin: true, hanzi: true, english: false } }
-    const { next, stepReward } = settleChapterStep(13, prev, 'sentence', rules, settings)
+  it('句步首过 +30,且 sentenceLevel 记满', () => {
+    const { next, stepReward } = settleChapterStep(13, twoSkill, 'sentence', rules, settings)
     expect(next.sentenceLevel).toBe(3)
     expect(stepReward).toBe(30)
   })
 
-  it('句步已满级不重复发星尘', () => {
-    const prev = { ...emptyWordProgress(13), completed: { pinyin: true, hanzi: true, english: false }, sentenceLevel: 3 }
-    expect(settleChapterStep(13, prev, 'sentence', rules, settings).stepReward).toBe(0)
+  it('句步是补全那一步时,整词 +20 同时发', () => {
+    // 句步 = 三层里最后一块 → chapterWordDone 由 false 变 true,+20 应当发(spec §8)。
+    const { stepReward, wordBonus } = settleChapterStep(13, twoSkill, 'sentence', rules, settings)
+    expect(stepReward).toBe(30)
+    expect(wordBonus).toBe(20)
   })
 
-  it('整词 +20 在三层齐备时才发', () => {
-    const twoSkill = { ...emptyWordProgress(13), completed: { pinyin: true, hanzi: true, english: false } }
-    // 只差句步:此时 +20 不能发
-    expect(settleChapterStep(13, twoSkill, 'sentence', rules, settings).wordBonus).toBe(0)
-    // sentenceLevel 已 3 后再补? 不会发生 —— 句步一次结算即 3
+  it('三层未齐备时不发 +20', () => {
+    // 只差句步之前:补上汉字后 sentenceLevel 仍为 0 → 不齐备 → 无 +20。
+    const oneSkill = { ...emptyWordProgress(13), completed: { pinyin: true, hanzi: false, english: false } }
+    const { stepReward, wordBonus } = settleChapterStep(13, oneSkill, 'shape', rules, settings)
+    expect(stepReward).toBe(30)
+    expect(wordBonus).toBe(0)
+  })
+
+  it('句步已满级不重复发星尘', () => {
+    const done = { ...twoSkill, sentenceLevel: 3 }
+    const { stepReward, wordBonus } = settleChapterStep(13, done, 'sentence', rules, settings)
+    expect(stepReward).toBe(0)
+    expect(wordBonus).toBe(0)
   })
 
   it('chapterWordDone 要求 pinyin + hanzi + sentenceLevel >= 3', () => {
-    expect(chapterWordDone({ ...emptyWordProgress(13), completed: { pinyin: true, hanzi: true, english: false } })).toBe(false)
-    expect(chapterWordDone({
-      ...emptyWordProgress(13), completed: { pinyin: true, hanzi: true, english: false }, sentenceLevel: 3,
-    })).toBe(true)
+    expect(chapterWordDone(twoSkill)).toBe(false)
+    expect(chapterWordDone({ ...twoSkill, sentenceLevel: 3 })).toBe(true)
   })
 })
 ```
@@ -1212,12 +1262,12 @@ Expected: FAIL —— `sentence` 走 `layerToSkill` 落到 hanzi 分支,`sentenc
 `src/features/qianzigu/word-progress.ts`:
 
 ```ts
+const MAX_SENTENCE_LEVEL = 3
+
 /** 整词在「千字谷语义」下完成 = 拼音 + 汉字双技能 + 句型三档全过(不掺英语域)。 */
 export function chapterWordDone(row: WordProgress | undefined): boolean {
   return !!row && row.completed.pinyin && row.completed.hanzi && row.sentenceLevel >= MAX_SENTENCE_LEVEL
 }
-
-const MAX_SENTENCE_LEVEL = 3
 
 export function settleChapterStep(
   wordId: number,
@@ -1284,7 +1334,13 @@ git commit -m "feat(qianzigu): 句步首过 +30,整词 +20 含句步"
 **Files:**
 - Modify: `src/features/qianzigu/ch1.ts`
 - Modify: `src/features/qianzigu/ch1.test.ts`
-- Test: `src/features/qianzigu/ch1.test.ts`、`src/features/qianzigu/ch1-script.test.ts`
+- Modify: `src/features/qianzigu/debug-jump.test.ts`(**必须** —— 它写死了幕序号,见 Step 1b)
+- Modify: `src/features/qianzigu/chapter.ts`(`restoreOrder` 字段注释:每词两层 → 每词三层)
+- Test: `src/features/qianzigu/ch1.test.ts`
+
+> **不动 `ch1-script.test.ts`**:它的 `sceneLines()` 已把 `task.intro + task.onDone` 全量纳入,
+> 新增的句型幕台词**自动**被 ≤20 字守卫覆盖,再写一条是重复。原 brief 的「加一条」与本句
+> 「本文件不重复」自相矛盾,以此处为准:**不加、不改该文件**。
 
 **Interfaces:**
 - Consumes: Task 5 `WordLayer`,Task 2 句库
@@ -1320,12 +1376,47 @@ git commit -m "feat(qianzigu): 句步首过 +30,整词 +20 含句步"
   })
 ```
 
-`src/features/qianzigu/ch1-script.test.ts` 加一条:句型幕的句题数据在 `sentences.ts`,其句长守卫见 `sentences.test.ts` —— **本文件不重复**。
+- [ ] **Step 1b: 同步 `debug-jump.test.ts` 的幕序号表**
+
+`src/features/qianzigu/debug-jump.test.ts` 把 ch1 的幕序号**写死在注释与断言里**,加 5 幕句型后全表右移,不改必红。
+
+新的 23 幕顺序(1 起):
+
+```
+1 open / 2 t1-sound / 3 t1-shape / 4 t1-sentence / 5 br1 / 6 t2-sound / 7 t2-shape /
+8 t2-sentence / 9 br2 / 10 social-pixiaonao / 11 br3 / 12 t3-sound / 13 t3-shape /
+14 t3-sentence / 15 t4-sound / 16 t4-shape / 17 t4-sentence / 18 t5-sound / 19 t5-shape /
+20 t5-sentence / 21 boss / 22 ending / 23 settle
+```
+
+对应改动(逐条):
+
+```ts
+// 顶部注释整段换成上面的 23 幕表
+
+const ALL_TASK_KEYS = [
+  '13:sound', '13:shape', '13:sentence',
+  '7:sound', '7:shape', '7:sentence',
+  '14:sound', '14:shape', '14:sentence',
+  '8:sound', '8:shape', '8:sentence',
+  '19:sound', '19:shape', '19:sentence',
+]
+```
+
+- `sceneNumber=5(t2-sound)前只有房子双恢复` → 改 `'1.1.6'`,断言 `resumeSceneId` 为 `'t2-sound'`,
+  restore 为 `['13:sound','13:shape','13:sentence']`。
+- `sceneNumber=4(br1)合法` → `'1.1.4'` 现在是 **t1-sentence**,不再是 br1。改用 `'1.1.5'`(br1),
+  restore 同样为 `['13:sound','13:shape','13:sentence']`。
+- `sceneNumber=16(boss)/17(ending)` → 改 `['1.1.21','1.1.22']`,restore 应为全部 15 个 task key。
+- `sceneNumber=18(settle)不可直跳` → 改 `'1.1.23'`。
+- `'1.1.99'` 越界用例仍然成立(23 幕,99 越界),不用改。
 
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `npx vitest run src/features/qianzigu/ch1.test.ts`
 Expected: FAIL —— 只有 18 幕、缺 sentence 层。
+
+(改完 `debug-jump.test.ts` 后它也会红,属预期;Step 6 全绿是验收点。)
 
 - [ ] **Step 3: 改 `restoreOrder`**
 
@@ -1396,7 +1487,7 @@ Expected: PASS(含句长守卫 —— 新增台词全部 ≤20 字)。
 - [ ] **Step 7: 提交**
 
 ```bash
-git add src/features/qianzigu/ch1.ts src/features/qianzigu/ch1.test.ts src/features/qianzigu/ch1-script.test.ts
+git add src/features/qianzigu/ch1.ts src/features/qianzigu/ch1.test.ts src/features/qianzigu/debug-jump.test.ts src/features/qianzigu/chapter.ts
 git commit -m "feat(qianzigu): ch1 扩到 23 幕(每词声形句三步)+ 挫败低谷与 boss 高潮重写"
 ```
 
