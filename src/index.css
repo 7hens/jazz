@@ -171,9 +171,9 @@
 .stage-sky--night { background-image: linear-gradient(180deg, #16294a, #2c4a70 75%); }
 .stage-sky--dark { background-image: linear-gradient(180deg, #141a30, #2a2140 80%); }
 
-/* 千字谷实景布景(§15.1/§15.2):天顶云 / 月星 / 太阳位 / 山壁 / 村庄 / 河流。
+/* 千字谷实景布景(§15.1/§15.2):天顶云 / 太阳位 / 山壁 / 村庄 / 河流。
  * 全 emoji + CSS,层间绝对定位叠于 .stage-sky(已 absolute inset-0 + overflow:hidden),随窗伸缩不溢出。
- * 元素位图收敛 stage-visuals.STAGE_BODIES + SUN_STAGE_EMOJI;布局/滤镜 token 在此。 */
+ * 元素位图收敛 stage-visuals.STAGE_BODIES;布局/滤镜 token 在此。 */
 .stage-clouds {
   position: absolute;
   top: 2%;
@@ -195,23 +195,7 @@
   to { transform: translateX(2%); }
 }
 
-.stage-sky-bodies {
-  position: absolute;
-  top: 6%;
-  right: 4%;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.45em;
-  font-size: clamp(1.3rem, 4vw, 2rem);
-  line-height: 1;
-  color: rgb(255 250 220 / 0.95);
-  filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.3));
-}
-.stage-moon { font-size: 1.15em; }
-.stage-stars { font-size: 0.8em; letter-spacing: 0.35em; }
-
-/* 太阳位:天幕主位(进度尺)。真夜幕不渲染本元素;4 档滤镜经 .stage-sun--* 收敛。 */
+/* 太阳位:天幕主位。真夜幕不渲染本元素。 */
 .stage-sun {
   position: absolute;
   top: 13%;
@@ -223,10 +207,6 @@
   filter: saturate(0.9) brightness(0.92);
   transition: filter 700ms ease, text-shadow 700ms ease;
 }
-.stage-sun--burnt { filter: grayscale(0.75) brightness(0.5) sepia(0.35); text-shadow: none; }
-.stage-sun--crack { filter: grayscale(0.35) brightness(0.82) sepia(0.25); text-shadow: 0 0 8px rgb(255 200 120 / 0.4); }
-.stage-sun--glow { filter: brightness(1.05) saturate(1.05); text-shadow: 0 0 16px rgb(255 205 90 / 0.65); }
-.stage-sun--full { filter: none; text-shadow: 0 0 26px rgb(255 195 70 / 0.85); }
 
 /* 天空体说者泡锚位(§15.4):sky 角色开口时,该句泡 + 名牌挂天幕本体旁,不复制第二头像。 */
 .stage-sky-speaker {
