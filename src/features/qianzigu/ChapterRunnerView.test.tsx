@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { createQuestionEngineService } from '@/features/question-engine'
 import { createProgressRulesService } from '@/features/lesson'
 import type {
   AudioService,
@@ -16,6 +17,7 @@ import type {
   WordProgress,
   WordUnit,
 } from '@/shared/services'
+import type { SentenceSet } from '@/shared/services/vocabulary'
 import type { Chapter } from './chapter'
 import { CHAPTER_1 } from './ch1'
 import { ChapterRunnerView, type ChapterRunnerServices } from './ChapterRunnerView'
@@ -236,8 +238,8 @@ function answer(text: string) {
 }
 
 describe('ChapterRunnerView 逐 scene 运行器', () => {
-  it('debug 直达 ?s=1.1.16:伪 initialRow 快进落在 boss 幕(不回头卡在开场)', async () => {
-    const row = resolveDebugRow(CHAPTER_1, '1.1.16')
+  it('debug 直达 ?s=1.1.21:伪 initialRow 快进落在 boss 幕(不回头卡在开场)', async () => {
+    const row = resolveDebugRow(CHAPTER_1, '1.1.21')
     expect(row).not.toBeNull()
     renderRunner(CHAPTER_1, row)
     // boss intro 首句整屏对白出现 = resumeFromRow 已穿场快进(open/t1..t5 全跳过)
@@ -599,5 +601,83 @@ describe('ChapterRunnerView 社交选项两段式(先听后选)', () => {
     expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '继续' }))
     expect(await screen.findByText('继续前进!')).toBeInTheDocument() // 下一 dialogue
+  })
+})
+
+// 句步真实通路:经 ChapterRunnerView 调 services.vocabulary.sentenceSetFor → 真实 question-engine
+// makeSentenceQuestions(3 档由易到难),验证 TaskScene 的句步「原地重出当前档」不回退。
+describe('ChapterRunnerView 句型幕(真实 sentence 通路)', () => {
+  const SENTENCE_SET: SentenceSet = {
+    wordId: 1,
+    tiers: [
+      { correct: '一档对句', wrong: ['一档错甲', '一档错乙', '一档错丙'] },
+      { correct: '二档对句', wrong: ['二档错甲', '二档错乙', '二档错丙'] },
+      { correct: '三档对句', wrong: ['三档错甲', '三档错乙', '三档错丙'] },
+    ],
+  }
+
+  function sentenceChapter(): Chapter {
+    return {
+      id: 1,
+      title: '句型测试',
+      subtitle: '句型测试',
+      emoji: '🌅',
+      wordIds: [1],
+      restoreOrder: [1, 1, 1],
+      scenes: [
+        {
+          id: 't1-sentence', kind: 'task', title: '用「太阳」说句话', intro: [],
+          task: { wordId: 1, layer: 'sentence', minCorrect: 3 }, onDone: [],
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+  }
+
+  function renderSentenceRunner() {
+    const fakes = makeFakes()
+    const vocabulary: VocabularyService = {
+      ...fakes.services.vocabulary,
+      sentenceSetFor: (id) => (id === SENTENCE_SET.wordId ? SENTENCE_SET : undefined),
+    }
+    const services: ChapterRunnerServices = {
+      ...fakes.services,
+      vocabulary,
+      questionEngine: createQuestionEngineService(vocabulary),
+    }
+    return {
+      ...fakes,
+      ...render(
+        <ChapterRunnerView chapter={sentenceChapter()} initialRow={null} onExit={vi.fn()} onSettled={vi.fn()} services={services} />,
+      ),
+    }
+  }
+
+  it('3 题按档 1→3 出题;后档双错「再练一次」仍停在同档(不回退),三档全对后推进结算', () => {
+    renderSentenceRunner()
+
+    // 档 1(题干恒为「哪句话说对了?」,4 选项含本档 1 正 3 错)
+    expect(screen.getByText('哪句话说对了?')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '一档对句' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '二档对句' })).not.toBeInTheDocument()
+
+    answer('一档对句')
+    expect(screen.getByRole('button', { name: '二档对句' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '一档对句' })).not.toBeInTheDocument()
+
+    // 档 2 双错 → reveal →「再练一次」→ 原地重出档 2(不清回档 1)
+    answer('二档错甲')
+    answer('二档错乙')
+    fireEvent.click(screen.getByRole('button', { name: '再练一次' }))
+    expect(screen.getByRole('button', { name: '二档对句' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '一档对句' })).not.toBeInTheDocument()
+
+    answer('二档对句')
+    expect(screen.getByRole('button', { name: '三档对句' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '二档对句' })).not.toBeInTheDocument()
+
+    answer('三档对句')
+    // minCorrect=3:三档全对才推进 → 结算
+    expect(screen.getByRole('heading', { name: '第1章完成!' })).toBeInTheDocument()
   })
 })

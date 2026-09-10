@@ -113,6 +113,23 @@ describe('QianziguEntry 千字谷章节地图', () => {
     expect(screen.getByText(/已学会/)).toBeInTheDocument()
   })
 
+  it('ch1 pinyin+hanzi 齐但句步未过 → 不显示「已学会」', () => {
+    const partial: ProgressData = {}
+    for (const wordId of [13, 7, 14, 8, 19]) {
+      partial[wordId] = {
+        wordId,
+        completed: { pinyin: true, hanzi: true, english: false },
+        sentenceLevel: 0,
+        starsEarned: 60,
+        updatedAt: '2026-09-08T00:00:00.000Z',
+      }
+    }
+    registerServices(partial)
+    render(<QianziguEntry onBack={vi.fn()} onEnterChapter={vi.fn()} />)
+
+    expect(screen.queryByText(/已学会/)).not.toBeInTheDocument()
+  })
+
   it('返回按钮触发 onBack', () => {
     registerServices()
     const onBack = vi.fn()

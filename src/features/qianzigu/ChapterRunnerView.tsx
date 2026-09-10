@@ -272,13 +272,12 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         const word = services.vocabulary.wordById(current.task.wordId)
         if (!word) return null
         const skill = layerToSkill(current.task.layer)
-        const context = taskContext()
         const makeQuestions = current.task.layer === 'sentence'
           ? () => {
               const set = services.vocabulary.sentenceSetFor(word.id)
               return set ? services.questionEngine.makeSentenceQuestions(word, set, Math.random) : []
             }
-          : () => services.questionEngine.makeStepQuestions(word, skill, Math.random, context)
+          : () => services.questionEngine.makeStepQuestions(word, skill, Math.random, taskContext())
         return (
           <TaskScene
             scene={current}

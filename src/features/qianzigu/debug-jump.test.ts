@@ -7,20 +7,21 @@ import { resolveDebugRow } from './debug-jump'
 //  产物是伪 ChapterProgressRow:resumeSceneId=目标幕 id,restoreState=目标幕前全部 task 推导集,
 //  喂 resumeFromRow 即快进落在目标幕(engine 零改动)。目标非法一律 null。
 
-// ch1 scenes 顺序(序号 1 起):1 open / 2 t1-sound / 3 t1-shape / 4 br1 / 5 t2-sound /
-//   6 t2-shape / 7 br2 / 8 social-pixiaonao / 9 br3 / 10 t3-sound / 11 t3-shape /
-//   12 t4-sound / 13 t4-shape / 14 t5-sound / 15 t5-shape / 16 boss / 17 ending / 18 settle
+// ch1 scenes 顺序(序号 1 起):1 open / 2 t1-sound / 3 t1-shape / 4 t1-sentence / 5 br1 /
+//   6 t2-sound / 7 t2-shape / 8 t2-sentence / 9 br2 / 10 social-pixiaonao / 11 br3 /
+//   12 t3-sound / 13 t3-shape / 14 t3-sentence / 15 t4-sound / 16 t4-shape / 17 t4-sentence /
+//   18 t5-sound / 19 t5-shape / 20 t5-sentence / 21 boss / 22 ending / 23 settle
 
 const entries = (row: { restoreState: string }): Array<{ wordId: number; layer: string }> =>
   JSON.parse(row.restoreState) as Array<{ wordId: number; layer: string }>
 const key = (e: { wordId: number; layer: string }) => `${e.wordId}:${e.layer}`
 
 const ALL_TASK_KEYS = [
-  '13:sound', '13:shape',
-  '7:sound', '7:shape',
-  '14:sound', '14:shape',
-  '8:sound', '8:shape',
-  '19:sound', '19:shape',
+  '13:sound', '13:shape', '13:sentence',
+  '7:sound', '7:shape', '7:sentence',
+  '14:sound', '14:shape', '14:sentence',
+  '8:sound', '8:shape', '8:sentence',
+  '19:sound', '19:shape', '19:sentence',
 ]
 
 describe('resolveDebugRow(?s=world.chapter.sceneNumber)', () => {
@@ -31,30 +32,30 @@ describe('resolveDebugRow(?s=world.chapter.sceneNumber)', () => {
     expect(row?.restoreState).toBe('[]')
   })
 
-  it('sceneNumber=5(t2-sound)前只有房子双恢复', () => {
-    const row = resolveDebugRow(CHAPTER_1, '1.1.5')
+  it('sceneNumber=6(t2-sound)前只有房子三层恢复', () => {
+    const row = resolveDebugRow(CHAPTER_1, '1.1.6')
     expect(row).not.toBeNull()
     expect(row?.resumeSceneId).toBe('t2-sound')
-    expect(entries(row!).map(key)).toEqual(['13:sound', '13:shape'])
+    expect(entries(row!).map(key)).toEqual(['13:sound', '13:shape', '13:sentence'])
   })
 
-  it('sceneNumber=4(br1)合法,restore 覆盖断点前 task', () => {
-    const row = resolveDebugRow(CHAPTER_1, '1.1.4')
+  it('sceneNumber=5(br1)合法,restore 覆盖断点前 task', () => {
+    const row = resolveDebugRow(CHAPTER_1, '1.1.5')
     expect(row).not.toBeNull()
     expect(row?.resumeSceneId).toBe('br1')
-    expect(entries(row!).map(key)).toEqual(['13:sound', '13:shape'])
+    expect(entries(row!).map(key)).toEqual(['13:sound', '13:shape', '13:sentence'])
   })
 
-  it('sceneNumber=16(boss)/17(ending)前置推导全章 10 个 task', () => {
-    for (const n of ['1.1.16', '1.1.17']) {
+  it('sceneNumber=21(boss)/22(ending)前置推导全章 15 个 task', () => {
+    for (const n of ['1.1.21', '1.1.22']) {
       const row = resolveDebugRow(CHAPTER_1, n)
       expect(row, n).not.toBeNull()
       expect(entries(row!).map(key)).toEqual(ALL_TASK_KEYS)
     }
   })
 
-  it('sceneNumber=18(settle 结算幕)不可直跳 → null', () => {
-    expect(resolveDebugRow(CHAPTER_1, '1.1.18')).toBeNull()
+  it('sceneNumber=23(settle 结算幕)不可直跳 → null', () => {
+    expect(resolveDebugRow(CHAPTER_1, '1.1.23')).toBeNull()
   })
 
   it('world 段≠1 忽略', () => {

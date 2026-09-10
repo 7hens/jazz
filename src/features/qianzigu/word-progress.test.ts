@@ -47,6 +47,18 @@ describe('句步结算', () => {
     expect(wordBonus).toBe(20)
   })
 
+  it('逆序收尾:句已满级,补上拼音的 sound 步同样发 +20', () => {
+    // 三层顺序不固定:句先满级、拼音最后补 → 仍是「首通」,+20 不应漏发。
+    const sentenceFirst = {
+      ...emptyWordProgress(13),
+      completed: { pinyin: false, hanzi: true, english: false },
+      sentenceLevel: 3,
+    }
+    const { stepReward, wordBonus } = settleChapterStep(13, sentenceFirst, 'sound', rules, settings)
+    expect(stepReward).toBe(30)
+    expect(wordBonus).toBe(20)
+  })
+
   it('三层未齐备时不发 +20', () => {
     // 只差句步之前:补上汉字后 sentenceLevel 仍为 0 → 不齐备 → 无 +20。
     const oneSkill = { ...emptyWordProgress(13), completed: { pinyin: true, hanzi: false, english: false } }

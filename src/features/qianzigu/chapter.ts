@@ -84,6 +84,6 @@ export type Chapter = Readonly<{
   subtitle: string
   emoji: string
   wordIds: readonly number[]          // 有序 5 词
-  restoreOrder: readonly number[]     // 恢复点亮顺序的 wordId(可含重复元素,每词两层)
+  restoreOrder: readonly number[]     // 恢复点亮顺序的 wordId(可含重复元素,每词三层)
   scenes: readonly Scene[]
 }>

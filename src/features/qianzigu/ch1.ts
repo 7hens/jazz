@@ -7,7 +7,7 @@ import type { Chapter } from './chapter'
  * 角色映射:🦊→lingling(苏灵灵) / 🦥→xuwannian(徐万年) / 🦝→pixiaonao(皮小闹) / 📖→narrator(旁白)。
  * 无通用群众位 —— 每个出声者都有姓名(spec §4.1)。
  * 台词句长规则:单句去标点推荐 ≤18 汉字、硬线 ≤20;超 20 必按意群拆(ch1-script.test.ts 守卫)。
- * 场景结构遵循既有契约:每词两个连续 task scene(先 sound 后 shape),minCorrect 均 2;
+ * 场景结构遵循既有契约:每词三个连续 task scene(声 → 形 → 句),minCorrect 依次 2 / 2 / 3;
  *  断点恰 3 个(词1 后 / 词2 后 / social 后);social 1 场;boss 1 场;ending + settle 各 1。
  * 因果链:房子(13)→ 门(7)→ 钥匙(14)→ 窗户(8)→ 台灯(19)。
  * 轻线:章末徐爷爷一句「这个我天天都记得的呀」= 唯一痕迹,不解释(见 spec §8.2)。
@@ -18,7 +18,7 @@ export const CHAPTER_1: Chapter = {
   subtitle: '千字谷镇·第一天',
   emoji: '🏠',
   wordIds: [13, 7, 14, 8, 19],
-  restoreOrder: [13, 13, 7, 7, 14, 14, 8, 8, 19, 19],
+  restoreOrder: [13, 13, 13, 7, 7, 7, 14, 14, 14, 8, 8, 8, 19, 19, 19],
   scenes: [
     // 开场:旁白冷开场(第三人称)→ 苏灵灵自我介绍 → 撞见徐爷爷卡壳,立起「爱忘事」的人设。
     {
@@ -70,6 +70,14 @@ export const CHAPTER_1: Chapter = {
         { role: 'lingling', text: '想继续吗？还是休息一下？' },
       ],
     },
+    {
+      id: 't1-sentence',
+      kind: 'task',
+      title: '用「房子」说句话',
+      intro: [{ role: 'lingling', text: '会认还不够，咱们用它说句话！' }],
+      task: { wordId: 13, layer: 'sentence', minCorrect: 3 },
+      onDone: [{ role: 'xuwannian', text: '我住在房子里——说对啦！' }],
+    },
     { id: 'br1', kind: 'break' },
 
     // 词 2 门(7)
@@ -97,6 +105,14 @@ export const CHAPTER_1: Chapter = {
         { role: 'xuwannian', text: '门！对，是门！该往里推才对！' },
         { role: 'lingling', text: '哈哈，你刚才一直在往外拉呢！' },
       ],
+    },
+    {
+      id: 't2-sentence',
+      kind: 'task',
+      title: '用「门」说句话',
+      intro: [{ role: 'lingling', text: '会认还不够，咱们用它说句话！' }],
+      task: { wordId: 7, layer: 'sentence', minCorrect: 3 },
+      onDone: [{ role: 'xuwannian', text: '推开门，就进屋啦！' }],
     },
     { id: 'br2', kind: 'break' },
 
@@ -144,6 +160,9 @@ export const CHAPTER_1: Chapter = {
       kind: 'task',
       title: '叫出「钥匙」· 声音',
       intro: [
+        { role: 'xuwannian', text: '等等……刚才那个叫啥来着？' },
+        { role: 'lingling', text: '是门呀，你刚想起来的！' },
+        { role: 'xuwannian', text: '哦对……门。' },
         { role: 'lingling', text: '门是认出来了，可它锁着呢。' },
         { role: 'xuwannian', text: '钥匙……钥匙就在我口袋里！' },
         { role: 'lingling', text: '那你快拿出来呀？' },
@@ -163,6 +182,14 @@ export const CHAPTER_1: Chapter = {
         { role: 'xuwannian', text: '摸着了！钥匙！我这就开门！' },
         { role: 'narrator', text: '门开了。' },
       ],
+    },
+    {
+      id: 't3-sentence',
+      kind: 'task',
+      title: '用「钥匙」说句话',
+      intro: [{ role: 'lingling', text: '会认还不够，咱们用它说句话！' }],
+      task: { wordId: 14, layer: 'sentence', minCorrect: 3 },
+      onDone: [{ role: 'xuwannian', text: '钥匙一掏，门就开！' }],
     },
 
     // 词 4 窗户(8)
@@ -188,6 +215,14 @@ export const CHAPTER_1: Chapter = {
         { role: 'xuwannian', text: '窗户！开了！风进来啦！' },
         { role: 'pixiaonao', text: '哇！屋里一下子亮堂了！' },
       ],
+    },
+    {
+      id: 't4-sentence',
+      kind: 'task',
+      title: '用「窗户」说句话',
+      intro: [{ role: 'lingling', text: '会认还不够，咱们用它说句话！' }],
+      task: { wordId: 8, layer: 'sentence', minCorrect: 3 },
+      onDone: [{ role: 'xuwannian', text: '风从窗户进来，真凉快！' }],
     },
 
     // 词 5 台灯(19)—— 天黑了,全场唯一真夜戏
@@ -216,6 +251,15 @@ export const CHAPTER_1: Chapter = {
         { role: 'narrator', text: '小小的屋子，一下子暖了起来。' },
       ],
     },
+    {
+      id: 't5-sentence',
+      kind: 'task',
+      stage: { atmosphere: 'night' },
+      title: '用「台灯」说句话',
+      intro: [{ role: 'lingling', text: '会认还不够，咱们用它说句话！' }],
+      task: { wordId: 19, layer: 'sentence', minCorrect: 3 },
+      onDone: [{ role: 'xuwannian', text: '台灯一亮，屋子就暖了！' }],
+    },
 
     // BOSS:闹剧 —— 徐爷爷的记忆搅成一团,把 5 个名字一个个叫回来。
     {
@@ -230,6 +274,8 @@ export const CHAPTER_1: Chapter = {
       questionCount: 5,
       win: [
         { role: 'xuwannian', text: '都想起来了！房子、门、钥匙、窗户、台灯！', mood: 'happy' },
+        { role: 'xuwannian', text: '还有你——苏灵灵！', mood: 'happy' },
+        { role: 'lingling', text: '诶？你记住我的名字啦！' },
         { role: 'lingling', text: '一个都没落下！' },
       ],
       lose: [

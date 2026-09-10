@@ -27,13 +27,28 @@ describe('ch1 数据完整性', () => {
   it('5 词有序(搬家语义场:房子→门→钥匙→窗户→台灯)', () => {
     expect(CHAPTER_1.wordIds).toEqual([13, 7, 14, 8, 19])
   })
-  it('每个词都至少一个 task scene 覆盖 sound 与 shape', () => {
+  it('每词三层齐备(sound / shape / sentence)', () => {
     const tasks = CHAPTER_1.scenes.filter((s): s is Extract<typeof s, { kind: 'task' }> => s.kind === 'task')
     for (const wid of CHAPTER_1.wordIds) {
       const covered = new Set(tasks.filter((t) => t.task.wordId === wid).map((t) => t.task.layer))
-      expect(covered.has('sound'), `词 ${wid} 缺 sound`).toBe(true)
-      expect(covered.has('shape'), `词 ${wid} 缺 shape`).toBe(true)
+      for (const layer of ['sound', 'shape', 'sentence']) {
+        expect(covered.has(layer as never), `词 ${wid} 缺 ${layer}`).toBe(true)
+      }
     }
+  })
+
+  it('共 23 幕、断点恰 3 个、句型幕紧跟同词 shape 之后', () => {
+    expect(CHAPTER_1.scenes).toHaveLength(23)
+    expect(CHAPTER_1.scenes.filter((s) => s.kind === 'break')).toHaveLength(3)
+    for (const wid of CHAPTER_1.wordIds) {
+      const idx = (layer: string) =>
+        CHAPTER_1.scenes.findIndex((s) => s.kind === 'task' && s.task.wordId === wid && s.task.layer === (layer as never))
+      expect(idx('sentence')).toBe(idx('shape') + 1)
+    }
+  })
+
+  it('restoreOrder 覆盖 15 项(每词三层)', () => {
+    expect(CHAPTER_1.restoreOrder).toHaveLength(15)
   })
   it('含 开场/social/boss/ending/settle/break 节点', () => {
     const kinds = new Set(CHAPTER_1.scenes.map((s) => s.kind))
