@@ -96,14 +96,14 @@ describe('QianziguEntry 千字谷章节地图', () => {
     expect(screen.getAllByRole('button', { name: /开始/ })).toHaveLength(1)
   })
 
-  it('ch1 五词 pinyin+hanzi 全过 → 显示「已学会」完成态', () => {
+  it('ch1 五词 pinyin+hanzi+sentence 全过 → 显示「已学会」完成态', () => {
     const done: ProgressData = {}
     for (const wordId of [13, 7, 14, 8, 19]) {
       done[wordId] = {
         wordId,
         completed: { pinyin: true, hanzi: true, english: false },
-        sentenceLevel: 0,
-        starsEarned: 60,
+        sentenceLevel: 3,
+        starsEarned: 110,
         updatedAt: '2026-09-08T00:00:00.000Z',
       }
     }
