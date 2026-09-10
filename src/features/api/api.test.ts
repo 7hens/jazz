@@ -7,12 +7,14 @@ const user = { id: 'u', email: 'e', name: 'n' }
 const progress = [{
   wordId: 1,
   completed: { pinyin: true, hanzi: false, english: false },
+  sentenceLevel: 0,
   starsEarned: 30,
   updatedAt: '2026-09-04T00:00:00.000Z',
 }]
 const workerProgress = [{
   wordId: 1,
   completed: { pinyin: true, hanzi: false, english: false },
+  sentenceLevel: 0,
   starsEarned: 30,
 }]
 const settings = {
@@ -136,6 +138,17 @@ describe('HTTP API service', () => {
   it.each([0, 104])('rejects a progress response with out-of-range word ID %s', async (wordId) => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({
       progress: [{ ...workerProgress[0], wordId }],
+    }), { status: 200 }))
+
+    await expect(createHttpApiService(fetcher).getProgress()).rejects.toMatchObject({
+      status: 200,
+      message: 'Invalid API response',
+    })
+  })
+
+  it('rejects a progress response with an out-of-range sentenceLevel', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      progress: [{ ...workerProgress[0], sentenceLevel: 4 }],
     }), { status: 200 }))
 
     await expect(createHttpApiService(fetcher).getProgress()).rejects.toMatchObject({

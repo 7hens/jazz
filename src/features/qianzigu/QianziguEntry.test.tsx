@@ -102,6 +102,7 @@ describe('QianziguEntry 千字谷章节地图', () => {
       done[wordId] = {
         wordId,
         completed: { pinyin: true, hanzi: true, english: false },
+        sentenceLevel: 0,
         starsEarned: 60,
         updatedAt: '2026-09-08T00:00:00.000Z',
       }

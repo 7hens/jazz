@@ -10,6 +10,7 @@ type Row = {
   pinyin_completed: number
   hanzi_completed: number
   english_completed: number
+  sentence_level: number
   stars_earned: number
 }
 
@@ -21,6 +22,7 @@ function toClient(r: Row) {
       hanzi: r.hanzi_completed === 1,
       english: r.english_completed === 1,
     },
+    sentenceLevel: r.sentence_level,
     starsEarned: r.stars_earned,
   }
 }
@@ -29,7 +31,7 @@ export async function handleGetProgress(request: Request, env: Env): Promise<Res
   const user = await getAuthenticatedUser(request, env)
   if (!user) return jsonResponse({ message: '未授权' }, { status: 401 })
   const { results } = await env.DB.prepare(
-    'SELECT word_id, pinyin_completed, hanzi_completed, english_completed, stars_earned FROM progress WHERE user_id = ? ORDER BY word_id',
+    'SELECT word_id, pinyin_completed, hanzi_completed, english_completed, sentence_level, stars_earned FROM progress WHERE user_id = ? ORDER BY word_id',
   ).bind(user.id).all<Row>()
   return jsonResponse({ progress: results.map(toClient) })
 }
@@ -52,20 +54,24 @@ export async function handlePutProgress(request: Request, env: Env): Promise<Res
     }
     const c = p.completed ?? {}
     const bool = (v: unknown) => (v === true ? 1 : 0)
+    const rawLevel = (p as { sentenceLevel?: unknown }).sentenceLevel
+    const level = typeof rawLevel === 'number' && Number.isInteger(rawLevel) && rawLevel >= 0 && rawLevel <= 3
+      ? rawLevel : 0
     const stars = typeof p.starsEarned === 'number' && Number.isFinite(p.starsEarned) ? Math.max(0, Math.floor(p.starsEarned)) : 0
     const stmt = env.DB.prepare(
-      `INSERT INTO progress (user_id, word_id, pinyin_completed, hanzi_completed, english_completed, stars_earned, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO progress (user_id, word_id, pinyin_completed, hanzi_completed, english_completed, sentence_level, stars_earned, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(user_id, word_id) DO UPDATE SET
          pinyin_completed = MAX(progress.pinyin_completed, excluded.pinyin_completed),
          hanzi_completed  = MAX(progress.hanzi_completed, excluded.hanzi_completed),
          english_completed= MAX(progress.english_completed, excluded.english_completed),
+         sentence_level   = MAX(progress.sentence_level, excluded.sentence_level),
          stars_earned     = MAX(progress.stars_earned, excluded.stars_earned),
          updated_at       = excluded.updated_at`,
     ).bind(
       user.id, wordId,
       bool(c.pinyin), bool(c.hanzi), bool(c.english),
-      stars, new Date().toISOString(),
+      level, stars, new Date().toISOString(),
     )
     stmts.push(stmt)
   }

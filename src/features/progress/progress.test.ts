@@ -3,10 +3,11 @@ import { ApiError } from '@/shared/services'
 import type { ApiService, WordProgress } from '@/shared/services'
 import { createProgressService } from './progress'
 
-function progress(wordId: number, completed = false, starsEarned = 0): WordProgress {
+function progress(wordId: number, completed = false, starsEarned = 0, sentenceLevel = 0): WordProgress {
   return {
     wordId,
     completed: { pinyin: completed, hanzi: completed, english: completed },
+    sentenceLevel,
     starsEarned,
     updatedAt: '2026-09-04T00:00:00.000Z',
   }
@@ -50,6 +51,7 @@ describe('ProgressService', () => {
     resolveLoad([{
       wordId: 1,
       completed: { pinyin: true, hanzi: false, english: false },
+      sentenceLevel: 0,
       starsEarned: 30,
     }])
     await loading
@@ -330,6 +332,7 @@ describe('ProgressService', () => {
     resolveLoad([{
       wordId: 2,
       completed: { pinyin: true, hanzi: true, english: true },
+      sentenceLevel: 0,
       starsEarned: 60,
     }])
     await loading
@@ -359,6 +362,7 @@ describe('ProgressService', () => {
     resolveLoad([{
       wordId: 2,
       completed: { pinyin: true, hanzi: true, english: true },
+      sentenceLevel: 0,
       starsEarned: 60,
     }])
     await loading
@@ -385,6 +389,7 @@ describe('ProgressService', () => {
     resolveLoad([{
       wordId: 1,
       completed: { pinyin: true, hanzi: true, english: true },
+      sentenceLevel: 0,
       starsEarned: 90,
     }])
     await loading
@@ -430,6 +435,15 @@ describe('ProgressService', () => {
       completed: { pinyin: true, hanzi: true, english: true },
       starsEarned: 90,
     })
+  })
+
+  it('keeps monotonic sentenceLevel when saveAll receives regressive rows', async () => {
+    const service = createProgressService(fakeApi(), { onUnauthorized: vi.fn(), onError: vi.fn() })
+    service.seed([progress(1, true, 90, 3)])
+
+    await service.saveAll({ 1: progress(1, false, 0, 1) })
+
+    expect(service.getSnapshot().data[1]).toMatchObject({ sentenceLevel: 3, starsEarned: 90 })
   })
 
   it('retains rows omitted from saveAll input', async () => {

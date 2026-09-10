@@ -8,6 +8,12 @@ export interface ProgressServiceCallbacks {
 
 const ALL_SKILLS = ['pinyin', 'hanzi', 'english'] as const
 
+const MAX_SENTENCE_LEVEL = 3
+
+function isSentenceLevel(v: unknown): boolean {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= MAX_SENTENCE_LEVEL
+}
+
 function isValidWordProgress(value: unknown): value is WordProgress {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const progress = value as Record<string, unknown>
@@ -15,6 +21,7 @@ function isValidWordProgress(value: unknown): value is WordProgress {
   const completed = progress.completed as Record<string, unknown> | null
   if (typeof completed !== 'object' || completed === null) return false
   if (!ALL_SKILLS.every(skill => typeof completed[skill] === 'boolean')) return false
+  if (!isSentenceLevel(progress.sentenceLevel)) return false
   return typeof progress.starsEarned === 'number' && Number.isFinite(progress.starsEarned)
 }
 
@@ -26,6 +33,7 @@ function mergeProgress(local: WordProgress, remote: WordProgress): WordProgress 
       hanzi: local.completed.hanzi || remote.completed.hanzi,
       english: local.completed.english || remote.completed.english,
     },
+    sentenceLevel: Math.max(local.sentenceLevel, remote.sentenceLevel),
     starsEarned: Math.max(local.starsEarned, remote.starsEarned),
     updatedAt: new Date().toISOString(),
   }

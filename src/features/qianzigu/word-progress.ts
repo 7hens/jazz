@@ -25,6 +25,7 @@ export function emptyWordProgress(wordId: number): WordProgress {
   return {
     wordId,
     completed: { pinyin: false, hanzi: false, english: false },
+    sentenceLevel: 0,
     starsEarned: 0,
     updatedAt: new Date().toISOString(),
   }
@@ -74,6 +75,7 @@ export function settleChapterStep(
   const next: WordProgress = {
     wordId: base.wordId,
     completed,
+    sentenceLevel: base.sentenceLevel,
     starsEarned: base.starsEarned,
     updatedAt: new Date().toISOString(),
   }

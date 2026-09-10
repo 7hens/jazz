@@ -31,6 +31,10 @@ function isWordProgress(value: unknown): value is ApiWordProgress {
   return typeof value.completed.pinyin === 'boolean'
     && typeof value.completed.hanzi === 'boolean'
     && typeof value.completed.english === 'boolean'
+    && typeof value.sentenceLevel === 'number'
+    && Number.isInteger(value.sentenceLevel)
+    && value.sentenceLevel >= 0
+    && value.sentenceLevel <= 3
 }
 
 function isSettings(value: unknown): value is ApiUserSettings {

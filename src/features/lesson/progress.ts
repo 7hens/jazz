@@ -10,9 +10,17 @@ export function emptyProgress(wordId: number): WordProgress {
   return {
     wordId,
     completed: { pinyin: false, hanzi: false, english: false },
+    sentenceLevel: 0,
     starsEarned: 0,
     updatedAt: new Date().toISOString(),
   }
+}
+
+/** 句步合法档数上限与词表一致(3 档)。 */
+const MAX_SENTENCE_LEVEL = 3
+
+function isValidSentenceLevel(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= MAX_SENTENCE_LEVEL
 }
 
 export function isValidWordProgress(s: unknown): s is WordProgress {
@@ -22,6 +30,7 @@ export function isValidWordProgress(s: unknown): s is WordProgress {
   const c = w.completed as Record<string, unknown> | null
   if (typeof c !== 'object' || c === null) return false
   if (!ALL_SKILLS.every((k) => typeof c[k] === 'boolean')) return false
+  if (!isValidSentenceLevel(w.sentenceLevel)) return false
   return typeof w.starsEarned === 'number' && Number.isFinite(w.starsEarned)
 }
 
@@ -33,6 +42,7 @@ export function mergeProgress(local: WordProgress, server: WordProgress): WordPr
       hanzi: local.completed.hanzi || server.completed.hanzi,
       english: local.completed.english || server.completed.english,
     },
+    sentenceLevel: Math.max(local.sentenceLevel, server.sentenceLevel),
     starsEarned: Math.max(local.starsEarned, server.starsEarned),
     updatedAt: new Date().toISOString(),
   }
@@ -51,6 +61,7 @@ export function settleWord(
   const next = {
     wordId: base.wordId,
     completed: { ...base.completed },
+    sentenceLevel: base.sentenceLevel,
     starsEarned: base.starsEarned,
     updatedAt: new Date().toISOString(),
   }

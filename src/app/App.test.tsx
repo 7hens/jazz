@@ -52,6 +52,7 @@ const settings: UserSettings = {
 const partialRow: WordProgress = {
   wordId: 1,
   completed: { pinyin: false, hanzi: false, english: false },
+  sentenceLevel: 0,
   starsEarned: 0,
   updatedAt: '2026-09-05T00:00:00.000Z',
 }

@@ -7,6 +7,8 @@ export type SkillKey = 'pinyin' | 'hanzi' | 'english'
 export type WordProgress = {
   wordId: number
   completed: Record<SkillKey, boolean>
+  /** 汉语句型步已通过的档数(0..3,由易到难);不进 SkillKey —— 句是汉语域内固定步,不是独立技能。 */
+  sentenceLevel: number
   starsEarned: number
   updatedAt: string
 }

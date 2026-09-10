@@ -56,11 +56,35 @@ describe('progress 纯态', () => {
     const prev: WordProgress = {
       wordId: 21,
       completed: { pinyin: true, hanzi: false, english: false },
+      sentenceLevel: 0,
       starsEarned: 30,
       updatedAt: '',
     }
     const r = settleWord(21, prev, [{ skill: 'pinyin', passed: true }], allOn())
     expect(r.stepReward).toBe(0)
     expect(r.next.starsEarned).toBe(30)
+  })
+})
+
+describe('sentenceLevel', () => {
+  it('emptyProgress 带 sentenceLevel 0', () => {
+    expect(emptyProgress(13).sentenceLevel).toBe(0)
+  })
+
+  it('isValidWordProgress 拒绝非法 sentenceLevel,接受 0..3', () => {
+    const base = { wordId: 13, completed: { pinyin: true, hanzi: true, english: false }, starsEarned: 30, updatedAt: 'x' }
+    expect(isValidWordProgress({ ...base, sentenceLevel: 0 })).toBe(true)
+    expect(isValidWordProgress({ ...base, sentenceLevel: 3 })).toBe(true)
+    expect(isValidWordProgress({ ...base, sentenceLevel: 4 })).toBe(false)
+    expect(isValidWordProgress({ ...base, sentenceLevel: -1 })).toBe(false)
+    expect(isValidWordProgress({ ...base, sentenceLevel: 1.5 })).toBe(false)
+    expect(isValidWordProgress({ ...base, sentenceLevel: undefined })).toBe(false)
+  })
+
+  it('mergeProgress 取 max(只升不降)', () => {
+    const local = { ...emptyProgress(13), sentenceLevel: 1 }
+    const server = { ...emptyProgress(13), sentenceLevel: 3 }
+    expect(mergeProgress(local, server).sentenceLevel).toBe(3)
+    expect(mergeProgress(server, local).sentenceLevel).toBe(3)
   })
 })

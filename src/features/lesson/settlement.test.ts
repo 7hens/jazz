@@ -14,6 +14,7 @@ const word: WordUnit = {
 const completeProgress: WordProgress = {
   wordId: 1,
   completed: { pinyin: true, hanzi: true, english: true },
+  sentenceLevel: 0,
   starsEarned: 110,
   updatedAt: '2026-09-04T00:00:00.000Z',
 }
