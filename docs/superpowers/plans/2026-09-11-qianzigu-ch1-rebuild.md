@@ -970,12 +970,13 @@ git commit -m "feat(qianzigu): WordLayer 加 sentence 层,存档解析与技能�
 新建 `src/features/qianzigu/scene-ui.test.tsx` —— 直接渲染 `TaskScene`,不依赖 ch1 数据:
 
 ```tsx
-import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import userEvent, { type UserEvent } from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { wordById } from '@/features/vocabulary/words'
+import type { Question } from '@/shared/services'
+import type { TaskScene as TaskSceneData } from './chapter'
 import { TaskScene } from './scene-ui'
-import type { TaskSceneData } from './chapter'
 
 const scene = {
   id: 't1-sentence',
@@ -986,18 +987,30 @@ const scene = {
   onDone: [],
 } as TaskSceneData
 
-// 三档各 1 正 3 错,正确句恒为「档 1 第 1 项」,便于断言重出后停在同一档。
-const questions = [
-  { kind: 'choice', prompt: '哪句话说对了?', options: [
-    { id: 'a', text: '档1正确' }, { id: 'b', text: '档1错1' }, { id: 'c', text: '档1错2' }, { id: 'd', text: '档1错3' },
-  ], answerId: 'a' },
-  // …档 2、档 3 同形,正确 id 恒为各自首项
-] as never
+// 三档各 1 正 3 错;正确句文本带档号,便于断言「重出后停在同一档」。
+function tier(n: number): Question {
+  return {
+    kind: 'choice',
+    prompt: '哪句话说对了?',
+    options: [
+      { id: `t${n}-ok`, text: `档${n}正确`, speak: `档${n}正确` },
+      { id: `t${n}-w1`, text: `档${n}错1`, speak: `档${n}错1` },
+      { id: `t${n}-w2`, text: `档${n}错2`, speak: `档${n}错2` },
+      { id: `t${n}-w3`, text: `档${n}错3`, speak: `档${n}错3` },
+    ],
+    answerId: `t${n}-ok`,
+  } as Question
+}
+const questions: Question[] = [tier(1), tier(2), tier(3)]
 
-it('句步答错两次后重出,仍停在同一档(不回到档 1)', async () => {
-  const user = userEvent.setup()
-  const onCorrect = vi.fn(() => false)
-  render(
+// Choice 是两步:点卡(顺带朗读)→ 点「确定」提交(Choice.tsx:61-71)。
+async function answer(user: UserEvent, text: string): Promise<void> {
+  await user.click(screen.getByRole('button', { name: text }))
+  await user.click(screen.getByRole('button', { name: '确定' }))
+}
+
+function renderScene() {
+  return render(
     <TaskScene
       scene={scene}
       word={wordById(13)!}
@@ -1005,18 +1018,23 @@ it('句步答错两次后重出,仍停在同一档(不回到档 1)', async () =>
       makeQuestions={() => questions}
       speak={vi.fn()}
       playSound={vi.fn()}
-      onCorrect={onCorrect}
+      onCorrect={vi.fn(() => false)}
     />,
   )
+}
 
-  // 先过档 1 → 进入档 2(题干/选项换成档 2 的文本)
-  await user.click(screen.getByText('档1正确'))
+it('句步答错两次后重出,仍停在同一档(不回到档 1)', async () => {
+  const user = userEvent.setup()
+  renderScene()
+
+  // 过档 1 → 进入档 2
+  await answer(user, '档1正确')
   expect(screen.getByText('档2正确')).toBeDefined()
 
-  // 档 2 连续错两次 → 触发 onDoubleWrong → 重出
-  await user.click(screen.getByText('档2错1'))
-  await user.click(screen.getByText('档2错1'))
-  await user.click(screen.getByRole('button', { name: /再试一次/ }))
+  // 档 2 连续错两次(第 2 次错 → reveal 出「再练一次」按钮)
+  await answer(user, '档2错1')
+  await answer(user, '档2错1')
+  await user.click(screen.getByRole('button', { name: '再练一次' }))
 
   // 仍是档 2,不是档 1
   expect(screen.getByText('档2正确')).toBeDefined()
@@ -1024,9 +1042,13 @@ it('句步答错两次后重出,仍停在同一档(不回到档 1)', async () =>
 })
 ```
 
-> 断言的**核心语义**只有一条:重出后停在同一档。`QuestionCard` 的错答/揭晓交互细节按
-> `scene-ui.tsx` 既有实现写(第 1 次错标记错项、第 2 次错出「再试一次吧」按钮);
-> 若既有测试(`stage.test.tsx` / `DialoguePresenter.test.tsx`)已建立渲染辅助,复用之。
+> 断言的**核心语义**只有一条:重出后停在同一档。两个易踩的既有实现细节(已核对源码):
+> - `Choice` 是**两步提交** —— 点选项卡只选中并朗读,必须再点「确定」才 `onAnswer`(`shared/ui/quiz/Choice.tsx:61-71`)。
+> - `TaskScene` 未传 `retryLabel`,`QuestionCard` 默认值是 **「再练一次」**(`scene-ui.tsx:55`),
+>   不是「再试一次」—— 后者是答题中的提示文案,别取错。
+>
+> 若该文件里 `userEvent` 不便使用,可照 `ChapterRunnerView.test.tsx` 的 `fireEvent` 风格改写;
+> 若 `stage.test.tsx` / `DialoguePresenter.test.tsx` 已有渲染辅助,复用之。
 
 - [ ] **Step 2: 跑测试确认失败**
 
