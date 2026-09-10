@@ -327,7 +327,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     answer('太阳')
     answer('太阳')
 
-    expect(await screen.findByRole('button', { name: /继续拯救/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /继续帮忙/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '明天再来' }))
 
     expect(fakes.onExit).toHaveBeenCalled()
@@ -346,7 +346,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     }
     renderRunner(breakChapter(), row)
 
-    expect(screen.getByRole('button', { name: /继续拯救/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /继续帮忙/ })).toBeInTheDocument()
     expect(screen.queryByText('拯救声音')).not.toBeInTheDocument()
   })
 
@@ -439,7 +439,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(document.querySelector('.stage-sky--night')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '继续' }))
     // overlay 清后进入真正的夜 break
-    expect(await screen.findByRole('button', { name: /继续拯救/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /继续帮忙/ })).toBeInTheDocument()
     expect(document.querySelector('.stage-sky--night')).not.toBeNull()
   })
 

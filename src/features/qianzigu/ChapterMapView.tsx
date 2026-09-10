@@ -38,7 +38,7 @@ export function ChapterMapView({ chapters, progress, wordById, onPlay, onBack }:
 
       <main className="mx-auto max-w-xl px-4 pb-24 pt-6">
         <h1 className="text-2xl font-extrabold tracking-tight">千字谷 · 章节地图</h1>
-        <p className="mt-1 text-sm text-ink-2">拯救每一章的天空,收集故事里的汉字!</p>
+        <p className="mt-1 text-sm text-ink-2">帮千字谷镇的伙伴找回名字,收集故事里的汉字!</p>
 
         <div className="mt-5 space-y-4">
           {chapters.map((chapter) => {

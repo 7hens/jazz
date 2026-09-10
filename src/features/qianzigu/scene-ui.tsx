@@ -20,7 +20,7 @@ export const ROLE_META: Record<SpeechRole, { name: string; emoji: string }> = {
 export type SpeakFn = (text: string, language?: string) => boolean
 export type SpeakRoleFn = (text: string, role: SpeechRole, opts?: { rate?: number; pitch?: number }) => boolean
 
-/** 自然断点:「继续拯救」→ advance;「明天再来」→ 落库并回地图。
+/** 自然断点:「继续帮忙」→ advance;「明天再来」→ 落库并回地图。
  *  外层 surface 卡:断点屏叠在夜景天空浮层上,需不透明底才可读(旧 <main> 白底已删)。 */
 export function BreakScene({ onContinue, onExit }: { onContinue(): void; onExit(): void }) {
   return (
@@ -30,7 +30,7 @@ export function BreakScene({ onContinue, onExit }: { onContinue(): void; onExit(
         <p className="mt-4 text-lg font-extrabold text-ink">天黑了,先休息一下吧?</p>
         <p className="mt-2 max-w-60 text-sm text-ink-2">进度会自动保存,下次从这里继续!</p>
         <Button size="lg" className="mt-6 w-full" onClick={onContinue}>
-          继续拯救 <ArrowRight className="ml-1 h-4 w-4" />
+          继续帮忙 <ArrowRight className="ml-1 h-4 w-4" />
         </Button>
         <Button variant="outline" size="lg" className="mt-2.5 w-full" onClick={onExit}>
           <Moon className="mr-2 h-4 w-4" /> 明天再来
