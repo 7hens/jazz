@@ -1424,6 +1424,15 @@ Expected: FAIL —— 只有 18 幕、缺 sentence 层。
   restoreOrder: [13, 13, 13, 7, 7, 7, 14, 14, 14, 8, 8, 8, 19, 19, 19],
 ```
 
+同时改 `ch1.ts` **顶部文件注释**(`:11-12`)—— 它同样写死了旧结构:
+
+```diff
+- * 场景结构遵循既有契约:每词两个连续 task scene(先 sound 后 shape),minCorrect 均 2;
++ * 场景结构遵循既有契约:每词三个连续 task scene(声 → 形 → 句),minCorrect 依次 2 / 2 / 3;
+```
+
+(`:12` 的「断点恰 3 个 / social 1 场 / boss 1 场 / ending + settle 各 1」不变。)
+
 - [ ] **Step 4: 每词加一个句型幕**
 
 在每对 `t{n}-shape` 之后、下一个 `break`/`social` 之前插入(以词 1 为例):
