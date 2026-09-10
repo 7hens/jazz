@@ -41,7 +41,7 @@
 ### feature 轨 — 目标 `0.3.0`(未发;新能力,兼容 → minor)
 
 - [ ] `P0` `[feature]` 汉语领域并轨 S1 — 启用模型 3 技能开关 → 2 领域开关(汉语=拼音+汉字 捆绑 / 英语),内部 `SkillKey`/进度三键/步序/出题/结算不变;面板与冷启动按域;迁移 `0004_chinese_domain.sql` 加 `enable_chinese`(回填任一侧旧汉语技能开即域开)。随 0.2.0 发布后下一条 feature 轨发 — [spec](superpowers/specs/2026-09-08-chinese-domain-merge-design.md) / [plan](superpowers/plans/2026-09-08-chinese-domain-merge.md)
-- [ ] `P0` `[feature]` 千字谷镇重设(全拟人角色 + 轻线悬念,ch1 内容重写)— 全游戏收敛为汉语世界;班底 苏灵灵🦊 / 徐万年🦥 / 皮小闹🦝 / 吴铭🦇(绰号谐音「无名」,小名小明,真名常默=末章一剧情词);**无通用群众位** —— 每个出声角色都有姓名与一页卡,后续新角色按 spec §4.6 规程逐个立项;18 幕结构保留、引擎/进度零动、零位图(emoji);`SpeechRole` 终态 5 值(旧天体角色 / 黑影反派 / 群众位一律退役;语音域红线,已随 spec 报批);旧 ch1 进度作废。**文档已同步**:`game-story-bible.md` / `game-direction.md` / `game-assets.md` / `game-visual.md` 已按落地重写(含 4 张角色一页卡),命名残留 grep 复核全空;发布前闸门 = 浏览器走查 18 幕 — [design](superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md)
+- [ ] `P0` `[feature]` 千字谷镇重设(全拟人角色 + 轻线悬念,ch1 内容重写)— 全游戏收敛为汉语世界;班底 苏灵灵🦊 / 徐万年🦥 / 皮小闹🦝 / 吴铭🦇(绰号谐音「无名」,小名小明,真名常默=末章一剧情词);**无通用群众位** —— 每个出声角色都有姓名与一页卡,后续新角色按 spec §4.6 规程逐个立项;18 幕结构保留、引擎/进度零动、零位图(emoji);`SpeechRole` 终态 5 值(旧天体角色 / 黑影反派 / 群众位一律退役;语音域红线,已随 spec 报批);旧 ch1 进度作废。**文档已同步**:`game-story-bible.md` / `game-direction.md` / `game-assets.md` / `game-visual.md` 已按落地重写(含 4 张角色一页卡),`docs/design/` 命名残留复核 0 命中(PLAN `[x]` 历史条目保留原样);发布前闸门 = 浏览器走查 18 幕 — [design](superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md)
 - [x] `P0` `[feature]` 千字谷 ch1 纵切片(已落地,发轨待 0.3.0)— 重构现游戏为千字谷:双世界壳(千字谷·章节地图 / 字母林保留零改动);ch1《太阳的求救》可玩纵切片(词 1/101/102/103/3,story 补词 升起/亮/早上好;内容已由 2026-09-10 镇重设整体替换,见上行),P3 引擎跑 dialogue/task(听音·辨形双层恢复,minCorrect 2)/社交(两段式先听后选)/BOSS/结局/结算,恢复写词进度 + 复用星尘结算(幂等),断点续玩落迁移 0005。5-plan 经 SDD 全绿(324 tests,0 Critical);架构红线(useService 单点/feature 不互引/worker 行级)全守。**发布前闸门**:spec §7 浏览器人工走查(灰白→彩色 / 全程角色语音 / 刷新续玩 / BOSS 失败保留 / 社交听选)——无 headless 工具未自动。绘画/部件拼装子项未含(见想法池)。已解禁边界见「坚决不做」。— [spec](superpowers/specs/2026-09-08-qianzigu-ch1-design.md) / [plans](superpowers/plans/2026-09-08-qianzigu-ch1-vocab.md)(+speech-role/+ch1-engine/+ch1-persistence/+ch1-ui)
 
 ### hotfix 轨 — 目标 `0.1.1`(基于 `v0.1.0` 已发 tag)
@@ -69,8 +69,8 @@
 - [ ] `P2` 千字谷 UX 打磨 — neutral 社交选项误播 wrong 音(N2)/ BOSS 题形恒 choice(N3,题序词池×[pinyin,hanzi] 轮转)/ 地图「继续」标签(有断点仍显「开始」)/ 重登落点定夺(回上次世界 vs 每次回世界壳,现 lastMapRef 保留)
 - [ ] `P2` 千字谷 世界侧代价(灰度)— 每未恢复/答错一词让山谷灰度加深一档,替代「玩家惩罚」(儿童向);纯世界侧张力,【未定】需 scene `stage` 新字段 + 引擎读取 → 撞「引擎零动」红线,**须先立项再动**。来源:故事评审 2026-09-10(草稿 `docs/.tmp/story-review.md`,本地不入库)
 - [ ] `P2` 千字谷 社交选项独立演出 — `social-pixiaonao` 的 bad/neutral 现仅回 `loop` 重弹(有意设计 = 教育性重试);候选升级 = 各给一次性独特演出后仍引导回正轨(不阻塞、保持单解可通);触及社交场景数据与 UI 取舍逻辑,【未定】须先立项。来源:故事评审 2026-09-10(草稿 `docs/.tmp/story-review.md`,本地不入库)
-- [ ] `P2` 千字谷 角色立绘位图化 — 现全角色 = `ROLE_META` 单 emoji;素材 prompt 已**设计前置定稿**(`docs/design/game-assets.md`:6 角色 + 布景元素 + 氛围 5 档 + 情绪符号 + 三无质检);回填须动 `ROLE_META`/CastFigure 渲染层(spec §10 位图升级),撞「语音零动」边缘,**须先立项再动**。来源:角色重设 2026-09-10
-- [ ] `P2` 千字谷 演出账补齐 — `mood` **全章 0 处**(spec §8 规划落点未标)+ 节奏实测回填(现仅 2s/5s 起步值,未测);分镜/交互现状与待办清单见 `docs/design/game-direction.md` §4。来源:角色重设 2026-09-10
+- [ ] `P2` 千字谷 角色立绘位图化 — 现全角色 = `ROLE_META` 单 emoji;素材 prompt 已**设计前置定稿**(`docs/design/game-assets.md`:4 张角色立绘 prompt(角色集 5 值,旁白不产素材)+ 布景元素 + 氛围 5 档 + 情绪符号 + 三无质检);回填须动 `ROLE_META`/CastFigure 渲染层(spec §10 位图升级),撞「语音零动」边缘,**须先立项再动**。来源:角色重设 2026-09-10
+- [ ] `P2` 千字谷 演出账补齐 — `mood` 现 **3 处**(social 惊吓 / social 收尾 happy / boss 胜利 happy,原「全章 0 处」随 ch1 换写作废);余下待办 = 节奏实测回填(现仅 2s/5s 起步值,未测);分镜/交互现状与待办清单见 `docs/design/game-direction.md` §4。来源:角色重设 2026-09-10
 
 > **已废弃(2026-09-10)**:「五世界」方向被 D1「全游戏收敛为汉语世界」取代,详见
 > [千字谷镇重设 spec](superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md)。原节内容见 git 历史。
