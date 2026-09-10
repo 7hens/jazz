@@ -734,8 +734,14 @@ describe('干扰项场景池', () => {
     expect(ds.every((d) => d.category === 'shape')).toBe(true)
   })
 
-  it('传 sceneWordIds 时优先取场景词', () => {
+  it('传 sceneWordIds 时只从场景词里取(不混入库内其它词)', () => {
     const ds = engine.distractorsFor(word, 2, () => 0.5, { sceneWordIds: [7, 14, 8] })
+    expect(ds).toHaveLength(2)
+    for (const d of ds) expect([7, 14, 8], `混入非场景词 ${d.id}`).toContain(d.id)
+  })
+
+  it('场景词恰好够数时全取自场景词', () => {
+    const ds = engine.distractorsFor(word, 2, () => 0.5, { sceneWordIds: [7, 8] })
     expect(ds.map((d) => d.id).sort()).toEqual([7, 8])
   })
 
@@ -768,6 +774,13 @@ describe('干扰项场景池', () => {
   })
 })
 ```
+
+> ⚠ **别为了让断言过而改 `distractorsFor` 的池序**:`shuffle` 是 Fisher–Yates
+> (`engine.ts:20-27`),注入 `rng = () => 0.5` **不是恒等置换** —— 对 `[7,8,14]` 它会得到
+> `[7,14,8]`。所以「场景词取 2 个」的结果取决于洗牌顺序,断言**不能**写死成某个具体子集。
+> 上面两条测试因此拆开:一条只断言「取到的都在场景池里」(这是「优先取场景词」的真实语义),
+> 另一条用**恰好够数**的场景池(`[7,8]` 取 2)绕开洗牌歧义。若第一条按你想的写死 `[7,8]`,
+> 失败的是断言、不是实现 —— 改测试,别改实现。
 
 - [ ] **Step 2: 跑测试确认失败**
 
