@@ -274,7 +274,7 @@ describe('干扰项场景池', () => {
 
   it('场景词恰好够数时全取自场景词', () => {
     const ds = engine.distractorsFor(word, 2, () => 0.5, { sceneWordIds: [7, 8] })
-    expect(ds.map((d) => d.id).sort()).toEqual([7, 8])
+    expect(ds.map((d) => d.id).sort((a, b) => a - b)).toEqual([7, 8])
   })
 
   it('场景词不足时用已学复习词补齐', () => {
@@ -283,6 +283,15 @@ describe('干扰项场景池', () => {
       learnedWordIds: [21, 41],
     })
     expect(ds.map((d) => d.id).sort((a, b) => a - b)).toEqual([7, 21, 41])
+  })
+
+  it('场景词与复习词重叠时,返回的干扰项 id 不重复', () => {
+    const ds = engine.distractorsFor(word, 3, () => 0.5, {
+      sceneWordIds: [13, 7, 14],
+      learnedWordIds: [13, 7, 14],
+    })
+    expect(ds).toHaveLength(3)
+    expect(new Set(ds.map((d) => d.id)).size).toBe(3)
   })
 
   it('场景池与复习池都空 → 回落同 category', () => {
@@ -294,8 +303,9 @@ describe('干扰项场景池', () => {
     const ds = engine.distractorsFor(word, 3, () => 0.5, { sceneWordIds: [13, 7, 14, 8] })
     for (const d of ds) {
       expect(d.id).not.toBe(13)
-      expect([d.hanzi, d.pinyin, d.english.toLowerCase()])
-        .not.toEqual([word.hanzi, word.pinyin, word.english.toLowerCase()])
+      expect(d.hanzi).not.toBe(word.hanzi)
+      expect(d.pinyin).not.toBe(word.pinyin)
+      expect(d.english.toLowerCase()).not.toBe(word.english.toLowerCase())
     }
   })
 

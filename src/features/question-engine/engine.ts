@@ -57,8 +57,10 @@ function distractorsFor(
     return words.filter((w) => set.has(w.id) && usable(w))
   }
   const scene = shuffle(byIds(context?.sceneWordIds), rng)
-  const learned = shuffle(byIds(context?.learnedWordIds), rng)
-  const seen = new Set([...scene, ...learned].map((w) => w.id))
+  // seen 增量累积:复习池先剔除场景池已有的 id,避免同一词在两段里重复出现。
+  const seen = new Set(scene.map((w) => w.id))
+  const learned = shuffle(byIds(context?.learnedWordIds).filter((w) => !seen.has(w.id)), rng)
+  for (const w of learned) seen.add(w.id)
   const rest = words.filter((w) => usable(w) && !seen.has(w.id))
   const sameCat = shuffle(rest.filter((w) => w.category === word.category), rng)
   const others = shuffle(rest.filter((w) => w.category !== word.category), rng)

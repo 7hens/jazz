@@ -31,6 +31,7 @@ export type {
   ListenChoiceQuestion,
   MatchQuestion,
   Question,
+  QuestionContext,
   QuestionKind,
   Rng,
 } from './question-engine'
