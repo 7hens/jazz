@@ -7,6 +7,7 @@ import type {
   ChapterProgressSnapshot,
   ChapterService,
 } from '@/shared/services'
+import { CHAPTER_1 } from './ch1'
 
 export interface ChapterProgressCallbacks {
   onUnauthorized(): void
@@ -53,6 +54,22 @@ function immutableSnapshot(next: ChapterProgressSnapshot): ChapterProgressSnapsh
   return next.status === 'error'
     ? Object.freeze({ status: 'error', data, error: next.error })
     : Object.freeze({ status: next.status, data })
+}
+
+/** 存档作废门:restoreState 里出现本章词表之外的 id,说明是旧版本章节留下的,一律丢弃。 */
+function belongsToChapter(restoreState: string, wordIds: readonly number[]): boolean {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(restoreState)
+  } catch {
+    return false
+  }
+  if (!Array.isArray(parsed)) return false
+  const known = new Set(wordIds)
+  return parsed.every(
+    entry => typeof entry === 'object' && entry !== null
+      && known.has((entry as { wordId?: number }).wordId ?? NaN),
+  )
 }
 
 export function createChapterService(
@@ -131,7 +148,8 @@ export function createChapterService(
       try {
         const remote = await api.getChapterProgress()
         if (latestStateCommandId !== commandId) return
-        const row = remote ? { ...remote, updatedAt: new Date().toISOString() } : null
+        const valid = remote !== null && belongsToChapter(remote.restoreState, CHAPTER_1.wordIds)
+        const row = valid ? { ...remote, updatedAt: new Date().toISOString() } : null
         setStableSnapshot({ status: 'ready', data: { row } })
       } catch (error) {
         if (latestStateCommandId !== commandId) return

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/shared/services'
 import type { ApiService, ChapterProgressRow } from '@/shared/services'
 import { createChapterService, emptyRow } from './chapter-progress'
+import { CHAPTER_1 } from './ch1'
 
 function row(overrides: Partial<ChapterProgressRow> = {}): ChapterProgressRow {
   return {
@@ -62,12 +63,12 @@ describe('ChapterService', () => {
     const loading = service.load()
     expect(service.getSnapshot().status).toBe('loading')
 
-    resolveLoad({ chapterId: 1, resumeSceneId: 'br1', restoreState: '[{"wordId":1,"layer":"sound"}]' })
+    resolveLoad({ chapterId: 1, resumeSceneId: 'br1', restoreState: '[{"wordId":13,"layer":"sound"}]' })
     await loading
 
     expect(service.getSnapshot()).toMatchObject({
       status: 'ready',
-      data: { row: { chapterId: 1, resumeSceneId: 'br1', restoreState: '[{"wordId":1,"layer":"sound"}]' } },
+      data: { row: { chapterId: 1, resumeSceneId: 'br1', restoreState: '[{"wordId":13,"layer":"sound"}]' } },
     })
     expect(service.getSnapshot().data.row?.updatedAt).not.toBe('')
   })
@@ -90,7 +91,7 @@ describe('ChapterService', () => {
       onUnauthorized: vi.fn(),
       onError: vi.fn(),
     })
-    const next = row({ resumeSceneId: 'br2', restoreState: '[{"wordId":1,"layer":"sound"}]' })
+    const next = row({ resumeSceneId: 'br2', restoreState: '[{"wordId":13,"layer":"sound"}]' })
 
     const saving = service.save(next)
     expect(service.getSnapshot()).toEqual({ status: 'ready', data: { row: next } })
@@ -102,7 +103,7 @@ describe('ChapterService', () => {
     expect(putChapterProgress).toHaveBeenCalledWith({
       chapterId: 1,
       resumeSceneId: 'br2',
-      restoreState: '[{"wordId":1,"layer":"sound"}]',
+      restoreState: '[{"wordId":13,"layer":"sound"}]',
     })
   })
 
@@ -137,7 +138,7 @@ describe('ChapterService', () => {
   it('clear 清空行(null)并持久化第 1 章起始行', async () => {
     const putChapterProgress = vi.fn(async () => undefined)
     const service = createChapterService(fakeApi({
-      getChapterProgress: async () => ({ chapterId: 1, resumeSceneId: 'boss', restoreState: '[{"wordId":1,"layer":"shape"}]' }),
+      getChapterProgress: async () => ({ chapterId: 1, resumeSceneId: 'boss', restoreState: '[{"wordId":13,"layer":"shape"}]' }),
       putChapterProgress,
     }), { onUnauthorized: vi.fn(), onError: vi.fn() })
     await service.load()
@@ -173,5 +174,46 @@ describe('ChapterService', () => {
     expect(Object.isFrozen(initial)).toBe(true)
     expect(Object.isFrozen(initial.data)).toBe(true)
     expect(service.getSnapshot()).toBe(initial)
+  })
+})
+
+describe('chapter-progress 存档作废', () => {
+  it('restoreState 含本章之外的词 id → 视为无进度', async () => {
+    const api = {
+      // 旧 ch1 的进度:词 1(太阳)已恢复两层
+      getChapterProgress: async () => ({
+        chapterId: 1,
+        resumeSceneId: 't2-sound',
+        restoreState: JSON.stringify([{ wordId: 1 }, { wordId: 1 }]),
+      }),
+      putChapterProgress: async () => {},
+    }
+    const service = createChapterService(api as never, { onUnauthorized() {}, onError() {} })
+    await service.load()
+    expect(service.getSnapshot().data.row).toBeNull()
+  })
+
+  it('restoreState 全在本章词表内 → 正常保留', async () => {
+    const api = {
+      getChapterProgress: async () => ({
+        chapterId: 1,
+        resumeSceneId: 't2-sound',
+        restoreState: JSON.stringify([{ wordId: CHAPTER_1.wordIds[0] }]),
+      }),
+      putChapterProgress: async () => {},
+    }
+    const service = createChapterService(api as never, { onUnauthorized() {}, onError() {} })
+    await service.load()
+    expect(service.getSnapshot().data.row?.resumeSceneId).toBe('t2-sound')
+  })
+
+  it('restoreState 为空数组(新章开局)→ 保留,不作废', async () => {
+    const api = {
+      getChapterProgress: async () => ({ chapterId: 1, resumeSceneId: null, restoreState: '[]' }),
+      putChapterProgress: async () => {},
+    }
+    const service = createChapterService(api as never, { onUnauthorized() {}, onError() {} })
+    await service.load()
+    expect(service.getSnapshot().data.row).not.toBeNull()
   })
 })
