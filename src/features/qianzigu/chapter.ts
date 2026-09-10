@@ -1,7 +1,7 @@
 import type { SpeechRole } from '@/shared/services'
 
 export type SceneKind = 'dialogue' | 'task' | 'social' | 'break' | 'boss' | 'ending' | 'settle'
-export type WordLayer = 'sound' | 'shape'          // sound=拼音恢复,shape=汉字恢复
+export type WordLayer = 'sound' | 'shape' | 'sentence'  // sound=拼音恢复,shape=汉字恢复,sentence=句型
 
 export type AtmosphereKey = 'dawn' | 'day' | 'dusk' | 'night' | 'dark'
 export type SpeechMood = 'calm' | 'sad' | 'happy' | 'scary'

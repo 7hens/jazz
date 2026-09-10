@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createChapterRunner } from './engine'
 import { CHAPTER_1 } from './ch1'
-import type { Scene } from './chapter'
+import type { Chapter, Scene, WordLayer } from './chapter'
 
 describe('createChapterRunner', () => {
   it('advance 逐节点推进到第一个 task', () => {
@@ -86,5 +86,37 @@ describe('createChapterRunner', () => {
     s = r.next({ type: 'boss-correct' }).state
     expect(s.bossWon).toBe(true)
     expect(s.sceneIndex).toBeGreaterThan(bossIdx)
+  })
+
+  it('同词三层计数互不串数', () => {
+    const mkTask = (id: string, layer: WordLayer): Scene => ({
+      id,
+      kind: 'task',
+      title: id,
+      intro: [],
+      task: { wordId: 13, layer, minCorrect: 2 },
+      onDone: [],
+    })
+    const fake: Chapter = {
+      id: 99,
+      title: 't',
+      subtitle: 't',
+      emoji: '🧪',
+      wordIds: [13],
+      restoreOrder: [13, 13, 13],
+      scenes: [mkTask('a-sound', 'sound'), mkTask('b-shape', 'shape'), mkTask('c-sentence', 'sentence')],
+    }
+    const r = createChapterRunner(fake)
+    r.start()
+    let out = r.next({ type: 'task-correct', wordId: 13, layer: 'sound' })
+    out = r.next({ type: 'task-correct', wordId: 13, layer: 'sound' })
+    expect(out.state.sceneIndex).toBe(1)
+    out = r.next({ type: 'task-correct', wordId: 13, layer: 'shape' })
+    out = r.next({ type: 'task-correct', wordId: 13, layer: 'shape' })
+    expect(out.state.sceneIndex).toBe(2)
+    out = r.next({ type: 'task-correct', wordId: 13, layer: 'sentence' })
+    out = r.next({ type: 'task-correct', wordId: 13, layer: 'sentence' })
+    expect(out.state.sceneIndex).toBe(3)
+    expect(out.state.taskHits).toEqual({ '13:sound': 2, '13:shape': 2, '13:sentence': 2 })
   })
 })

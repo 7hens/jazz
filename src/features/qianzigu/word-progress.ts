@@ -7,7 +7,7 @@ export const WORD_COMPLETE_BONUS = 20
 
 export type RestoredEntry = Readonly<{ wordId: number; layer: WordLayer }>
 
-/** 章节任务层 → 技能键:sound=拼音恢复,shape=汉字恢复。 */
+/** 章节任务层 → 技能键:sound=拼音恢复,shape=汉字恢复;sentence 按汉字文本通道渲染与朗读。 */
 export function layerToSkill(layer: WordLayer): SkillKey {
   return layer === 'sound' ? 'pinyin' : 'hanzi'
 }
@@ -31,6 +31,8 @@ export function emptyWordProgress(wordId: number): WordProgress {
   }
 }
 
+const LAYERS: readonly WordLayer[] = ['sound', 'shape', 'sentence']
+
 /** 解析落库的 restoreState JSON(非法/非数组一律空)。 */
 export function parseRestoreState(json: string | undefined): RestoredEntry[] {
   if (!json) return []
@@ -39,7 +41,7 @@ export function parseRestoreState(json: string | undefined): RestoredEntry[] {
     if (!Array.isArray(parsed)) return []
     return parsed.filter((entry): entry is RestoredEntry => {
       const e = entry as { wordId?: unknown; layer?: unknown }
-      return typeof e?.wordId === 'number' && (e.layer === 'sound' || e.layer === 'shape')
+      return typeof e?.wordId === 'number' && LAYERS.includes(e.layer as WordLayer)
     }).map(e => ({ wordId: e.wordId, layer: e.layer }))
   } catch {
     return []
