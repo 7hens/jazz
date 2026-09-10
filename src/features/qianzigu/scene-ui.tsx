@@ -227,6 +227,13 @@ export function TaskScene({
   }
 
   function handleRetry() {
+    // 句步:原地重出当前档(保留 qIndex),否则档 3 答错两次会被打回档 1,对儿童过苛。
+    // 其余层维持「重置整套」的既有行为。
+    if (scene.task.layer === 'sentence') {
+      setQuestions(makeQuestions())
+      setRound((r) => r + 1)
+      return
+    }
     setQuestions(makeQuestions())
     setQIndex(0)
     setRound((r) => r + 1)

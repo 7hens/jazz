@@ -8,6 +8,7 @@ import type {
   ProgressRulesService,
   ProgressService,
   ProgressData,
+  QuestionContext,
   QuestionEngineService,
   SettingsService,
   SpeechService,
@@ -210,6 +211,16 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
     onSettled()
   }
 
+  /** 出题上下文:本章场景词 + 全部已学复习词。learnedWordIds 含本章词是有意的 ——
+   *  去重收口在引擎侧 distractorsFor(Task 4 修复轮已按 id 去重),此处不做过滤。 */
+  function taskContext(): QuestionContext {
+    const progress = localProgressRef.current
+    const learned = Object.values(progress)
+      .filter((p) => p.completed.pinyin || p.completed.hanzi || p.completed.english)
+      .map((p) => p.wordId)
+    return { sceneWordIds: chapter.wordIds, learnedWordIds: learned }
+  }
+
   const speakRole: SpeakRoleFn = (text, role) => services.speech.speakRole(text, role)
   const speak: SpeakFn = (text, lang) => services.speech.speak(text, lang)
   const playSound = (cue: Parameters<AudioService['play']>[0]) => services.audio.play(cue)
@@ -261,12 +272,19 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         const word = services.vocabulary.wordById(current.task.wordId)
         if (!word) return null
         const skill = layerToSkill(current.task.layer)
+        const context = taskContext()
+        const makeQuestions = current.task.layer === 'sentence'
+          ? () => {
+              const set = services.vocabulary.sentenceSetFor(word.id)
+              return set ? services.questionEngine.makeSentenceQuestions(word, set, Math.random) : []
+            }
+          : () => services.questionEngine.makeStepQuestions(word, skill, Math.random, context)
         return (
           <TaskScene
             scene={current}
             word={word}
             skill={skill}
-            makeQuestions={() => services.questionEngine.makeStepQuestions(word, skill, Math.random)}
+            makeQuestions={makeQuestions}
             speak={speak}
             playSound={playSound}
             onCorrect={handleTaskCorrect}
@@ -292,7 +310,8 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         return (
           <BossScene
             wordPool={pool}
-            makeQuestion={(word, skill) => services.questionEngine.makeStepQuestions(word, skill, Math.random)[0]}
+            makeQuestion={(word, skill) =>
+              services.questionEngine.makeStepQuestions(word, skill, Math.random, taskContext())[0]}
             speak={speak}
             playSound={playSound}
             onBossCorrect={handleBossCorrect}
