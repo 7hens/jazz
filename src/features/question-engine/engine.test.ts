@@ -16,6 +16,7 @@ it('uses the injected vocabulary to build question options', () => {
   const vocabulary = {
     getAllWords: () => words,
     wordById: (id: number) => words.find(word => word.id === id),
+    sentenceSetFor: () => undefined,
   }
   const service = createQuestionEngineService(vocabulary)
 

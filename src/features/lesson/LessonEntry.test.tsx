@@ -53,6 +53,7 @@ it('renders the first enabled skill using only registered service composition', 
   const vocabulary: VocabularyService = {
     getAllWords: () => [word],
     wordById: id => id === word.id ? word : undefined,
+    sentenceSetFor: () => undefined,
   }
   const questionEngine: QuestionEngineService = {
     optionCountFor: () => 2,

@@ -153,6 +153,7 @@ function registerAll() {
   const vocabulary: VocabularyService = {
     getAllWords: () => allWords,
     wordById: (id) => allWords.find((w) => w.id === id),
+    sentenceSetFor: () => undefined,
   }
 
   const chapterStore = createStore<ChapterProgressSnapshot>({ status: 'idle', data: { row: null } })

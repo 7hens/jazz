@@ -179,6 +179,7 @@ function makeFakes(progressData: ProgressData = {}, row: ChapterProgressRow | nu
   const vocabulary: VocabularyService = {
     getAllWords: () => [word],
     wordById: (id) => (id === word.id ? word : undefined),
+    sentenceSetFor: () => undefined,
   }
   const questionEngine: QuestionEngineService = {
     optionCountFor: () => 2,

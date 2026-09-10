@@ -29,9 +29,15 @@ export type WordUnit = {
   teaser?: string
 }
 
+/** 句型句集:每词 3 档(由易到难),每档 1 正确句 + 3 错句。数据在 features/vocabulary/sentences.ts。 */
+export type SentenceItem = Readonly<{ correct: string; wrong: readonly [string, string, string] }>
+export type SentenceSet = Readonly<{ wordId: number; tiers: readonly [SentenceItem, SentenceItem, SentenceItem] }>
+
 export interface VocabularyService {
   getAllWords(): readonly WordUnit[]
   wordById(id: number): WordUnit | undefined
+  /** 千字谷句型步:该词的句集;非句型词返回 undefined(调用方回落既有题型)。 */
+  sentenceSetFor(wordId: number): SentenceSet | undefined
 }
 
 export const VocabularyService = Symbol('VocabularyService') as unknown as ServiceToken<VocabularyService>
