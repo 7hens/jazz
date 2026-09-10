@@ -141,9 +141,17 @@ function registerAll() {
     save: async () => undefined,
   }
 
+  const ch1Words: WordUnit[] = [
+    { id: 13, emoji: '🏠', pinyin: 'fáng zi', hanzi: '房子', english: 'house', category: 'shape' },
+    { id: 7, emoji: '🚪', pinyin: 'mén', hanzi: '门', english: 'door', category: 'shape' },
+    { id: 14, emoji: '🔑', pinyin: 'yào shi', hanzi: '钥匙', english: 'key', category: 'shape' },
+    { id: 8, emoji: '🪟', pinyin: 'chuāng hu', hanzi: '窗户', english: 'window', category: 'shape' },
+    { id: 19, emoji: '💡', pinyin: 'tái dēng', hanzi: '台灯', english: 'lamp', category: 'shape' },
+  ]
+  const allWords = [word, ...ch1Words]
   const vocabulary: VocabularyService = {
-    getAllWords: () => [word],
-    wordById: (id) => (id === word.id ? word : undefined),
+    getAllWords: () => allWords,
+    wordById: (id) => allWords.find((w) => w.id === id),
   }
 
   const chapterStore = createStore<ChapterProgressSnapshot>({ status: 'idle', data: { row: null } })

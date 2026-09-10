@@ -71,8 +71,8 @@ describe('QianziguEntry 千字谷章节地图', () => {
     registerServices()
     render(<QianziguEntry onBack={vi.fn()} onEnterChapter={vi.fn()} />)
 
-    expect(screen.getByText('第1章 · 太阳的求救')).toBeInTheDocument()
-    for (const label of ['太阳', '升起', '亮', '早上好', '星星']) {
+    expect(screen.getByText('第1章 · 徐爷爷忘掉的名字')).toBeInTheDocument()
+    for (const label of ['房子', '门', '钥匙', '窗户', '台灯']) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
     expect(screen.getAllByText(/第\d+章/).length).toBeGreaterThan(1)
@@ -98,7 +98,7 @@ describe('QianziguEntry 千字谷章节地图', () => {
 
   it('ch1 五词 pinyin+hanzi 全过 → 显示「已学会」完成态', () => {
     const done: ProgressData = {}
-    for (const wordId of [1, 101, 102, 103, 3]) {
+    for (const wordId of [13, 7, 14, 8, 19]) {
       done[wordId] = {
         wordId,
         completed: { pinyin: true, hanzi: true, english: false },

@@ -239,7 +239,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(row).not.toBeNull()
     renderRunner(CHAPTER_1, row)
     // boss intro 首句整屏对白出现 = resumeFromRow 已穿场快进(open/t1..t5 全跳过)
-    expect(await screen.findByText('你们...居然唤醒了太阳...')).toBeInTheDocument()
+    expect(await screen.findByText('哎哟……我今天忘得也太多了。')).toBeInTheDocument()
     expect(screen.queryByText(/欢迎来到千字谷/)).not.toBeInTheDocument()
   })
 
