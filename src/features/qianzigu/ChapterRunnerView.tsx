@@ -375,7 +375,7 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
       }
       return renderStage(sceneBody(scene), scene.kind)
     }
-    // boss 首幕台词:intro 整屏舞台演出(静默登台;本地放行记录,不入引擎);通过后才交浮层出 BOSS 题卡。
+    // boss 首幕台词:intro 整屏舞台演出(反派登台;本地放行记录,不入引擎);通过后才交浮层出 BOSS 题卡。
     case 'boss': {
       if (scene.intro.length > 0 && !introPassed[scene.id]) {
         return renderDialogue(scene.intro, {

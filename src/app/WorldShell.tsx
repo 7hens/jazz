@@ -42,7 +42,7 @@ export function WorldShell({ onQianzigu, onLetterForest }: WorldShellProps) {
             <span className="min-w-0">
               <span className="block text-xl font-extrabold tracking-tight">千字谷</span>
               <span className="mt-1 block text-sm font-medium text-ink-2">汉语 · 章节冒险</span>
-              <span className="mt-2 block text-xs text-ink-3">跟着灵灵拯救太阳、安慰月亮…收集汉字!</span>
+              <span className="mt-2 block text-xs text-ink-3">跟着苏灵灵，帮千字谷镇的伙伴找回名字…收集汉字!</span>
             </span>
           </motion.button>
 

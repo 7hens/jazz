@@ -395,7 +395,7 @@ export function BossScene({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-center">
-        <span className="rounded-full bg-ink px-3.5 py-1.5 text-sm font-bold text-white">BOSS · 静默</span>
+        <span className="rounded-full bg-ink px-3.5 py-1.5 text-sm font-bold text-white">BOSS · 一团乱</span>
       </div>
       <QuestionCard
         key={`boss-${session}`}

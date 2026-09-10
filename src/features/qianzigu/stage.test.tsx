@@ -60,7 +60,7 @@ describe('StageCast', () => {
     expect(container.querySelectorAll('[data-stage-bubble]').length).toBe(1)
   })
 
-  it('sky 分流:天空体绝不占地面行;说者(天空体)泡/名牌锚天幕,静默天空体零多余 DOM', () => {
+  it('sky 分流:天空体绝不占地面行;说者(天空体)泡/名牌锚天幕,另一天空体零多余 DOM', () => {
     const { container } = render(
       <StageCast cast={['lingling', 'xuwannian', 'pixiaonao']} sky={['xuwannian', 'pixiaonao']} speaker="xuwannian" bubble={<span>救救我</span>} />,
     )
@@ -73,7 +73,7 @@ describe('StageCast', () => {
     expect(groundNames).not.toContain('皮小闹')
     // 顶栏槽退役:不再渲染 [data-stage-sky] 重复小头像槽(§15.4 无双太阳)
     expect(container.querySelector('[data-stage-sky]')).toBeNull()
-    // 说者是天空体(太阳)时:泡 + 名牌锚天幕位;泡只一个,静默月亮零重复头像
+    // 说者是天空体(徐万年)时:泡 + 名牌锚天幕位;泡只一个,皮小闹零重复头像
     expect(screen.getByText('救救我')).toBeInTheDocument()
     const skySpeaker = container.querySelector('[data-stage-sky-speaker]')!
     expect(skySpeaker).not.toBeNull()

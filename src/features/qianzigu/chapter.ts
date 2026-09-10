@@ -33,7 +33,7 @@ export type TaskSpec = Readonly<{
 export type TaskScene = Readonly<{
   id: string
   kind: 'task'
-  title: string                      // 任务名(如 拯救太阳)
+  title: string                      // 任务名(如 徐爷爷忘掉的名字)
   intro: ChapterLine[]
   task: TaskSpec
   onDone: ChapterLine[]              // 恢复成功后的台词

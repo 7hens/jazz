@@ -55,7 +55,7 @@ function makeStore<T>(initial: T) {
 function flowChapter(): Chapter {
   return {
     id: 1,
-    title: '太阳的求救',
+    title: '徐爷爷忘掉的名字',
     subtitle: '测试章',
     emoji: '🌅',
     wordIds: [1],
@@ -71,7 +71,7 @@ function flowChapter(): Chapter {
 function bossChapter(): Chapter {
   return {
     id: 1,
-    title: '太阳的求救',
+    title: '徐爷爷忘掉的名字',
     subtitle: 'BOSS 测试',
     emoji: '🌅',
     wordIds: [1],
@@ -87,7 +87,7 @@ function bossChapter(): Chapter {
         win: [{ role: 'changmo', text: '不可能...!' }],
         lose: [
           { role: 'lingling', text: '已经很棒了!太阳、月亮都被你救了!' },
-          { role: 'lingling', text: '我们先回去休息,下次再来挑战静默!' },
+          { role: 'lingling', text: '我们先回去休息,下次再来挑战常默!' },
         ],
       },
     ],
@@ -97,7 +97,7 @@ function bossChapter(): Chapter {
 function socialChapter(): Chapter {
   return {
     id: 1,
-    title: '太阳的求救',
+    title: '徐爷爷忘掉的名字',
     subtitle: '社交测试',
     emoji: '🌅',
     wordIds: [1],
@@ -123,7 +123,7 @@ function socialChapter(): Chapter {
 function breakChapter(): Chapter {
   return {
     id: 1,
-    title: '太阳的求救',
+    title: '徐爷爷忘掉的名字',
     subtitle: '断点测试',
     emoji: '🌅',
     wordIds: [1],
@@ -480,7 +480,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     answer('太阳')
 
     // BOSS:intro 空 → 直接出题;连错满 maxWrong(2)
-    expect(screen.getByText('BOSS · 静默')).toBeInTheDocument()
+    expect(screen.getByText('BOSS · 一团乱')).toBeInTheDocument()
 
     bossWrong()
     bossWrong()
@@ -494,13 +494,13 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(screen.getByRole('button', { name: '回地图' })).toBeInTheDocument()
   })
 
-  it('boss:静默 intro 整屏登台对白 → 点继续出题卡 → 全对播 win 收尾 → 进入下一屏', async () => {
+  it('boss:常默 intro 整屏登台对白 → 点继续出题卡 → 全对播 win 收尾 → 进入下一屏', async () => {
     const chapter: Chapter = {
       ...bossChapter(),
       scenes: [
         {
           id: 'boss', kind: 'boss',
-          intro: [{ role: 'changmo', text: '我是静默!' }],
+          intro: [{ role: 'changmo', text: '我是常默!' }],
           maxWrong: 2,
           questionCount: 1,
           win: [{ role: 'changmo', text: '不可能...!' }],
@@ -511,13 +511,13 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     }
     renderRunner(chapter)
     // intro 是整屏舞台对白:仅 DialoguePresenter/StageCast 渲染角色旁泡(data-stage-bubble),
-    // 旧卡片 LineScene 无此物 → 判别真实舞台化(boss intro 行角色=静默,非 narrator → 泡渲染)。
-    expect(await screen.findByText('我是静默!')).toBeInTheDocument()
+    // 旧卡片 LineScene 无此物 → 判别真实舞台化(boss intro 行角色=常默,非 narrator → 泡渲染)。
+    expect(await screen.findByText('我是常默!')).toBeInTheDocument()
     expect(document.querySelector('[data-stage-bubble]')).not.toBeNull()
-    expect(screen.queryByText('BOSS · 静默')).not.toBeInTheDocument() // 题卡尚未浮出
+    expect(screen.queryByText('BOSS · 一团乱')).not.toBeInTheDocument() // 题卡尚未浮出
     fireEvent.click(screen.getByRole('button', { name: '继续' }))
     // 放行后交浮层:BOSS 题卡徽章 + 出题
-    expect(await screen.findByText('BOSS · 静默')).toBeInTheDocument()
+    expect(await screen.findByText('BOSS · 一团乱')).toBeInTheDocument()
     expect(screen.getByText('选出太阳的拼音')).toBeInTheDocument()
     answer('太阳') // questionCount:1 → 一次全对即 bossWon
     // win overlay:整屏对白(非卡)
