@@ -135,7 +135,7 @@ br1 / br2 / br3 另有「明天再来」出口 → 落库并回章节地图
 | 剧情对白 | 抒情 5s 最短停留 | ⬜ 未测 |
 | social 决策 | 选项驻留不限时 | ⬜ 未测 |
 
-> 实测值回填本节后,反向修正技能 `game-narrative-design` 的节奏表 —— 别当固定真理。
+> 实测值回填本节后,反向修正技能 `game-story-design` 结构侧的节奏表 —— 别当固定真理。
 
 ## 4 现状 vs 规划(防错称已落地)
 
@@ -156,4 +156,4 @@ br1 / br2 / br3 另有「明天再来」出口 → 落库并回章节地图
 - 台词 / 选项 / 题量权威:`src/features/qianzigu/ch1.ts`;类型契约 `chapter.ts`;引擎 `engine.ts`
 - 设定与角色:`docs/design/game-story-bible.md`(§3 角色台账与一页卡 / §5 演出锚点 / §6 伏笔台账)
 - 视觉接缝与红线:`docs/design/game-visual.md`;素材 prompt:`docs/design/game-assets.md`
-- 通用方法:技能 `game-narrative-design`(分支/变量/节奏)、`game-visual-design`(视觉)
+- 通用方法:技能 `game-story-design`(结构侧:分支/变量/节奏)、`game-visual-design`(视觉)

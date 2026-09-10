@@ -2,7 +2,7 @@
 
 > **定位**:本仓库叙事的**权威裁决依据**(canon)。回答「为什么这么写、后续怎么写不打架」。
 > **权威顺序**:台词与场景 = `src/features/qianzigu/ch1.ts`(唯一事实源,受 `ch1-script.test.ts` 守卫) > 本文(设定与理由) > 历史构想(可被本文覆盖)。
-> **通用方法**见技能:`.claude/skills/game-story-writing`(创作)、`game-narrative-design`(分支与校验)、`game-visual-design`(演出);视觉接缝见 `game-visual.md`。
+> **通用方法**见技能:`.claude/skills/game-story-design`(创作 + 结构/分支校验)、`game-visual-design`(演出);视觉接缝见 `game-visual.md`。
 > **本轮重设**:2026-09-10 千字谷镇重设(全拟人角色 + 轻线悬念,ch1 内容重写),spec 见 `docs/superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md`。
 > ⚠ 标【待全篇框架定】/【推论补全】的条目 = 尚无产品确认,不得当既有事实引用。
 
