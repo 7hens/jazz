@@ -35,13 +35,14 @@
 - [x] `P0` `[feature]` 砍词课步前 soft「想先学一下?」软浮条 — soft(教过仍 learning)不再打断、放行直接答题,仅未教 mandatory 强制短教;改 `FoundationStepGate` 放行 + App judge 收敛 `mandatory` — 已并入 main(commit e04260e),随 0.2.0 发
 - [x] `P0` `[feature]` 答题卡交互收口(短教纯判分 + 全题型 4 选项 + 题型徽章 + 听一听喇叭重听)— 家长口径「别听完才答、直接选对错判分」:短教 TeachOverlay 删 demo/tap 演示步与听齐(requireVisitAll)门,对每个未教单元直接出 **4 选项纯判分题**(错答复演示、答对进阶,全过 praise 结课;保留直接答题 + 返回地图出口);Choice/ListenChoice 删 requireVisitAll/visited 听齐提示;所有题(选一选/听一听/短教/连连看)选项**恒 4**(engine `optionCountFor` 定 4、teach-questions 干扰 3);题卡左上角题型徽章(`TypeBadge` 选一选/听一听/连连看);ListenChoice 标题行恢复喇叭图标(Volume2)点重听(替虚线圆重听区);删孤立 `demo-blocks.*`(演示产物已随 demo/tap 退役)。已并入 main(commit e04260e),随 0.2.0 发 — [quiz-interaction spec](superpowers/specs/2026-09-06-quiz-interaction-redesign-design.md) / [foundation spec](superpowers/specs/2026-09-05-foundation-learning-design.md)
 - [ ] `P0` `[feature]` 远程 D1 迁移 — 0.2.0 发布前 apply `migrations/0002_fun.sql`(settings 新列),preview → 生产;本地已 `npm run db:local`
-- [x] `P0` `[feature]` 发音首响优化(预热·防掐头·静默暖机)— 0.2.0 人工验收:发音有延时、偶发前半段无声。speech 服务:创建即预取 voice 表 + `voiceschanged` 刷新缓存(空轮询不覆盖好缓存);语音未就绪时最新一条朗读入队、就绪补播(不静默丢);空闲不 cancel 立即播、仅引擎忙才 cancel 且隔 ~30ms 再播(防 Chrome 吞句头);无匹配 voice 且引擎有 voices 时降级默认音;**不做引擎暖机**(取舍 2026-09-09:曾播 volume=0 真音节想无声唤醒懒 TTS,Firefox/Chrome 不遵守 volume=0 → 会话首次交互真实响 `'a'`(进千字谷地图 bug),已整体删除;voice 预取/入队/防掐头保留)。测试 speech 4→9、`npm test` 264 绿 — 并入 main,随 0.2.0 发
+- [x] `P0` `[feature]` 发音首响优化(预热·防掐头·无声暖机)— 0.2.0 人工验收:发音有延时、偶发前半段无声。speech 服务:创建即预取 voice 表 + `voiceschanged` 刷新缓存(空轮询不覆盖好缓存);语音未就绪时最新一条朗读入队、就绪补播(不悄悄丢);空闲不 cancel 立即播、仅引擎忙才 cancel 且隔 ~30ms 再播(防 Chrome 吞句头);无匹配 voice 且引擎有 voices 时降级默认音;**不做引擎暖机**(取舍 2026-09-09:曾播 volume=0 真音节想无声唤醒懒 TTS,Firefox/Chrome 不遵守 volume=0 → 会话首次交互真实响 `'a'`(进千字谷地图 bug),已整体删除;voice 预取/入队/防掐头保留)。测试 speech 4→9、`npm test` 264 绿 — 并入 main,随 0.2.0 发
 - [x] `P0` `[feature]` 声调锚统一 qi 四调 + 删轻声 — 拼音短教声调单元锚改同一音节 qi:ton1 七 `qī` `7️⃣` / ton2 旗 `qí` `🚩` / ton3 企 `qǐ` `🐧` / ton4 气 `qì` `🎈`;轻声 ton0 整体退役(本无出题、decompose 只顺带产键记过)→ `PINYIN_TONES` 4 项、轻声音节不再产声调单元键,帽子/月亮等 ~21 轻声音不再为幽灵单元强制补教 — 已并入 main(commit 008bfa8),随 0.2.0 发
 
 ### feature 轨 — 目标 `0.3.0`(未发;新能力,兼容 → minor)
 
 - [ ] `P0` `[feature]` 汉语领域并轨 S1 — 启用模型 3 技能开关 → 2 领域开关(汉语=拼音+汉字 捆绑 / 英语),内部 `SkillKey`/进度三键/步序/出题/结算不变;面板与冷启动按域;迁移 `0004_chinese_domain.sql` 加 `enable_chinese`(回填任一侧旧汉语技能开即域开)。随 0.2.0 发布后下一条 feature 轨发 — [spec](superpowers/specs/2026-09-08-chinese-domain-merge-design.md) / [plan](superpowers/plans/2026-09-08-chinese-domain-merge.md)
-- [x] `P0` `[feature]` 千字谷 ch1 纵切片(已落地,发轨待 0.3.0)— 重构现游戏为千字谷:双世界壳(千字谷·章节地图 / 字母林保留零改动);ch1《太阳的求救》可玩纵切片(词 1/101/102/103/3,story 补词 升起/亮/早上好),P3 引擎跑 dialogue/task(听音·辨形双层恢复,minCorrect 2)/社交(两段式先听后选)/BOSS/结局/结算,恢复写词进度 + 复用星尘结算(幂等),断点续玩落迁移 0005。5-plan 经 SDD 全绿(324 tests,0 Critical);架构红线(useService 单点/feature 不互引/worker 行级)全守。**发布前闸门**:spec §7 浏览器人工走查(灰白→彩色 / 全程角色语音 / 刷新续玩 / BOSS 失败保留 / 社交听选)——无 headless 工具未自动。绘画/部件拼装子项未含(见想法池)。已解禁边界见「坚决不做」。— [spec](superpowers/specs/2026-09-08-qianzigu-ch1-design.md) / [plans](superpowers/plans/2026-09-08-qianzigu-ch1-vocab.md)(+speech-role/+ch1-engine/+ch1-persistence/+ch1-ui)
+- [ ] `P0` `[feature]` 千字谷镇重设(全拟人角色 + 轻线悬念,ch1 内容重写)— 全游戏收敛为汉语世界;班底 苏灵灵🦊 / 徐万年🦥 / 皮小闹🦝 / 吴铭🦇(绰号谐音「无名」,小名小明,真名常默=末章一剧情词);**无通用群众位** —— 每个出声角色都有姓名与一页卡,后续新角色按 spec §4.6 规程逐个立项;18 幕结构保留、引擎/进度零动、零位图(emoji);`SpeechRole` 终态 5 值(旧天体角色 / 黑影反派 / 群众位一律退役;语音域红线,已随 spec 报批);旧 ch1 进度作废。**文档已同步**:`game-story-bible.md` / `game-direction.md` / `game-assets.md` / `game-visual.md` 已按落地重写(含 4 张角色一页卡),命名残留 grep 复核全空;发布前闸门 = 浏览器走查 18 幕 — [design](superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md)
+- [x] `P0` `[feature]` 千字谷 ch1 纵切片(已落地,发轨待 0.3.0)— 重构现游戏为千字谷:双世界壳(千字谷·章节地图 / 字母林保留零改动);ch1 旧纵切片可玩(旧词 1/101/102/103/3,story 补词 升起/亮/早上好;内容已由 2026-09-10 镇重设整体替换,见上行),P3 引擎跑 dialogue/task(听音·辨形双层恢复,minCorrect 2)/社交(两段式先听后选)/BOSS/结局/结算,恢复写词进度 + 复用星尘结算(幂等),断点续玩落迁移 0005。5-plan 经 SDD 全绿(324 tests,0 Critical);架构红线(useService 单点/feature 不互引/worker 行级)全守。**发布前闸门**:spec §7 浏览器人工走查(灰白→彩色 / 全程角色语音 / 刷新续玩 / BOSS 失败保留 / 社交听选)——无 headless 工具未自动。绘画/部件拼装子项未含(见想法池)。已解禁边界见「坚决不做」。— [spec](superpowers/specs/2026-09-08-qianzigu-ch1-design.md) / [plans](superpowers/plans/2026-09-08-qianzigu-ch1-vocab.md)(+speech-role/+ch1-engine/+ch1-persistence/+ch1-ui)
 
 ### hotfix 轨 — 目标 `0.1.1`(基于 `v0.1.0` 已发 tag)
 
@@ -66,22 +67,13 @@
 - [ ] `P2` 千字谷 章节 done 标记 / 结局回放 — settle 现即 `chapter.clear` 清行重玩,完成度由 per-word 承载;「已通关重看结局」需 done 列
 - [ ] `P2` 千字谷 双语 wordBonus 口径 — 默认 enableEnglish 下 `fullComplete` 含英语域,ch1 只写汉语域 → 整词 +20 恒不发(故事词 101-103 字母林永不涉足);「千字谷仅汉语域」的 +20 判定待产品对齐(full-review N1)
 - [ ] `P2` 千字谷 UX 打磨 — neutral 社交选项误播 wrong 音(N2)/ BOSS 题形恒 choice(N3,题序词池×[pinyin,hanzi] 轮转)/ 地图「继续」标签(有断点仍显「开始」)/ 重登落点定夺(回上次世界 vs 每次回世界壳,现 lastMapRef 保留)
+- [ ] `P2` 千字谷 世界侧代价(灰度)— 每未恢复/答错一词让山谷灰度加深一档,替代「玩家惩罚」(儿童向);纯世界侧张力,【未定】需 scene `stage` 新字段 + 引擎读取 → 撞「引擎零动」红线,**须先立项再动**。来源:故事评审 2026-09-10(草稿 `docs/.tmp/story-review.md`,本地不入库)
+- [ ] `P2` 千字谷 社交选项独立演出 — `social-pixiaonao` 的 bad/neutral 现仅回 `loop` 重弹(有意设计 = 教育性重试);候选升级 = 各给一次性独特演出后仍引导回正轨(不阻塞、保持单解可通);触及社交场景数据与 UI 取舍逻辑,【未定】须先立项。来源:故事评审 2026-09-10(草稿 `docs/.tmp/story-review.md`,本地不入库)
+- [ ] `P2` 千字谷 角色立绘位图化 — 现全角色 = `ROLE_META` 单 emoji;素材 prompt 已**设计前置定稿**(`docs/design/game-assets.md`:6 角色 + 布景元素 + 氛围 5 档 + 情绪符号 + 三无质检);回填须动 `ROLE_META`/CastFigure 渲染层(spec §10 位图升级),撞「语音零动」边缘,**须先立项再动**。来源:角色重设 2026-09-10
+- [ ] `P2` 千字谷 演出账补齐 — `mood` **全章 0 处**(spec §8 规划落点未标)+ 节奏实测回填(现仅 2s/5s 起步值,未测);分镜/交互现状与待办清单见 `docs/design/game-direction.md` §4。来源:角色重设 2026-09-10
 
-### 星语群岛 v10 方向(角色差异化叙事,会话贴入) — 观察项
-
-> 大方向:5 角色 5 世界,拼音+汉字并轨为「汉语」(千字谷 双层恢复:声音=拼音/形状=汉字),新增 绘画·万色谷 / 数学·百数塔 / 音乐·七音森 三世界,各世界独立叙事线 + 反派弧光。与现「魔法语言岛」单岛线性结构(每词跑 拼音/汉字/英语 三技能步,进度每词一行)差异大 → 多数先入池观察;**「汉语并轨」已立项走 S1(启用模型 3 技能开关→2 领域),见 当前迭代 feature 轨**。
-
-- [ ] `P2` 新增 绘画/数学/音乐 三世界 + 角色(悠悠/跳跳/音音)— 全新领域引擎 + 词条维度数据,现词库仅 拼音/汉字/英语 三字段
-- [ ] `P2` 五角色独立世界叙事线 / 反派弧光 / 任务语法 — 叙事数据模型 + 内容生产,待世界骨架成形再做
-- [ ] `P2` 英语 5 层教学结构(音素→拼读→高频词→句型→对话)— 现英语=逐词单词,改分层路径影响出题引擎与词库
-- [ ] `P2` 词库分级 + 每词多维度字段(核心100全量/扩展/补充;hanziDetail radical·family、phonics、drawSteps、melody 等)— words.ts 模型扩展 + 大规模数据生产
-- [ ] `P2` 星语群岛 命名壳(顶栏/地图文案改 群岛·万象树·五世界)— 现顶部「魔法语言岛·词库王国」与称号文案待方向确认再动
-- [ ] `P2` 屏幕时间守卫 — 家长可配单次/每日时长,到点结算并鼓励休息;需 settings 新列 + 迁移 + 运行计时与打断 UI
-- [ ] `P2` 分角色分技能学习报告 — ⚠️ 与坚决不做「家长看板」冲突;需先解禁该条
-- [ ] `P2` 反派有弧光 + 跨世界同词关联文案 — 依赖多世界数据齐备;现单岛 teaser 已做口吻层
-
-> ⚠️ 冲突注(立项前须解除):设计中 汉字任务含部件拼装/笔顺/字族(撞坚决不做「汉字书写笔顺」)、家长学习报告(撞「家长看板」)、绘画作品检测仅检测不做但新增绘画世界/绘画题型(词库无画类字段);任一立项先解禁对应「坚决不做」行并开 spec。
-> ✅ 已解禁(2026-09-08 千字谷 ch1 立项时):「汉字书写笔顺」划界为「不做笔画顺序书写教学」→ 放行**汉字部件拖拽拼装**(见千字谷 ch1 spec);「绘画作品检测」划界为「不做绘画内容语义识别」→ 放行**拍照→亮度抠图→贴图进场景**(对应 P1 绘画题型提前立项,见想法池行)。边界措辞同步见下方「坚决不做」两条。
+> **已废弃(2026-09-10)**:「五世界」方向被 D1「全游戏收敛为汉语世界」取代,详见
+> [千字谷镇重设 spec](superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md)。原节内容见 git 历史。
 
 ## 坚决不做
 
