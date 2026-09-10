@@ -303,7 +303,7 @@ export function SocialScene({
     setFeedback(linesToShow)
   }
 
-  /** 两段式:首点仅朗读(灵灵代读选项文案)并高亮待确认;再点同一项才走 choose。 */
+  /** 两段式:首点仅朗读(苏灵灵代读选项文案)并高亮待确认;再点同一项才走 choose。 */
   function handleOptionTap(option: SceneOption) {
     if (pendingId === option.id) {
       setPendingId(null)

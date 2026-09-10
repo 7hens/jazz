@@ -100,7 +100,7 @@ export const CHAPTER_1: Chapter = {
     },
     { id: 'br2', kind: 'break' },
 
-    // 社交事件:皮小闹冒失撞人 —— 灵灵怎么回应(后果式 3 选项)。
+    // 社交事件:皮小闹冒失撞人 —— 苏灵灵怎么回应(后果式 3 选项)。
     {
       id: 'social-pixiaonao',
       kind: 'social',
@@ -238,7 +238,7 @@ export const CHAPTER_1: Chapter = {
       ],
     },
 
-    // 结局:灯亮着,皮小闹咋呼,灵灵总括。
+    // 结局:灯亮着,皮小闹咋呼,苏灵灵总括。
     {
       id: 'ending',
       kind: 'ending',

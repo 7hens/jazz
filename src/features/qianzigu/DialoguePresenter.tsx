@@ -11,7 +11,7 @@ import { moodBorder } from './stage-visuals'
 export type DialoguePresenterProps = {
   lines: readonly ChapterLine[]
   atmosphere: AtmosphereKey
-  /** 布景复原进度(0..1;驱动太阳 4 档 + 世界回春)。缺省 0 = 烧焦蛋/满灰;runner 已喂真值。 */
+  /** 布景复原进度(0..1;驱动世界回春)。runner 已喂真值。 */
   fraction?: number
   cast?: readonly SpeechRole[]
   /** 当幕作「天空体」的角色(§15.3):不入地面行,由布景本体呈现;说者是天空体时泡/名牌锚天幕。 */

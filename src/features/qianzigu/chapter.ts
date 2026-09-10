@@ -51,10 +51,10 @@ export type DialogueScene = Readonly<{
 export type SocialScene = Readonly<{
   id: string
   kind: 'social'
-  lines: ChapterLine[]               // 情境引入(含 月亮 哭诉)
+  lines: ChapterLine[]               // 情境引入(如 皮小闹冒失撞人)
   options: SceneOption[]
   goodOptionId: string               // 正向后果选项(命中则 good 后果推进)
-  loop: ChapterLine[]                // 非 good 选择后 灵灵 引导词(重新弹选项)
+  loop: ChapterLine[]                // 非 good 选择后 苏灵灵 引导词(重新弹选项)
   onGood: ChapterLine[]              // 选中 good 的收尾台词
   stage?: StageMeta
 }>
@@ -84,6 +84,6 @@ export type Chapter = Readonly<{
   subtitle: string
   emoji: string
   wordIds: readonly number[]          // 有序 5 词
-  restoreOrder: readonly number[]     // 恢复点亮顺序的 wordId(可含重复元素,如太阳)
+  restoreOrder: readonly number[]     // 恢复点亮顺序的 wordId(可含重复元素,每词两层)
   scenes: readonly Scene[]
 }>

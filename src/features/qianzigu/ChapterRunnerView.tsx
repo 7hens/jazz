@@ -131,7 +131,7 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
   const settingsRef = useRef(services.settings.getSnapshot().data)
 
   const scene = chapter.scenes[Math.min(runState.sceneIndex, chapter.scenes.length - 1)]
-  // 布景复原进度 = 已 restored 层数 / 章内 task 层总数(词点灯条退役后改喂太阳档 + 世界回春)。
+  // 布景复原进度 = 已 restored 层数 / 章内 task 层总数(词点灯条退役后改喂世界回春)。
   const taskLayerCount = chapter.scenes.filter((s) => s.kind === 'task').length
   const skyFraction = progressFraction(runState.restored.length, taskLayerCount)
 

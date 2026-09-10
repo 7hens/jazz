@@ -253,7 +253,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     expect(await screen.findByText('拯救声音')).toBeInTheDocument() // task 屏(旧 UI 过渡)
   })
 
-  it('open 屏:太阳作天空体从布景出泡(sun 不进地面行;无重复头像)', async () => {
+  it('open 屏:徐万年作天空体从布景出泡(不进地面行;无重复头像)', async () => {
     const chapter: Chapter = {
       ...flowChapter(),
       scenes: [
@@ -548,7 +548,7 @@ describe('ChapterRunnerView 社交选项两段式(先听后选)', () => {
     const bad = /你哭起来真难看。/
     fireEvent.click(screen.getByRole('button', { name: bad }))
 
-    // 首点:朗读选项文本(灵灵),未确认 → 无后果 / 未推进
+    // 首点:朗读选项文本(苏灵灵),未确认 → 无后果 / 未推进
     expect(fakes.speech.speakRole).toHaveBeenCalledWith('你哭起来真难看。', 'lingling')
     expect(screen.queryByText('月亮哭得更伤心了...')).not.toBeInTheDocument()
     expect(screen.queryByText('继续前进!')).not.toBeInTheDocument()
