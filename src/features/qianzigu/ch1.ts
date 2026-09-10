@@ -108,8 +108,8 @@ export const CHAPTER_1: Chapter = {
       lines: [
         { role: 'lingling', text: '咦？皮小闹？你跑这么快干嘛——' },
         { role: 'pixiaonao', text: '让让让让让让——！' },
-        { role: 'narrator', text: '咚！皮小闹一头撞在徐爷爷身上。', mood: 'scary' },
-        { role: 'pixiaonao', text: '对、对不起！我不是故意的！' },
+        { role: 'narrator', text: '咚！皮小闹一头撞在徐爷爷身上。' },
+        { role: 'pixiaonao', text: '对、对不起！我不是故意的！', mood: 'scary' },
         { role: 'lingling', text: '哎呀，这可怎么办？' },
       ],
       options: [

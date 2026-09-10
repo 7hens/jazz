@@ -194,7 +194,7 @@
 | t1-sound / t1-shape | 缺省 | — | 叫回「房子」→ 想起家在哪;上行音阶 |
 | br1 / br2 / br3 | 缺省(break 默认 `night`) | — | 断点屏;夜景浮层 |
 | t2-sound / t2-shape | 缺省 | — | 家门口,忘了「门」;叫回后推门 |
-| social-pixiaonao | `cast:['lingling','pixiaonao']` | 旁白「咚!」= `scary`;onGood = `happy` | 皮小闹冒失撞人;3 选项;窗外市集声 |
+| social-pixiaonao | `cast:['lingling','pixiaonao']` | 皮小闹道歉 = `scary`;onGood = `happy` | 皮小闹冒失撞人;3 选项;窗外市集声 |
 | t3-sound / t3-shape | 缺省 | — | 摸不着钥匙;叫回「钥匙」→ 开门 |
 | t4-sound / t4-shape | 缺省 | — | 屋里闷;叫回「窗户」→ 风进来、亮堂 |
 | t5-sound / t5-shape | `atmosphere:'night'` | — | **全场唯一真夜戏**;叫回「台灯」→ 灯亮、屋子暖起来 |
@@ -202,7 +202,7 @@
 | ending | 缺省(`day`) | — | 灯亮着;皮小闹咋呼;苏灵灵总括 |
 | settle | 缺省(`day`) | — | 徐万年一句怪话 → **轻线痕迹**,不解释 |
 
-- **现状**:`ch1.ts` 数据中 **`mood` 现 3 处**(social 旁白 `scary` / social `onGood` `happy` / boss `win` `happy`);`stage` 落点 = social `cast` + t5 两幕 `atmosphere:'night'`;**`sky` 字段本章已无使用者**(通用机制 `skySplit` 保留)。补标其余情绪属视觉域,见 `game-visual.md`。
+- **现状**:`ch1.ts` 数据中 **`mood` 现 3 处**(social 皮小闹 `scary` / social `onGood` `happy` / boss `win` `happy`);`stage` 落点 = social `cast` + t5 两幕 `atmosphere:'night'`;**`sky` 字段本章已无使用者**(通用机制 `skySplit` 保留)。补标其余情绪属视觉域,见 `game-visual.md`。
 - **音效状态表**照录历史构想 `docs/ideas/260908-01-001.md` §3.3(低沉弦乐 → 上行音阶 → 欢快旋律)。⚠ **音频代码属红线**(勿新增 AudioCue),仅作设计意图登记。
 
 ## 6 伏笔台账(埋 ↔ 收)

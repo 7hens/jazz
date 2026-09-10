@@ -148,6 +148,7 @@ export function createChapterService(
       try {
         const remote = await api.getChapterProgress()
         if (latestStateCommandId !== commandId) return
+        // 现仅一章,故按 CHAPTER_1 词表校验;ch2+ 落地须改按 remote.chapterId 解析对应词表,否则新章存档会被静默作废
         const valid = remote !== null && belongsToChapter(remote.restoreState, CHAPTER_1.wordIds)
         const row = valid ? { ...remote, updatedAt: new Date().toISOString() } : null
         setStableSnapshot({ status: 'ready', data: { row } })

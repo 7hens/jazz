@@ -42,7 +42,7 @@
 
 - 全窗舞台 = StageFrame(全窗不滚帧);布景实景化 + 世界回春已落地;**太阳位 = 固定单态布景**(无分档;旧的太阳分档机制与月星已随代码删除,`stage-visuals.ts` 现导出 `roleScale` / `moodBorder` / `atmosphereToClass` / `worldDesatClass` / `STAGE_BODIES`)。
 - 真夜幕(night/dark)由 `StageSky` 的 `HIDES_SUN` **隐去布景太阳**;`t5` 台灯两幕已布 `atmosphere: 'night'`,BOSS 幕走默认 `dark`。
-- ch1 现态:**数据 3 处 `mood`**(social 旁白 `scary` / social `onGood` `happy` / boss `win` `happy`);`stage.sky` 本章**无使用者**(通用机制 `skySplit` 保留)。设计新情绪句按 moodBorder 色标 sad/happy/scary,克制。
+- ch1 现态:**数据 3 处 `mood`**(social 皮小闹 `scary` / social `onGood` `happy` / boss `win` `happy`);`stage.sky` 本章**无使用者**(通用机制 `skySplit` 保留)。设计新情绪句按 moodBorder 色标 sad/happy/scary,克制。
 - 舞台化后 scene 结构纪律见 PLAN recent:「门在顶部 case / 杜绝嵌套 frame」。
 
 ## 指针
