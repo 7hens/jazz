@@ -256,3 +256,52 @@ describe('makeSentenceQuestions', () => {
     }
   })
 })
+
+describe('干扰项场景池', () => {
+  const word = wordById(13)!   // 房子(shape 类)
+
+  it('未传 context 时行为不变(同 category 优先)', () => {
+    const ds = engine.distractorsFor(word, 3, () => 0.5)
+    expect(ds).toHaveLength(3)
+    expect(ds.every((d) => d.category === 'shape')).toBe(true)
+  })
+
+  it('传 sceneWordIds 时只从场景词里取(不混入库内其它词)', () => {
+    const ds = engine.distractorsFor(word, 2, () => 0.5, { sceneWordIds: [7, 14, 8] })
+    expect(ds).toHaveLength(2)
+    for (const d of ds) expect([7, 14, 8], `混入非场景词 ${d.id}`).toContain(d.id)
+  })
+
+  it('场景词恰好够数时全取自场景词', () => {
+    const ds = engine.distractorsFor(word, 2, () => 0.5, { sceneWordIds: [7, 8] })
+    expect(ds.map((d) => d.id).sort()).toEqual([7, 8])
+  })
+
+  it('场景词不足时用已学复习词补齐', () => {
+    const ds = engine.distractorsFor(word, 3, () => 0.5, {
+      sceneWordIds: [7],
+      learnedWordIds: [21, 41],
+    })
+    expect(ds.map((d) => d.id).sort((a, b) => a - b)).toEqual([7, 21, 41])
+  })
+
+  it('场景池与复习池都空 → 回落同 category', () => {
+    const ds = engine.distractorsFor(word, 3, () => 0.5, { sceneWordIds: [], learnedWordIds: [] })
+    expect(ds.every((d) => d.category === 'shape')).toBe(true)
+  })
+
+  it('排除目标词,且不与目标词任何一门文本撞车', () => {
+    const ds = engine.distractorsFor(word, 3, () => 0.5, { sceneWordIds: [13, 7, 14, 8] })
+    for (const d of ds) {
+      expect(d.id).not.toBe(13)
+      expect([d.hanzi, d.pinyin, d.english.toLowerCase()])
+        .not.toEqual([word.hanzi, word.pinyin, word.english.toLowerCase()])
+    }
+  })
+
+  it('makeChoice 透传 context', () => {
+    const q = engine.makeChoice(word, 'hanzi', () => 0.5, 0, { sceneWordIds: [7, 14, 8] })
+    const ids = q.options.map((o) => o.text)
+    expect(ids).toContain('门')
+  })
+})

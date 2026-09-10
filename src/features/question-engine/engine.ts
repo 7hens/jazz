@@ -1,4 +1,4 @@
-import type { QuestionEngineService, Rng, SentenceTextSet } from '@/shared/services/question-engine'
+import type { QuestionContext, QuestionEngineService, Rng, SentenceTextSet } from '@/shared/services/question-engine'
 import type { VocabularyService } from '@/shared/services/vocabulary'
 import type {
   BaseOption,
@@ -39,20 +39,30 @@ export function speakOf(word: WordUnit, skill: SkillKey): string {
   return skill === 'english' ? word.english : word.hanzi // 拼音朗读用同音汉字
 }
 
-/** 干扰项:同 category 优先,不足跨类补齐;排除与 word 任何一门文本重复的词。 */
+/** 干扰项池序:场景词 → 已学复习词 → 同 category → 跨类补齐;各段独立 shuffle,按序拼接取前 count。 */
 function distractorsFor(
   vocabulary: VocabularyService,
   word: WordUnit,
   count: number,
   rng: Rng = defaultRng(),
+  context?: QuestionContext,
 ): WordUnit[] {
   const words = vocabulary.getAllWords()
   const clash = (w: WordUnit) =>
     w.hanzi === word.hanzi || w.english.toLowerCase() === word.english.toLowerCase() || w.pinyin === word.pinyin
-  const sameCat = shuffle(words.filter((w) => w.category === word.category && w.id !== word.id && !clash(w)), rng)
-  const others = shuffle(words.filter((w) => w.category !== word.category && w.id !== word.id && !clash(w)), rng)
-  // 同 category 块在前:够则全同分类;不够则按 slice 跨到 others 兜底。
-  const pool = [...sameCat, ...others]
+  const usable = (w: WordUnit) => w.id !== word.id && !clash(w)
+  const byIds = (ids: readonly number[] | undefined) => {
+    if (!ids || ids.length === 0) return []
+    const set = new Set(ids)
+    return words.filter((w) => set.has(w.id) && usable(w))
+  }
+  const scene = shuffle(byIds(context?.sceneWordIds), rng)
+  const learned = shuffle(byIds(context?.learnedWordIds), rng)
+  const seen = new Set([...scene, ...learned].map((w) => w.id))
+  const rest = words.filter((w) => usable(w) && !seen.has(w.id))
+  const sameCat = shuffle(rest.filter((w) => w.category === word.category), rng)
+  const others = shuffle(rest.filter((w) => w.category !== word.category), rng)
+  const pool = [...scene, ...learned, ...sameCat, ...others]
   if (pool.length < count) {
     throw new Error(`词库不足以生成 ${count} 个干扰项`)
   }
@@ -91,9 +101,10 @@ function buildTextQuestion(
   skill: SkillKey,
   step: number,
   rng: Rng,
+  context?: QuestionContext,
 ): ChoiceQuestion | ListenChoiceQuestion {
   const size = optionCountFor(word.id)
-  const distractors = distractorsFor(vocabulary, word, size - 1, rng)
+  const distractors = distractorsFor(vocabulary, word, size - 1, rng, context)
   const picks = shuffle([word, ...distractors], rng) // 恒 size 项,word 必在
   const seed = seedBase(word.id, step, kind === 'choice' ? 'c' : 'l', skill)
   const options = picks.map((w, i) => textOption(w, skill, `${seed}-${i}`))
@@ -111,8 +122,9 @@ function makeChoice(
   skill: SkillKey,
   rng: Rng,
   step = 0,
+  context?: QuestionContext,
 ): ChoiceQuestion {
-  return buildTextQuestion(vocabulary, 'choice', word, skill, step, rng) as ChoiceQuestion
+  return buildTextQuestion(vocabulary, 'choice', word, skill, step, rng, context) as ChoiceQuestion
 }
 
 function makeListen(
@@ -121,8 +133,9 @@ function makeListen(
   skill: SkillKey,
   rng: Rng,
   step = 0,
+  context?: QuestionContext,
 ): ListenChoiceQuestion {
-  return buildTextQuestion(vocabulary, 'listen-choice', word, skill, step, rng) as ListenChoiceQuestion
+  return buildTextQuestion(vocabulary, 'listen-choice', word, skill, step, rng, context) as ListenChoiceQuestion
 }
 
 function makeMatch(
@@ -131,9 +144,10 @@ function makeMatch(
   skill: SkillKey,
   rng: Rng,
   step = 0,
+  context?: QuestionContext,
 ): MatchQuestion {
   const size = optionCountFor(word.id)
-  const picks = shuffle([word, ...distractorsFor(vocabulary, word, size - 1, rng)], rng) // 恒 size 项,word 必在
+  const picks = shuffle([word, ...distractorsFor(vocabulary, word, size - 1, rng, context)], rng) // 恒 size 项,word 必在
   // 两阶段配对:先按词对象给每张图打上"属于哪个词",再做两次独立 shuffle。
   // 左卡 = 每个词的文字;右卡 = 每个词的图;answerMap 经 word 引用关联 ——
   // 左右各自乱序,配对始终指向同一词,不依赖下标与 emoji 文本唯一。
@@ -170,24 +184,25 @@ function makeStepQuestions(
   word: WordUnit,
   skill: SkillKey,
   rng: Rng = defaultRng(),
+  context?: QuestionContext,
 ): Question[] {
-  const first: Question = makeChoice(vocabulary, word, skill, rng, 0)
+  const first: Question = makeChoice(vocabulary, word, skill, rng, 0, context)
   const roll = rng()
   let second: Question
   if (skill === 'pinyin') {
     second = roll < 0.5
-      ? makeListen(vocabulary, word, skill, rng, 1)
-      : makeChoice(vocabulary, word, skill, rng, 1)
+      ? makeListen(vocabulary, word, skill, rng, 1, context)
+      : makeChoice(vocabulary, word, skill, rng, 1, context)
   } else if (skill === 'hanzi') {
     second = roll < 0.5
-      ? makeMatch(vocabulary, word, skill, rng, 1)
-      : makeChoice(vocabulary, word, skill, rng, 1)
+      ? makeMatch(vocabulary, word, skill, rng, 1, context)
+      : makeChoice(vocabulary, word, skill, rng, 1, context)
   } else {
     second = roll < 0.33
-      ? makeListen(vocabulary, word, skill, rng, 1)
+      ? makeListen(vocabulary, word, skill, rng, 1, context)
       : roll < 0.66
-        ? makeMatch(vocabulary, word, skill, rng, 1)
-        : makeChoice(vocabulary, word, skill, rng, 1)
+        ? makeMatch(vocabulary, word, skill, rng, 1, context)
+        : makeChoice(vocabulary, word, skill, rng, 1, context)
   }
   return [first, second]
 }
@@ -219,11 +234,11 @@ export function createQuestionEngineService(vocabulary: VocabularyService): Ques
     optionCountFor,
     textOf,
     speakOf,
-    distractorsFor: (word, count, rng) => distractorsFor(vocabulary, word, count, rng),
-    makeChoice: (word, skill, rng, step) => makeChoice(vocabulary, word, skill, rng, step),
-    makeListen: (word, skill, rng, step) => makeListen(vocabulary, word, skill, rng, step),
-    makeMatch: (word, skill, rng, step) => makeMatch(vocabulary, word, skill, rng, step),
-    makeStepQuestions: (word, skill, rng) => makeStepQuestions(vocabulary, word, skill, rng),
+    distractorsFor: (word, count, rng, context) => distractorsFor(vocabulary, word, count, rng, context),
+    makeChoice: (word, skill, rng, step, context) => makeChoice(vocabulary, word, skill, rng, step, context),
+    makeListen: (word, skill, rng, step, context) => makeListen(vocabulary, word, skill, rng, step, context),
+    makeMatch: (word, skill, rng, step, context) => makeMatch(vocabulary, word, skill, rng, step, context),
+    makeStepQuestions: (word, skill, rng, context) => makeStepQuestions(vocabulary, word, skill, rng, context),
     makeSentenceQuestions: (word, set, rng) => makeSentenceQuestions(word, set, rng),
   }
 }
