@@ -66,8 +66,6 @@ export const CHAPTER_1: Chapter = {
       onDone: [
         { role: 'xuwannian', text: '房子！对，房子！我家就是那一栋！' },
         { role: 'lingling', text: '想起来啦！走，我们回家！' },
-        // 自然断点前的休息提示(BreakScene 无台词槽,并入上一幕收尾)
-        { role: 'lingling', text: '想继续吗？还是休息一下？' },
       ],
     },
     {
@@ -76,7 +74,11 @@ export const CHAPTER_1: Chapter = {
       title: '用「房子」说句话',
       intro: [{ role: 'lingling', text: '会认还不够，咱们用它说句话！' }],
       task: { wordId: 13, layer: 'sentence', minCorrect: 3 },
-      onDone: [{ role: 'xuwannian', text: '我住在房子里——说对啦！' }],
+      onDone: [
+        { role: 'xuwannian', text: '我住在房子里——说对啦！' },
+        // 自然断点前的休息提示(BreakScene 无台词槽,并入上一幕收尾)
+        { role: 'lingling', text: '想继续吗？还是休息一下？' },
+      ],
     },
     { id: 'br1', kind: 'break' },
 
