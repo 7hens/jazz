@@ -1,5 +1,4 @@
 import type { ProgressRulesService, SkillKey, UserSettings, WordProgress } from '@/shared/services'
-import { sentenceTrackComplete } from '@/shared/services'
 
 // 进阶规则(完成判定/目标词/称号档位),语义属主 = lesson(lesson 内部结算/步序直接引用;
 // 跨 feature 消费走 ProgressRulesService 透传,见 createProgressRulesService)。
@@ -26,11 +25,6 @@ export function enabledSkills(settings: UserSettings): SkillKey[] {
 export function fullComplete(p: WordProgress | undefined, settings: UserSettings): boolean {
   if (!p) return false
   return enabledSkills(settings).every((s) => p.completed[s])
-}
-
-/** 「整词 +20 已经发过」的唯一判据:任一完成语义成立即算已发。 */
-export function wordBonusEarned(p: WordProgress | undefined, settings: UserSettings): boolean {
-  return fullComplete(p, settings) || sentenceTrackComplete(p)
 }
 
 export function firstTargetId(
@@ -72,7 +66,6 @@ export function createProgressRulesService(): ProgressRulesService {
     skillOrder: () => SKILL_ORDER,
     enabledSkills,
     fullComplete,
-    wordBonusEarned,
     firstTargetId,
     titleForStars,
   }

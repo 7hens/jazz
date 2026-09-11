@@ -42,12 +42,11 @@ describe('句步结算', () => {
 
   it('句步是补全那一步时,整词 +20 同时发', () => {
     // 句步 = 三层里最后一块 → chapterWordDone 由 false 变 true,+20 应当发(spec §8)。
-    // 用启用英语的配置:此时字母林语义的 fullComplete 仍缺 english,guard 未被「已发」拦下,
-    // 走的正是千字谷自己的 trigger。(纯汉语配置下 pinyin+hanzi 即 fullComplete,guard 会判「已发」。)
-    const bothOn = { ...settings, enableEnglish: true } as UserSettings
-    const { stepReward, wordBonus } = settleChapterStep(13, twoSkill, 'sentence', rules, bothOn)
+    // 汉语-only 配置:纯千字谷路径,支付位尚未置位 → 句步发 stepReward 30 + wordBonus 20。
+    const { next, stepReward, wordBonus } = settleChapterStep(13, twoSkill, 'sentence', rules, settings)
     expect(stepReward).toBe(30)
     expect(wordBonus).toBe(20)
+    expect(next.bonusGranted).toBe(true)
   })
 
   it('逆序收尾:句已满级,补上拼音的 sound 步同样发 +20', () => {
@@ -71,7 +70,8 @@ describe('句步结算', () => {
   })
 
   it('句步已满级不重复发星尘', () => {
-    const done = { ...twoSkill, sentenceLevel: 3 }
+    // 已结算的整词:句已满级且支付位已置(settleChapterStep 置满 sentenceLevel 的同轮必置位)。
+    const done = { ...twoSkill, sentenceLevel: 3, bonusGranted: true }
     const { stepReward, wordBonus } = settleChapterStep(13, done, 'sentence', rules, settings)
     expect(stepReward).toBe(0)
     expect(wordBonus).toBe(0)
