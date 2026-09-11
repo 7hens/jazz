@@ -11,6 +11,8 @@ export interface ProgressRulesService {
   skillOrder(): readonly SkillKey[]
   enabledSkills(settings: UserSettings): SkillKey[]
   fullComplete(progress: WordProgress | undefined, settings: UserSettings): boolean
+  /** 「整词 +20 已经发过」的唯一判据:任一完成语义(字母林全技能 / 千字谷三层)成立即算已发。 */
+  wordBonusEarned(progress: WordProgress | undefined, settings: UserSettings): boolean
   firstTargetId(
     words: ProgressData,
     settings: UserSettings,

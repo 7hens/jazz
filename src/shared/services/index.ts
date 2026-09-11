@@ -23,7 +23,7 @@ export type { FoundationNeed } from './foundation'
 export { FoundationService } from './foundation'
 export { LuckyBonusService } from './lucky-bonus'
 export type { ProgressData, ProgressSnapshot, SkillKey, WordProgress } from './progress'
-export { ProgressService } from './progress'
+export { MAX_SENTENCE_LEVEL, ProgressService, sentenceTrackComplete } from './progress'
 export { ProgressRulesService } from './progress-rules'
 export type {
   BaseOption,

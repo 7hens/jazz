@@ -55,6 +55,8 @@ export async function handlePutProgress(request: Request, env: Env): Promise<Res
     const c = p.completed ?? {}
     const bool = (v: unknown) => (v === true ? 1 : 0)
     const rawLevel = (p as { sentenceLevel?: unknown }).sentenceLevel
+    // sentenceLevel 上限与 shared MAX_SENTENCE_LEVEL 对齐:worker 侧独立保留字面量(不跨端 import),
+    // 有锚定测试防漂移。失效模式:非法值静默降级 0 → 数据丢失(写入端 MAX 合并只能保旧值,不能救新行)。
     const level = typeof rawLevel === 'number' && Number.isInteger(rawLevel) && rawLevel >= 0 && rawLevel <= 3
       ? rawLevel : 0
     const stars = typeof p.starsEarned === 'number' && Number.isFinite(p.starsEarned) ? Math.max(0, Math.floor(p.starsEarned)) : 0

@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import type { ApiService, ApiUserSettings, ApiWordProgress } from '@/shared/services/api'
+import { MAX_SENTENCE_LEVEL } from '@/shared/services'
 import type { ApiBasicsProgressRow, ApiChapterProgressRow, BasicsProgressRow, ChapterProgressRow, UserSettings, WordProgress } from '@/shared/services'
 import { createHttpApiService } from './api'
 
@@ -152,6 +153,22 @@ describe('HTTP API service', () => {
     }), { status: 200 }))
 
     await expect(createHttpApiService(fetcher).getProgress()).rejects.toMatchObject({
+      status: 200,
+      message: 'Invalid API response',
+    })
+  })
+
+  // 锚定:api 的字面量上限必须与 shared MAX_SENTENCE_LEVEL 同步(改了常量而 api 忘改 → 此处红)。
+  it('sentenceLevel 上限锚定 MAX_SENTENCE_LEVEL(上限接受 / +1 拒绝)', async () => {
+    const ok = vi.fn(async () => new Response(JSON.stringify({
+      progress: [{ ...workerProgress[0], sentenceLevel: MAX_SENTENCE_LEVEL }],
+    }), { status: 200 }))
+    await expect(createHttpApiService(ok).getProgress()).resolves.toHaveLength(1)
+
+    const bad = vi.fn(async () => new Response(JSON.stringify({
+      progress: [{ ...workerProgress[0], sentenceLevel: MAX_SENTENCE_LEVEL + 1 }],
+    }), { status: 200 }))
+    await expect(createHttpApiService(bad).getProgress()).rejects.toMatchObject({
       status: 200,
       message: 'Invalid API response',
     })

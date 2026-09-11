@@ -1,4 +1,5 @@
 import type { ProgressRulesService, SkillKey, UserSettings, WordProgress } from '@/shared/services'
+import { MAX_SENTENCE_LEVEL, sentenceTrackComplete } from '@/shared/services'
 import type { WordLayer } from './chapter'
 
 /** 技能步星尘与整词加成(与 lesson/settleWord 同值;千字谷镜像避免跨 feature 引用)。 */
@@ -12,12 +13,8 @@ export function layerToSkill(layer: WordLayer): SkillKey {
   return layer === 'sound' ? 'pinyin' : 'hanzi'
 }
 
-const MAX_SENTENCE_LEVEL = 3
-
 /** 整词在「千字谷语义」下完成 = 拼音 + 汉字双技能 + 句型三档全过(不掺英语域)。 */
-export function chapterWordDone(row: WordProgress | undefined): boolean {
-  return !!row && row.completed.pinyin && row.completed.hanzi && row.sentenceLevel >= MAX_SENTENCE_LEVEL
-}
+export const chapterWordDone = sentenceTrackComplete
 
 export function restoredKey(wordId: number, layer: WordLayer): string {
   return `${wordId}:${layer}`
@@ -57,18 +54,21 @@ export function serializeRestoreState(entries: ReadonlyArray<RestoredEntry>): st
 /**
  * 单技能恢复结算(镜像 lesson/settleWord 的「新完成增量」幂等规则):
  *  - 技能步首过 +30(已在 completed 则 0);句步首过 +30 并把 sentenceLevel 记满;
- *  - 若本轮推进使词在「千字谷语义」(pinyin + hanzi + sentenceLevel>=3)下整词首通,再 +20(只发一次);
+ *  - 若本轮推进使词在「千字谷语义」(pinyin + hanzi + sentenceLevel>=3)下整词完成,再 +20
+ *    —— 是否「已发过」按 rules.wordBonusEarned(字母林全技能 / 千字谷三层任一)判定,两路径共用,跨路径不重发;
  *  - 返回 new-completion delta,消费方只在该 delta 确实推进时 saveStep(幂等已保)。
  */
 export function settleChapterStep(
   wordId: number,
   prev: WordProgress | undefined,
   layer: WordLayer,
-  _rules: ProgressRulesService,
-  _settings: UserSettings,
+  rules: ProgressRulesService,
+  settings: UserSettings,
 ): { next: WordProgress; stepReward: number; wordBonus: number } {
   const base = prev ?? emptyWordProgress(wordId)
-  const wasComplete = chapterWordDone(base)
+  // guard:与字母林共用「+20 是否已发」判据(任一完成语义成立即已发),避免跨路径重复发放;
+  // trigger 仍是 chapterWordDone —— 本路径的整词完成语义(三层齐)不掺英语域。
+  const wasComplete = rules.wordBonusEarned(base, settings)
   const completed = { ...base.completed }
   let sentenceLevel = base.sentenceLevel
   let stepReward = 0

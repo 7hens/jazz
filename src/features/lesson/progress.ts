@@ -1,5 +1,7 @@
 import type { SkillKey, UserSettings, WordProgress } from '@/shared/services'
+import { MAX_SENTENCE_LEVEL } from '@/shared/services'
 import { fullComplete } from './lesson'
+import { wordBonusEarned } from './progress-rules'
 
 const ALL_SKILLS: readonly SkillKey[] = ['pinyin', 'hanzi', 'english']
 
@@ -15,9 +17,6 @@ export function emptyProgress(wordId: number): WordProgress {
     updatedAt: new Date().toISOString(),
   }
 }
-
-/** 句步合法档数上限与词表一致(3 档)。 */
-const MAX_SENTENCE_LEVEL = 3
 
 function isValidSentenceLevel(v: unknown): v is number {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= MAX_SENTENCE_LEVEL
@@ -57,7 +56,9 @@ export function settleWord(
   settings: UserSettings,
 ): { next: WordProgress; stepReward: number; wordBonus: number } {
   const base = prev ?? emptyProgress(wordId)
-  const wasComplete = fullComplete(base, settings)
+  // guard:两条路径共用「+20 是否已发」的判据(字母林全技能 / 千字谷三层任一成立即已发);
+  // trigger 仍走本路径的 fullComplete —— 两边语义各自保留,只收敛重复发放。
+  const wasComplete = wordBonusEarned(base, settings)
   const next = {
     wordId: base.wordId,
     completed: { ...base.completed },

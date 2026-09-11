@@ -28,6 +28,8 @@ function isWordProgress(value: unknown): value is ApiWordProgress {
   if (!isObject(value) || typeof value.wordId !== 'number' || !Number.isInteger(value.wordId) || value.wordId < 1 || value.wordId > 103) return false
   if (!isObject(value.completed) || typeof value.starsEarned !== 'number' || !Number.isFinite(value.starsEarned)) return false
 
+  // sentenceLevel 上限与 shared MAX_SENTENCE_LEVEL 对齐:此处独立保留字面量(线格式校验,不跨端 import),
+  // api.test.ts 有锚定测试(上限接受 / +1 拒绝)防漂移。失效模式:判非法 → 整包响应被拒 → 静默丢进度。
   return typeof value.completed.pinyin === 'boolean'
     && typeof value.completed.hanzi === 'boolean'
     && typeof value.completed.english === 'boolean'

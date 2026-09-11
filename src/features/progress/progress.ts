@@ -1,4 +1,4 @@
-import { ApiError } from '@/shared/services'
+import { ApiError, MAX_SENTENCE_LEVEL } from '@/shared/services'
 import type { ApiService, ApiWordProgress, ProgressData, ProgressService, ProgressSnapshot, WordProgress } from '@/shared/services'
 
 export interface ProgressServiceCallbacks {
@@ -7,8 +7,6 @@ export interface ProgressServiceCallbacks {
 }
 
 const ALL_SKILLS = ['pinyin', 'hanzi', 'english'] as const
-
-const MAX_SENTENCE_LEVEL = 3
 
 function isSentenceLevel(v: unknown): boolean {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= MAX_SENTENCE_LEVEL

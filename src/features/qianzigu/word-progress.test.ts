@@ -42,7 +42,10 @@ describe('句步结算', () => {
 
   it('句步是补全那一步时,整词 +20 同时发', () => {
     // 句步 = 三层里最后一块 → chapterWordDone 由 false 变 true,+20 应当发(spec §8)。
-    const { stepReward, wordBonus } = settleChapterStep(13, twoSkill, 'sentence', rules, settings)
+    // 用启用英语的配置:此时字母林语义的 fullComplete 仍缺 english,guard 未被「已发」拦下,
+    // 走的正是千字谷自己的 trigger。(纯汉语配置下 pinyin+hanzi 即 fullComplete,guard 会判「已发」。)
+    const bothOn = { ...settings, enableEnglish: true } as UserSettings
+    const { stepReward, wordBonus } = settleChapterStep(13, twoSkill, 'sentence', rules, bothOn)
     expect(stepReward).toBe(30)
     expect(wordBonus).toBe(20)
   })
