@@ -13,6 +13,7 @@ export function emptyProgress(wordId: number): WordProgress {
     wordId,
     completed: { pinyin: false, hanzi: false, english: false },
     sentenceLevel: 0,
+    bonusGranted: false,
     starsEarned: 0,
     updatedAt: new Date().toISOString(),
   }
@@ -30,6 +31,7 @@ export function isValidWordProgress(s: unknown): s is WordProgress {
   if (typeof c !== 'object' || c === null) return false
   if (!ALL_SKILLS.every((k) => typeof c[k] === 'boolean')) return false
   if (!isValidSentenceLevel(w.sentenceLevel)) return false
+  if (typeof w.bonusGranted !== 'boolean') return false
   return typeof w.starsEarned === 'number' && Number.isFinite(w.starsEarned)
 }
 
@@ -42,6 +44,7 @@ export function mergeProgress(local: WordProgress, server: WordProgress): WordPr
       english: local.completed.english || server.completed.english,
     },
     sentenceLevel: Math.max(local.sentenceLevel, server.sentenceLevel),
+    bonusGranted: local.bonusGranted || server.bonusGranted,
     starsEarned: Math.max(local.starsEarned, server.starsEarned),
     updatedAt: new Date().toISOString(),
   }
@@ -63,6 +66,7 @@ export function settleWord(
     wordId: base.wordId,
     completed: { ...base.completed },
     sentenceLevel: base.sentenceLevel,
+    bonusGranted: base.bonusGranted,
     starsEarned: base.starsEarned,
     updatedAt: new Date().toISOString(),
   }

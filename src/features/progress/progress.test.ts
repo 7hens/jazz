@@ -8,6 +8,7 @@ function progress(wordId: number, completed = false, starsEarned = 0, sentenceLe
     wordId,
     completed: { pinyin: completed, hanzi: completed, english: completed },
     sentenceLevel,
+    bonusGranted: false,
     starsEarned,
     updatedAt: '2026-09-04T00:00:00.000Z',
   }
@@ -52,6 +53,7 @@ describe('ProgressService', () => {
       wordId: 1,
       completed: { pinyin: true, hanzi: false, english: false },
       sentenceLevel: 0,
+      bonusGranted: false,
       starsEarned: 30,
     }])
     await loading
@@ -333,6 +335,7 @@ describe('ProgressService', () => {
       wordId: 2,
       completed: { pinyin: true, hanzi: true, english: true },
       sentenceLevel: 0,
+      bonusGranted: false,
       starsEarned: 60,
     }])
     await loading
@@ -363,6 +366,7 @@ describe('ProgressService', () => {
       wordId: 2,
       completed: { pinyin: true, hanzi: true, english: true },
       sentenceLevel: 0,
+      bonusGranted: false,
       starsEarned: 60,
     }])
     await loading
@@ -390,6 +394,7 @@ describe('ProgressService', () => {
       wordId: 1,
       completed: { pinyin: true, hanzi: true, english: true },
       sentenceLevel: 0,
+      bonusGranted: false,
       starsEarned: 90,
     }])
     await loading

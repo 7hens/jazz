@@ -57,6 +57,7 @@ describe('progress 纯态', () => {
       wordId: 21,
       completed: { pinyin: true, hanzi: false, english: false },
       sentenceLevel: 0,
+      bonusGranted: false,
       starsEarned: 30,
       updatedAt: '',
     }
@@ -72,13 +73,28 @@ describe('sentenceLevel', () => {
   })
 
   it('isValidWordProgress 拒绝非法 sentenceLevel,接受 0..3', () => {
-    const base = { wordId: 13, completed: { pinyin: true, hanzi: true, english: false }, starsEarned: 30, updatedAt: 'x' }
+    const base = { wordId: 13, completed: { pinyin: true, hanzi: true, english: false }, bonusGranted: true, starsEarned: 30, updatedAt: 'x' }
     expect(isValidWordProgress({ ...base, sentenceLevel: 0 })).toBe(true)
     expect(isValidWordProgress({ ...base, sentenceLevel: 3 })).toBe(true)
     expect(isValidWordProgress({ ...base, sentenceLevel: 4 })).toBe(false)
     expect(isValidWordProgress({ ...base, sentenceLevel: -1 })).toBe(false)
     expect(isValidWordProgress({ ...base, sentenceLevel: 1.5 })).toBe(false)
     expect(isValidWordProgress({ ...base, sentenceLevel: undefined })).toBe(false)
+  })
+
+  it('isValidWordProgress 要求 bonusGranted 为布尔', () => {
+    const base = { wordId: 13, completed: { pinyin: true, hanzi: true, english: false }, sentenceLevel: 0, starsEarned: 30, updatedAt: 'x' }
+    expect(isValidWordProgress({ ...base, bonusGranted: true })).toBe(true)
+    expect(isValidWordProgress({ ...base, bonusGranted: false })).toBe(true)
+    expect(isValidWordProgress({ ...base, bonusGranted: undefined })).toBe(false)
+    expect(isValidWordProgress({ ...base, bonusGranted: 1 })).toBe(false)
+  })
+
+  it('mergeProgress 取 OR(bonusGranted 只增不回退)', () => {
+    const local = { ...emptyProgress(13), bonusGranted: true }
+    const server = { ...emptyProgress(13), bonusGranted: false }
+    expect(mergeProgress(local, server).bonusGranted).toBe(true)
+    expect(mergeProgress(server, local).bonusGranted).toBe(true)
   })
 
   it('mergeProgress 取 max(只升不降)', () => {

@@ -20,6 +20,7 @@ function isValidWordProgress(value: unknown): value is WordProgress {
   if (typeof completed !== 'object' || completed === null) return false
   if (!ALL_SKILLS.every(skill => typeof completed[skill] === 'boolean')) return false
   if (!isSentenceLevel(progress.sentenceLevel)) return false
+  if (typeof progress.bonusGranted !== 'boolean') return false
   return typeof progress.starsEarned === 'number' && Number.isFinite(progress.starsEarned)
 }
 
@@ -32,6 +33,7 @@ function mergeProgress(local: WordProgress, remote: WordProgress): WordProgress 
       english: local.completed.english || remote.completed.english,
     },
     sentenceLevel: Math.max(local.sentenceLevel, remote.sentenceLevel),
+    bonusGranted: local.bonusGranted || remote.bonusGranted,
     starsEarned: Math.max(local.starsEarned, remote.starsEarned),
     updatedAt: new Date().toISOString(),
   }

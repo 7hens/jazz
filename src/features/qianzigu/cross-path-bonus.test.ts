@@ -67,6 +67,7 @@ describe('跨路径整词 +20 只发一次', () => {
       wordId: 13,
       completed: { pinyin: true, hanzi: true, english: false },
       sentenceLevel: 3,
+      bonusGranted: true,
       starsEarned: 110,
       updatedAt: '',
     }

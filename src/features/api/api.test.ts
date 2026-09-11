@@ -9,6 +9,7 @@ const progress = [{
   wordId: 1,
   completed: { pinyin: true, hanzi: false, english: false },
   sentenceLevel: 0,
+  bonusGranted: false,
   starsEarned: 30,
   updatedAt: '2026-09-04T00:00:00.000Z',
 }]
@@ -16,6 +17,7 @@ const workerProgress = [{
   wordId: 1,
   completed: { pinyin: true, hanzi: false, english: false },
   sentenceLevel: 0,
+  bonusGranted: false,
   starsEarned: 30,
 }]
 const settings = {

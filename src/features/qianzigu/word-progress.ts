@@ -25,6 +25,7 @@ export function emptyWordProgress(wordId: number): WordProgress {
     wordId,
     completed: { pinyin: false, hanzi: false, english: false },
     sentenceLevel: 0,
+    bonusGranted: false,
     starsEarned: 0,
     updatedAt: new Date().toISOString(),
   }
@@ -90,6 +91,7 @@ export function settleChapterStep(
     wordId: base.wordId,
     completed,
     sentenceLevel,
+    bonusGranted: base.bonusGranted,
     starsEarned: base.starsEarned,
     updatedAt: new Date().toISOString(),
   }

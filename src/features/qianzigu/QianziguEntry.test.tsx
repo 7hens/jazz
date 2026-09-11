@@ -103,6 +103,7 @@ describe('QianziguEntry 千字谷章节地图', () => {
         wordId,
         completed: { pinyin: true, hanzi: true, english: false },
         sentenceLevel: 3,
+        bonusGranted: true,
         starsEarned: 110,
         updatedAt: '2026-09-08T00:00:00.000Z',
       }
@@ -120,6 +121,7 @@ describe('QianziguEntry 千字谷章节地图', () => {
         wordId,
         completed: { pinyin: true, hanzi: true, english: false },
         sentenceLevel: 0,
+        bonusGranted: false,
         starsEarned: 60,
         updatedAt: '2026-09-08T00:00:00.000Z',
       }

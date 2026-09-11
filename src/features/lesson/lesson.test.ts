@@ -4,7 +4,7 @@ import type { UserSettings, WordProgress } from '@/shared/services'
 
 const allOn = (): UserSettings => ({ enableChinese: true, enableEnglish: true, earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' })
 const p = (over: Partial<WordProgress> = {}): WordProgress => ({
-  wordId: 1, completed: { pinyin: false, hanzi: false, english: false }, sentenceLevel: 0, starsEarned: 0, updatedAt: '', ...over,
+  wordId: 1, completed: { pinyin: false, hanzi: false, english: false }, sentenceLevel: 0, bonusGranted: false, starsEarned: 0, updatedAt: '', ...over,
 })
 const vocabulary = Array.from({ length: 100 }, (_, index) => ({ id: index + 1 }))
 

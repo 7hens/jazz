@@ -12,6 +12,8 @@ export type WordProgress = {
   completed: Record<SkillKey, boolean>
   /** 汉语句型步已通过的档数(0..3,由易到难);不进 SkillKey —— 句是汉语域内固定步,不是独立技能。 */
   sentenceLevel: number
+  /** 整词 +20 是否已发(跨字母林/千字谷两条路径共用的支付位,只增不回退)。 */
+  bonusGranted: boolean
   starsEarned: number
   updatedAt: string
 }

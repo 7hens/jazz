@@ -14,6 +14,7 @@ describe('句步上限契约', () => {
       wordId: 13,
       completed: { pinyin: true, hanzi: true, english: false },
       sentenceLevel: 3,
+      bonusGranted: true,
       starsEarned: 110,
       updatedAt: '',
     }

@@ -11,6 +11,7 @@ type Row = {
   hanzi_completed: number
   english_completed: number
   sentence_level: number
+  bonus_granted: number
   stars_earned: number
 }
 
@@ -23,6 +24,7 @@ function toClient(r: Row) {
       english: r.english_completed === 1,
     },
     sentenceLevel: r.sentence_level,
+    bonusGranted: r.bonus_granted === 1,
     starsEarned: r.stars_earned,
   }
 }
@@ -31,7 +33,7 @@ export async function handleGetProgress(request: Request, env: Env): Promise<Res
   const user = await getAuthenticatedUser(request, env)
   if (!user) return jsonResponse({ message: '未授权' }, { status: 401 })
   const { results } = await env.DB.prepare(
-    'SELECT word_id, pinyin_completed, hanzi_completed, english_completed, sentence_level, stars_earned FROM progress WHERE user_id = ? ORDER BY word_id',
+    'SELECT word_id, pinyin_completed, hanzi_completed, english_completed, sentence_level, bonus_granted, stars_earned FROM progress WHERE user_id = ? ORDER BY word_id',
   ).bind(user.id).all<Row>()
   return jsonResponse({ progress: results.map(toClient) })
 }
@@ -46,7 +48,7 @@ export async function handlePutProgress(request: Request, env: Env): Promise<Res
   const stmts: D1PreparedStatement[] = []
   for (const item of list) {
     const p = item as {
-      wordId?: unknown; completed?: { pinyin?: unknown; hanzi?: unknown; english?: unknown }; starsEarned?: unknown
+      wordId?: unknown; completed?: { pinyin?: unknown; hanzi?: unknown; english?: unknown }; starsEarned?: unknown; bonusGranted?: unknown
     }
     const wordId = p.wordId
     if (typeof wordId !== 'number' || !Number.isInteger(wordId) || wordId < 1 || wordId > MAX_WORD_ID) {
@@ -61,19 +63,20 @@ export async function handlePutProgress(request: Request, env: Env): Promise<Res
       ? rawLevel : 0
     const stars = typeof p.starsEarned === 'number' && Number.isFinite(p.starsEarned) ? Math.max(0, Math.floor(p.starsEarned)) : 0
     const stmt = env.DB.prepare(
-      `INSERT INTO progress (user_id, word_id, pinyin_completed, hanzi_completed, english_completed, sentence_level, stars_earned, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO progress (user_id, word_id, pinyin_completed, hanzi_completed, english_completed, sentence_level, bonus_granted, stars_earned, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(user_id, word_id) DO UPDATE SET
          pinyin_completed = MAX(progress.pinyin_completed, excluded.pinyin_completed),
          hanzi_completed  = MAX(progress.hanzi_completed, excluded.hanzi_completed),
          english_completed= MAX(progress.english_completed, excluded.english_completed),
          sentence_level   = MAX(progress.sentence_level, excluded.sentence_level),
+         bonus_granted    = MAX(progress.bonus_granted, excluded.bonus_granted),
          stars_earned     = MAX(progress.stars_earned, excluded.stars_earned),
          updated_at       = excluded.updated_at`,
     ).bind(
       user.id, wordId,
       bool(c.pinyin), bool(c.hanzi), bool(c.english),
-      level, stars, new Date().toISOString(),
+      level, bool(p.bonusGranted), stars, new Date().toISOString(),
     )
     stmts.push(stmt)
   }
