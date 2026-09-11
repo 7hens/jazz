@@ -120,7 +120,7 @@ export function createChapterRunner(chapter: Chapter): Runner {
   }
 }
 
-// 每词每层独立计数:同词 sound 与 shape 不串数(shape 场景需各自再答对 minCorrect 次)。
+// 每词每层独立计数:同词 sound / shape / sentence 三层互不串数(各场景需各自再答对 minCorrect 次)。
 function taskKey(wordId: number, layer: WordLayer): string {
   return `${wordId}:${layer}`
 }

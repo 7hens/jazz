@@ -681,3 +681,39 @@ describe('ChapterRunnerView 句型幕(真实 sentence 通路)', () => {
     expect(screen.getByRole('heading', { name: '第1章完成!' })).toBeInTheDocument()
   })
 })
+
+// 契约回落:vocabulary.sentenceSetFor 对非句型词返回 undefined,调用方须回落既有题型。
+// 回落缺失 → 空题集 → TaskScene body 空、无推进路径 → 章节软锁(只能退出)。
+describe('ChapterRunnerView 句型幕(句集缺失回落)', () => {
+  function sentenceChapter(): Chapter {
+    return {
+      id: 1,
+      title: '句型回落测试',
+      subtitle: '句型回落测试',
+      emoji: '🌅',
+      wordIds: [1],
+      restoreOrder: [1, 1, 1],
+      scenes: [
+        {
+          id: 't1-sentence', kind: 'task', title: '用「太阳」说句话', intro: [],
+          task: { wordId: 1, layer: 'sentence', minCorrect: 3 }, onDone: [],
+        },
+        { id: 'settle', kind: 'settle', summary: [] },
+      ],
+    }
+  }
+
+  it('句集缺失时回落既有题型:题面非空且答满 minCorrect 能推进到结算(不软锁)', async () => {
+    // makeFakes 默认 sentenceSetFor → undefined、makeSentenceQuestions → [];回落走 makeStepQuestions → choiceQ。
+    renderRunner(sentenceChapter())
+
+    // 未回落时这里没有任何题目 → body 空、永久卡住。
+    expect(screen.getByText('选出太阳的拼音')).toBeInTheDocument()
+
+    answer('太阳')
+    answer('太阳')
+    answer('太阳')
+
+    expect(await screen.findByRole('heading', { name: '第1章完成!' })).toBeInTheDocument()
+  })
+})

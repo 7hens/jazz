@@ -272,10 +272,14 @@ export function ChapterRunnerView({ chapter, initialRow, onExit, onSettled, serv
         const word = services.vocabulary.wordById(current.task.wordId)
         if (!word) return null
         const skill = layerToSkill(current.task.layer)
+        // 句集缺失时按 vocabulary 契约回落既有题型(非句型词 sentenceSetFor 返回 undefined → 调用方回落)。
+        // 返回空题集会让 TaskScene 无题可答、章节软锁,故必须回落到可推进的既有题型。
         const makeQuestions = current.task.layer === 'sentence'
           ? () => {
               const set = services.vocabulary.sentenceSetFor(word.id)
-              return set ? services.questionEngine.makeSentenceQuestions(word, set, Math.random) : []
+              return set
+                ? services.questionEngine.makeSentenceQuestions(word, set, Math.random)
+                : services.questionEngine.makeStepQuestions(word, skill, Math.random, taskContext())
             }
           : () => services.questionEngine.makeStepQuestions(word, skill, Math.random, taskContext())
         return (

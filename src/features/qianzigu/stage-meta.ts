@@ -19,7 +19,7 @@ export function castFor(lines: readonly ChapterLine[], presets?: readonly Speech
   return out
 }
 
-/** 某词已恢复次数(0..2:两技能层各计一次;语义 = 原 SkyStrip 点亮档)。 */
+/** 某词已恢复次数(0..3:sound / shape / sentence 三层各计一次;语义 = 原 SkyStrip 点亮档)。 */
 export function restoreCount(restored: ReadonlyArray<{ wordId: number }>, wordId: number): number {
   let n = 0
   for (const e of restored) if (e.wordId === wordId) n++
