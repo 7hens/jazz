@@ -262,9 +262,18 @@ open
 ## 8 星尘与结算
 
 - 句步**首过 +30**(每词仅一次),判定 = `sentenceLevel` 由 `< 3` 变为 `= 3`
-- 整词 **+20** 判定:千字谷侧改为 `rules.fullComplete(next, settings) && next.sentenceLevel >= 3`
-- 每词满额:80 → **110**;ch1 五词满额 400 → 550
-- **已知后果(接受)**:字母林路径不产 `sentenceLevel`,`+20` 判定与千字谷在汉语词上**分叉**。一致性收敛留待全量句步行评估(记入想法池 P1 行)。
+- 整词 **+20** 判定:千字谷侧用 `chapterWordDone(next)`(= `completed.pinyin && completed.hanzi && sentenceLevel >= 3`)。
+  **不吃 `settings`** —— 千字谷是汉语域内三步,英语域不参与其整词完成语义。
+  > 口径变更记录:本节初稿曾写 `rules.fullComplete(next, settings) && next.sentenceLevel >= 3`,实现时(plan Task 7)改为 `chapterWordDone`。二者在**双语**配置下不同:`fullComplete` 还要 `english`,会把千字谷自己的 +20 押在一个与本域无关的技能上。现行 `chapterWordDone` 让千字谷内部的奖励曲线**与配置无关**。
+- 每词满额:80 → **110**(千字谷内三步口径 = 30+30+30+20;**汉语-only 与双语同值**);ch1 五词满额 400 → 550。
+  双语用户在字母林补 `english` 仍可再得 +30(第 4 个不同技能步),该词总上限 **140** —— 但**没有第二个 +20**。
+- 跨路径 +20 **只发一次**,由**持久化支付位** `WordProgress.bonusGranted`(迁移 `0007_bonus_granted.sql`)判定,**不从完成谓词反推**。
+  - 理由:两条路径的完成语义不同(字母林 = 启用领域内技能齐;千字谷 = 拼音 + 汉字 + 句满),写同一行 `starsEarned`。
+    「已发」是**支付历史**,不是完成状态的函数 —— `chapterWordDone(base)` 盲于字母林已支付(→ 双发),`fullComplete(base, settings)` 盲于千字谷已支付(→ 双发),
+    两者取并集则在**汉语-only**下过抑制(pinyin+hanzi 即令 `fullComplete` 成真 → 句步误判「已发」→ 每词少发 20,且不可恢复)。
+  - 实现:两条路径各用**本地 trigger**,guard 一律读 `base.bonusGranted`,置位式 `next.bonusGranted = base.bonusGranted || wordBonus > 0`;
+    `mergeProgress` 取 OR、worker UPSERT 取 `MAX(progress.bonus_granted, excluded.bonus_granted)` —— 支付位单调,只增不重置。
+  - 注:本节初稿的「已知后果(接受):+20 判定两路径**分叉**」已被此项取代。当时把分叉当作无害后果接受,而分叉正是跨路径双发的成因。
 
 ## 9 测试域影响
 
