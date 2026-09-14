@@ -1,0 +1,10 @@
+# 本地 dev 令牌模板 —— 复制为 .dev.vars 后 `npm run dev` 即可登录:
+#     cp .dev.vars.example .dev.vars
+#
+# 本文件**入库**;`.dev.vars` 本体被 .gitignore(它是凭据容器,本地那份可能装真 token,
+# 且历史上曾随 vite-plugin 产物被当静态资源上传 → 泄露。见 wrangler.toml [assets] 注释)。
+# 故:勿在本模板里填真实 token,也不要把 .dev.vars 加入版本控制。
+#
+# 下面的值是**公开的本地默认值**(README / dev-reference 均已写明),不是密钥;
+# 仅供本地 workerd 使用,生产走 `wrangler secret put ADMIN_TOKEN`。
+ADMIN_TOKEN=jazz-local-dev-token
