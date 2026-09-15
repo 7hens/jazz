@@ -119,8 +119,8 @@ describe('WordLesson stepGate', () => {
 })
 
 // 水晶条失守时没有任何别的断言会红(顶栏进度文本也印「题序 · 第N/M技能」,其中 M 就是
-// 格数;但那条护栏只验「文本在不在」,验不出格数与 stepIndex 的对应关系)——
-// 这组断言把「接线还在、且传参正确」钉死。锚点:app 里删掉 <ProgressCrystals/> 整行即红。
+// 格数;但那条护栏只验文本的形状,验不出格数与 stepIndex 的对应关系)——
+// 这组断言把「接线还在、且传参正确」钉死。锚点:WordLesson.tsx 里删掉 <ProgressCrystals …/> 整行即红。
 describe('WordLesson 水晶进度条接线', () => {
   afterEach(cleanup)
 
@@ -177,7 +177,7 @@ describe('WordLesson 顶栏 HUD', () => {
   })
 })
 
-// 水晶条是纯装饰(整棵子树 aria-hidden),它对读屏用户的进度语义全靠顶栏这行文本承载 ——
+// 水晶条是纯装饰(每格 aria-hidden;容器本身没有 aria-hidden),它对读屏用户的进度语义全靠顶栏这行文本承载 ——
 // 删掉这行,读屏用户就完全没有进度信息,而其余断言全绿。锚点:删掉 WordLesson.tsx 里
 // 带 data-progress 的那个 <span> 即红。
 describe('WordLesson 顶栏进度文本(水晶条的 a11y 承载体)', () => {
