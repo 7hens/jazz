@@ -149,7 +149,7 @@ function QuestionCard({
   }
 
   return (
-    <div className="rounded-[1.75rem] border border-hairline bg-surface p-4 shadow-card sm:p-6">
+    <div className="space-y-3">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key="q"
