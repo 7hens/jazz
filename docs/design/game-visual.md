@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | 背景氛围层(100% 画布) | `StageFrame`(全窗不滚帧)+ `StageSky`(氛围渐变 dawn/day/dusk/night/dark + 世界回春灰档 + 云/太阳位/山/村/河/浪) | 已落地勿重建;新幕在 scene `stage` 数据扩展;蓝图「暗角防抢镜」未建,要则加 index.css `.stage-sky` 遮罩,克制 |
 | 角色层(居中/偏侧,安全区不遮文) | `StageCast` + CastFigure;`stage-meta.ts` `castFor` 预推全员 + skySplit(narrator 旁白特判) | 已落地勿重建;说者 talk 弹跳 / idle 静态,全员首帧同框,无临场滑入淡出(要则最小化);站位/朝向/阵营感 = P2 |
-| 前景交互层(底/侧固定) | `DialoguePresenter`(角色旁气泡 + 整屏热区 + 主推进钮);task/social/boss 漫画面板;作答复用 Choice/ListenChoice/MatchGame | 气泡白底圆角细边 + 三角尾已建;情绪造型(锯齿/云泡/字号自适应)未建 = P2 扩展点 |
+| 前景交互层(底/侧固定) | `DialoguePresenter`(角色旁气泡 + 整屏热区 + 主推进钮);task/social/boss 漫画面板;作答复用 Choice/ListenChoice/MatchGame | 气泡白底圆角细边 + 三角尾已建;情绪造型(锯齿/云泡/字号自适应)未建 = P2 扩展点;题面气泡(`shared/ui/quiz/QuestionBubble.tsx`)/ 词石(`stone.ts`)/ 施法钮(`CastButton.tsx`)已建 —— 改题面观感改这三处,勿在消费点内联绕过 |
 | 视觉源集中点 | 角色 emoji/名 = `ROLE_META`(`scene-ui.tsx`);素材/氛围/尺寸 = `stage-visuals.ts`(`roleScale` / `moodBorder` / `atmosphereToClass` / `worldDesatClass` / `STAGE_BODIES`);样式 token = index.css `.stage-sky--*` 等 | 换布景/氛围/太阳素材大多改 stage-visuals + css token,组件零改;角色立绘位图化另需动 ROLE_META/CastFigure → spec §10 位图升级,先 PLAN。勿组件内联绕过 |
 | 情绪色盘(→ mood 边框) | `chapter.ts` 可选 `mood?` + `moodBorder`:sad → border-sky / happy → border-emerald / scary → border-red / 缺省 calm → border-hairline-strong | 情绪显著句才标,其余留空;抽象情绪色盘须转译成此载体(氛围渐变 + mood 边框 + token),勿直译 |
 | 对白/旁白字级(Type Ramp) | 现有字号 token + index.css | 扩字级前看 `docs/frontend-dev-standard.md` + index.css |
