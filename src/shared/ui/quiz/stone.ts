@@ -18,7 +18,8 @@ export const STONE_LIFT = -3
  * 暗色主题下色相保留、底色不透明 → 对比度与舞台解耦。16% / 10% / 14% 即旧
  * `accent-tint` / `emerald/10` / `red-tint` 的亮色 alpha 值。
  * ⚠ 这三条任意值必须**逐字写在状态表里**,不得抽成函数/模板拼接 —— Tailwind 的内容扫描器只认
- * 源码里的字面量,拼出来的类名不会进 CSS(实测:抽成 helper 后产物里 `.bg-[color-mix(...)]` 数量为 0)。 */
+ * 源码里的字面量,拼出来的类名不会进 CSS(实测:抽成 helper 后产物里这三条规则数量为 0)。
+ * 注意本注释本身也会被扫描:此处刻意不写出可被识别的类名写法,否则产物会多出一条用不到的规则。 */
 const STONE_STATE: Record<StoneState, string> = {
   // 静止态即抬升:默认词石读作「凸起的物件」而非平贴卡;hover 只改描边,不再补阴影。
   idle: 'border-hairline bg-surface text-ink shadow-card hover:border-accent/60',
