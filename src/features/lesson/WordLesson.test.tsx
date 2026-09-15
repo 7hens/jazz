@@ -17,7 +17,7 @@ const noop = () => {}
 const makeQuestions = () => [{ kind: 'choice', prompt: 'x', options: [{ id: 'a', text: 'A' }], answerId: 'a' }] as unknown as Question[]
 
 function renderLesson(over: Partial<Parameters<typeof WordLesson>[0]> = {}) {
-  const base = { word, settings, combo: 0, makeQuestions, playSound: noop, speak: () => true, celebrate: noop, onAnswer: noop, onStepPass: noop, onLessonComplete: noop, onExit: noop }
+  const base = { word, settings, combo: 0, dust: 0, makeQuestions, playSound: noop, speak: () => true, celebrate: noop, onAnswer: noop, onStepPass: noop, onLessonComplete: noop, onExit: noop }
   return render(<WordLesson {...base} {...over} />)
 }
 
@@ -141,5 +141,29 @@ describe('WordLesson 水晶进度条接线', () => {
     answerChoice('A')
     await waitFor(() => expect(screen.getByText('hanzi')).toBeTruthy(), { timeout: 3000 })
     expect(crystalStates(container)).toEqual(['done', 'active', 'todo'])
+  })
+})
+
+describe('WordLesson 顶栏 HUD', () => {
+  afterEach(cleanup)
+
+  it('渲染传入的星尘数', () => {
+    const { container } = renderLesson({ dust: 42 })
+    expect(container.querySelector('[data-hud="dust"]')).toHaveTextContent('42')
+  })
+
+  it('连击 <2 不显示连击档(单次答对不叫连击)', () => {
+    const { container } = renderLesson({ combo: 1 })
+    expect(container.querySelector('[data-hud="combo"]')).toBeNull()
+  })
+
+  it('连击 ≥2 显示连击档', () => {
+    const { container } = renderLesson({ combo: 3 })
+    expect(container.querySelector('[data-hud="combo"]')).toHaveTextContent('3')
+  })
+
+  it('景深层随题卡一同渲染', () => {
+    const { container } = renderLesson()
+    expect(container.querySelector('[data-lesson-ambience]')).not.toBeNull()
   })
 })

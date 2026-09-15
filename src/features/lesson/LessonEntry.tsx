@@ -211,6 +211,7 @@ function LessonSession({
       word={word}
       settings={settingsData}
       combo={comboValue}
+      dust={totalStars(progressData)}
       makeQuestions={questionEngine.makeStepQuestions}
       playSound={audio.play}
       speak={speech.speak}
