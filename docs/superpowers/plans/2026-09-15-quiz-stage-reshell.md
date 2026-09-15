@@ -865,7 +865,9 @@ Expected: PASS
 - [ ] **Step 3: 目视复核亮色氛围档**
 
 启动 `npm run dev`,千字谷冷启动章节,用 debug 直达跳进任一 task 幕(`?s=1.1.3` 类),确认题面气泡与词石在 `dawn`/`day` 天空上有足够对比(spec R2)。
-若对比不足 → 在 `QuestionBubble` 与词石的 `bg-surface` 上加一层 `backdrop-blur-sm`,**不要**改回白卡。
+若对比不足 → **加实底边界,不要加模糊**(见下),**不要**改回白卡。
+
+> ⚠ 勘误(2026-09-15,由 B4 review 发现):本行原写的补救「在 `bg-surface` 上加 `backdrop-blur-sm`」是**空操作** —— `--color-surface: #ffffff`(`src/index.css:14`)完全不透明,不透明底之后的模糊不改变任何像素。真正的补救方向:给气泡/词石加**不透明边界**(如 `ring-1 ring-hairline-strong` 或 `shadow-card` 加强)或在 `bg-surface` 与天空之间垫一层实心 `bg-canvas-2` 边框;**优先查的是反馈胶囊**(`scene-ui.tsx:168`/`:173` 的 `bg-accent-tint` / `bg-red-tint` —— 这两个 token 是 **alpha 色**,`index.css:25` `rgb(255 138 42 / 0.16)`、`:36` `rgb(239 68 68 / 0.14)`,去白卡后由「tint→白卡」变成「tint→天空」,是这个任务唯一真正改变合成背景的元素)。
 
 - [ ] **Step 4: Commit**
 
