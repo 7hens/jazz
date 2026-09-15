@@ -153,4 +153,18 @@ describe('ColdStartWizard', () => {
     expect(saveAll).not.toHaveBeenCalled()
     expect(recordAnswer).not.toHaveBeenCalled()
   })
+
+  // 冷启动的进度**没有**可读等价文本(标题栏只有「跳过」),水晶条是唯一的进度呈现 ——
+  // 删掉 renderQuestion 里那行 <ProgressCrystals/> 不会有别的断言红,故在此钉死。
+  it('诊断进度:水晶条格数 = 探针总数(双轨开 6),qi 推进后首格转 done', () => {
+    const { container } = renderWizard()
+    fireEvent.click(screen.getByRole('button', { name: '开始' }))
+    const states = () => Array.from(container.querySelectorAll('[data-crystal]')).map((c) => c.getAttribute('data-crystal'))
+
+    expect(states()).toEqual(['active', 'todo', 'todo', 'todo', 'todo', 'todo'])
+    clickAnyOption(container)
+    confirmAnswer()
+    ADVANCE()
+    expect(states()).toEqual(['done', 'active', 'todo', 'todo', 'todo', 'todo'])
+  })
 })

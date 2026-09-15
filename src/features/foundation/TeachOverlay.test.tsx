@@ -142,4 +142,17 @@ describe('TeachOverlay 纯判分题(直接答题,无听齐)', () => {
     expect(onExit).toHaveBeenCalledTimes(1)
     expect(onDone).not.toHaveBeenCalled()
   })
+
+  // 短教的进度**没有**可读等价文本(标题栏只写词与技能),水晶条是唯一的进度呈现 ——
+  // 删掉 renderQuiz 里那行 <ProgressCrystals/> 不会有别的断言红,故在此钉死。
+  it('判分进度:水晶条格数 = quiz 题数(units 2 → 2 格),qi 推进后转 done', async () => {
+    const { container } = renderOverlay()
+    const states = () => Array.from(container.querySelectorAll('[data-crystal]')).map((c) => c.getAttribute('data-crystal'))
+
+    expect(states()).toEqual(['active', 'todo'])
+    await screen.findByText(/开头的声母/)
+    answerTarget('p')
+    await screen.findByText('g') // 已自动推进到第 2 题
+    expect(states()).toEqual(['done', 'active'])
+  })
 })

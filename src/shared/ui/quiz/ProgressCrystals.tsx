@@ -8,7 +8,9 @@ export type ProgressCrystalsProps = {
 }
 
 /** 水晶进度条:替代三处逐字重复的圆点行。
- *  纯装饰 —— 每格 aria-hidden,进度语义仍由消费点既有的文本承担(勿以为它可读)。 */
+ *  本组件纯装饰 —— 每格 aria-hidden。三个消费点里只有 `WordLesson` 另有一行进度文本(顶栏),
+ *  短教(TeachOverlay)/ 冷启动(ColdStartWizard)**没有**等价文本 ——
+ *  故不要把它当作可读的进度语义来源,也不要在别处删掉 WordLesson 那行文本。 */
 export function ProgressCrystals({ total, current, className }: ProgressCrystalsProps) {
   return (
     <div data-crystals className={cn('flex items-center justify-center gap-1.5', className)}>
