@@ -118,6 +118,11 @@ describe('TeachOverlay 纯判分题(直接答题,无听齐)', () => {
     expect(onDone).not.toHaveBeenCalled()
   })
 
+  it('教学期挂「📖 演示」卷轴头且用虚线边框(与真答题区分,不单靠颜色)', () => {
+    renderOverlay()
+    expect(screen.getByText('📖 演示')).toBeTruthy()
+  })
+
   it('onExit:praise 结课「返回地图」离教(未点「开始答题」不 onDone)', async () => {
     const onExit = vi.fn()
     const onDone = vi.fn()

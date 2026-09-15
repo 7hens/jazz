@@ -225,8 +225,12 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-        className="rounded-[1.75rem] border-2 border-accent/30 bg-accent/10 p-4 sm:p-5"
+        className="relative space-y-3 rounded-[1.75rem] border-2 border-dashed border-accent/50 p-4 sm:p-5"
       >
+        {/* 教学期标识:虚线边框 + 卷轴头双通道冗余,单靠颜色不算区分(色盲看不见) */}
+        <span className="inline-flex items-center rounded-full border-2 border-accent/40 bg-surface px-2.5 py-0.5 text-xs font-bold text-accent-ink shadow-card">
+          📖 演示
+        </span>
         {q.kind === 'choice' ? (
           <Choice prompt={q.prompt} promptSpeak={q.promptSpeak} promptEmoji={q.promptEmoji} {...shared} />
         ) : (
