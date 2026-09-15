@@ -1,5 +1,9 @@
 export const AUTH_COOKIE = 'jazz_token'
 
+// 本地 dev 的兜底令牌:vite dev 下 import.meta.env.DEV 为 true,没配 .dev.vars 也能直接登录;
+// build 后 DEV 被替换为 false → 生产/preview 无兜底,必须配 ADMIN_TOKEN secret(缺失即全部 401)。
+export const DEV_DEFAULT_TOKEN = 'jazz'
+
 export const DEFAULT_USER = {
   id: 'default-user',
   email: 'admin@life.local',
@@ -18,6 +22,15 @@ export function getCookieValue(request: Request, cookieName: string) {
   const match = cookies.find((item) => item.startsWith(`${cookieName}=`))
   if (!match) return null
   return decodeURIComponent(match.slice(cookieName.length + 1))
+}
+
+// 期望令牌:env.ADMIN_TOKEN 优先(dev 可被 .dev.vars 覆盖),dev 缺省回落 jazz,其余环境缺失即空串(拒一切)。
+// isDev 可注入,便于测试固定两侧行为。
+export function expectedToken(
+  env: { ADMIN_TOKEN?: string },
+  isDev: boolean = import.meta.env.DEV,
+): string {
+  return env.ADMIN_TOKEN || (isDev ? DEV_DEFAULT_TOKEN : '')
 }
 
 // constant-time 比较,避免时序侧信道;token 直接比对 env.ADMIN_TOKEN
@@ -51,7 +64,7 @@ export async function getAuthenticatedUser(
   env: { DB: D1Database; ADMIN_TOKEN?: string },
 ): Promise<AuthenticatedUser | null> {
   const token = getCookieValue(request, AUTH_COOKIE)
-  const expected = env.ADMIN_TOKEN ?? ''
+  const expected = expectedToken(env)
   if (!token || !expected) return null
   if (!safeEqual(token, expected)) return null
 

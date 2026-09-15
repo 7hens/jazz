@@ -3,7 +3,8 @@
     "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.worker.tsbuildinfo",
     "target": "es2023",
     "lib": ["ES2023"],
-    "types": ["@cloudflare/workers-types"],
+    // vite/client 提供 import.meta.env 类型(vite dev 注入 DEV;workerd 构建时被替换为字面量)
+    "types": ["@cloudflare/workers-types", "vite/client"],
     "module": "esnext",
     "skipLibCheck": true,
 

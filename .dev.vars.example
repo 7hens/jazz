@@ -1,5 +1,6 @@
-# 本地 dev 令牌模板 —— 复制为 .dev.vars 后 `npm run dev` 即可登录:
-#     cp .dev.vars.example .dev.vars
+# 本地 dev 令牌模板 —— **可选**:dev 缺省令牌就是 `jazz`(worker/_lib/auth.ts 的 DEV_DEFAULT_TOKEN),
+# 不配这份文件也能直接登录。只有想改用别的令牌时才需要:
+#     cp .dev.vars.example .dev.vars   # 再把下面的值改掉
 #
 # 本文件**入库**;`.dev.vars` 本体被 .gitignore(它是凭据容器,本地那份可能装真 token,
 # 且历史上曾随 vite-plugin 产物被当静态资源上传 → 泄露。见 wrangler.toml [assets] 注释)。
@@ -7,4 +8,4 @@
 #
 # 下面的值是**公开的本地默认值**(README / dev-reference 均已写明),不是密钥;
 # 仅供本地 workerd 使用,生产走 `wrangler secret put ADMIN_TOKEN`。
-ADMIN_TOKEN=jazz-local-dev-token
+ADMIN_TOKEN=jazz

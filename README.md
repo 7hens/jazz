@@ -47,7 +47,7 @@ npm run deploy         # build + wrangler deploy(生产 = 默认 env)
 npm run deploy:preview # build + wrangler deploy --env preview(独立 D1 冒烟)
 ```
 
-登录令牌:本地读 `.dev.vars`(`ADMIN_TOKEN`,默认 `jazz-local-dev-token`)—— 该文件被 gitignore 且**不随 worktree 复制**,新环境/worktree 先 `cp .dev.vars.example .dev.vars`(未配则登录 401);生产用 `wrangler secret put ADMIN_TOKEN`(预览 env 需 `--env preview` 另设),**禁止** Cloudflare Dashboard 手改变量。部署 / 迁移 / 发布流水线 / 架构细节见 [CLAUDE.md](CLAUDE.md)。
+登录令牌:本地 dev **不用配置** —— 缺省令牌 `jazz`,直接登录;想换令牌才需要 `.dev.vars`(`cp .dev.vars.example .dev.vars` 后改 `ADMIN_TOKEN`,该文件被 gitignore 且**不随 worktree 复制**)。生产用 `wrangler secret put ADMIN_TOKEN`(预览 env 需 `--env preview` 另设;构建产物无任何兜底,secret 缺失即全部 401),**禁止** Cloudflare Dashboard 手改变量。部署 / 迁移 / 发布流水线 / 架构细节见 [CLAUDE.md](CLAUDE.md)。
 
 ## 技术栈
 
