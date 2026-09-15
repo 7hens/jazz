@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'motion/react'
 import { cn } from '@/shared/ui/utils'
 import type { AudioCue } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 import type { BaseOption, SkillKey } from '@/shared/services'
 import { TypeBadge } from './TypeBadge'
 import { QuestionBubble } from './QuestionBubble'
-import { STONE_LIFT, stoneClass, stoneMark, stoneMarkClass, type StoneState } from './stone'
+import { Stone } from './Stone'
+import type { StoneState } from './stone'
 
 type MatchGameProps = {
   prompt: string
@@ -96,45 +96,18 @@ export function MatchGame({
     const isSel = isLeft ? selL === o.id : selR === o.id
     const isMis = mismatch ? (isLeft ? mismatch[0] === o.id : mismatch[1] === o.id) : false
     const state: StoneState = isMatched ? 'correct' : isMis ? 'wrong' : isSel ? 'selected' : 'idle'
-    const mark = stoneMark(state)
     return (
-      <motion.button
+      <Stone
         key={o.id}
-        type="button"
-        aria-disabled={Boolean(isMatched || mismatch || done)}
-        data-state={state}
+        state={state}
+        horizontal
+        emoji={o.emoji}
+        text={o.text}
+        disabled={Boolean(isMatched || mismatch || done)}
+        shake={isMis}
+        className={cn(isMatched && 'opacity-80', isMatched && 'pointer-events-none')}
         onClick={() => (isLeft ? pickLeft(o.id) : pickRight(o.id))}
-        animate={
-          isMis
-            ? { x: [0, -9, 9, -6, 6, 0], y: 0 } // 抖动期不得残留上浮位移
-            : { x: 0, y: state === 'selected' || state === 'correct' ? STONE_LIFT : 0 }
-        }
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className={cn(
-          stoneClass(state),
-          'min-h-[64px] flex-row',
-          isMatched && 'opacity-80',
-          !isMatched && !mismatch && !done && 'cursor-pointer active:scale-[0.96]',
-        )}
-      >
-        {o.emoji ? (
-          <span aria-hidden className="text-2xl leading-none">
-            {o.emoji}
-          </span>
-        ) : null}
-        <span className={cn('font-bold leading-tight', o.emoji ? 'text-base' : 'text-xl')}>{o.text}</span>
-        {mark ? (
-          <span
-            aria-hidden
-            className={cn(
-              'absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold shadow-card',
-              stoneMarkClass(state),
-            )}
-          >
-            {mark}
-          </span>
-        ) : null}
-      </motion.button>
+      />
     )
   }
 

@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { motion } from 'motion/react'
-import { cn } from '@/shared/ui/utils'
 import type { BaseOption, SkillKey } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 import { TypeBadge } from './TypeBadge'
 import { QuestionBubble } from './QuestionBubble'
 import { CastButton } from './CastButton'
-import { STONE_LIFT, stoneClass, stoneMark, stoneMarkClass, stoneOffset, type StoneState } from './stone'
+import { Stone } from './Stone'
+import type { StoneState } from './stone'
 
 export type ChoiceProps = {
   prompt: string
@@ -82,45 +81,18 @@ export function Choice({
                   : selected === o.id
                     ? 'selected'
                     : 'idle'
-          const mark = stoneMark(state)
           return (
-            <motion.button
+            <Stone
               key={o.id}
-              type="button"
-              aria-disabled={disabled}
-              aria-pressed={selected === o.id}
-              data-state={state}
+              state={state}
+              index={i}
+              emoji={o.emoji}
+              text={o.text}
+              pressed={selected === o.id}
+              disabled={disabled}
+              shake={wrongId === o.id}
               onClick={() => handleCard(o)}
-              animate={
-                wrongId === o.id
-                  ? { x: [0, -9, 9, -6, 6, 0], y: 0 } // 抖动期不得残留上浮位移
-                  : { x: 0, y: state === 'selected' || state === 'correct' ? STONE_LIFT : 0 }
-              }
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              className={cn(
-                stoneClass(state, i),
-                stoneOffset(i),
-                !disabled && 'cursor-pointer active:scale-[0.96]',
-              )}
-            >
-              {mark ? (
-                <span
-                  aria-hidden
-                  className={cn(
-                    'absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold shadow-card',
-                    stoneMarkClass(state),
-                  )}
-                >
-                  {mark}
-                </span>
-              ) : null}
-              {o.emoji ? (
-                <span aria-hidden className="text-3xl leading-none">
-                  {o.emoji}
-                </span>
-              ) : null}
-              <span className={cn('font-bold leading-tight', o.emoji ? 'text-[15px]' : 'text-xl')}>{o.text}</span>
-            </motion.button>
+            />
           )
         })}
       </div>

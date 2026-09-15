@@ -423,3 +423,19 @@
     transparent 72%
   );
 }
+
+/* 迸星容器:铺满词石,粒子以中心为原点向外飞 */
+.quiz-burst {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.quiz-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%; /* 独立 translate 属性,motion 写的 transform 叠加其上不冲突 */
+  font-size: 1.05em;
+  line-height: 1;
+}
