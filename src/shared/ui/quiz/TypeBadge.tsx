@@ -14,11 +14,14 @@ export function TypeBadge({ kind, className }: { kind: QuizKind; className?: str
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border border-hairline bg-surface-2 px-2.5 py-1 text-xs font-bold text-ink-2',
+        'inline-flex items-stretch overflow-hidden rounded-full border-2 border-hairline bg-surface-2 text-xs font-bold text-ink-2 shadow-card',
         className,
       )}
     >
-      {KIND_LABEL[kind]}
+      {/* 两端「卷轴杆」:把胶囊变成卷轴标签,替掉纯灰底标签的工具感 */}
+      <span aria-hidden className="w-1.5 bg-accent/50" />
+      <span className="px-2 py-1">{KIND_LABEL[kind]}</span>
+      <span aria-hidden className="w-1.5 bg-accent/50" />
     </span>
   )
 }
