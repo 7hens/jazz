@@ -402,7 +402,7 @@ git commit -m "feat(quiz): 施法钮(替「确定」)"
 
 **Files:**
 - Modify: `src/shared/ui/quiz/Choice.tsx:73-151`(return 块)
-- Test: `src/shared/ui/quiz/Choice.test.tsx`
+- Test: `src/shared/ui/quiz/Choice.test.tsx` · `src/shared/ui/quiz/ListenChoice.test.tsx`(后者只有一处「确定」断言,由**本任务**一并收口 —— 它的红灯是 `Choice` 改渲染直接造成的,留到 Task 5 会让 Task 4 结束在红,违背「每个任务结束可独立验证」)
 
 **Interfaces:**
 - Consumes: `QuestionBubble`(Task 2)· `CastButton` / `CAST_LABEL`(Task 3)· `stoneClass` / `stoneMark` / `stoneMarkClass` / `stoneOffset` / `StoneState`(Task 1)
@@ -542,15 +542,22 @@ import { stoneClass, stoneMark, stoneMarkClass, stoneOffset, type StoneState } f
 Run: `npx vitest run src/shared/ui/quiz/Choice.test.tsx`
 Expected: PASS(9 tests:原 7 + 新 2)
 
+- [ ] **Step 4b: 收口 `ListenChoice.test.tsx` 的同源断言**
+
+`src/shared/ui/quiz/ListenChoice.test.tsx` 第 47-51 行:文件顶部加 `import { CAST_LABEL } from './CastButton'`,把 `{ name: '确定' }` → `{ name: CAST_LABEL }`,第 47 行用例名「…+「确定」透传提交…」→「…+「就它了!」透传提交…」。
+
+Run: `npx vitest run src/shared/ui/quiz/ListenChoice.test.tsx`
+Expected: PASS
+
 - [ ] **Step 5: 跑该模块全部单测**
 
 Run: `npx vitest run src/shared/ui/quiz/`
-Expected: PASS(注意 `ListenChoice.test.tsx` 此刻仍断言「确定」→ 预期 FAIL;若 FAIL 属**已知**,由 Task 8 统一收口,可继续)
+Expected: PASS(全部绿 —— 该目录内不再残留「确定」断言)
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/shared/ui/quiz/Choice.tsx src/shared/ui/quiz/Choice.test.tsx
+git add src/shared/ui/quiz/Choice.tsx src/shared/ui/quiz/Choice.test.tsx src/shared/ui/quiz/ListenChoice.test.tsx
 git commit -m "refactor(quiz): Choice 换渲染(气泡 + 词石 + 施法钮 + 对错形状冗余)"
 ```
 
@@ -560,22 +567,18 @@ git commit -m "refactor(quiz): Choice 换渲染(气泡 + 词石 + 施法钮 + �
 
 **Files:**
 - Modify: `src/shared/ui/quiz/ListenChoice.tsx:24-48`
-- Test: `src/shared/ui/quiz/ListenChoice.test.tsx`
+- Test: `src/shared/ui/quiz/ListenChoice.test.tsx`(**不修改** —— 断言已由 Task 4 Step 4b 收口;本任务只跑它验证未回归)
 
 **Interfaces:**
 - Consumes: `Choice`(Task 4 后的新渲染)· `TypeBadge`(Task 7 前的现造型)
 - Produces: `ListenChoiceProps` **不变**
 
-- [ ] **Step 1: 更新测试断言**
-
-`src/shared/ui/quiz/ListenChoice.test.tsx`:第 47-53 行 `{ name: '确定' }` → `{ name: '就它了!' }`;文件顶部加 `import { CAST_LABEL } from './CastButton'` 并改用常量;第 47 行用例名「…+「确定」透传提交…」→「…+「就它了!」透传提交…」。
-
-- [ ] **Step 2: Run test to verify it passes**
+- [ ] **Step 1: 确认起点是绿的**
 
 Run: `npx vitest run src/shared/ui/quiz/ListenChoice.test.tsx`
-Expected: PASS —— Task 4 已换掉 `Choice` 的实现,此处**只改断言即应转绿**(本任务不新增行为,故无「先失败」步)。
+Expected: PASS —— 该文件的「确定」断言已由 Task 4 Step 4b 收口;本任务**不新增行为**,只换造型,故无「先失败」步。若此处是红的,停下回报,别继续。
 
-- [ ] **Step 3: 标题行换造型**
+- [ ] **Step 2: 标题行换造型**
 
 `src/shared/ui/quiz/ListenChoice.tsx` 的 `return` 中,标题行(`:27-38`)整块替换为:
 
@@ -597,16 +600,16 @@ Expected: PASS —— Task 4 已换掉 `Choice` 的实现,此处**只改断言�
 
 外层容器 `space-y-5` **不动**。
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 3: Run test to verify it passes**
 
 Run: `npx vitest run src/shared/ui/quiz/ListenChoice.test.tsx`
 Expected: PASS(3 tests)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/shared/ui/quiz/ListenChoice.tsx src/shared/ui/quiz/ListenChoice.test.tsx
-git commit -m "refactor(quiz): ListenChoice 标题行换造型 + 断言改施法钮"
+git add src/shared/ui/quiz/ListenChoice.tsx
+git commit -m "refactor(quiz): ListenChoice 标题行换造型"
 ```
 
 ---
@@ -627,14 +630,25 @@ git commit -m "refactor(quiz): ListenChoice 标题行换造型 + 断言改施法
 
 ```tsx
   it('配错态挂 ✗ 形状冗余(data-state 可测)', () => {
-    render(<MatchGame prompt="连一连" left={left} right={right} answerMap={answerMap} skill="hanzi" playSound={vi.fn()} speak={vi.fn(() => true)} onComplete={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: '日' }))
-    fireEvent.click(screen.getByRole('button', { name: '月' }))
-    expect(screen.getByRole('button', { name: '日' })).toHaveAttribute('data-state', 'wrong')
+    render(
+      <MatchGame
+        prompt="配对"
+        left={left}
+        right={right}
+        answerMap={{ l1: 'r1', l2: 'r2' }}
+        skill="hanzi"
+        playSound={vi.fn()}
+        speak={() => true}
+        onComplete={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '太阳' })) // l1
+    fireEvent.click(screen.getByRole('button', { name: '🌙' })) // r2 → 与 l1 不配对
+    expect(screen.getByRole('button', { name: '太阳' })).toHaveAttribute('data-state', 'wrong')
   })
 ```
 
-> `left` / `right` / `answerMap` 沿用该文件既有 fixture;若变量名不同,按实际 fixture 改写,勿新造。
+> `left` / `right` 沿用该文件既有 fixture(`:6-13`,text 为 `太阳` / `月亮`,右列 text 为 emoji `☀️` / `🌙`),勿新造。
 
 - [ ] **Step 2: Run test to verify it fails**
 
