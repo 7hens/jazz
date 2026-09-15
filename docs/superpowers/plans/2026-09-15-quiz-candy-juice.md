@@ -25,7 +25,9 @@
 - **文字缩放**:石头高度用 `min-h` + `padding`,**禁固定 `height`**;不设 `overflow: hidden` 截字。
 - **属性顺序**:错误使用 `if (a) return b` 之外,一律沿用仓库既有的 `type="button"` / `aria-*` / `data-*` / `onClick` 顺序,减少无谓 diff。
 - **UI 文案中文**。
-- **闸门**:每个任务结束时 `npm test` 全绿(**基线 68 文件 / 434 测试**)、`npm run lint` 0 error。
+- **闸门**:每个任务结束时 `npm test` 全绿(**基线 68 文件 / 434 测试**)、`npm run lint` 0 error、**`npm run build` 成功**。
+
+> `npm run build` 必须进闸门的原因(**预检实测**,与 Tailwind 扫描器同类):`tsconfig.app.json` 开了 `noUnusedLocals`,而 **`npm test`(vitest 不做类型检查)与 `npm run lint`(oxlint 的 `no-unused-vars` 只是 warning,退出码 0)都不会报未用 import** —— 删组件时漏删一个 import,两道闸门都绿,只有 `tsc -b` 会炸。它顺带也覆盖了「材质类没进产物」这个本计划最怕的失守。
 - **导入大小写**:`./stone`(纯函数表)与 `./Stone`(组件)是两个不同文件,导入路径必须逐字写对;Linux 区分大小写,macOS 不区分 —— 本地过而别人机器炸的坑。
 
 ---
@@ -742,7 +744,9 @@ import type { StoneState } from './stone'
 
 > ⚠ 这里出现了一处**有意的行为对齐**:旧代码用 `!isMatched && !mismatch && !done && 'cursor-pointer active:scale-[0.96]'`,新 `Stone` 用 `!disabled && 'cursor-pointer active:scale-[0.96]'` —— 两者等价(`disabled` 就是那个三元表达式的取反)。`opacity-80` 保留原样。
 >
-> `pointer-events-none` 是**新增**的:旧代码里已配对的卡仍可点击,靠 `pickLeft` / `pickRight` 开头的 `if (matched[id] ...) return` 兜住。`aria-disabled` 的元素不该还能点,这里顺手对齐。若不希望此步夹带行为变更,可删掉 `isMatched && 'pointer-events-none'` 一段 —— 两种都可接受,二选一写死即可。
+> `pointer-events-none` 是**新增**的:旧代码里已配对的卡仍可点击,靠 `pickLeft` / `pickRight` 开头的 `if (matched[id] ...) return` 兜住。`aria-disabled` 的元素不该还能点,这里顺手对齐。**预检已定案:保留** —— 行为等价(那条早退分支仍在,只是再也走不到),不是行为变更。
+>
+> ⚠ **本步必须同时删掉 `MatchGame.tsx` 顶部的 `import { motion } from 'motion/react'`** —— `Stone` 接管了 `motion.button` 之后该文件不再用 `motion`,`tsc -b` 会以 `noUnusedLocals` 报错;而 `npm test` 与 `npm run lint` 都不报(见 Global Constraints 的闸门说明)。Task 4 会用 `motion.span` 渲染冲击波,届时**再引回来**。
 
 - [ ] **Step 12: 跑全量测试 + lint**
 
@@ -1265,7 +1269,9 @@ Expected: PASS(3 个用例)。
         <ProgressCrystals total={steps.length} current={stepIndex} className="pb-4" />
 ```
 
-并在 import 区加 `import { ProgressCrystals } from '@/shared/ui/quiz/ProgressCrystals'`。替换后 `cn` 在该文件仍被其他地方用到(第 297 行之外),**若 lint 报未使用则一并删掉**。
+并在 import 区加 `import { ProgressCrystals } from '@/shared/ui/quiz/ProgressCrystals'`。
+
+> ⚠ **已 grep 核实:第 297 行是 `cn` 在这个文件里的唯一用处**(`grep -n "cn(" src/features/lesson/WordLesson.tsx` 只有一行)。删掉圆点行之后 `cn` 必然变成未用 import —— **同一处改动里一并删掉 `import { cn } from '@/shared/ui/utils'`**,否则 `npm run build` 会因 `noUnusedLocals` 失败(`npm test` / `npm run lint` 不会拦)。
 
 **(b) `TeachOverlay.tsx:164-173`**(`renderQuiz` 内)整块替换为:
 
@@ -1453,6 +1459,8 @@ Expected: FAIL —— `dust` 不在 `WordLessonProps` 上(TS 报错),`[data-hud=
 ```
 
 > `main` 加 `relative z-10` 压住景深层。gate 分支(`if (gate)`)的返回保持原样 —— 教学期不显示 HUD 与景深。
+>
+> ⚠ **文件边界**:`WordLesson.tsx` 同时被 Task 5 改过(第 293 行的圆点行换成了 `<ProgressCrystals .../>`)。本步**只动三处**:根节点开标签、`<header>` 整块、`<main>` 开标签。**不要整体重写 `return`** —— 重写会把 Task 5 的水晶条冲掉,而 `npm test` 与 `npm run lint` 都不会告诉你(唯一会拦的是 Task 7 的浏览器走查)。
 
 - [ ] **Step 8: `LessonEntry.tsx` 传 `dust`**
 
