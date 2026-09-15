@@ -116,5 +116,6 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
     fireEvent.click(screen.getByRole('button', { name: '太阳' })) // l1
     fireEvent.click(screen.getByRole('button', { name: '🌙' })) // r2 → 与 l1 不配对
     expect(screen.getByRole('button', { name: '太阳' })).toHaveAttribute('data-state', 'wrong')
+    expect(screen.getByRole('button', { name: '太阳' })).toHaveTextContent('✗')
   })
 })

@@ -84,12 +84,14 @@ describe('Choice 确认制(点听 · 施法钮提交)', () => {
     fireEvent.click(screen.getByRole('button', { name: CAST_LABEL }))
     rerender(<Choice prompt="选出正确的一个" skill="pinyin" options={options} speak={speak} onAnswer={onAnswer} correctId="a" />)
     expect(screen.getByRole('button', { name: 'A' })).toHaveAttribute('data-state', 'correct')
+    expect(screen.getByRole('button', { name: 'A' })).toHaveTextContent('✓')
   })
 
   it('答错态挂 ✗ 冗余且不靠透明度压暗', () => {
     renderChoice({ wrongId: 'a' })
     const btn = screen.getByRole('button', { name: 'A' })
     expect(btn).toHaveAttribute('data-state', 'wrong')
+    expect(btn).toHaveTextContent('✗')
     expect(btn.className).not.toMatch(/\bopacity-/)
   })
 })

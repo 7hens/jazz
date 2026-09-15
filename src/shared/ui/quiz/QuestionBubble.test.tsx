@@ -18,7 +18,7 @@ describe('QuestionBubble 题面气泡', () => {
 
   it('无 onReplay 时题干不是按钮(否则会污染 a11y 树)', () => {
     render(<QuestionBubble prompt="这个字读什么?" />)
-    expect(screen.queryByRole('button', { name: '再听一遍' })).toBeNull()
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
   })
 
   it('有 onReplay 时整块为「再听一遍」重听区,点击回调', () => {
@@ -29,7 +29,8 @@ describe('QuestionBubble 题面气泡', () => {
   })
 
   it('emoji 为装饰:不贡献 accessible name', () => {
-    render(<QuestionBubble prompt="太阳" emoji="☀️" onReplay={() => {}} />)
-    expect(screen.getByRole('button', { name: '再听一遍' })).toBeTruthy()
+    const { container } = render(<QuestionBubble prompt="太阳" emoji="☀️" />)
+    const hiddenGlyphs = Array.from(container.querySelectorAll('span[aria-hidden]')).map((n) => n.textContent)
+    expect(hiddenGlyphs).toContain('☀️')
   })
 })
