@@ -188,7 +188,7 @@ export function ColdStartWizard({ settings, basics, speak, playSound, onClose }:
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-            className="rounded-[1.75rem] border border-hairline bg-surface p-4 shadow-card sm:p-5"
+            className="space-y-3 px-1"
           >
             <Choice prompt={q.prompt} promptSpeak={q.promptSpeak} promptEmoji={q.promptEmoji} {...shared} />
           </motion.div>
@@ -198,7 +198,7 @@ export function ColdStartWizard({ settings, basics, speak, playSound, onClose }:
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-            className="rounded-[1.75rem] border border-hairline bg-surface p-4 shadow-card sm:p-5"
+            className="space-y-3 px-1"
           >
             <ListenChoice prompt={q.prompt} promptSpeak={q.promptSpeak} {...shared} />
           </motion.div>
