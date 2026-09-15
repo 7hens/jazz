@@ -12,6 +12,7 @@ import type { BasicsService } from '@/shared/services'
 import { Choice } from '@/shared/ui/quiz/Choice'
 import { ListenChoice } from '@/shared/ui/quiz/ListenChoice'
 import { langFor, type Speak } from '@/shared/ui/quiz/speech'
+import { ProgressCrystals } from '@/shared/ui/quiz/ProgressCrystals'
 import { questionForUnit } from './teach-questions'
 import type { TeachQuestion } from './teach-questions'
 
@@ -161,16 +162,7 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
     const progress = quiz.length
     return (
       <div className="w-full">
-        <div className="flex items-center justify-center gap-1.5 pb-3">
-          {Array.from({ length: progress }).map((_, i) => (
-            <span
-              key={i}
-              className={`h-2 rounded-full transition-all ${
-                i < qi ? 'w-2 bg-emerald' : i === qi ? 'w-5 bg-accent' : 'w-2 bg-ink-3/25'
-              }`}
-            />
-          ))}
-        </div>
+        <ProgressCrystals total={progress} current={qi} className="pb-3" />
 
         {qState === 'wrong' ? renderWrongFeedback(q) : renderQuestion(q)}
       </div>

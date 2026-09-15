@@ -491,3 +491,29 @@
 .stone--pop-r {
   translate: -5px 0;
 }
+
+/* 水晶进度格:已过=翠玉发光 / 当前=拉长的琥珀发光 / 未到=内凹凹槽 */
+.crystal {
+  position: relative;
+  isolation: isolate;
+}
+.crystal--done {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-emerald) 55%, rgb(255 255 255)),
+    var(--color-emerald)
+  );
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-emerald) 55%, transparent);
+}
+.crystal--active {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-accent) 55%, rgb(255 255 255)),
+    var(--color-accent)
+  );
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+.crystal--todo {
+  background-color: color-mix(in srgb, var(--color-ink-3) 25%, var(--color-surface-2));
+  box-shadow: inset 0 1px 2px rgb(31 58 95 / 0.18);
+}

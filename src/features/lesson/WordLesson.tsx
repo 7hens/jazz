@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
-import { cn } from '@/shared/ui/utils'
 import type {
   AnswerKind,
   AudioCue,
@@ -18,6 +17,7 @@ import { Button } from '@/shared/ui/button'
 import { Choice } from '@/shared/ui/quiz/Choice'
 import { ListenChoice } from '@/shared/ui/quiz/ListenChoice'
 import { MatchGame } from '@/shared/ui/quiz/MatchGame'
+import { ProgressCrystals } from '@/shared/ui/quiz/ProgressCrystals'
 
 export type WordLessonProps = {
   word: WordUnit
@@ -289,18 +289,8 @@ export function WordLesson({
       </header>
 
       <main className="mx-auto max-w-xl px-4 pb-24 pt-5">
-        {/* 技能步进度点 */}
-        <div className="flex items-center justify-center gap-1.5 pb-4">
-          {steps.map((s, i) => (
-            <span
-              key={s}
-              className={cn(
-                'h-2 rounded-full transition-all',
-                i < stepIndex ? 'w-2 bg-emerald' : i === stepIndex ? 'w-5 bg-accent' : 'w-2 bg-ink-3/25',
-              )}
-            />
-          ))}
-        </div>
+        {/* 技能步进度:水晶条(纯装饰,进度文本在顶栏) */}
+        <ProgressCrystals total={steps.length} current={stepIndex} className="pb-4" />
 
         <div className="space-y-3 px-1">
           <AnimatePresence mode="wait" initial={false}>
