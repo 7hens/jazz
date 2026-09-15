@@ -9,8 +9,8 @@ export function LessonAmbience() {
       {/* 远处云 */}
       <div className="absolute left-[6%] top-[15%] text-4xl opacity-40">☁️</div>
       <div className="absolute right-[9%] top-[8%] text-3xl opacity-30">☁️</div>
-      {/* 题区落影:词石组脚下的地面感 */}
-      <div className="absolute left-1/2 top-[58%] h-24 w-[76%] -translate-x-1/2 rounded-[999px] bg-ink/10 blur-2xl" />
+      {/* 题区落影:词石组脚下的地面感(用 shadow token —— ink 会在暗色下翻成近白,影变发光) */}
+      <div className="absolute left-1/2 top-[58%] h-24 w-[76%] -translate-x-1/2 rounded-[999px] bg-shadow/10 blur-2xl" />
     </div>
   )
 }

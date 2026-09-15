@@ -17,6 +17,7 @@
   --color-ink: #1f3a5f; /* 深蓝灰 */
   --color-ink-2: #5a7ba0;
   --color-ink-3: #8fb0d0;
+  --color-shadow: #1f3a5f; /* 落影专用。故意不在暗色块覆写:影就是影,不该随主题翻成发光。 */
   --color-hairline: rgb(31 58 95 / 0.1);
   --color-hairline-strong: rgb(31 58 95 / 0.22); /* 更强描边(outline 按钮等) */
 
