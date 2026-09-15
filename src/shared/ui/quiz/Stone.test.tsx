@@ -29,7 +29,10 @@ describe('Stone 词石唯一渲染点', () => {
     expect(btn).toHaveAttribute('data-state', 'gold')
     expect(btn).toHaveTextContent('⭐')
     expect(btn).toHaveTextContent('苹果')
-    expect(btn).toHaveTextContent('píng guǒ')
+    // 两行的**结构**才是契约(拼音挂在 .stone-sub 上吃金色实色 token,不受父级 color 影响);
+    // 只断言 toHaveTextContent 的话,把两行拼进同一个 span 的实现照样过。
+    expect(btn.querySelector('.stone-sub')?.textContent).toBe('píng guǒ')
+    expect(container.querySelectorAll('.stone-sub')).toHaveLength(1)
   })
 
   it('slot 态不渲染任何文本(信息已并入金石)', () => {
@@ -55,13 +58,21 @@ describe('Stone 词石唯一渲染点', () => {
         </span>
       </Stone>,
     )
-    expect(screen.getByRole('button', { name: 'A' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'A' }).querySelector('[data-probe]')).not.toBeNull()
     expect(container.querySelector('[data-probe]')).toHaveAttribute('aria-hidden', 'true')
   })
 
-  it('水平模式用于连连看,不禁用时不带 active 缩放类以外的交互类', () => {
+  it('水平模式用于连连看:横排布局 + 不禁用时带 cursor-pointer', () => {
+    const { container } = render(<Stone state="idle" text="太阳" horizontal />)
+    const btn = container.querySelector('button')!
+    expect(btn.className).toMatch(/\bflex-row\b/)
+    expect(btn.className).toMatch(/\bcursor-pointer\b/)
+  })
+
+  it('禁用态:aria-disabled 且摘掉 cursor-pointer 交互类', () => {
     const { container } = render(<Stone state="idle" text="太阳" horizontal disabled />)
-    expect(container.querySelector('button')).toHaveAttribute('aria-disabled', 'true')
+    const btn = container.querySelector('button')!
+    expect(btn).toHaveAttribute('aria-disabled', 'true')
+    expect(btn.className).not.toMatch(/\bcursor-pointer\b/)
   })
 })

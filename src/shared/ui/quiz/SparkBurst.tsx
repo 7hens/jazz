@@ -16,6 +16,7 @@ export function SparkBurst() {
       {SPARKS.map((s, i) => (
         <motion.span
           key={i}
+          aria-hidden
           data-spark
           className="quiz-spark"
           initial={{ opacity: 0, scale: 0.4, x: 0, y: 0 }}
