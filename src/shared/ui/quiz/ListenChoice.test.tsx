@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { BaseOption } from '@/shared/services'
 import { ListenChoice, type ListenChoiceProps } from './ListenChoice'
+import { CAST_LABEL } from './CastButton'
 
 const options: BaseOption[] = [
   { id: 'a', text: 'A' },
@@ -44,11 +45,11 @@ describe('ListenChoice(自动读 · 标题行喇叭重听 · 透传 Choice 确�
     expect(screen.queryByRole('button', { name: '朗读题目' })).toBeNull()
   })
 
-  it('点选项即念 + 「确定」透传提交;选项朗读语言随 skill', () => {
+  it('点选项即念 + 「就它了!」透传提交;选项朗读语言随 skill', () => {
     renderListen()
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
     expect(speak).toHaveBeenLastCalledWith('A', 'en-US')
-    fireEvent.click(screen.getByRole('button', { name: '确定' }))
+    fireEvent.click(screen.getByRole('button', { name: CAST_LABEL }))
     expect(onAnswer).toHaveBeenCalledWith('a')
   })
 })

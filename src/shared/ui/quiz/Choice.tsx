@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { cn } from '@/shared/ui/utils'
-import { Button } from '@/shared/ui/button'
 import type { BaseOption, SkillKey } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 import { TypeBadge } from './TypeBadge'
+import { QuestionBubble } from './QuestionBubble'
+import { CastButton } from './CastButton'
+import { stoneClass, stoneMark, stoneMarkClass, stoneOffset, type StoneState } from './stone'
 
 export type ChoiceProps = {
   prompt: string
@@ -23,22 +25,6 @@ export type ChoiceProps = {
   showBadge?: boolean
   speak: Speak
   onAnswer: (id: string) => void
-}
-
-function cardCls(disabled: boolean, reveal: boolean, correct: boolean, wrong: boolean, selected: boolean): string {
-  if (reveal || correct) {
-    return 'border-emerald/70 bg-emerald/10 text-ink ring-2 ring-emerald/30'
-  }
-  if (wrong) {
-    return 'border-red bg-red-tint text-red'
-  }
-  if (disabled) {
-    return 'border-hairline bg-surface-2 text-ink-2'
-  }
-  if (selected) {
-    return 'border-accent bg-accent-tint text-ink shadow-card'
-  }
-  return 'border-hairline bg-surface text-ink hover:border-accent/60 hover:shadow-card'
 }
 
 export function Choice({
@@ -77,53 +63,53 @@ export function Choice({
           <TypeBadge kind="choice" />
         </div>
       ) : null}
-      {promptSpeak ? (
-        // 题干整块可点重听区(无喇叭图标)
-        <button
-          type="button"
-          aria-label="再听一遍"
-          onClick={() => speakCard(speak, skill, promptSpeak)}
-          className="mx-auto flex w-full flex-col items-center gap-1 rounded-3xl px-2 pb-2 pt-1 transition-colors hover:bg-accent-tint/60 active:scale-[0.99]"
-        >
-          {promptEmoji ? (
-            <span aria-hidden className="text-7xl leading-none drop-shadow-sm">{promptEmoji}</span>
-          ) : null}
-          <p className="text-center text-lg font-bold leading-snug text-ink">{prompt}</p>
-        </button>
-      ) : (
-        <>
-          {promptEmoji ? (
-            <div aria-hidden className="flex justify-center pb-1">
-              <span className="text-7xl leading-none drop-shadow-sm">{promptEmoji}</span>
-            </div>
-          ) : null}
-          <div className="flex items-center justify-center px-2">
-            <p className="text-center text-lg font-bold leading-snug text-ink">{prompt}</p>
-          </div>
-        </>
-      )}
+
+      <QuestionBubble
+        prompt={prompt}
+        emoji={promptEmoji}
+        onReplay={promptSpeak ? () => speakCard(speak, skill, promptSpeak) : undefined}
+      />
 
       <div className="grid grid-cols-2 gap-3">
-        {options.map((o) => {
-          const reveal = revealId === o.id
-          const correct = correctId === o.id
-          const wrong = wrongId === o.id
-          const isSelected = !disabled && !reveal && !correct && !wrong && selected === o.id
+        {options.map((o, i) => {
+          const state: StoneState =
+            revealId === o.id || correctId === o.id
+              ? 'correct'
+              : wrongId === o.id
+                ? 'wrong'
+                : disabled
+                  ? 'muted'
+                  : selected === o.id
+                    ? 'selected'
+                    : 'idle'
+          const mark = stoneMark(state)
           return (
             <motion.button
               key={o.id}
               type="button"
               aria-disabled={disabled}
               aria-pressed={selected === o.id}
+              data-state={state}
               onClick={() => handleCard(o)}
-              animate={wrong ? { x: [0, -9, 9, -6, 6, 0] } : { x: 0 }}
+              animate={wrongId === o.id ? { x: [0, -9, 9, -6, 6, 0] } : { x: 0 }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
               className={cn(
-                'relative flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-3xl border-2 px-3 py-3 text-center transition-colors',
-                cardCls(disabled, reveal, correct, wrong, isSelected),
-                !disabled && 'active:scale-[0.96] cursor-pointer',
+                stoneClass(state, i),
+                stoneOffset(i),
+                !disabled && 'cursor-pointer active:scale-[0.96]',
               )}
             >
+              {mark ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    'absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold shadow-card',
+                    stoneMarkClass(state),
+                  )}
+                >
+                  {mark}
+                </span>
+              ) : null}
               {o.emoji ? (
                 <span aria-hidden className="text-3xl leading-none">
                   {o.emoji}
@@ -137,14 +123,7 @@ export function Choice({
 
       {!disabled ? (
         <div className="flex flex-col items-center gap-2 pt-1">
-          <Button
-            size="lg"
-            className="w-full sm:w-auto sm:min-w-52"
-            disabled={selected === null}
-            onClick={confirm}
-          >
-            确定
-          </Button>
+          <CastButton disabled={selected === null} onClick={confirm} />
         </div>
       ) : null}
     </div>

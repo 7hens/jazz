@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { BaseOption } from '@/shared/services'
 import { Choice, type ChoiceProps } from './Choice'
+import { CAST_LABEL } from './CastButton'
 
 const options: BaseOption[] = [
   { id: 'a', text: 'A' },
@@ -15,7 +16,7 @@ function renderChoice(over: Partial<ChoiceProps> = {}) {
   return render(<Choice {...base} />)
 }
 
-describe('Choice 确认制(点听 · 确定提交)', () => {
+describe('Choice 确认制(点听 · 施法钮提交)', () => {
   beforeEach(() => { speak.mockClear(); onAnswer.mockClear() })
   afterEach(cleanup)
 
@@ -29,28 +30,28 @@ describe('Choice 确认制(点听 · 确定提交)', () => {
     expect(screen.queryByText('选一选')).toBeNull()
   })
 
-  it('未选中「确定」禁用;点卡先念(缺 speak 读文本)再放开', () => {
+  it('未选中「就它了!」禁用;点卡先念(缺 speak 读文本)再放开', () => {
     renderChoice()
-    expect(screen.getByRole('button', { name: '确定' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: CAST_LABEL })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
     expect(speak).toHaveBeenCalledWith('A', 'zh-CN')
-    expect(screen.getByRole('button', { name: '确定' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: CAST_LABEL })).not.toBeDisabled()
   })
 
-  it('「确定」才提交;提交后清空选中,须重选再答', () => {
+  it('「就它了!」才提交;提交后清空选中,须重选再答', () => {
     renderChoice()
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
-    fireEvent.click(screen.getByRole('button', { name: '确定' }))
+    fireEvent.click(screen.getByRole('button', { name: CAST_LABEL }))
     expect(onAnswer).toHaveBeenCalledWith('a')
     expect(onAnswer).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: '确定' })).toBeDisabled() // 已清空
+    expect(screen.getByRole('button', { name: CAST_LABEL })).toBeDisabled() // 已清空
   })
 
   it('点另一卡改选;提交的是当前选中', () => {
     renderChoice()
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
     fireEvent.click(screen.getByRole('button', { name: 'B' }))
-    fireEvent.click(screen.getByRole('button', { name: '确定' }))
+    fireEvent.click(screen.getByRole('button', { name: CAST_LABEL }))
     expect(onAnswer).toHaveBeenCalledWith('b')
     expect(onAnswer).toHaveBeenCalledTimes(1)
   })
@@ -60,7 +61,7 @@ describe('Choice 确认制(点听 · 确定提交)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
     fireEvent.click(screen.getByRole('button', { name: 'A' }))
     expect(speak).toHaveBeenCalledTimes(2)
-    fireEvent.click(screen.getByRole('button', { name: '确定' }))
+    fireEvent.click(screen.getByRole('button', { name: CAST_LABEL }))
     expect(onAnswer).toHaveBeenCalledWith('a')
   })
 
@@ -71,9 +72,24 @@ describe('Choice 确认制(点听 · 确定提交)', () => {
     expect(screen.queryByRole('button', { name: '朗读题目' })).toBeNull()
   })
 
-  it('disabled:不渲染「确定」,选项禁用', () => {
+  it('disabled:不渲染「就它了!」,选项禁用', () => {
     renderChoice({ disabled: true })
-    expect(screen.queryByRole('button', { name: '确定' })).toBeNull()
+    expect(screen.queryByRole('button', { name: CAST_LABEL })).toBeNull()
     expect(screen.getByRole('button', { name: 'A' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('对错带形状冗余角标(data-state 可测,色彩冗余的可测化)', () => {
+    const { rerender } = renderChoice()
+    fireEvent.click(screen.getByRole('button', { name: 'A' }))
+    fireEvent.click(screen.getByRole('button', { name: CAST_LABEL }))
+    rerender(<Choice prompt="选出正确的一个" skill="pinyin" options={options} speak={speak} onAnswer={onAnswer} correctId="a" />)
+    expect(screen.getByRole('button', { name: 'A' })).toHaveAttribute('data-state', 'correct')
+  })
+
+  it('答错态挂 ✗ 冗余且不靠透明度压暗', () => {
+    renderChoice({ wrongId: 'a' })
+    const btn = screen.getByRole('button', { name: 'A' })
+    expect(btn).toHaveAttribute('data-state', 'wrong')
+    expect(btn.className).not.toMatch(/\bopacity-/)
   })
 })
