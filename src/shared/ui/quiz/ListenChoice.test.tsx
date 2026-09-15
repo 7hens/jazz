@@ -64,4 +64,14 @@ describe('ListenChoice(自动读 · 标题行喇叭重听 · 透传 Choice 确�
     expect(container.querySelector('.quiz-beam')).toBeNull()
     expect(screen.getByRole('button', { name: 'A' })).toHaveTextContent('✓')
   })
+
+  it('消费方传 quiet={false} 覆盖不掉:quiet 写在 {...rest} 之后,D9 不可被上层关掉', () => {
+    // 这条钉的是 ListenChoice.tsx:41 的**书写顺序**(quiet 在 {...rest} 之后)。
+    // 把它挪到 {...rest} 之前,rest 里的 quiet:false 就会赢 → 迸星回来 → 本用例红。
+    // ✓ 是阳性对照:证明这题确实进了答对态,不是「没东西可渲染」的假绿。
+    const { container } = renderListen({ quiet: false, correctId: 'a' })
+    expect(container.querySelector('[data-spark-burst]')).toBeNull()
+    expect(container.querySelector('.quiz-beam')).toBeNull()
+    expect(screen.getByRole('button', { name: 'A' })).toHaveTextContent('✓')
+  })
 })

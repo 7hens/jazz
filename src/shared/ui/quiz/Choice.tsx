@@ -85,7 +85,10 @@ export function Choice({
                   : selected === o.id
                     ? 'selected'
                     : 'idle'
-          const juice = state === 'correct' && !quiet
+          // 只认「用户真答对」(correctId),不认 state 的 correct —— 后者把两次答错后的
+          // 揭晓(revealId)也算进来,那会在一道失败的题上放庆祝动画。揭晓仍保留绿底 + ✓
+          // (那是「正确答案在此」,由 state 表达),但不应迸星、不上光柱。
+          const juice = correctId === o.id && !quiet
           return (
             <Stone
               key={o.id}

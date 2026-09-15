@@ -104,6 +104,21 @@ describe('Choice 确认制(点听 · 施法钮提交)', () => {
     screen.getByRole('button', { name: 'A' })
   })
 
+  it('两次答错后揭晓答案:绿底 + ✓ 保留,但不迸星、不上光柱(庆祝 ≠ 正确答案在此)', () => {
+    // revealId 只在「两次均错 → 揭晓」路径上设置(WordLesson.tsx:202 / scene-ui.tsx:100),
+    // 与 correctId(用户真答对)互斥;此处 disabled=true 与两个生产点的
+    // `disabled: phase !== 'answering'` 一致。阳性对照是上面「答对迸星 + 光柱」用例:
+    // 同一块词石、同一套装饰,只有 correctId 时迸星、只有 revealId 时不迸 —— 两条合起来
+    // 才说明 juice 认的是「答对」而非「绿色」。本用例前两行是空转防线:少了它们,
+    // 「揭晓态压根没生效」的实现照样绿。
+    const { container } = renderChoice({ revealId: 'a', disabled: true })
+    const stone = screen.getByRole('button', { name: 'A' })
+    expect(stone).toHaveAttribute('data-state', 'correct')
+    expect(stone).toHaveTextContent('✓')
+    expect(container.querySelector('[data-spark-burst]')).toBeNull()
+    expect(container.querySelector('.quiz-beam')).toBeNull()
+  })
+
   it('quiet 为真时不迸星、不上光柱(听一听 / 短教分档)', () => {
     const { container } = renderChoice({ correctId: 'a', quiet: true })
     expect(container.querySelector('[data-spark-burst]')).toBeNull()
