@@ -10,12 +10,26 @@ const STONE_BASE =
  *  会(1)逃逸 App 的 MotionConfig reducedMotion 兜底,(2)在 cn()/tailwind-merge 里与 stoneOffset 互吞。 */
 export const STONE_LIFT = -3
 
+/* 三态底色 = **不透明 tint**:把语义色按「旧 alpha 的同一比例」混进主题自身的 `--color-surface`。
+ * 为什么必须不透明:`ScenePanel`(`stage.tsx:135`)与词课/冷启动的题区都没有底色,词石直接压在
+ * `StageSky` 渐变上 —— alpha 底会透出舞台,night/dark 档下文字对比度随氛围漂移(与 Fix 2 的胶囊同病)。
+ * 为什么用 color-mix 而非 `bg-surface`:spec §5 明写「选项-选中 = 石发光」用 `accent-tint`,
+ * 抹成白底 = 拿对比度 bug 换设计回归。混进 surface 后:亮色主题下观感与旧 alpha-on-white 几乎一致,
+ * 暗色主题下色相保留、底色不透明 → 对比度与舞台解耦。16% / 10% / 14% 即旧
+ * `accent-tint` / `emerald/10` / `red-tint` 的亮色 alpha 值。
+ * ⚠ 这三条任意值必须**逐字写在状态表里**,不得抽成函数/模板拼接 —— Tailwind 的内容扫描器只认
+ * 源码里的字面量,拼出来的类名不会进 CSS(实测:抽成 helper 后产物里 `.bg-[color-mix(...)]` 数量为 0)。 */
 const STONE_STATE: Record<StoneState, string> = {
   // 静止态即抬升:默认词石读作「凸起的物件」而非平贴卡;hover 只改描边,不再补阴影。
   idle: 'border-hairline bg-surface text-ink shadow-card hover:border-accent/60',
-  selected: 'border-accent bg-accent-tint text-ink shadow-card ring-2 ring-accent/40',
-  correct: 'border-emerald/70 bg-emerald/10 text-ink ring-2 ring-emerald/30',
-  wrong: 'border-red bg-red-tint text-red',
+  selected:
+    'border-accent bg-[color-mix(in_srgb,var(--color-accent)_16%,var(--color-surface))] text-ink shadow-card ring-2 ring-accent/40',
+  correct:
+    'border-emerald/70 bg-[color-mix(in_srgb,var(--color-emerald)_10%,var(--color-surface))] text-ink ring-2 ring-emerald/30',
+  // 文字用 text-ink 而非 text-red:亮色主题下 text-red #ef4444 在任何比 #000 亮的底上都到不了
+  // 4.5:1(上限 3.763:1,压在纯白上)—— 详见 final-fix-report.md「Fix 7」。红语义由
+  // border-red + 红底 + ✗ 角标(bg-red/白字)三重承载,色彩冗余不缺。
+  wrong: 'border-red bg-[color-mix(in_srgb,var(--color-red)_14%,var(--color-surface))] text-ink',
   muted: 'border-hairline bg-surface-2 text-ink-2',
 }
 
