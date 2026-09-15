@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { Check } from 'lucide-react'
 import { cn } from '@/shared/ui/utils'
 import type { AudioCue } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 import type { BaseOption, SkillKey } from '@/shared/services'
 import { TypeBadge } from './TypeBadge'
+import { stoneClass, stoneMark, stoneMarkClass, type StoneState } from './stone'
 
 type MatchGameProps = {
   prompt: string
@@ -94,23 +94,21 @@ export function MatchGame({
     const isMatched = isLeft ? matched[o.id] !== undefined : matchedRightIds.includes(o.id)
     const isSel = isLeft ? selL === o.id : selR === o.id
     const isMis = mismatch ? (isLeft ? mismatch[0] === o.id : mismatch[1] === o.id) : false
+    const state: StoneState = isMatched ? 'correct' : isMis ? 'wrong' : isSel ? 'selected' : 'idle'
+    const mark = stoneMark(state)
     return (
       <motion.button
         key={o.id}
         type="button"
         aria-disabled={Boolean(isMatched || mismatch || done)}
+        data-state={state}
         onClick={() => (isLeft ? pickLeft(o.id) : pickRight(o.id))}
         animate={isMis ? { x: [0, -9, 9, -6, 6, 0] } : { x: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
         className={cn(
-          'relative flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-2 px-3 py-3 text-center transition-colors',
-          isMatched
-            ? 'border-emerald/60 bg-emerald/10 opacity-80'
-            : isMis
-              ? 'border-red bg-red-tint'
-              : isSel
-                ? 'border-accent bg-accent-tint shadow-card'
-                : 'border-hairline bg-surface hover:border-accent/60',
+          stoneClass(state),
+          'min-h-[64px] flex-row',
+          isMatched && 'opacity-80',
           !isMatched && !mismatch && !done && 'cursor-pointer active:scale-[0.96]',
         )}
       >
@@ -120,9 +118,15 @@ export function MatchGame({
           </span>
         ) : null}
         <span className={cn('font-bold leading-tight', o.emoji ? 'text-base' : 'text-xl')}>{o.text}</span>
-        {isMatched ? (
-          <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald text-white">
-            <Check className="h-3.5 w-3.5" />
+        {mark ? (
+          <span
+            aria-hidden
+            className={cn(
+              'absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold shadow-card',
+              stoneMarkClass(state),
+            )}
+          >
+            {mark}
           </span>
         ) : null}
       </motion.button>

@@ -99,4 +99,22 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
     expect(speak).toHaveBeenCalledTimes(1)
     expect(playSound).toHaveBeenCalledWith('wrong')
   })
+
+  it('配错态挂 ✗ 形状冗余(data-state 可测)', () => {
+    render(
+      <MatchGame
+        prompt="配对"
+        left={left}
+        right={right}
+        answerMap={{ l1: 'r1', l2: 'r2' }}
+        skill="hanzi"
+        playSound={vi.fn()}
+        speak={() => true}
+        onComplete={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '太阳' })) // l1
+    fireEvent.click(screen.getByRole('button', { name: '🌙' })) // r2 → 与 l1 不配对
+    expect(screen.getByRole('button', { name: '太阳' })).toHaveAttribute('data-state', 'wrong')
+  })
 })
