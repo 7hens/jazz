@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { BaseOption } from '@/shared/services'
@@ -226,5 +228,25 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
     expect(container.querySelector('[data-state="wrong"]')).not.toBeNull()
 
     await waitFor(() => expect(container.querySelector('[data-match-burst]')).toBeNull(), { timeout: 2000 })
+  })
+})
+
+// 材质类失守时 npm test 与 npm run lint 都不会红(只有人眼能发现)—— stone.test.ts:57 的同一教训。
+// 这里钉的是「.quiz-pop 只能用独立属性定位」:它挂在 motion.span 上、motion 会往行内 style 写
+// transform,行内永远赢 —— 类里再写 transform 就是死代码(居中与 -8° 倾斜静默失效,「啪!」右偏下偏)。
+// 同文件 .quiz-ring 用 margin 居中、.stone--pop-* 用独立 translate/scale,都是绕开这个坑的先例。
+const css = readFileSync(join(process.cwd(), 'src/index.css'), 'utf8')
+
+describe('index.css .quiz-pop 定位不吃 transform', () => {
+  it('用独立 translate/rotate,不写 transform(会被 motion 的行内 transform 整个吞掉)', () => {
+    // 锚点先断言再切片 —— 否则 indexOf 返回 -1 时 slice(-1) 只取末字符,断言静默空转(stone.test.ts:78 的坑)。
+    const anchor = '.quiz-pop {'
+    expect(css).toContain(anchor)
+    const start = css.indexOf(anchor)
+    const rule = css.slice(start, css.indexOf('}', start))
+    // 先断言「没有 transform」:它才是这条护栏要抓的缺陷(写在这里的任何 transform 都是死代码),
+    // 失败消息才会直指病根,而不是被「缺 translate」抢先。
+    expect(rule).not.toContain('transform:')
+    expect(rule).toContain('translate:')
   })
 })

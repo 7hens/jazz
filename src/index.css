@@ -460,11 +460,16 @@
     0 0 28px rgb(255 220 120 / 0.9),
     inset 0 0 22px rgb(255 220 120 / 0.8);
 }
+/* 居中与 -8° 倾斜必须走独立属性:本元素挂在 motion.span 上、motion 会往行内 style 写 transform,
+ * 行内永远赢 → 类里的 transform 是死代码(「啪!」右偏 ~2.4rem、下偏 ~1rem)。
+ * 独立 translate 排在行内 transform 之前,故 -50% 也不会被 motion 的 scale 缩放。
+ * 同段 .stone--pop-* 用同一手法。 */
 .quiz-pop {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) rotate(-8deg);
+  translate: -50% -50%;
+  rotate: -8deg;
   font-size: 2rem;
   font-weight: 900;
   line-height: 1;
