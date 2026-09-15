@@ -5,6 +5,7 @@ import { TypeBadge } from './TypeBadge'
 import { QuestionBubble } from './QuestionBubble'
 import { CastButton } from './CastButton'
 import { Stone } from './Stone'
+import { SparkBurst } from './SparkBurst'
 import type { StoneState } from './stone'
 
 export type ChoiceProps = {
@@ -22,6 +23,8 @@ export type ChoiceProps = {
   wrongId?: string | null
   /** 内嵌复用(如 ListenChoice)时置 false,徽章由外层题型组件渲染,避免双徽章 */
   showBadge?: boolean
+  /** 不迸星、不上光柱 —— 听一听(D9)与短教教学期用。缺省 false。 */
+  quiet?: boolean
   speak: Speak
   onAnswer: (id: string) => void
 }
@@ -37,6 +40,7 @@ export function Choice({
   correctId = null,
   wrongId = null,
   showBadge = true,
+  quiet = false,
   speak,
   onAnswer,
 }: ChoiceProps) {
@@ -81,6 +85,7 @@ export function Choice({
                   : selected === o.id
                     ? 'selected'
                     : 'idle'
+          const juice = state === 'correct' && !quiet
           return (
             <Stone
               key={o.id}
@@ -92,7 +97,10 @@ export function Choice({
               disabled={disabled}
               shake={wrongId === o.id}
               onClick={() => handleCard(o)}
-            />
+            >
+              {juice ? <span aria-hidden className="quiz-beam" /> : null}
+              {juice ? <SparkBurst /> : null}
+            </Stone>
           )
         })}
       </div>

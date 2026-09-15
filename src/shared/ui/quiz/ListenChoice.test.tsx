@@ -52,4 +52,16 @@ describe('ListenChoice(自动读 · 标题行喇叭重听 · 透传 Choice 确�
     fireEvent.click(screen.getByRole('button', { name: CAST_LABEL }))
     expect(onAnswer).toHaveBeenCalledWith('a')
   })
+
+  it('D9:听一听不迸星、不上光柱(通路是耳朵,不抢注意力)', () => {
+    // ✓ 那一行是**阳性对照**:它证明这题确实走到了答对态(correctId 真透传进了 Choice)。
+    // 少了它,这条用例在「答对态压根没生效」的实现下照样绿 —— 那时两条 toBeNull 对 quiet
+    // 一言未发,只是恰好没东西可渲染。而 Choice「答对迸星 + 光柱」用例是同一个
+    // [data-spark-burst] 选择器的阳性对照(该渲染时必须找得到),两条合起来才排掉
+    // 「选择器写错」这类假绿。
+    const { container } = renderListen({ correctId: 'a' })
+    expect(container.querySelector('[data-spark-burst]')).toBeNull()
+    expect(container.querySelector('.quiz-beam')).toBeNull()
+    expect(screen.getByRole('button', { name: 'A' })).toHaveTextContent('✓')
+  })
 })

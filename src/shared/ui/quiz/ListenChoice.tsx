@@ -38,6 +38,7 @@ export function ListenChoice({ promptSpeak, skill, options, onAnswer, speak, ...
       </div>
       <Choice
         {...rest}
+        quiet
         skill={skill}
         options={options}
         speak={speak}

@@ -215,6 +215,7 @@ export function TeachOverlay({ word, skill, units, basics, speak, playSound, onD
       skill,
       options: q.options,
       speak,
+      quiet: true, // 短教教学期要克制:不迸星、不上光柱(spec §6 分档表)
       disabled: qState === 'correct',
       correctId: qState === 'correct' ? correctId : null,
       onAnswer: handleQuizAnswer,

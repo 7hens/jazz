@@ -94,4 +94,20 @@ describe('Choice 确认制(点听 · 施法钮提交)', () => {
     expect(btn).toHaveTextContent('✗')
     expect(btn.className).not.toMatch(/\bopacity-/)
   })
+
+  it('答对迸星 + 光柱,且装饰不改变 accessible name', () => {
+    const { container } = renderChoice({ correctId: 'a' })
+    expect(container.querySelector('[data-spark-burst]')).not.toBeNull()
+    expect(container.querySelector('.quiz-beam')).not.toBeNull()
+    // 装饰不进 accessible name:getByRole 的字符串 name 是**整串精确匹配**,
+    // 迸星/光柱一旦漏进名字(如 SparkBurst 根节点丢了 aria-hidden)这一行即抛 —— 抛出即断言。
+    screen.getByRole('button', { name: 'A' })
+  })
+
+  it('quiet 为真时不迸星、不上光柱(听一听 / 短教分档)', () => {
+    const { container } = renderChoice({ correctId: 'a', quiet: true })
+    expect(container.querySelector('[data-spark-burst]')).toBeNull()
+    expect(container.querySelector('.quiz-beam')).toBeNull()
+    expect(screen.getByRole('button', { name: 'A' })).toHaveTextContent('✓') // 形状冗余不受影响
+  })
 })
