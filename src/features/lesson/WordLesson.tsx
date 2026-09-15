@@ -287,7 +287,7 @@ export function WordLesson({
           <span className="truncate text-[15px] font-bold">
             {word.emoji} {word.hanzi} · {SKILL_LABEL[skill]}
           </span>
-          <span className="ml-auto shrink-0 rounded-full border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-ink-2">
+          <span data-progress className="ml-auto shrink-0 rounded-full border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-ink-2">
             {qIndex + 1}/{questions.length} · 第{stepIndex + 1}/{steps.length}技能
           </span>
         </div>

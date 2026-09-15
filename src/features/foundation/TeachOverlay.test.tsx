@@ -67,10 +67,16 @@ describe('TeachOverlay 纯判分题(直接答题,无听齐)', () => {
   })
 
   it('按 units 逐题判分,答对 recordAnswer(true) 且全过 markTaught + onDone', async () => {
-    const { basics, onDone } = renderOverlay()
+    const { basics, onDone, container } = renderOverlay()
 
     await screen.findByText(/开头的声母/)
     answerTarget('p')
+    // quiet 分档护栏(spec §6):短教教学期不迸星、不上光柱。
+    // 正控在前 —— 若时机不对(压根没答对 / 已推进到下一题),正控先红,
+    // 免得下面两条 null 断言在一个什么都没渲染的窗口里真空通过。
+    expect(container.querySelector('[data-state="correct"]')).not.toBeNull()
+    expect(container.querySelector('[data-spark-burst]')).toBeNull()
+    expect(container.querySelector('.quiz-beam')).toBeNull()
     await screen.findByText('g') // 已自动推进到第 2 题
     expect(basics.markTaught).not.toHaveBeenCalled() // 未全过,教学记录此时不落
     answerTarget('g')
