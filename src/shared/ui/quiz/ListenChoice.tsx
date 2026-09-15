@@ -23,7 +23,7 @@ export function ListenChoice({ promptSpeak, skill, options, onAnswer, speak, ...
 
   return (
     <div className="space-y-5">
-      {/* 标题行:左徽章「听一听」,右喇叭 = 点击重听(补回标题行喇叭图标,方便复听) */}
+      {/* 标题行:左徽章「听一听」,右喇叭 = 点击重听 */}
       <div className="flex items-center justify-between gap-2">
         <TypeBadge kind="listen-choice" />
         <motion.button
@@ -31,7 +31,7 @@ export function ListenChoice({ promptSpeak, skill, options, onAnswer, speak, ...
           aria-label="再听一遍"
           whileTap={{ scale: 0.9 }}
           onClick={() => speakCard(speak, skill, promptSpeak)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-ink-2 transition-colors hover:bg-accent-tint hover:text-accent"
+          className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-hairline bg-surface text-ink-2 shadow-card transition-colors hover:border-accent/60 hover:text-accent"
         >
           <Volume2 className="h-5 w-5" />
         </motion.button>
