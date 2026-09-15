@@ -122,11 +122,14 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
   })
 
   it('炼金:配对成功后左块变金石(含两侧内容),右位留空凹槽', () => {
+    // 数据形状照抄引擎:左列 text(无 emoji)、右列 emoji(text 恒空串)。
+    // 旧版这里给右列喂了 text 顶替图,掩盖了「右列 text 恒空」这一真实形状 ——
+    // 金石第二行由此读空,见下方图卡组的专项护栏。
     const { container } = render(
       <MatchGame
         prompt="配对"
-        left={[{ id: 'l1', emoji: '🍎', text: '苹果', speak: '苹果' }]}
-        right={[{ id: 'r1', text: 'píng guǒ', speak: '苹果' }]}
+        left={[{ id: 'l1', text: '苹果', speak: '苹果' }]}
+        right={[{ id: 'r1', text: '', emoji: '🍎' }]}
         answerMap={{ l1: 'r1' }}
         skill="hanzi"
         playSound={vi.fn()}
@@ -135,12 +138,13 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: '苹果' }))
-    fireEvent.click(screen.getByRole('button', { name: 'píng guǒ' }))
+    // 图卡无可读名(图 aria-hidden、text 空)→ 只能按位置点。
+    fireEvent.click(container.querySelectorAll('[data-state]')[1])
 
     const gold = container.querySelector('[data-state="gold"]')
     expect(gold).not.toBeNull()
     expect(gold).toHaveTextContent('苹果')
-    expect(gold).toHaveTextContent('píng guǒ')
+    expect(gold).toHaveTextContent('🍎')
     expect(gold).toHaveTextContent('⭐')
 
     const slot = container.querySelector('[data-state="slot"]')
@@ -170,6 +174,71 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
     expect(layer).toHaveTextContent('啪!')
 
     await waitFor(() => expect(container.querySelector('[data-match-burst]')).toBeNull(), { timeout: 2000 })
+  })
+
+  // 引擎两种选项的真实形状(engine.ts 的 textOption / emojiOption):
+  //   左列 = { id, text, speak },**没有 emoji 字段**;右列 = { id, text: '', emoji } —— text 恒空串。
+  // 上面各组用例手写 right.text = emoji 顶替,恰好绕过了这个差异 —— 真机上右列因此全空白。
+  // 下面的用例一律照抄真实形状;锚点:把 MatchGame 的 emoji 判回左列(`isLeft ? o.emoji : undefined`)
+  // 或让 goldSub 读 `?.text`,两者任一都会红。
+  const engineLeft: BaseOption[] = [
+    { id: 'l1', text: 'clock', speak: 'clock' },
+    { id: 'l2', text: 'sun', speak: 'sun' },
+  ]
+  const engineRight: BaseOption[] = [
+    { id: 'r1', text: '', emoji: '🕐' },
+    { id: 'r2', text: '', emoji: '☀️' },
+  ]
+
+  function renderEngineShaped(l = engineLeft, r = engineRight) {
+    return render(
+      <MatchGame
+        prompt="配对"
+        left={l}
+        right={r}
+        answerMap={{ l1: 'r1', l2: 'r2' }}
+        skill="english"
+        playSound={vi.fn()}
+        speak={() => true}
+        onComplete={vi.fn()}
+      />,
+    )
+  }
+
+  it('右列每一张卡都渲染出它自己的图(emoji)', () => {
+    const { container } = renderEngineShaped()
+    // Stone 的 [data-halo] 只在收到 emoji prop 时渲染 —— 个数 =「拿到图的卡数」。
+    const halos = container.querySelectorAll('[data-halo]')
+    expect(halos).toHaveLength(engineRight.length)
+    expect(Array.from(halos).map((h) => h.textContent)).toEqual(engineRight.map((r) => r.emoji))
+  })
+
+  it('左列是文字卡:不出图,出自己的字', () => {
+    const { container } = renderEngineShaped()
+    // 左列先渲染(列内 DOM 顺序 = left 数组顺序)。
+    const leftCards = Array.from(container.querySelectorAll('[data-state]')).slice(0, engineLeft.length)
+    expect(leftCards).toHaveLength(engineLeft.length)
+    leftCards.forEach((card, i) => {
+      expect(card.querySelector('[data-halo]')).toBeNull()
+      expect(card).toHaveTextContent(engineLeft[i].text)
+    })
+  })
+
+  it('配对后金石两行:第一行左词,第二行是它配上那张图', () => {
+    const { container } = renderEngineShaped(
+      [{ id: 'l1', text: 'clock', speak: 'clock' }],
+      [{ id: 'r1', text: '', emoji: '🕐' }],
+    )
+    const cards = Array.from(container.querySelectorAll('[data-state]'))
+    fireEvent.click(cards[0]) // 左卡
+    fireEvent.click(cards[1]) // 右卡 → 判合
+
+    const gold = container.querySelector('[data-state="gold"]')
+    expect(gold).not.toBeNull()
+    expect(gold).toHaveTextContent('clock')
+    const sub = gold!.querySelector('.stone-sub')
+    expect(sub).not.toBeNull()
+    expect(sub!.textContent).toBe('🕐')
   })
 
   it('对撞:配对的两块各挂一侧 pop 类,爆点结束后一起摘掉', async () => {

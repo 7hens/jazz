@@ -107,14 +107,15 @@ export function MatchGame({
     // 炼金(甲):左边炼成金石,右边留凹槽。凹槽不渲染文本 —— 信息已并入金石,
     // 免去低对比度灰字,也顺带让「读屏听到的」与「眼睛看到的」一致。
     const state: StoneState = isMatched ? (isLeft ? 'gold' : 'slot') : isMis ? 'wrong' : isSel ? 'selected' : 'idle'
-    const goldSub = isLeft && isMatched ? right.find((r) => r.id === matched[o.id])?.text : undefined
+    const goldSub = isLeft && isMatched ? right.find((r) => r.id === matched[o.id])?.emoji : undefined
     const popping = burst ? (isLeft ? burst[0] === o.id : burst[1] === o.id) : false
     return (
       <Stone
         key={o.id}
         state={state}
         horizontal
-        emoji={isLeft ? o.emoji : undefined}
+        // 图只属于右列(左列选项没有 emoji 字段);配对后右位转凹槽,图随 text 一起收起。
+        emoji={isLeft || state === 'slot' ? undefined : o.emoji}
         text={state === 'slot' ? undefined : o.text}
         subText={goldSub}
         disabled={Boolean(isMatched || mismatch || done)}
