@@ -120,7 +120,12 @@ describe('TeachOverlay 纯判分题(直接答题,无听齐)', () => {
 
   it('教学期挂「📖 演示」卷轴头且用虚线边框(与真答题区分,不单靠颜色)', () => {
     renderOverlay()
-    expect(screen.getByText('📖 演示')).toBeTruthy()
+    // 通道 2:卷轴头(显式文字)
+    const header = screen.getByText('📖 演示')
+    expect(header).toBeTruthy()
+    // 通道 1:同一壳体上的虚线边框 —— 删掉 `border-dashed` 本断言即红
+    // (header 是 renderQuestion 内 motion.div 壳体的首个子节点,parentElement 即该壳)
+    expect(header.parentElement?.className).toContain('border-dashed')
   })
 
   it('onExit:praise 结课「返回地图」离教(未点「开始答题」不 onDone)', async () => {
