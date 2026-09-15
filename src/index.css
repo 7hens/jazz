@@ -35,6 +35,13 @@
   --color-red: #ef4444;
   --color-red-tint: rgb(239 68 68 / 0.14);
 
+  /* 金石(连连看炼成物):三主题恒定,故不进暗色覆盖块 */
+  --color-gold: #ffc23d; /* 金石面(渐变深处) */
+  --color-gold-2: #ffeaa8; /* 金石面(渐变亮处) */
+  --color-gold-edge: #c98a00; /* 金石厚度底边 */
+  --color-gold-ink: #4a2e00; /* 金石主行文字 —— 压 #ffc23d 实测 7.75:1 */
+  --color-gold-ink-2: #6b4300; /* 金石拼音行   —— 压 #ffc23d 实测 5.37:1 */
+
   /* 阴影 */
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.08);
   --shadow-pop: 0 4px 16px -4px rgb(0 0 0 / 0.12), 0 20px 48px -16px rgb(0 0 0 / 0.18);
@@ -269,3 +276,150 @@
 .stage-world--dim { filter: grayscale(0.9) brightness(0.74) saturate(0.35); }
 .stage-world--light { filter: grayscale(0.55) brightness(0.88) saturate(0.6); }
 .stage-world--half { filter: grayscale(0.22) brightness(0.96) saturate(0.85); }
+
+/* ===== 题面糖果材质(spec: 2026-09-15-quiz-candy-juice-design §5)=====
+ * 为什么是「不带 @layer 的普通类」:非分层样式优先级高于 @layer utilities,才能压过 Tailwind
+ * 任意值类;且完全绕开 v4 扫描器(上一轮把 color-mix 任意值抽成 helper 后,产物里规则数归零,
+ * 而 npm test 与 npm run lint 全绿 —— 只有 npm run build 能发现)。
+ * 为什么全部走 token + color-mix:暗色模式由 index.css 的 token 覆盖自动接管,无需 dark: 类。
+ * 硬约束:本段禁止裸 hex;白色高光/半透明白沿用仓库既有写法 rgb(255 255 255 / x)。 */
+.stone {
+  position: relative;
+  isolation: isolate; /* 让子元素 z-index:-1 的光柱/晕托稳定落在石面之上、文字之下 */
+  border-style: solid;
+  border-width: 2px;
+  color: var(--color-ink);
+  background-image: linear-gradient(180deg, var(--color-surface), var(--color-surface-2));
+  /* 第三层 = 厚度(实心底边);第四层 = 内侧上缘高光;第二层 = 落影 */
+  box-shadow:
+    0 6px 0 var(--color-surface-3),
+    0 12px 18px -12px rgb(31 58 95 / 0.35),
+    inset 0 2px 0 rgb(255 255 255 / 0.9);
+}
+
+.stone--idle {
+  border-color: var(--color-hairline);
+}
+.stone--idle:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 60%, var(--color-hairline));
+}
+
+.stone--selected {
+  border-color: var(--color-accent);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-accent) 22%, var(--color-surface)),
+    color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))
+  );
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--color-accent) 55%, var(--color-surface-3)),
+    0 0 0 3px color-mix(in srgb, var(--color-accent) 38%, transparent),
+    0 14px 26px -12px color-mix(in srgb, var(--color-accent) 72%, transparent),
+    inset 0 2px 0 rgb(255 255 255 / 0.9);
+}
+
+/* 三态中唯一发光者 —— 「对了」必须比「错了」更耀眼 */
+.stone--correct {
+  border-color: color-mix(in srgb, var(--color-emerald) 70%, var(--color-surface));
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-emerald) 18%, var(--color-surface)),
+    color-mix(in srgb, var(--color-emerald) 10%, var(--color-surface))
+  );
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--color-emerald) 55%, var(--color-surface-3)),
+    0 0 0 3px color-mix(in srgb, var(--color-emerald) 34%, transparent),
+    0 14px 30px -10px color-mix(in srgb, var(--color-emerald) 75%, transparent),
+    inset 0 2px 0 rgb(255 255 255 / 0.9);
+}
+
+/* 答错不发光:不让「错了」比「对了」更耀眼 */
+.stone--wrong {
+  border-color: var(--color-red);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-red) 18%, var(--color-surface)),
+    color-mix(in srgb, var(--color-red) 12%, var(--color-surface))
+  );
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--color-red) 45%, var(--color-surface-3)),
+    inset 0 2px 0 rgb(255 255 255 / 0.9);
+}
+
+.stone--muted {
+  border-color: var(--color-hairline);
+  color: var(--color-ink-2);
+  background-image: linear-gradient(180deg, var(--color-surface-2), var(--color-surface-2));
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--color-surface-3) 70%, var(--color-surface-2));
+}
+
+/* 金石 = 炼成物。金字色恒定(三主题同色),故这里用固定 token 而非 color-mix 进 surface。 */
+.stone--gold {
+  border-color: color-mix(in srgb, var(--color-gold-edge) 75%, var(--color-gold));
+  color: var(--color-gold-ink);
+  background-image: linear-gradient(180deg, var(--color-gold-2), var(--color-gold));
+  box-shadow:
+    0 6px 0 var(--color-gold-edge),
+    0 14px 24px -12px color-mix(in srgb, var(--color-gold) 80%, transparent),
+    inset 0 2px 0 rgb(255 255 255 / 0.9);
+}
+
+/* 凹槽 = 被熔走后的空位。虚线 + 内凹阴影是**非颜色**的形状冗余。 */
+.stone--slot {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
+  background-image: none;
+  background-color: color-mix(in srgb, var(--color-ink) 7%, transparent);
+  box-shadow: inset 0 3px 7px color-mix(in srgb, var(--color-ink) 20%, transparent);
+}
+
+/* 金石第二行(拼音)。实色 token,禁止用 opacity 调弱 —— 金色实色 token 一旦压到 72% 就破线:
+ * --color-gold-ink 压金石面实测仅 4.01:1(本行用的 --color-gold-ink-2 更低)。 */
+.stone-sub {
+  color: var(--color-gold-ink-2);
+}
+
+/* 柔光晕托:emoji 是彩色位图不吃 color,橙底撞 🌙⭐🔥、绿底撞 🍏🥒、红底撞 🍎🍓。
+ * 白色径向柔光把 emoji 可读性与底色彻底解耦。宽度随 em 缩放 → 跟着 2× 缩放走。 */
+.stone-halo {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.stone-halo::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.1em;
+  height: 2.1em;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  z-index: -1;
+  background: radial-gradient(
+    circle,
+    rgb(255 255 255 / 0.95) 0%,
+    rgb(255 255 255 / 0.72) 46%,
+    rgb(255 255 255 / 0) 74%
+  );
+}
+
+/* 答对光柱:从石底往上打的柔和绿光。静态渐变,不受 reduced-motion 影响(不塌)。 */
+.quiz-beam {
+  position: absolute;
+  left: 50%;
+  bottom: -16%;
+  width: 78%;
+  height: 132%;
+  transform: translateX(-50%);
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    color-mix(in srgb, var(--color-emerald) 55%, transparent) 0%,
+    transparent 72%
+  );
+}

@@ -7,7 +7,10 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    /* 测试跑在 node 下(读 src/index.css 做产物探针),故需 node 类型;代价是 app program
+     * 里也能看见 node 全局。明写在此而非用 triple-slash —— 后者藏在文件里、实际放宽整个
+     * program,是「沉默放宽」;此处意图写在脸上,与 tsconfig.node.json 的 "types": ["node"] 一致。 */
+    "types": ["vite/client", "node"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
