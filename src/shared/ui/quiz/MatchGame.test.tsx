@@ -245,8 +245,12 @@ describe('index.css .quiz-pop 定位不吃 transform', () => {
     const start = css.indexOf(anchor)
     const rule = css.slice(start, css.indexOf('}', start))
     // 先断言「没有 transform」:它才是这条护栏要抓的缺陷(写在这里的任何 transform 都是死代码),
-    // 失败消息才会直指病根,而不是被「缺 translate」抢先。
-    expect(rule).not.toContain('transform:')
+    // 失败消息才会直指病根,而不是被「缺 translate」抢先。用正则而非字面量,连 `transform :` 这种
+    // 带空格的写法也拦(该写法同样覆盖整条 transform 属性;`transform-origin:` 之类中间隔着 `-`,不会误伤)。
+    expect(rule).not.toMatch(/transform\s*:/)
+    // 两个独立属性各钉一条:只钉 translate 的话,`rotate: -8deg;` 被单独删掉会静默全绿
+    // —— 那正是这条护栏要防的「视觉定位悄悄失效」。
+    expect(rule).toContain('rotate: -8deg')
     expect(rule).toContain('translate:')
   })
 })
