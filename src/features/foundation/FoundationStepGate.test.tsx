@@ -80,7 +80,7 @@ function answerTarget(container: HTMLElement, target: string) {
   const btns = Array.from(grid!.querySelectorAll('button'))
   btns.forEach((b) => fireEvent.click(b))
   fireEvent.click(screen.getByText(target))
-  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 describe('FoundationStepGate', () => {

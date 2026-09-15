@@ -313,9 +313,9 @@ function clickAnyOption(container: HTMLElement) {
   fireEvent.click(btn)
 }
 
-/** 提交当前题(新确认制:点选项后再点「确定」才判)。 */
+/** 提交当前题(新确认制:点选项后再点「就它了!」才判)。 */
 function confirmAnswer() {
-  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 beforeEach(() => registry.clear())

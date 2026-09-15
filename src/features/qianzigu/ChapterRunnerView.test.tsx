@@ -231,10 +231,10 @@ function renderRunner(chapter: Chapter, row: ChapterProgressRow | null = null) {
   return { ...fakes, onExit, onSettled, ...utils }
 }
 
-/** 当前 Choice 题作答:点选项再点确定(对/错都即时推进或进入 reveal)。 */
+/** 当前 Choice 题作答:点选项再点「就它了!」(对/错都即时推进或进入 reveal)。 */
 function answer(text: string) {
   fireEvent.click(screen.getByRole('button', { name: text }))
-  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 describe('ChapterRunnerView 逐 scene 运行器', () => {
@@ -374,7 +374,7 @@ describe('ChapterRunnerView 逐 scene 运行器', () => {
     // 进度 0 → 回春满灰档;太阳位恒挂天幕(不再分档)
     expect(document.querySelector('.stage-world--dim')).not.toBeNull()
     expect(document.querySelector('[data-sun]')).not.toBeNull()
-    answer('太阳') // 现有 helper:点选项 → 确定
+    answer('太阳') // 现有 helper:点选项 → 就它了!
     answer('太阳')
     // 引擎仅记一层恢复(task 场景 1 层)→ fraction=1 → 撤灰上彩;太阳位仍在
     expect(document.querySelector('[class*="stage-world--"]')).toBeNull()

@@ -31,10 +31,10 @@ function tier(n: number): Question {
 }
 const questions: Question[] = [tier(1), tier(2), tier(3)]
 
-// Choice 是两步:点卡(顺带朗读)→ 点「确定」提交(Choice.tsx:61-71)。
+// Choice 是两步:点卡(顺带朗读)→ 点「就它了!」提交(Choice.tsx:61-71)。
 async function answer(user: UserEvent, text: string): Promise<void> {
   await user.click(screen.getByRole('button', { name: text }))
-  await user.click(screen.getByRole('button', { name: '确定' }))
+  await user.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 function renderScene() {

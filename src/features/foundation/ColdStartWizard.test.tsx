@@ -53,9 +53,9 @@ function clickAnyOption(container: HTMLElement) {
   fireEvent.click(btn)
 }
 
-/** 新确认制:点「确定」提交当前选中。 */
+/** 新确认制:点「就它了!」提交当前选中。 */
 function confirmAnswer() {
-  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 const ADVANCE = () => act(() => { vi.advanceTimersByTime(700) })

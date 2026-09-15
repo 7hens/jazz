@@ -26,16 +26,16 @@ function optionButtons(container: HTMLElement): HTMLElement[] {
   return Array.from(grid.querySelectorAll('button'))
 }
 
-/** 直接判分作答:选 target → 确定。 */
+/** 直接判分作答:选 target → 点「就它了!」。 */
 function answerTarget(target: string) {
   fireEvent.click(screen.getByText(target))
-  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
-/** 直接判分作答:选干扰项 wrong → 确定。 */
+/** 直接判分作答:选干扰项 wrong → 点「就它了!」。 */
 function answerWrong(wrong: string) {
   fireEvent.click(screen.getByText(wrong))
-  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 function renderOverlay(over: { onDone?: () => void; onExit?: () => void } = {}) {

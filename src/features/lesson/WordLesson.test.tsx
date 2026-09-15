@@ -21,10 +21,10 @@ function renderLesson(over: Partial<Parameters<typeof WordLesson>[0]> = {}) {
   return render(<WordLesson {...base} {...over} />)
 }
 
-/** 新确认制作答:点选项(即念) → 点「确定」提交。 */
+/** 新确认制作答:点选项(即念) → 点「就它了!」提交。 */
 function answerChoice(text: string) {
   fireEvent.click(screen.getByText(text))
-  fireEvent.click(screen.getByRole('button', { name: '确定' }))
+  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 describe('WordLesson stepGate', () => {
