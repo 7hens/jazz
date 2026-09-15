@@ -302,7 +302,7 @@ export function WordLesson({
           ))}
         </div>
 
-        <div className="rounded-[1.75rem] border border-hairline bg-surface p-4 shadow-card sm:p-6">
+        <div className="space-y-3 px-1">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={`${stepIndex}-${round}-${qIndex}`}
