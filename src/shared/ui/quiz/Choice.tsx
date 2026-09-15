@@ -6,7 +6,7 @@ import { speakCard, type Speak } from './speech'
 import { TypeBadge } from './TypeBadge'
 import { QuestionBubble } from './QuestionBubble'
 import { CastButton } from './CastButton'
-import { stoneClass, stoneMark, stoneMarkClass, stoneOffset, type StoneState } from './stone'
+import { STONE_LIFT, stoneClass, stoneMark, stoneMarkClass, stoneOffset, type StoneState } from './stone'
 
 export type ChoiceProps = {
   prompt: string
@@ -91,7 +91,11 @@ export function Choice({
               aria-pressed={selected === o.id}
               data-state={state}
               onClick={() => handleCard(o)}
-              animate={wrongId === o.id ? { x: [0, -9, 9, -6, 6, 0] } : { x: 0 }}
+              animate={
+                wrongId === o.id
+                  ? { x: [0, -9, 9, -6, 6, 0], y: 0 } // 抖动期不得残留上浮位移
+                  : { x: 0, y: state === 'selected' || state === 'correct' ? STONE_LIFT : 0 }
+              }
               transition={{ duration: 0.4, ease: 'easeOut' }}
               className={cn(
                 stoneClass(state, i),

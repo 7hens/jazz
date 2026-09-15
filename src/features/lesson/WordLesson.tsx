@@ -327,7 +327,7 @@ export function WordLesson({
             ) : null}
           </AnimatePresence>
 
-          {/* 反馈徽标 */}
+          {/* 反馈徽标:底色不透明(bg-surface + text-ink),语义色走环 —— 去白卡后 alpha 底会随天空/夜色漂移对比度 */}
           <div className="flex min-h-[52px] items-center justify-center pt-3">
             <AnimatePresence mode="wait">
               {phase === 'feedback' ? (
@@ -336,7 +336,7 @@ export function WordLesson({
                   initial={{ opacity: 0, scale: 0.7 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 rounded-full bg-emerald/10 px-4 py-1.5 text-sm font-bold text-emerald"
+                  className="flex items-center gap-1.5 rounded-full bg-surface px-4 py-1.5 text-sm font-bold text-ink ring-1 ring-emerald/50"
                 >
                   ✓ 答对啦
                 </motion.div>
@@ -347,7 +347,7 @@ export function WordLesson({
                   initial={{ opacity: 0, scale: 0.7 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 rounded-full bg-red-tint px-4 py-1.5 text-sm font-bold text-red"
+                  className="flex items-center gap-1.5 rounded-full bg-surface px-4 py-1.5 text-sm font-bold text-ink ring-1 ring-red/50"
                 >
                   ✗ 这步要再练一次
                 </motion.div>
@@ -358,7 +358,7 @@ export function WordLesson({
                   initial={{ opacity: 0, scale: 0.7 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 rounded-full bg-accent-tint px-4 py-1.5 text-sm font-bold text-accent"
+                  className="flex items-center gap-1.5 rounded-full bg-surface px-4 py-1.5 text-sm font-bold text-ink ring-1 ring-accent/50"
                 >
                   再试一次吧 ✨
                 </motion.div>

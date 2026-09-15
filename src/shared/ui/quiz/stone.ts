@@ -6,8 +6,13 @@ export type StoneState = 'idle' | 'selected' | 'correct' | 'wrong' | 'muted'
 const STONE_BASE =
   'relative flex min-h-[84px] flex-col items-center justify-center gap-1.5 border-2 px-3 py-3 text-center transition-colors'
 
+/** 选中/答对的上浮位移(px)。只能经 motion 的 `animate={{ y }}` 用 —— 裸 Tailwind `translate-y-*`
+ *  会(1)逃逸 App 的 MotionConfig reducedMotion 兜底,(2)在 cn()/tailwind-merge 里与 stoneOffset 互吞。 */
+export const STONE_LIFT = -3
+
 const STONE_STATE: Record<StoneState, string> = {
-  idle: 'border-hairline bg-surface text-ink hover:border-accent/60 hover:shadow-card',
+  // 静止态即抬升:默认词石读作「凸起的物件」而非平贴卡;hover 只改描边,不再补阴影。
+  idle: 'border-hairline bg-surface text-ink shadow-card hover:border-accent/60',
   selected: 'border-accent bg-accent-tint text-ink shadow-card ring-2 ring-accent/40',
   correct: 'border-emerald/70 bg-emerald/10 text-ink ring-2 ring-emerald/30',
   wrong: 'border-red bg-red-tint text-red',

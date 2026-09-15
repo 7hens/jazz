@@ -162,15 +162,17 @@ function QuestionCard({
         </motion.div>
       </AnimatePresence>
 
+      {/* 反馈胶囊底色一律不透明(bg-surface + text-ink):胶囊直浮天空/夜色,alpha 底色会让对比度随氛围档漂移。
+          语义色改由环承载(ring-red/50 等),✓/✗ 字形保留 —— 色彩冗余不靠红绿。 */}
       <div className="flex min-h-[40px] items-center justify-center pt-3">
         <AnimatePresence mode="wait">
           {phase === 'reveal' ? (
-            <motion.p key="reveal" className="rounded-full bg-red-tint px-4 py-1.5 text-sm font-bold text-red">
+            <motion.p key="reveal" className="rounded-full bg-surface px-4 py-1.5 text-sm font-bold text-ink ring-1 ring-red/50">
               ✗ 再试一次吧
             </motion.p>
           ) : null}
           {phase === 'answering' && attempt === 2 ? (
-            <motion.p key="retry" className="rounded-full bg-accent-tint px-4 py-1.5 text-sm font-bold text-accent">
+            <motion.p key="retry" className="rounded-full bg-surface px-4 py-1.5 text-sm font-bold text-ink ring-1 ring-accent/50">
               再试一次吧 ✨
             </motion.p>
           ) : null}

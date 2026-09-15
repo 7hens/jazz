@@ -5,7 +5,8 @@ import type { AudioCue } from '@/shared/services'
 import { speakCard, type Speak } from './speech'
 import type { BaseOption, SkillKey } from '@/shared/services'
 import { TypeBadge } from './TypeBadge'
-import { stoneClass, stoneMark, stoneMarkClass, type StoneState } from './stone'
+import { QuestionBubble } from './QuestionBubble'
+import { STONE_LIFT, stoneClass, stoneMark, stoneMarkClass, type StoneState } from './stone'
 
 type MatchGameProps = {
   prompt: string
@@ -103,7 +104,11 @@ export function MatchGame({
         aria-disabled={Boolean(isMatched || mismatch || done)}
         data-state={state}
         onClick={() => (isLeft ? pickLeft(o.id) : pickRight(o.id))}
-        animate={isMis ? { x: [0, -9, 9, -6, 6, 0] } : { x: 0 }}
+        animate={
+          isMis
+            ? { x: [0, -9, 9, -6, 6, 0], y: 0 } // 抖动期不得残留上浮位移
+            : { x: 0, y: state === 'selected' || state === 'correct' ? STONE_LIFT : 0 }
+        }
         transition={{ duration: 0.4, ease: 'easeOut' }}
         className={cn(
           stoneClass(state),
@@ -138,7 +143,8 @@ export function MatchGame({
       <div className="flex justify-start">
         <TypeBadge kind="match" />
       </div>
-      <p className="text-center text-lg font-bold leading-snug text-ink">{prompt}</p>
+      {/* 无朗读重听语义 → 不传 onReplay,QuestionBubble 渲染 div 而非 button */}
+      <QuestionBubble prompt={prompt} />
       <div className="grid grid-cols-2 items-start gap-3">
         <div className="space-y-2.5">{left.map((o) => renderCard(o, true))}</div>
         <div className="space-y-2.5">{right.map((o) => renderCard(o, false))}</div>

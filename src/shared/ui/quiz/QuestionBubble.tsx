@@ -44,10 +44,11 @@ export function QuestionBubble({ prompt, asker = DEFAULT_ASKER, emoji, onReplay 
       ) : (
         <div className={boxCls}>{content}</div>
       )}
-      {/* 尾:指向出题者(左下) */}
+      {/* 尾:指向出题者(左下)。`-mt-1` 让三角压住气泡 2px 下边框、消除接缝(参数对齐 DialoguePresenter 的 Bubble);
+          水平定位保留 ml-6(本气泡恒左对齐,故不照抄那边的 mx-auto)。 */}
       <span
         aria-hidden
-        className="ml-6 block h-0 w-0 border-x-8 border-t-[10px] border-x-transparent border-t-surface"
+        className="ml-6 -mt-1 block h-0 w-0 border-x-8 border-t-[10px] border-x-transparent border-t-surface"
       />
     </div>
   )
