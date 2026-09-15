@@ -152,6 +152,33 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
     expect(slot!.textContent).toBe('')
   })
 
+  it('凹槽抑制文字:右列选项即便带非空 text,熔走后也不得显示', () => {
+    // ⚠ fixture 刻意不真实:引擎在零动红线内保证右列 text 恒为 ''(engine.ts 的 emojiOption)。
+    // 这里**故意**喂非空 text,只为钉住 MatchGame 的防御性契约 ——
+    // `text={state === 'slot' ? undefined : o.text}`(spec:右位留凹槽,不显示文字)。
+    // 本条不代表引擎的真实形状;真实形状的用例见下方图卡组(engineLeft / engineRight)。
+    const { container } = render(
+      <MatchGame
+        prompt="配对"
+        left={[{ id: 'l1', text: '苹果', speak: '苹果' }]}
+        right={[{ id: 'r1', text: '苹果', emoji: '🍎' }]}
+        answerMap={{ l1: 'r1' }}
+        skill="hanzi"
+        playSound={vi.fn()}
+        speak={() => true}
+        onComplete={vi.fn()}
+      />,
+    )
+    // 两侧可读名撞车(左列 text 与右列 text 同值)→ 只能按位置点。
+    const cards = Array.from(container.querySelectorAll('[data-state]'))
+    fireEvent.click(cards[0]) // 左卡
+    fireEvent.click(cards[1]) // 右卡 → 判合
+
+    const slot = container.querySelector('[data-state="slot"]')
+    expect(slot).not.toBeNull()
+    expect(slot!.textContent).not.toContain('苹果')
+  })
+
   it('爆点:配对瞬间渲染冲击波与拟声词,且均为 aria-hidden 装饰', async () => {
     const { container } = render(
       <MatchGame
