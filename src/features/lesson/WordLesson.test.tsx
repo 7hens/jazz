@@ -163,6 +163,17 @@ describe('WordLesson 顶栏 HUD', () => {
     expect(container.querySelector('[data-hud="combo"]')).toHaveTextContent('3')
   })
 
+  it('HUD 只把 emoji 字形标成 aria-hidden 装饰,数字与「连击」留给读屏', () => {
+    const { container } = renderLesson({ dust: 42, combo: 3 })
+    // 锚点:整行 aria-hidden 会把信息一起吞掉,只包 emoji 才既去噪又留读数。
+    const dustMark = container.querySelector('[data-hud="dust"] [aria-hidden="true"]')
+    const comboMark = container.querySelector('[data-hud="combo"] [aria-hidden="true"]')
+    expect(dustMark).toHaveTextContent('✨')
+    expect(comboMark).toHaveTextContent('🔥')
+    expect(container.querySelector('[data-hud="dust"]')).toHaveTextContent('42')
+    expect(container.querySelector('[data-hud="combo"]')).toHaveTextContent('3 连击')
+  })
+
   it('景深层随题卡一同渲染', () => {
     const { container } = renderLesson()
     expect(container.querySelector('[data-lesson-ambience]')).not.toBeNull()

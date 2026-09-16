@@ -152,6 +152,46 @@ describe('MatchGame 点读语义(纯选择才读,配对/取消不读)', () => {
     expect(slot!.textContent).toBe('')
   })
 
+  it('炼金过渡:配对瞬间右块进入缩小淡出、左块金闪,过渡走完即卸载(而非瞬切)', async () => {
+    const { container } = render(
+      <MatchGame
+        prompt="配对"
+        left={[{ id: 'l1', text: '苹果', speak: '苹果' }]}
+        right={[{ id: 'r1', text: '', emoji: '🍎' }]}
+        answerMap={{ l1: 'r1' }}
+        skill="hanzi"
+        playSound={vi.fn()}
+        speak={() => true}
+        onComplete={vi.fn()}
+      />,
+    )
+    const cards = Array.from(container.querySelectorAll('[data-state]'))
+    fireEvent.click(cards[0]) // 左卡
+    fireEvent.click(cards[1]) // 右卡 → 判合
+
+    // 终态(金石 / 凹槽)照旧同步落地:过渡是叠加其上的装饰层,不推迟切态(spec §7.1 的必备行为)。
+    const gold = container.querySelector('[data-state="gold"]')
+    const slot = container.querySelector('[data-state="slot"]')
+    expect(gold).not.toBeNull()
+    expect(slot).not.toBeNull()
+
+    // 锚点:缩小淡出挂在右块(凹槽)内、金闪挂在左块(金石)内 —— 写反/两边都挂都骗不过。
+    const shrink = slot!.querySelector('[data-alchemy="shrink"]')
+    const flash = gold!.querySelector('[data-alchemy="flash"]')
+    expect(shrink).not.toBeNull()
+    expect(flash).not.toBeNull()
+    expect(shrink).toHaveAttribute('aria-hidden', 'true')
+    expect(flash).toHaveAttribute('aria-hidden', 'true')
+    // 残影不含文字 —— 「凹槽 textContent === ''」那条既有断言不许被过渡打破。
+    expect(slot!.textContent).toBe('')
+    // 真由 motion 驱动(而不是一块静态装饰):行内 style 上有它写入的动画属性。
+    expect(shrink!.getAttribute('style') ?? '').toMatch(/opacity|transform/)
+    expect(flash!.getAttribute('style') ?? '').toMatch(/opacity|transform/)
+
+    // 一次性:过渡走完两个节点都卸载。退回「瞬切 + 常驻装饰」时这条会红。
+    await waitFor(() => expect(container.querySelector('[data-alchemy]')).toBeNull(), { timeout: 2000 })
+  })
+
   it('凹槽抑制文字:右列选项即便带非空 text,熔走后也不得显示', () => {
     // ⚠ fixture 刻意不真实:引擎在零动红线内保证右列 text 恒为 ''(engine.ts 的 emojiOption)。
     // 这里**故意**喂非空 text,只为钉住 MatchGame 的防御性契约 ——

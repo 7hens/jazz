@@ -50,9 +50,15 @@ describe('index.css 水晶材质类存在性', () => {
     }
   })
 
-  it('材质类用 token / color-mix,不写裸 hex', () => {
+  it('材质类用 token / color-mix,不写颜色字面量(hex / rgb() / hsl(),白色高光除外)', () => {
+    // 与 stone.test.ts 同款:只查 hex 会放过 rgb()。.crystal--todo 的内凹影一度就是
+    // `rgb(31 58 95 / 0.18)`(即 --color-shadow 的字面量),本轮改回 token。
+    const WHITE_HIGHLIGHT = /rgb\(\s*255\s+255\s+255\s*(?:\/\s*[\d.]+%?\s*)?\)/g
     for (const s of MATERIALS) {
-      expect(ruleBlock(`.crystal--${s}`)).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+      const withoutWhite = ruleBlock(`.crystal--${s}`).replace(WHITE_HIGHLIGHT, '')
+      expect(withoutWhite).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+      // \b 保证不误伤 color-mix(in srgb, …) 里的 "srgb"。
+      expect(withoutWhite).not.toMatch(/\b(?:rgb|rgba|hsl|hsla|oklch|lab|lch)\(/)
     }
   })
 

@@ -294,11 +294,11 @@ export function WordLesson({
         {/* HUD:星尘 + 连击。连击 <2 不占位(单次答对不叫连击)。 */}
         <div className="mx-auto flex max-w-xl items-center gap-3 px-4 pb-2 text-xs font-bold">
           <span data-hud="dust" className="text-accent-ink">
-            ✨ {dust}
+            <span aria-hidden>✨</span> {dust}
           </span>
           {combo >= 2 ? (
             <span data-hud="combo" className="text-accent-ink">
-              🔥 {combo} 连击
+              <span aria-hidden>🔥</span> {combo} 连击
             </span>
           ) : null}
         </div>

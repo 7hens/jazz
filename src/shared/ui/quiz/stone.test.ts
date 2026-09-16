@@ -74,11 +74,28 @@ describe('index.css 材质类存在性', () => {
     expect(rule).not.toMatch(/opacity:/)
   })
 
-  it('材质类不写裸 hex', () => {
+  it('材质类不写颜色字面量:hex 与 rgb()/hsl() 一并拦(白色高光除外)', () => {
     // marker 缺失时 indexOf 返回 -1、slice(-1) 只取末字符 → 断言会静默空转,故先显式断言 marker 存在。
     const marker = '/* ===== 题面糖果材质'
     expect(css).toContain(marker)
     const block = css.slice(css.indexOf(marker))
     expect(block).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+
+    // 只查 hex 会放过 rgb() —— `rgb(31 58 95 / 0.35)` 就是 --color-shadow(#1f3a5f) 的字面量写法,
+    // 绕过了 token(本轮修掉的两处正是它)。逐条取「词石 / 水晶」材质规则的规则体来查:
+    // 这段里唯一合法的颜色函数写法是白色高光 rgb(255 255 255 / x)(顶部的 @theme token 定义不在本段)。
+    // 先去掉注释,免得注释里提到的类名把「规则」匹配带偏。
+    const rules = block.replace(/\/\*[\s\S]*?\*\//g, '')
+    const bodies = Array.from(rules.matchAll(/(\.(?:stone|crystal)[^{}]*)\{([^{}]*)\}/g), (m) => m[2])
+    // 护栏自身不许退化成空转:匹配不到规则时下面的循环一次都不跑,断言全绿。
+    expect(bodies.length).toBeGreaterThanOrEqual(10)
+
+    const WHITE_HIGHLIGHT = /rgb\(\s*255\s+255\s+255\s*(?:\/\s*[\d.]+%?\s*)?\)/g
+    for (const body of bodies) {
+      const withoutWhite = body.replace(WHITE_HIGHLIGHT, '')
+      expect(withoutWhite).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+      // \b 保证不误伤 color-mix(in srgb, …) 里的 "srgb"。
+      expect(withoutWhite).not.toMatch(/\b(?:rgb|rgba|hsl|hsla|oklch|lab|lch)\(/)
+    }
   })
 })

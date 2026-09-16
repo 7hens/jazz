@@ -283,7 +283,8 @@
  * 任意值类;且完全绕开 v4 扫描器(上一轮把 color-mix 任意值抽成 helper 后,产物里规则数归零,
  * 而 npm test 与 npm run lint 全绿 —— 只有 npm run build 能发现)。
  * 为什么全部走 token + color-mix:暗色模式由 index.css 的 token 覆盖自动接管,无需 dark: 类。
- * 硬约束:本段禁止裸 hex;白色高光/半透明白沿用仓库既有写法 rgb(255 255 255 / x)。 */
+ * 硬约束:本段禁止**颜色字面量**(裸 hex / rgb() / hsl());唯一例外是白色高光/半透明白,
+ * 沿用仓库既有写法 rgb(255 255 255 / x)。护栏见 stone.test.ts / ProgressCrystals.test.tsx。 */
 .stone {
   position: relative;
   isolation: isolate; /* 让子元素 z-index:-1 的光柱/晕托稳定落在石面之上、文字之下 */
@@ -294,7 +295,7 @@
   /* 第三层 = 厚度(实心底边);第四层 = 内侧上缘高光;第二层 = 落影 */
   box-shadow:
     0 6px 0 var(--color-surface-3),
-    0 12px 18px -12px rgb(31 58 95 / 0.35),
+    0 12px 18px -12px color-mix(in srgb, var(--color-shadow) 35%, transparent),
     inset 0 2px 0 rgb(255 255 255 / 0.9);
 }
 
@@ -493,6 +494,33 @@
   translate: -5px 0;
 }
 
+/* 炼金过渡(spec §7.1):配对瞬间「右块缩小淡出 + 左块金色闪一下」。
+ * 两个节点都塞在 <Stone> 既有的 children 插槽里(消费点选装的装饰位),不新增包裹层、
+ * 不改 .grid 结构;缩放/透明度由 motion 写给行内 style,故这里只做静态造型、**不写 transform**
+ * (同 .stone--pop-* / .quiz-pop 的坑:行内 transform 永远赢,类里的 transform 是死代码)。 */
+.stone-echo {
+  position: absolute;
+  inset: -2px; /* 覆盖石头的 border-box:残影与整块等大,缩走才露得干净 */
+  z-index: 1; /* 压在凹槽之上 */
+  pointer-events: none;
+  border-radius: inherit;
+  border: 2px solid var(--color-hairline);
+  background-image: linear-gradient(180deg, var(--color-surface), var(--color-surface-2));
+  box-shadow: 0 6px 0 var(--color-surface-3);
+}
+.stone-flash {
+  position: absolute;
+  inset: 0;
+  z-index: -1; /* 石面之上、文字之下(同 .stone-halo::before / .quiz-beam 的手法) */
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-gold-2) 90%, transparent) 0%,
+    transparent 72%
+  );
+}
+
 /* 水晶进度格:已过=翠玉发光 / 当前=拉长的琥珀发光 / 未到=内凹凹槽 */
 .crystal {
   position: relative;
@@ -516,5 +544,5 @@
 }
 .crystal--todo {
   background-color: color-mix(in srgb, var(--color-ink-3) 25%, var(--color-surface-2));
-  box-shadow: inset 0 1px 2px rgb(31 58 95 / 0.18);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-shadow) 18%, transparent);
 }

@@ -21,6 +21,10 @@ type MatchGameProps = {
   onComplete: (leftId: string) => void
 }
 
+/** 炼金过渡时长(spec §7.1「右块缩小淡出 + 左块金色闪一下」)。
+ *  配对反馈、不是庆祝动画:克制在 180–280ms,并**短于**既有爆点(450ms),不抢戏(spec §6 分档)。 */
+const ALCHEMY_MS = 240
+
 export function MatchGame({
   prompt,
   left,
@@ -38,14 +42,18 @@ export function MatchGame({
   const [done, setDone] = useState(false)
   const timerRef = useRef<number | null>(null)
   const [burst, setBurst] = useState<[string, string] | null>(null)
+  // 炼金过渡(spec §7.1)的瞬态:[左 id, 右 id]。与 burst 同套模式,但生命周期更短。
+  const [alchemy, setAlchemy] = useState<[string, string] | null>(null)
   // 爆点用独立 ref:mismatch 与 burst 可以叠加发生(爆点不锁输入),共用 timerRef 会互相取消,
-  // 导致 burst 永不清空。
+  // 导致 burst 永不清空。炼金同理 —— 三个计时器同段并发,各自独立。
   const burstTimerRef = useRef<number | null>(null)
+  const alchemyTimerRef = useRef<number | null>(null)
 
   useEffect(
     () => () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
       if (burstTimerRef.current !== null) window.clearTimeout(burstTimerRef.current)
+      if (alchemyTimerRef.current !== null) window.clearTimeout(alchemyTimerRef.current)
     },
     [],
   )
@@ -60,6 +68,11 @@ export function MatchGame({
       setBurst([l, r])
       if (burstTimerRef.current !== null) window.clearTimeout(burstTimerRef.current)
       burstTimerRef.current = window.setTimeout(() => setBurst(null), 450)
+      // 炼金过渡:与爆点同时起、先结束。终态(金 / 凹槽)在下一次渲染即已落地,
+      // 这里只叠加一层会自己走完的装饰 —— 不在时间轴上推迟状态切换(既有断言要求同步可见)。
+      setAlchemy([l, r])
+      if (alchemyTimerRef.current !== null) window.clearTimeout(alchemyTimerRef.current)
+      alchemyTimerRef.current = window.setTimeout(() => setAlchemy(null), ALCHEMY_MS)
       if (Object.keys(next).length === left.length) {
         setDone(true)
         onComplete(left[0]?.id ?? '')
@@ -109,6 +122,9 @@ export function MatchGame({
     const state: StoneState = isMatched ? (isLeft ? 'gold' : 'slot') : isMis ? 'wrong' : isSel ? 'selected' : 'idle'
     const goldSub = isLeft && isMatched ? right.find((r) => r.id === matched[o.id])?.emoji : undefined
     const popping = burst ? (isLeft ? burst[0] === o.id : burst[1] === o.id) : false
+    // 炼金过渡(spec §7.1):右块缩小的残影 + 左块金色闪一下。走 Stone 既有的 children 插槽,
+    // 不新增包裹层、不动 .grid 结构;两块都 aria-hidden,不动可访问名。
+    const alchemizing = alchemy ? (isLeft ? alchemy[0] === o.id : alchemy[1] === o.id) : false
     return (
       <Stone
         key={o.id}
@@ -122,7 +138,20 @@ export function MatchGame({
         shake={isMis}
         className={cn(popping && (isLeft ? 'stone--pop-l' : 'stone--pop-r'))}
         onClick={() => (isLeft ? pickLeft(o.id) : pickRight(o.id))}
-      />
+      >
+        {alchemizing ? (
+          <motion.span
+            aria-hidden
+            data-alchemy={isLeft ? 'flash' : 'shrink'}
+            className={isLeft ? 'stone-flash' : 'stone-echo'}
+            // 残影从满块开始缩淡(故凹槽 textContent 仍为 '' —— 残影是空节点,不含文字);
+            // 金闪是一次性的 [0→亮→0]。减动效由 App 的 MotionConfig reducedMotion="user" 自动接管。
+            initial={isLeft ? { opacity: 0 } : { opacity: 1, scale: 1 }}
+            animate={isLeft ? { opacity: [0, 0.9, 0] } : { opacity: 0, scale: 0.45 }}
+            transition={{ duration: ALCHEMY_MS / 1000, ease: 'easeOut' }}
+          />
+        ) : null}
+      </Stone>
     )
   }
 
