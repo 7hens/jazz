@@ -70,7 +70,7 @@
 
 **改**:`stone.ts`(扩态)、`Choice.tsx`、`ListenChoice.tsx`、`MatchGame.tsx`、`WordLesson.tsx`、`LessonEntry.tsx`、`TeachOverlay.tsx`、`ColdStartWizard.tsx`、`index.css`。
 
-**零改**:`scene-ui.tsx`(千字谷跑章)—— 它只消费 `Choice`/`ListenChoice`/`MatchGame`,改进随组件自动下发。
+**零改**:`scene-ui.tsx`(千字谷跑章)—— 它只消费 `Choice`/`ListenChoice`/`MatchGame`,**代码形状上**无需改动;但**新增能力并不会自动下发到千字谷**(见 §6 分档表勘误)。
 
 ### 4.2 材质层的落位(D11,附理由)
 
@@ -209,7 +209,7 @@
 
 ### 9.4 全绿闸门
 
-改完 `npm test` 须绿(现基线 **68 文件 / 434 测试**);`npm run lint` 0 error。
+改完 `npm test` 须绿、`npm run lint` 0 error。⚠ **不写死基线数字**(仓库基线会随其它会话漂):用同一条命令在改动前后各跑一次、报告 delta。收口实测(2026-09-16)= **73 文件 / 485 用例全绿**,其中 1 文件 / 4 用例来自外来提交 `368a567`(不属于本计划)。
 
 ## 10 未决与风险
 

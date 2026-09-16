@@ -46,7 +46,7 @@
 
 **修改**:`src/index.css`、`src/shared/ui/quiz/stone.ts`、`stone.test.ts`、`Choice.tsx`、`Choice.test.tsx`、`ListenChoice.tsx`、`ListenChoice.test.tsx`、`MatchGame.tsx`、`MatchGame.test.tsx`、`src/features/lesson/WordLesson.tsx`、`WordLesson.test.tsx`、`LessonEntry.tsx`、`src/features/foundation/TeachOverlay.tsx`、`ColdStartWizard.tsx`、`docs/design/game-visual.md`。
 
-**零改**:`src/features/qianzigu/scene-ui.tsx` —— 它只消费 `Choice` / `ListenChoice` / `MatchGame`,改进随组件自动下发。
+**零改**:`src/features/qianzigu/scene-ui.tsx` —— 它只消费 `Choice` / `ListenChoice` / `MatchGame`,**代码形状上**无需改动;但**新增能力并不会自动下发到千字谷**(spec §6 分档表勘误)。
 
 ---
 
@@ -753,7 +753,7 @@ import type { StoneState } from './stone'
 - [ ] **Step 12: 跑全量测试 + lint**
 
 Run: `npm test && npm run lint`
-Expected: 全绿,**68 文件 / 434 测试**不变。若 `Choice.test.tsx` 或 `MatchGame.test.tsx` 有红,说明重构夹带了行为变更,回查而不是改测试。
+Expected: 全绿。⚠ **不写死基线数字** —— 用同一条命令在改动前后各跑一次、报告 delta(收口时基线 = 73 文件 / 485 用例,其中 1 文件 / 4 用例来自外来提交 `368a567`,不属于本计划)。本步重点是**用例数不因重构减少、且 `Choice.test.tsx` / `MatchGame.test.tsx` 全绿**:若有红,说明重构夹带了行为变更,回查而不是改测试。
 
 - [ ] **Step 13: 提交**
 
@@ -1495,12 +1495,12 @@ git commit -m "feat(lesson): 词课满配 —— 景深层 + 顶栏星尘/连击
 **Files:**
 - Modify: `docs/design/game-visual.md`、`docs/superpowers/specs/2026-09-15-quiz-candy-juice-design.md`(状态行)
 
-- [ ] **Step 1: 全量闸门**
+- [x] **Step 1: 全量闸门 —— 已执行**(实测输出见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §1)
 
 Run: `npm test && npm run lint`
 Expected: 全绿。⚠ **不照抄固定基线** —— 用同一条命令在改动前后各跑一次并报告 delta。收口实测(2026-09-16):**73 文件 / 485 用例全绿**(分支基线 481;Task 7c 补护栏 +3、其修复轮再 +1),`npm run lint` exit 0、`npm run build` exit 0。其中 **1 文件 / 4 用例来自外来提交 `368a567`**,不属于本计划。
 
-- [ ] **Step 2: 构建 + **查产物 CSS**(本轮唯一的材质失守探针)**
+- [x] **Step 2: 构建 + **查产物 CSS**(本轮唯一的材质失守探针)—— 已执行**(8 条命令的原始输出见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §2;另含「`--color-shadow` 未在暗色块被覆写」的块级判定)
 
 ```bash
 npm run build
@@ -1516,26 +1516,26 @@ Expected: 每条的计数 **≥ 1**。任何一条为 0 就说明材质类没进
 
 - [x] **Step 3: 浏览器走查(含夜戏与全屏浮层)—— 已执行**
 
-**执行方式:走查由主控用 Playwright 亲自执行**(2026-09-16;脚本 `pw-walk.cjs` / `pw-dom.cjs` / `pw-amb.cjs` / `pw-verify7c.cjs`,36 张截图在 `.superpowers/sdd/2026-09-15-quiz-candy-juice/shots/`)。**结论全文**(实测通过项 / 观感缺陷 V1·V2·V3 / 环境伪影排除 / 一次不复现的异常)见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/progress.md` 的「## 像素走查 · 实测结果(主控亲自跑,2026-09-16)」与「## 🔬 像素复验 · Task 7c 的修」两节,**此处不复制**;下表只记逐面结果。
+**执行方式:走查由主控用 Playwright 亲自执行**(2026-09-16;脚本 `pw-walk.cjs` / `pw-dom.cjs` / `pw-amb.cjs` / `pw-match.cjs` / `pw-verify7c.cjs` / `pw-cold-teach2.cjs`,截图在 `.superpowers/sdd/2026-09-15-quiz-candy-juice/shots/` —— 目录实有 **69 张 PNG**,其中 `pw-walk.cjs` 一个脚本产出 36 张)。**结论全文**(实测通过项 / 观感缺陷 V1·V2·V3 / 环境伪影排除 / 一次不复现的异常 / 短教·冷启动补证)见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/progress.md` 的「## 像素走查 · 实测结果(主控亲自跑,2026-09-16)」「## 🔬 像素复验 · Task 7c 的修」「## 🧪 补最后两面像素证据:短教 / 冷启动向导」三节,**此处不复制**;下表只记逐面结果。
 
 | 面 | 看什么 | 结果 |
 | --- | --- | --- |
 | 词课(pinyin / hanzi / english 三步) | 词石有厚度;选中浮起;答对迸星 + 光柱;答错只抖不发光;顶栏 ✨星尘 与 🔥连击;技能步水晶条;天顶柔光与落影 | **通过** —— 4 个 `[data-state]` 按钮带真实计算样式(硬边厚度 + 落影 + 内高光);选中转橙、答错转红;**答对 juice 实物捕获**(`sparkBurst=1, beam=1`);揭晓帧无迸星(Task 3 fix `d48e0e6` 浏览器内成立);暗色/桌面两档正常。**观感缺陷 V1 / V2**(见「观感 delta 台账」⑥) |
-| 千字谷跑章 `t5` 台灯夜戏 | 夜/暗天空下糖果石压深色天空的观感、文字对比度(R6) | **通过** —— 夜/暗天空下糖果石与文字对比正常(截图 `27`–`30`)。**观感缺陷 V3**(底部装饰 emoji 带压在施法钮上;**既有问题,非本计划引入**)。施法钮 disabled 态夜色下对比度低 → WCAG 对 inactive 组件有豁免且「未选不能按」是设计意图,**不判为缺陷** |
-| 千字谷 BOSS 幕 | 同上 + 连连看金石/凹槽/爆点 | **通过(连连看修后)** —— 同上 + 金石/凹槽/爆点;像素复验(`v7c-01/02`)确认右列有图、金石两行、凹槽不显示文字。**V3 同现** |
-| 短教(TeachOverlay) | 教学期**不迸星、不上光柱**;水晶条;虚线教学框仍在 | **未覆盖** —— 走查档案「教学门存在:false」,未进入教学期。该面由 Task 3 / Task 7a 的单测与 `quiet` 护栏覆盖,像素证据缺 |
-| 冷启动向导 | 迸星 + 光柱;水晶条;无景深层 | **未覆盖** —— 「冷启动小测未出现(档案已有进度)」,像素证据缺 |
+| 千字谷跑章 `t5` 台灯夜戏 | 夜/暗天空下糖果石压深色天空的观感、文字对比度(R6) | **未发现缺陷** —— 有截图(`27`–`30`)且逐张看图**未见缺陷**(台账未逐面出结论,故不写「通过」)。**观感缺陷 V3**(底部装饰 emoji 带压在施法钮上;**既有问题,非本计划引入**)。施法钮 disabled 态夜色下对比度低 → WCAG 对 inactive 组件有豁免且「未选不能按」是设计意图,**不判为缺陷** |
+| 千字谷 BOSS 幕 | 同上 + 连连看金石/凹槽/爆点 | **未发现缺陷(连连看修后)** —— 有截图(`31`/`32`)且未见缺陷;连连看另有像素复验直证(`v7c-01/02`:右列有图、金石两行、凹槽不显示文字)。**V3 同现** |
+| 短教(TeachOverlay) | 教学期**不迸星、不上光柱**;水晶条;虚线教学框仍在 | **通过(补证)** —— 全程 **0 个 juice 节点**,**且走到 praise 结课**(= 所有单元确实答对,正控成立)。证据:台账「## 🧪 补最后两面像素证据:短教 / 冷启动向导」+ 截图 `v7d-B0-teach.png` / `v7d-D0-teach.png` |
+| 冷启动向导 | 迸星 + 光柱;水晶条;无景深层 | **通过(补证)** —— `beam=1 burst=1`(截图 `v7d-C-juice-r0-k0.png` 绿光柱清晰);水晶条 **6 格** active 1;整屏浮层无景深。证据:同上台账节 + `v7d-C0-coldstart.png` |
 | 连连看(任一面) | 配对后左块变金石两行字、右位留凹槽;爆点白环 + 「啪!」≤0.5s 消失;四对全通不重复弹层 | **通过(修后)** —— 修前右列 4 张图卡**恒为空白**(Critical `F-A`,用户可见回归,由像素走查抓到),Task 7c 修复:右列 ⚽🌙🎁☀️ 就位、金石两行、凹槽不显示文字;爆点为**非末对可见**(末对与 `onPass()` 同批次卸载,见 spec §6 勘误) |
 
 > **各任务自建走查清单的指针**(只指路,不粘贴内容):`task-3-report.md` 的走查节、`task-4-report.md` 的 §7 与 §R1-6、`task-6-report.md` 的走查节与疑虑节。**这几份清单已被主控实测覆盖**;其中 `task-3-report` 称「减弱动效下光柱消失」**是错的**(实测光柱存在,`.quiz-beam` 是纯 CSS 静态渐变),`Stone` **不得**因此再加 `isolate`。
 
-- [ ] **Step 4: 人肉过一遍无障碍闸门**
+- [x] **Step 4: 人肉过一遍无障碍闸门 —— 已执行**(由主控用 `pw-a11y.cjs` / `pw-rm2.cjs` 实测关闭,证据全文见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/progress.md` 的「## 无障碍闸门 · 实测」一节:320×640 无横向溢出、200% 缩放文字不截断、减弱动效下迸星消失而光柱保留;195×422 的 125px 溢出经裁定为「布局地板 ≈320px」,**非缺陷**)
 
 - 系统开启「减弱动态效果」后重走词课:景深/光柱/晕托是静态渐变,**画面不塌**;迸星与爆点消失。
 - 暗色模式(系统偏好)下重走词课与连连看:金石仍是金色(三主题恒定),文字可读。
 - 浏览器放大到 200%:词石文字不被截断(靠 `min-h` + `padding`)。
 
-- [ ] **Step 5: 更新设计文档**
+- [x] **Step 5: 更新设计文档 —— 已执行**(接缝表已改,见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §3 补丁 7)
 
 `docs/design/game-visual.md`「现状接缝映射」表里「前景交互层」那一行,把题面观感落点补全。该行末尾的守则句改为:
 
@@ -1543,11 +1543,11 @@ Expected: 每条的计数 **≥ 1**。任何一条为 0 就说明材质类没进
 题面气泡(`shared/ui/quiz/QuestionBubble.tsx`)/ 词石渲染(`shared/ui/quiz/Stone.tsx`,状态表 `stone.ts`)/ **词石材质**(`index.css` 的 `.stone*` / `.stone-halo` / `.quiz-*` **普通类**,禁裸 hex)/ 施法钮(`CastButton.tsx`)/ 进度水晶(`ProgressCrystals.tsx`)/ 词课景深(`features/lesson/LessonAmbience.tsx`)已建 —— 改题面观感改这些,勿在消费点内联绕过
 ```
 
-- [ ] **Step 6: 更新 spec 状态行**
+- [x] **Step 6: 更新 spec 状态行 —— 已执行**(见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §3 补丁 7 与 §5.2/§5.3 的事实更正)
 
 `docs/superpowers/specs/2026-09-15-quiz-candy-juice-design.md` 第 3 行 `状态:**待评审**` 改为 `状态:**已实施**`。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交 —— 已执行**(实际分两笔落档:文档收口 `25a56e8`、清残留矛盾与勾选对齐的补遗见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` 「fix round 1」一节)
 
 ```bash
 git add docs/design/game-visual.md docs/superpowers/specs/2026-09-15-quiz-candy-juice-design.md
