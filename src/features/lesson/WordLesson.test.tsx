@@ -17,7 +17,7 @@ const noop = () => {}
 const makeQuestions = () => [{ kind: 'choice', prompt: 'x', options: [{ id: 'a', text: 'A' }], answerId: 'a' }] as unknown as Question[]
 
 function renderLesson(over: Partial<Parameters<typeof WordLesson>[0]> = {}) {
-  const base = { word, settings, combo: 0, makeQuestions, playSound: noop, speak: () => true, celebrate: noop, onAnswer: noop, onStepPass: noop, onLessonComplete: noop, onExit: noop }
+  const base = { word, settings, combo: 0, dust: 0, makeQuestions, playSound: noop, speak: () => true, celebrate: noop, onAnswer: noop, onStepPass: noop, onLessonComplete: noop, onExit: noop }
   return render(<WordLesson {...base} {...over} />)
 }
 
@@ -115,5 +115,90 @@ describe('WordLesson stepGate', () => {
     renderLesson({ stepGate: { judge: () => true, render: renderGate }, onExit })
     await userEvent.click(screen.getByRole('button', { name: '先离开一下' }))
     expect(onExit).toHaveBeenCalledTimes(1)
+  })
+})
+
+// 水晶条失守时没有任何别的断言会红(顶栏进度文本也印「题序 · 第N/M技能」,其中 M 就是
+// 格数;但那条护栏只验文本的形状,验不出格数与 stepIndex 的对应关系)——
+// 这组断言把「接线还在、且传参正确」钉死。锚点:WordLesson.tsx 里删掉 <ProgressCrystals …/> 整行即红。
+describe('WordLesson 水晶进度条接线', () => {
+  afterEach(cleanup)
+
+  /** 行用复数 [data-crystals]、格用单数 [data-crystal],两者互不匹配,别写混。 */
+  const crystalStates = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('[data-crystal]')).map((c) => c.getAttribute('data-crystal'))
+
+  it('格数 = 启用技能步数(双轨开 → 拼音/汉字/英语 3 步),首格为当前', () => {
+    const { container } = renderLesson()
+    expect(container.querySelectorAll('[data-crystals]')).toHaveLength(1)
+    expect(crystalStates(container)).toEqual(['active', 'todo', 'todo'])
+  })
+
+  it('过一步后首格转 done、次格转 active(接线传的是 stepIndex,不是写死的常量)', async () => {
+    const { container } = renderLesson({
+      makeQuestions: (_w: WordUnit, s: SkillKey) =>
+        [{ kind: 'choice', prompt: s, options: [{ id: 'a', text: 'A' }], answerId: 'a' }] as unknown as Question[],
+    })
+    answerChoice('A')
+    await waitFor(() => expect(screen.getByText('hanzi')).toBeTruthy(), { timeout: 3000 })
+    expect(crystalStates(container)).toEqual(['done', 'active', 'todo'])
+  })
+})
+
+describe('WordLesson 顶栏 HUD', () => {
+  afterEach(cleanup)
+
+  it('渲染传入的星尘数', () => {
+    const { container } = renderLesson({ dust: 42 })
+    expect(container.querySelector('[data-hud="dust"]')).toHaveTextContent('42')
+  })
+
+  it('连击 <2 不显示连击档(单次答对不叫连击)', () => {
+    const { container } = renderLesson({ combo: 1 })
+    expect(container.querySelector('[data-hud="combo"]')).toBeNull()
+  })
+
+  it('连击 ≥2 显示连击档', () => {
+    const { container } = renderLesson({ combo: 3 })
+    expect(container.querySelector('[data-hud="combo"]')).toHaveTextContent('3')
+  })
+
+  it('HUD 只把 emoji 字形标成 aria-hidden 装饰,数字与「连击」留给读屏', () => {
+    const { container } = renderLesson({ dust: 42, combo: 3 })
+    // 锚点:整行 aria-hidden 会把信息一起吞掉,只包 emoji 才既去噪又留读数。
+    const dustMark = container.querySelector('[data-hud="dust"] [aria-hidden="true"]')
+    const comboMark = container.querySelector('[data-hud="combo"] [aria-hidden="true"]')
+    expect(dustMark).toHaveTextContent('✨')
+    expect(comboMark).toHaveTextContent('🔥')
+    expect(container.querySelector('[data-hud="dust"]')).toHaveTextContent('42')
+    expect(container.querySelector('[data-hud="combo"]')).toHaveTextContent('3 连击')
+  })
+
+  it('景深层随题卡一同渲染', () => {
+    const { container } = renderLesson()
+    expect(container.querySelector('[data-lesson-ambience]')).not.toBeNull()
+  })
+
+  it('gate 分支不渲染景深层与 HUD(教学帧保持简洁)', () => {
+    const { container } = renderLesson({
+      stepGate: { judge: () => true, render: () => <div>教学帧</div> },
+    })
+    expect(container.querySelector('[data-lesson-ambience]')).toBeNull()
+    expect(container.querySelectorAll('[data-hud]')).toHaveLength(0)
+  })
+})
+
+// 水晶条是纯装饰(每格 aria-hidden;容器本身没有 aria-hidden),它对读屏用户的进度语义全靠顶栏这行文本承载 ——
+// 删掉这行,读屏用户就完全没有进度信息,而其余断言全绿。锚点:删掉 WordLesson.tsx 里
+// 带 data-progress 的那个 <span> 即红。
+describe('WordLesson 顶栏进度文本(水晶条的 a11y 承载体)', () => {
+  afterEach(cleanup)
+
+  it('渲染「题序 · 技能步序」可读文本', () => {
+    const { container } = renderLesson()
+    const progress = container.querySelector('[data-progress]')
+    expect(progress).not.toBeNull()
+    // 用正则而非字面量:步骤集随 settings 变化,写死数字(=3)会误红。
+    expect(progress).toHaveTextContent(/^\d+\/\d+ · 第\d+\/\d+技能$/)
   })
 })

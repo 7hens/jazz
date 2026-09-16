@@ -25,7 +25,9 @@
 - **文字缩放**:石头高度用 `min-h` + `padding`,**禁固定 `height`**;不设 `overflow: hidden` 截字。
 - **属性顺序**:错误使用 `if (a) return b` 之外,一律沿用仓库既有的 `type="button"` / `aria-*` / `data-*` / `onClick` 顺序,减少无谓 diff。
 - **UI 文案中文**。
-- **闸门**:每个任务结束时 `npm test` 全绿(**基线 68 文件 / 434 测试**)、`npm run lint` 0 error。
+- **闸门**:每个任务结束时 `npm test` 全绿、`npm run lint` 0 error、**`npm run build` 成功**。⚠ **不写死基线数字**(仓库基线会随其它会话漂):要求**用同一条命令在改动前后各跑一次、报告 delta**。收口时基线 = **73 文件 / 485 用例**,其中 **1 文件 / 4 用例来自外来提交 `368a567`**(另一会话的 `worker/` dev 免配令牌改动,**不属于本计划**)。
+
+> `npm run build` 必须进闸门的原因(**预检实测**,与 Tailwind 扫描器同类):`tsconfig.app.json` 开了 `noUnusedLocals`,而 **`npm test`(vitest 不做类型检查)与 `npm run lint`(oxlint 的 `no-unused-vars` 只是 warning,退出码 0)都不会报未用 import** —— 删组件时漏删一个 import,两道闸门都绿,只有 `tsc -b` 会炸。它顺带也覆盖了「材质类没进产物」这个本计划最怕的失守。
 - **导入大小写**:`./stone`(纯函数表)与 `./Stone`(组件)是两个不同文件,导入路径必须逐字写对;Linux 区分大小写,macOS 不区分 —— 本地过而别人机器炸的坑。
 
 ---
@@ -44,7 +46,7 @@
 
 **修改**:`src/index.css`、`src/shared/ui/quiz/stone.ts`、`stone.test.ts`、`Choice.tsx`、`Choice.test.tsx`、`ListenChoice.tsx`、`ListenChoice.test.tsx`、`MatchGame.tsx`、`MatchGame.test.tsx`、`src/features/lesson/WordLesson.tsx`、`WordLesson.test.tsx`、`LessonEntry.tsx`、`src/features/foundation/TeachOverlay.tsx`、`ColdStartWizard.tsx`、`docs/design/game-visual.md`。
 
-**零改**:`src/features/qianzigu/scene-ui.tsx` —— 它只消费 `Choice` / `ListenChoice` / `MatchGame`,改进随组件自动下发。
+**零改**:`src/features/qianzigu/scene-ui.tsx` —— 它只消费 `Choice` / `ListenChoice` / `MatchGame`,**代码形状上**无需改动;但**新增能力并不会自动下发到千字谷**(spec §6 分档表勘误)。
 
 ---
 
@@ -139,7 +141,7 @@ describe('index.css 材质类存在性', () => {
     }
   })
 
-  it('金石拼音行用实色 token,不用 opacity 压暗(4.01:1 会破 4.5:1 下限)', () => {
+  it('金石第二行用实色 token,不用 opacity 压暗(4.01:1 会破 4.5:1 下限)', () => {
     const start = css.indexOf('.stone--gold {')
     expect(start).toBeGreaterThan(-1)
     const rule = css.slice(start, css.indexOf('}', start))
@@ -170,7 +172,8 @@ Expected: FAIL —— `stoneMark('gold')` 返回 `null`(收到 `undefined` 的�
   --color-gold-2: #ffeaa8; /* 金石面(渐变亮处) */
   --color-gold-edge: #c98a00; /* 金石厚度底边 */
   --color-gold-ink: #4a2e00; /* 金石主行文字 —— 压 #ffc23d 实测 7.75:1 */
-  --color-gold-ink-2: #6b4300; /* 金石拼音行   —— 压 #ffc23d 实测 5.37:1 */
+  --color-gold-ink-2: #6b4300; /* 金石第二行。当前 subText 恒为 emoji(图),color 对彩色字形无可见效果;
+                                  保留以便该行日后承载文本 —— 那时压 #ffc23d 实测 5.37:1。 */
 ```
 
 - [ ] **Step 4: 在 `index.css` 文件末尾追加材质类**
@@ -405,7 +408,9 @@ git commit -m "feat(quiz): 词石糖果材质地基 —— index.css 普通类 +
 
 ---
 
-### Task 2: 抽件(等价重构,零观感变化)
+### Task 2: 抽件(等价重构,材质统一走 Stone)
+
+> 事后更正:「零观感变化」不成立 —— 抽件时把 `emoji` 判给了左列,造成连连看右列图卡空白(用户可见回归),由 Task 7c 修复。教训:等价重构也要有「渲染结果不变」的断言。
 
 新增 `Stone.tsx` / `SparkBurst.tsx`,`Choice` / `ListenChoice` / `MatchGame` 改为消费 `Stone`。**此步不引入任何新观感** —— `SparkBurst` 只建文件与测试,尚无人渲染它。意图是让 `npm test` 在纯结构改动下全绿,证明重构没有夹带行为变更。
 
@@ -506,7 +511,9 @@ export type StoneProps = {
   index?: number
   /** 石面主行文字 */
   text?: string
-  /** 石面第二行小字 —— 仅 gold 态(炼成后 词 / 拼音 两行) */
+  /** 石面第二行 —— 仅 gold 态(炼成后的金星石)。取的是**所配右卡的 emoji(图)**,不是拼音/文本:
+   *  连连看右列是图卡,是三个消费点里唯一带 `emoji` 的一列(左列只有 `text`),第二行由此复用那张图
+   *  (spec 2026-09-15-quiz-candy-juice-design §7.1)。 */
   subText?: string
   emoji?: string
   /** 横排(连连看)vs 竖排(选一选)。默认竖排。 */
@@ -742,12 +749,14 @@ import type { StoneState } from './stone'
 
 > ⚠ 这里出现了一处**有意的行为对齐**:旧代码用 `!isMatched && !mismatch && !done && 'cursor-pointer active:scale-[0.96]'`,新 `Stone` 用 `!disabled && 'cursor-pointer active:scale-[0.96]'` —— 两者等价(`disabled` 就是那个三元表达式的取反)。`opacity-80` 保留原样。
 >
-> `pointer-events-none` 是**新增**的:旧代码里已配对的卡仍可点击,靠 `pickLeft` / `pickRight` 开头的 `if (matched[id] ...) return` 兜住。`aria-disabled` 的元素不该还能点,这里顺手对齐。若不希望此步夹带行为变更,可删掉 `isMatched && 'pointer-events-none'` 一段 —— 两种都可接受,二选一写死即可。
+> `pointer-events-none` 是**新增**的:旧代码里已配对的卡仍可点击,靠 `pickLeft` / `pickRight` 开头的 `if (matched[id] ...) return` 兜住。`aria-disabled` 的元素不该还能点,这里顺手对齐。**预检已定案:保留** —— 行为等价(那条早退分支仍在,只是再也走不到),不是行为变更。
+>
+> ⚠ **本步必须同时删掉 `MatchGame.tsx` 顶部的 `import { motion } from 'motion/react'`** —— `Stone` 接管了 `motion.button` 之后该文件不再用 `motion`,`tsc -b` 会以 `noUnusedLocals` 报错;而 `npm test` 与 `npm run lint` 都不报(见 Global Constraints 的闸门说明)。Task 4 会用 `motion.span` 渲染冲击波,届时**再引回来**。
 
 - [ ] **Step 12: 跑全量测试 + lint**
 
 Run: `npm test && npm run lint`
-Expected: 全绿,**68 文件 / 434 测试**不变。若 `Choice.test.tsx` 或 `MatchGame.test.tsx` 有红,说明重构夹带了行为变更,回查而不是改测试。
+Expected: 全绿。⚠ **不写死基线数字** —— 用同一条命令在改动前后各跑一次、报告 delta(收口时基线 = 73 文件 / 485 用例,其中 1 文件 / 4 用例来自外来提交 `368a567`,不属于本计划)。本步重点是**用例数不因重构减少、且 `Choice.test.tsx` / `MatchGame.test.tsx` 全绿**:若有红,说明重构夹带了行为变更,回查而不是改测试。
 
 - [ ] **Step 13: 提交**
 
@@ -1265,7 +1274,9 @@ Expected: PASS(3 个用例)。
         <ProgressCrystals total={steps.length} current={stepIndex} className="pb-4" />
 ```
 
-并在 import 区加 `import { ProgressCrystals } from '@/shared/ui/quiz/ProgressCrystals'`。替换后 `cn` 在该文件仍被其他地方用到(第 297 行之外),**若 lint 报未使用则一并删掉**。
+并在 import 区加 `import { ProgressCrystals } from '@/shared/ui/quiz/ProgressCrystals'`。
+
+> ⚠ **已 grep 核实:第 297 行是 `cn` 在这个文件里的唯一用处**(`grep -n "cn(" src/features/lesson/WordLesson.tsx` 只有一行)。删掉圆点行之后 `cn` 必然变成未用 import —— **同一处改动里一并删掉 `import { cn } from '@/shared/ui/utils'`**,否则 `npm run build` 会因 `noUnusedLocals` 失败(`npm test` / `npm run lint` 不会拦)。
 
 **(b) `TeachOverlay.tsx:164-173`**(`renderQuiz` 内)整块替换为:
 
@@ -1453,6 +1464,8 @@ Expected: FAIL —— `dust` 不在 `WordLessonProps` 上(TS 报错),`[data-hud=
 ```
 
 > `main` 加 `relative z-10` 压住景深层。gate 分支(`if (gate)`)的返回保持原样 —— 教学期不显示 HUD 与景深。
+>
+> ⚠ **文件边界**:`WordLesson.tsx` 同时被 Task 5 改过(第 293 行的圆点行换成了 `<ProgressCrystals .../>`)。本步**只动三处**:根节点开标签、`<header>` 整块、`<main>` 开标签。**不要整体重写 `return`** —— 重写会把 Task 5 的水晶条冲掉,而 `npm test` 与 `npm run lint` 都不会告诉你(唯一会拦的是 Task 7 的浏览器走查)。
 
 - [ ] **Step 8: `LessonEntry.tsx` 传 `dust`**
 
@@ -1485,12 +1498,12 @@ git commit -m "feat(lesson): 词课满配 —— 景深层 + 顶栏星尘/连击
 **Files:**
 - Modify: `docs/design/game-visual.md`、`docs/superpowers/specs/2026-09-15-quiz-candy-juice-design.md`(状态行)
 
-- [ ] **Step 1: 全量闸门**
+- [x] **Step 1: 全量闸门 —— 已执行**(实测输出见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §1)
 
 Run: `npm test && npm run lint`
-Expected: 全绿(测试文件数应 ≥ 基线 68,用例数应 ≥ 434)。
+Expected: 全绿。⚠ **不照抄固定基线** —— 用同一条命令在改动前后各跑一次并报告 delta。收口实测(2026-09-16):**73 文件 / 485 用例全绿**(分支基线 481;Task 7c 补护栏 +3、其修复轮再 +1),`npm run lint` exit 0、`npm run build` exit 0。其中 **1 文件 / 4 用例来自外来提交 `368a567`**,不属于本计划。
 
-- [ ] **Step 2: 构建 + **查产物 CSS**(本轮唯一的材质失守探针)**
+- [x] **Step 2: 构建 + **查产物 CSS**(本轮唯一的材质失守探针)—— 已执行**(8 条命令的原始输出见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §2;另含「`--color-shadow` 未在暗色块被覆写」的块级判定)
 
 ```bash
 npm run build
@@ -1504,26 +1517,28 @@ grep -c 'crystal--active' dist/client/assets/*.css
 
 Expected: 每条的计数 **≥ 1**。任何一条为 0 就说明材质类没进产物 —— 这正是上一轮 `npm test` + `npm run lint` 全绿却翻车的那种失守,必须回查而不是放过。
 
-- [ ] **Step 3: 浏览器走查(含夜戏与全屏浮层)**
+- [x] **Step 3: 浏览器走查(含夜戏与全屏浮层)—— 已执行**
 
-Run: `npm run dev`,然后逐面走一遍:
+**执行方式:走查由主控用 Playwright 亲自执行**(2026-09-16;脚本 `pw-walk.cjs` / `pw-dom.cjs` / `pw-amb.cjs` / `pw-match.cjs` / `pw-verify7c.cjs` / `pw-cold-teach2.cjs`,截图在 `.superpowers/sdd/2026-09-15-quiz-candy-juice/shots/` —— 目录实有 **69 张 PNG**,其中 `pw-walk.cjs` 一个脚本产出 36 张)。**结论全文**(实测通过项 / 观感缺陷 V1·V2·V3 / 环境伪影排除 / 一次不复现的异常 / 短教·冷启动补证)见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/progress.md` 的「## 像素走查 · 实测结果(主控亲自跑,2026-09-16)」「## 🔬 像素复验 · Task 7c 的修」「## 🧪 补最后两面像素证据:短教 / 冷启动向导」三节,**此处不复制**;下表只记逐面结果。
 
-| 面 | 看什么 |
-| --- | --- |
-| 词课(pinyin / hanzi / english 三步) | 词石有厚度;选中浮起;答对迸星 + 光柱;答错只抖不发光;顶栏 ✨星尘 与 🔥连击;技能步水晶条;天顶柔光与落影 |
-| 千字谷跑章 `t5` 台灯夜戏 | 夜/暗天空下糖果石压深色天空的观感、文字对比度(R6) |
-| 千字谷 BOSS 幕 | 同上 + 连连看金石/凹槽/爆点 |
-| 短教(TeachOverlay) | 教学期**不迸星、不上光柱**;水晶条;虚线教学框仍在 |
-| 冷启动向导 | 迸星 + 光柱;水晶条;无景深层 |
-| 连连看(任一面) | 配对后左块变金石两行字、右位留凹槽;爆点白环 + 「啪!」≤0.5s 消失;四对全通不重复弹层 |
+| 面 | 看什么 | 结果 |
+| --- | --- | --- |
+| 词课(pinyin / hanzi / english 三步) | 词石有厚度;选中浮起;答对迸星 + 光柱;答错只抖不发光;顶栏 ✨星尘 与 🔥连击;技能步水晶条;天顶柔光与落影 | **通过** —— 4 个 `[data-state]` 按钮带真实计算样式(硬边厚度 + 落影 + 内高光);选中转橙、答错转红;**答对 juice 实物捕获**(`sparkBurst=1, beam=1`);揭晓帧无迸星(Task 3 fix `d48e0e6` 浏览器内成立);暗色/桌面两档正常。**观感缺陷 V1 / V2**(见「观感 delta 台账」⑥) |
+| 千字谷跑章 `t5` 台灯夜戏 | 夜/暗天空下糖果石压深色天空的观感、文字对比度(R6) | **未发现缺陷** —— 有截图(`27`–`30`)且逐张看图**未见缺陷**(台账未逐面出结论,故不写「通过」)。**观感缺陷 V3**(底部装饰 emoji 带压在施法钮上;**既有问题,非本计划引入**)。施法钮 disabled 态夜色下对比度低 → WCAG 对 inactive 组件有豁免且「未选不能按」是设计意图,**不判为缺陷** |
+| 千字谷 BOSS 幕 | 同上 + 连连看金石/凹槽/爆点 | **未发现缺陷(连连看修后)** —— 有截图(`31`/`32`)且未见缺陷;连连看另有像素复验直证(`v7c-01/02`:右列有图、金石两行、凹槽不显示文字)。**V3 同现** |
+| 短教(TeachOverlay) | 教学期**不迸星、不上光柱**;水晶条;虚线教学框仍在 | **通过(补证)** —— 全程 **0 个 juice 节点**,**且走到 praise 结课**(= 所有单元确实答对,正控成立)。证据:台账「## 🧪 补最后两面像素证据:短教 / 冷启动向导」+ 截图 `v7d-B0-teach.png` / `v7d-D0-teach.png` |
+| 冷启动向导 | 迸星 + 光柱;水晶条;无景深层 | **通过(补证)** —— `beam=1 burst=1`(截图 `v7d-C-juice-r0-k0.png` 绿光柱清晰);水晶条 **6 格** active 1;整屏浮层无景深。证据:同上台账节 + `v7d-C0-coldstart.png` |
+| 连连看(任一面) | 配对后左块变金石两行字、右位留凹槽;爆点白环 + 「啪!」≤0.5s 消失;四对全通不重复弹层 | **通过(修后)** —— 修前右列 4 张图卡**恒为空白**(Critical `F-A`,用户可见回归,由像素走查抓到),Task 7c 修复:右列 ⚽🌙🎁☀️ 就位、金石两行、凹槽不显示文字;爆点为**非末对可见**(末对与 `onPass()` 同批次卸载,见 spec §6 勘误) |
 
-- [ ] **Step 4: 人肉过一遍无障碍闸门**
+> **各任务自建走查清单的指针**(只指路,不粘贴内容):`task-3-report.md` 的走查节、`task-4-report.md` 的 §7 与 §R1-6、`task-6-report.md` 的走查节与疑虑节。**这几份清单已被主控实测覆盖**;其中 `task-3-report` 称「减弱动效下光柱消失」**是错的**(实测光柱存在,`.quiz-beam` 是纯 CSS 静态渐变),`Stone` **不得**因此再加 `isolate`。
+
+- [x] **Step 4: 人肉过一遍无障碍闸门 —— 已执行**(由主控用 `pw-a11y.cjs` / `pw-rm2.cjs` 实测关闭,证据全文见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/progress.md` 的「## 无障碍闸门 · 实测」一节:320×640 无横向溢出、200% 缩放文字不截断、减弱动效下迸星消失而光柱保留;195×422 的 125px 溢出经裁定为「布局地板 ≈320px」,**非缺陷**)
 
 - 系统开启「减弱动态效果」后重走词课:景深/光柱/晕托是静态渐变,**画面不塌**;迸星与爆点消失。
 - 暗色模式(系统偏好)下重走词课与连连看:金石仍是金色(三主题恒定),文字可读。
 - 浏览器放大到 200%:词石文字不被截断(靠 `min-h` + `padding`)。
 
-- [ ] **Step 5: 更新设计文档**
+- [x] **Step 5: 更新设计文档 —— 已执行**(接缝表已改,见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §3 补丁 7)
 
 `docs/design/game-visual.md`「现状接缝映射」表里「前景交互层」那一行,把题面观感落点补全。该行末尾的守则句改为:
 
@@ -1531,16 +1546,35 @@ Run: `npm run dev`,然后逐面走一遍:
 题面气泡(`shared/ui/quiz/QuestionBubble.tsx`)/ 词石渲染(`shared/ui/quiz/Stone.tsx`,状态表 `stone.ts`)/ **词石材质**(`index.css` 的 `.stone*` / `.stone-halo` / `.quiz-*` **普通类**,禁裸 hex)/ 施法钮(`CastButton.tsx`)/ 进度水晶(`ProgressCrystals.tsx`)/ 词课景深(`features/lesson/LessonAmbience.tsx`)已建 —— 改题面观感改这些,勿在消费点内联绕过
 ```
 
-- [ ] **Step 6: 更新 spec 状态行**
+- [x] **Step 6: 更新 spec 状态行 —— 已执行**(见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` §3 补丁 7 与 §5.2/§5.3 的事实更正)
 
 `docs/superpowers/specs/2026-09-15-quiz-candy-juice-design.md` 第 3 行 `状态:**待评审**` 改为 `状态:**已实施**`。
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交 —— 已执行**(实际分两笔落档:文档收口 `25a56e8`、清残留矛盾与勾选对齐的补遗见 `.superpowers/sdd/2026-09-15-quiz-candy-juice/task-7b-report.md` 「fix round 1」一节)
 
 ```bash
 git add docs/design/game-visual.md docs/superpowers/specs/2026-09-15-quiz-candy-juice-design.md
 git commit -m "docs(visual): 题面材质/景深/进度水晶落点入接缝表,spec 转已实施"
 ```
+
+---
+
+## 观感 delta 台账
+
+记录实施期累计的**故意观感变化**(供将来回归时判断「这是不是 bug」)。带缺陷编号的条目是**实测发现的观感缺陷,尚未修**。
+
+| # | 来源 | 变化 |
+| --- | --- | --- |
+| ① | Task 2 | 抽件:材质统一走 `Stone`(观感有统一化,**非「零变化」** —— 该措辞已被证伪,见 Task 2 事后更正) |
+| ② | Task 3 | 答对新增迸星 + 光柱;`quiet` 分档下不出现 |
+| ③ | Task 4 | 金石/凹槽/对撞/冲击波/拟声词;删掉一处 `opacity-80` |
+| ④ | Task 5 | 水晶条尺寸**故意增大** |
+| ⑤ | Task 6 | 新增景深层;`sticky` header 因 HUD 第二行**长高约 20px** |
+| ⑥ | 走查实测 | **V1** 桌面宽屏内容仅占中央 ~576px,两侧空旷(**"还不算好看"的直接来源,未修**);**V2** 天顶柔光渲染为 header 下方一条发白横带(**未修**);**V3** 千字谷底部装饰 emoji 带压在施法钮上(既有问题,不在本计划范围) |
+| ⑦ | Task 7a | 补四处「有保证、无断言」护栏(短教 `quiet` / 进度文本 / gate 分支 / 一处注释事实错误) |
+| ⑧ | Task 7c | 修连连看右列图卡回归(`emoji` 判回右列;金石第二行改读图);补「右列必渲染出自己的图」护栏(提交 `4b16359` + `0804bb0`) |
+
+> ⑥ 的三条是**观感缺陷**(「好不好看」属用户裁量权),不阻断本计划收口,但**必须原样上报**。另有一次**不复现的异常**(`pw-dom.cjs` 首跑 `ambience: 0`、次跑 `1`)照实留在走查台账里,不下结论、不粉饰。
 
 ---
 

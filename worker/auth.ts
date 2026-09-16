@@ -1,4 +1,11 @@
-import { buildCookieHeader, clearCookieHeader, getAuthenticatedUser, getSingleUser, safeEqual } from './_lib/auth'
+import {
+  buildCookieHeader,
+  clearCookieHeader,
+  expectedToken,
+  getAuthenticatedUser,
+  getSingleUser,
+  safeEqual,
+} from './_lib/auth'
 import { jsonResponse } from './_lib/http'
 import type { Env } from './index'
 
@@ -14,7 +21,7 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
     return jsonResponse({ message: '访问令牌不能为空' }, { status: 400 })
   }
 
-  const expected = env.ADMIN_TOKEN ?? ''
+  const expected = expectedToken(env)
   if (!expected) {
     return jsonResponse({ message: '未配置访问令牌' }, { status: 401 })
   }

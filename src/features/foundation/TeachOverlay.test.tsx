@@ -67,10 +67,16 @@ describe('TeachOverlay 纯判分题(直接答题,无听齐)', () => {
   })
 
   it('按 units 逐题判分,答对 recordAnswer(true) 且全过 markTaught + onDone', async () => {
-    const { basics, onDone } = renderOverlay()
+    const { basics, onDone, container } = renderOverlay()
 
     await screen.findByText(/开头的声母/)
     answerTarget('p')
+    // quiet 分档护栏(spec §6):短教教学期不迸星、不上光柱。
+    // 正控在前 —— 若时机不对(压根没答对 / 已推进到下一题),正控先红,
+    // 免得下面两条 null 断言在一个什么都没渲染的窗口里真空通过。
+    expect(container.querySelector('[data-state="correct"]')).not.toBeNull()
+    expect(container.querySelector('[data-spark-burst]')).toBeNull()
+    expect(container.querySelector('.quiz-beam')).toBeNull()
     await screen.findByText('g') // 已自动推进到第 2 题
     expect(basics.markTaught).not.toHaveBeenCalled() // 未全过,教学记录此时不落
     answerTarget('g')
@@ -141,5 +147,18 @@ describe('TeachOverlay 纯判分题(直接答题,无听齐)', () => {
     fireEvent.click(await screen.findByRole('button', { name: '返回地图' }))
     expect(onExit).toHaveBeenCalledTimes(1)
     expect(onDone).not.toHaveBeenCalled()
+  })
+
+  // 短教的进度**没有**可读等价文本(标题栏只写词与技能),水晶条是唯一的进度呈现 ——
+  // 删掉 renderQuiz 里那行 <ProgressCrystals/> 不会有别的断言红,故在此钉死。
+  it('判分进度:水晶条格数 = quiz 题数(units 2 → 2 格),qi 推进后转 done', async () => {
+    const { container } = renderOverlay()
+    const states = () => Array.from(container.querySelectorAll('[data-crystal]')).map((c) => c.getAttribute('data-crystal'))
+
+    expect(states()).toEqual(['active', 'todo'])
+    await screen.findByText(/开头的声母/)
+    answerTarget('p')
+    await screen.findByText('g') // 已自动推进到第 2 题
+    expect(states()).toEqual(['done', 'active'])
   })
 })

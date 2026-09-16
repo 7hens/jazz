@@ -27,7 +27,7 @@
 - **版本语义**:bug=patch / 新能力=minor / 破坏性=1.0.0 起 major(`0.1.0` 起步)。判破坏性:删/重命名字段·表·API 路由、改字段类型不可自动转换 = major;新增表、新字段(带 `DEFAULT` 或可 `NULL`)、新增 API 路由 = 向下兼容 → minor。
 - **tag 铁律**:tag 仅在「部署成功 + 浏览器冒烟通过」后打:`npm version <level> -m "chore(release): v%s"` → `git push origin main --tags`。部署/冒烟失败**绝不 `npm version`**(孤儿 tag)。
 - **回滚**:代码/前端错 → `wrangler rollback --config wrangler.toml`(<10s,前后端同切);env/绑定错 → 随 config 或 `--var` deploy 固化,禁 Dashboard 手改(rollback 不恢复变量);D1 数据坏 → 绝不回滚迁移文件,hotfix 改代码或 SQL 修复。
-- **认证令牌**:prod `ADMIN_TOKEN` 已是 secret,**勿覆盖**(同名覆盖 = 已存 cookie 全失效);preview 需独立 secret(`wrangler secret put ADMIN_TOKEN --config wrangler.toml --env preview`,随机值);本地 dev 读 `.dev.vars`(gitignore,**不随 worktree 复制** → 新环境/worktree 先 `cp .dev.vars.example .dev.vars`;未配则登录 401)。模板入库、容器不入库 —— 容器里可能装真 token,且历史上曾随 vite-plugin 产物被当静态资源上传致泄露。`wrangler.toml` 持 worker 入口、D1 binding、assets、database_id 与 preview env。
+- **认证令牌**:prod `ADMIN_TOKEN` 已是 secret,**勿覆盖**(同名覆盖 = 已存 cookie 全失效);preview 需独立 secret(`wrangler secret put ADMIN_TOKEN --config wrangler.toml --env preview`,随机值);本地 dev **零配置**:`expectedToken` 在 `import.meta.env.DEV` 下回落 `DEV_DEFAULT_TOKEN='jazz'`(未配 `.dev.vars` 也能登录);`.dev.vars`(gitignore,**不随 worktree 复制**)只在要覆盖令牌时才需要 —— 容器不入库,因里面可能装真 token;构建产物 `DEV=false` → **无兜底**,prod/preview 缺 secret 即全部 401。模板入库、容器不入库 —— 容器里可能装真 token,且历史上曾随 vite-plugin 产物被当静态资源上传致泄露。`wrangler.toml` 持 worker 入口、D1 binding、assets、database_id 与 preview env。
 
 ---
 
@@ -69,7 +69,7 @@
 `worker/index.ts` 是唯一 Worker 入口(`wrangler.toml` 的 `main`),`fetch` 内按 pathname + method 分发到 handler:
 
 - `worker/index.ts` — entry + 路由表(`/api/auth/login` POST/GET、`/api/auth/logout` POST、`/api/me` GET、`/api/progress` GET/PUT/DELETE、`/api/settings` GET/PUT;未匹配的 `/api/*` 一律 JSON 404,其余非 API 请求走 `env.ASSETS.fetch`)
-- `worker/auth.ts` — `handleLogin`(POST,constant-time 比对 `env.ADMIN_TOKEN`,通过后设 `jazz_token` cookie,返回唯一用户)、`handleLogout`(清 cookie)、`handleMe`
+- `worker/auth.ts` — `handleLogin`(POST,constant-time 比对 `expectedToken(env)` —— `env.ADMIN_TOKEN`,dev 缺省回落 `jazz`,通过后设 `jazz_token` cookie,返回唯一用户)、`handleLogout`(清 cookie)、`handleMe`
 - `worker/progress.ts` — `handleGetProgress`(GET,读该 user 全部 progress 行)、`handlePutProgress`(PUT,body `{ progress: [...] }` 批量行级 upsert,`ON CONFLICT` 用 `MAX(...)` 只升不降;word_id 越界/单批 > 200 → 400)、`handleDeleteProgress`(DELETE,清空该 user 全部行)
 - `worker/settings.ts` — `handleGetSettings`(GET,读该 user 单行启领域列;无行返回默认双开)、`handlePutSettings`(PUT,upsert `enable_chinese`/`enable_english`;双领域全关 → 400「至少保留一个学习领域」)
 - `worker/_lib/auth.ts` — 共享认证工具:`getAuthenticatedUser()`、cookie 读写、constant-time 比较 `safeEqual`、唯一用户读取/建行;`worker/_lib/http.ts` — `jsonResponse` 辅助

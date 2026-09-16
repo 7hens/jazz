@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft } from 'lucide-react'
-import { cn } from '@/shared/ui/utils'
 import type {
   AnswerKind,
   AudioCue,
@@ -18,11 +17,15 @@ import { Button } from '@/shared/ui/button'
 import { Choice } from '@/shared/ui/quiz/Choice'
 import { ListenChoice } from '@/shared/ui/quiz/ListenChoice'
 import { MatchGame } from '@/shared/ui/quiz/MatchGame'
+import { ProgressCrystals } from '@/shared/ui/quiz/ProgressCrystals'
+import { LessonAmbience } from './LessonAmbience'
 
 export type WordLessonProps = {
   word: WordUnit
   settings: UserSettings
   combo: number
+  /** 当前累计星尘(顶栏 HUD 展示)。必传 —— 可选会留下「看着像功能其实没接线」的假绿路径。 */
+  dust: number
   makeQuestions: (word: WordUnit, skill: SkillKey, rng?: Rng) => Question[]
   playSound: (cue: AudioCue) => void
   speak: (text: string, language?: string) => boolean
@@ -52,6 +55,7 @@ export function WordLesson({
   word,
   settings,
   combo,
+  dust,
   makeQuestions,
   playSound,
   speak,
@@ -273,7 +277,8 @@ export function WordLesson({
   }
 
   return (
-    <div className="min-h-screen text-ink">
+    <div className="relative min-h-screen text-ink">
+      <LessonAmbience />
       <header className="glass-strong sticky top-0 z-30 border-b border-hairline">
         <div className="mx-auto flex h-14 max-w-xl items-center gap-2 px-4">
           <Button variant="ghost" size="icon" onClick={onExit} aria-label="返回地图">
@@ -282,25 +287,26 @@ export function WordLesson({
           <span className="truncate text-[15px] font-bold">
             {word.emoji} {word.hanzi} · {SKILL_LABEL[skill]}
           </span>
-          <span className="ml-auto shrink-0 rounded-full border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-ink-2">
+          <span data-progress className="ml-auto shrink-0 rounded-full border border-hairline bg-surface px-2.5 py-1 text-xs font-semibold text-ink-2">
             {qIndex + 1}/{questions.length} · 第{stepIndex + 1}/{steps.length}技能
           </span>
         </div>
+        {/* HUD:星尘 + 连击。连击 <2 不占位(单次答对不叫连击)。 */}
+        <div className="mx-auto flex max-w-xl items-center gap-3 px-4 pb-2 text-xs font-bold">
+          <span data-hud="dust" className="text-accent-ink">
+            <span aria-hidden>✨</span> {dust}
+          </span>
+          {combo >= 2 ? (
+            <span data-hud="combo" className="text-accent-ink">
+              <span aria-hidden>🔥</span> {combo} 连击
+            </span>
+          ) : null}
+        </div>
       </header>
 
-      <main className="mx-auto max-w-xl px-4 pb-24 pt-5">
-        {/* 技能步进度点 */}
-        <div className="flex items-center justify-center gap-1.5 pb-4">
-          {steps.map((s, i) => (
-            <span
-              key={s}
-              className={cn(
-                'h-2 rounded-full transition-all',
-                i < stepIndex ? 'w-2 bg-emerald' : i === stepIndex ? 'w-5 bg-accent' : 'w-2 bg-ink-3/25',
-              )}
-            />
-          ))}
-        </div>
+      <main className="relative z-10 mx-auto max-w-xl px-4 pb-24 pt-5">
+        {/* 技能步进度:水晶条(纯装饰,进度文本在顶栏) */}
+        <ProgressCrystals total={steps.length} current={stepIndex} className="pb-4" />
 
         <div className="space-y-3 px-1">
           <AnimatePresence mode="wait" initial={false}>
