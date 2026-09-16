@@ -41,7 +41,9 @@
   --color-gold-2: #ffeaa8; /* 金石面(渐变亮处) */
   --color-gold-edge: #c98a00; /* 金石厚度底边 */
   --color-gold-ink: #4a2e00; /* 金石主行文字 —— 压 #ffc23d 实测 7.75:1 */
-  --color-gold-ink-2: #6b4300; /* 金石拼音行   —— 压 #ffc23d 实测 5.37:1 */
+  --color-gold-ink-2: #6b4300; /* 金石第二行。当前 subText 恒为 emoji(图),color 对彩色字形无可见效果;
+                                  保留以便该行日后承载文本 —— 那时压 #ffc23d 实测 5.37:1。 */
+  --color-gold-glow: #ffdc78; /* 爆点冲击波的金光。与 .quiz-ring 原字面量同值,故本次改动逐像素等价。 */
 
   /* 阴影 */
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.08);
@@ -375,8 +377,9 @@
   box-shadow: inset 0 3px 7px color-mix(in srgb, var(--color-ink) 20%, transparent);
 }
 
-/* 金石第二行(拼音)。实色 token,禁止用 opacity 调弱 —— 金色实色 token 一旦压到 72% 就破线:
- * --color-gold-ink 压金石面实测仅 4.01:1(本行用的 --color-gold-ink-2 更低)。 */
+/* 金石第二行。当前该行**恒为 emoji(图)**(MatchGame 的 subText 取所配右卡 emoji),color 对彩色
+ * 字形不产生可见效果 —— 保留实色 token 以备该行日后承载文本。届时**禁止用 opacity 调弱**(金色
+ * 实色 token 一旦压到 72% 就破线:--color-gold-ink 压金石面实测仅 4.01:1;本行用的 -ink-2 更低)。 */
 .stone-sub {
   color: var(--color-gold-ink-2);
 }
@@ -459,8 +462,8 @@
   border-radius: 999px;
   border: 4px solid rgb(255 255 255 / 0.9);
   box-shadow:
-    0 0 28px rgb(255 220 120 / 0.9),
-    inset 0 0 22px rgb(255 220 120 / 0.8);
+    0 0 28px color-mix(in srgb, var(--color-gold-glow) 90%, transparent),
+    inset 0 0 22px color-mix(in srgb, var(--color-gold-glow) 80%, transparent);
 }
 /* 居中与 -8° 倾斜必须走独立属性:本元素挂在 motion.span 上、motion 会往行内 style 写 transform,
  * 行内永远赢 → 类里的 transform 是死代码(「啪!」右偏 ~2.4rem、下偏 ~1rem)。
@@ -507,6 +510,20 @@
   border: 2px solid var(--color-hairline);
   background-image: linear-gradient(180deg, var(--color-surface), var(--color-surface-2));
   box-shadow: 0 6px 0 var(--color-surface-3);
+}
+/* 残影带图:图必须随残影一起缩走(spec §7.1「右块缩小淡出」的字面语义)。走伪元素读 data-emoji ——
+ * 图只在绘制层,不写进 DOM 文本,故「凹槽 textContent === ''」那条护栏不受影响。
+ * 字号/居中照抄横排石面里的 [data-halo](text-2xl = 1.5rem + leading-none);inset:-2px 与块对称,
+ * 故伪元素的居中点 = 原 emoji 的居中点,起手帧与原图卡重合。 */
+.stone-echo::after {
+  content: attr(data-emoji);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  line-height: 1;
 }
 .stone-flash {
   position: absolute;

@@ -390,3 +390,46 @@ describe('index.css .quiz-pop 定位不吃 transform', () => {
     expect(rule).toContain('translate:')
   })
 })
+
+// 残影带图(spec §7.1「右块缩小淡出」的字面语义):图必须**随残影一起缩走**,不是留一张空壳。
+// 实现走 CSS 伪元素 content: attr(data-emoji) —— 图只在绘制层,不写进 DOM 文本,故 Task 7c 特意
+// 加固的「凹槽 textContent === ''」(spec §7.1 凹槽不显示文字)不受影响;伪元素挂在 aria-hidden
+// 节点下,不进可访问名。两半缺一不可:数据在 data-emoji 上、渲染靠 CSS 规则,只钉其一都可能假绿。
+describe('index.css .stone-echo 残影带图', () => {
+  afterEach(cleanup)
+
+  it('残影挂 data-emoji,且 .stone-echo::after 用 attr() 把它画出来', () => {
+    const { container } = render(
+      <MatchGame
+        prompt="配对"
+        left={[{ id: 'l1', text: '苹果', speak: '苹果' }]}
+        right={[{ id: 'r1', text: '', emoji: '🍎' }]}
+        answerMap={{ l1: 'r1' }}
+        skill="hanzi"
+        playSound={vi.fn()}
+        speak={() => true}
+        onComplete={vi.fn()}
+      />,
+    )
+    const cards = Array.from(container.querySelectorAll('[data-state]'))
+    fireEvent.click(cards[0]) // 左卡
+    fireEvent.click(cards[1]) // 右卡 → 判合
+
+    const shrink = container.querySelector('[data-alchemy="shrink"]')
+    expect(shrink).not.toBeNull()
+    expect(shrink).toHaveAttribute('data-emoji', '🍎')
+    expect(shrink).toHaveAttribute('aria-hidden', 'true')
+
+    // 属性只是数据 —— 真把图 rendered 出来的是伪元素规则;规则被删/content 被改空,图同样不出现。
+    const anchor = '.stone-echo::after {'
+    expect(css).toContain(anchor)
+    const start = css.indexOf(anchor)
+    expect(css.slice(start, css.indexOf('}', start))).toContain('content: attr(data-emoji)')
+
+    // 图不进 DOM 文本:既有护栏不被这条修打破。
+    const slot = container.querySelector('[data-state="slot"]')
+    expect(slot!.textContent).toBe('')
+    // 伪元素内容也不进可访问名(残影挂 aria-hidden 下):凹槽按钮的可访问名仍是空。
+    expect(slot!).toHaveAccessibleName('')
+  })
+})

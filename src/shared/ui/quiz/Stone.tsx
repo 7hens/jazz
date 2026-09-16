@@ -9,7 +9,9 @@ export type StoneProps = {
   index?: number
   /** 石面主行文字 */
   text?: string
-  /** 石面第二行小字 —— 仅 gold 态(炼成后 词 / 拼音 两行) */
+  /** 石面第二行 —— 仅 gold 态(炼成后的金星石)。取的是**所配右卡的 emoji(图)**,不是拼音/文本:
+   *  连连看右列是图卡,是三个消费点里唯一带 `emoji` 的一列(左列只有 `text`),第二行由此复用那张图
+   *  (spec 2026-09-15-quiz-candy-juice-design §7.1)。 */
   subText?: string
   emoji?: string
   /** 横排(连连看)vs 竖排(选一选)。默认竖排。 */

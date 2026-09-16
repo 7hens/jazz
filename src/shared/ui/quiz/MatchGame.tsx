@@ -143,6 +143,9 @@ export function MatchGame({
           <motion.span
             aria-hidden
             data-alchemy={isLeft ? 'flash' : 'shrink'}
+            // 右块残影**带着那张图**一起缩走(spec §7.1):图由 .stone-echo::after 的
+            // content: attr(data-emoji) 画在绘制层,不落进 DOM 文本。
+            data-emoji={isLeft ? undefined : o.emoji}
             className={isLeft ? 'stone-flash' : 'stone-echo'}
             // 残影从满块开始缩淡(故凹槽 textContent 仍为 '' —— 残影是空节点,不含文字);
             // 金闪是一次性的 [0→亮→0]。减动效由 App 的 MotionConfig reducedMotion="user" 自动接管。

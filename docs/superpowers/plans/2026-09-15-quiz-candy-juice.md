@@ -141,7 +141,7 @@ describe('index.css 材质类存在性', () => {
     }
   })
 
-  it('金石拼音行用实色 token,不用 opacity 压暗(4.01:1 会破 4.5:1 下限)', () => {
+  it('金石第二行用实色 token,不用 opacity 压暗(4.01:1 会破 4.5:1 下限)', () => {
     const start = css.indexOf('.stone--gold {')
     expect(start).toBeGreaterThan(-1)
     const rule = css.slice(start, css.indexOf('}', start))
@@ -172,7 +172,8 @@ Expected: FAIL —— `stoneMark('gold')` 返回 `null`(收到 `undefined` 的�
   --color-gold-2: #ffeaa8; /* 金石面(渐变亮处) */
   --color-gold-edge: #c98a00; /* 金石厚度底边 */
   --color-gold-ink: #4a2e00; /* 金石主行文字 —— 压 #ffc23d 实测 7.75:1 */
-  --color-gold-ink-2: #6b4300; /* 金石拼音行   —— 压 #ffc23d 实测 5.37:1 */
+  --color-gold-ink-2: #6b4300; /* 金石第二行。当前 subText 恒为 emoji(图),color 对彩色字形无可见效果;
+                                  保留以便该行日后承载文本 —— 那时压 #ffc23d 实测 5.37:1。 */
 ```
 
 - [ ] **Step 4: 在 `index.css` 文件末尾追加材质类**
@@ -510,7 +511,9 @@ export type StoneProps = {
   index?: number
   /** 石面主行文字 */
   text?: string
-  /** 石面第二行小字 —— 仅 gold 态(炼成后 词 / 拼音 两行) */
+  /** 石面第二行 —— 仅 gold 态(炼成后的金星石)。取的是**所配右卡的 emoji(图)**,不是拼音/文本:
+   *  连连看右列是图卡,是三个消费点里唯一带 `emoji` 的一列(左列只有 `text`),第二行由此复用那张图
+   *  (spec 2026-09-15-quiz-candy-juice-design §7.1)。 */
   subText?: string
   emoji?: string
   /** 横排(连连看)vs 竖排(选一选)。默认竖排。 */
