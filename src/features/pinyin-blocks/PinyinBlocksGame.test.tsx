@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { UNITS } from './levels'
 import { canPlace, slotsFor } from './rules'
-import type { Block, BlockType } from './blocks'
+import { SPEAK_OF, type Block, type BlockType } from './blocks'
 import type { AnswerKind } from '@/shared/services'
 import { PinyinBlocksGame } from './PinyinBlocksGame'
 
@@ -31,10 +31,21 @@ function settle() {
   act(() => vi.advanceTimersByTime(3000))
 }
 
-/** 读一块托盘积木的身份 —— 类型与值印在里层的 .pblock 上。 */
+/**
+ * 读一块托盘积木的身份 —— 类型与值印在里层的 .pblock 上。
+ *
+ * 读不出就把 DOM 原样报出来**当场炸**:块类不是从 DOM 猜的,而是拿来当 oracle 喂给 canPlace 的,
+ * 一个读错的 data-type 会让「这关无解」的假象出现在断言里,而不是出现在病因里。
+ * 白名单用 SPEAK_OF 的键 —— 它按 BlockType 穷举(编译器管着不漏键),不另抄一份联合类型。
+ */
 function blockOf(el: HTMLElement): Block {
   const chip = el.querySelector<HTMLElement>('[data-value]')
-  return { type: chip?.dataset.type as BlockType, value: chip?.dataset.value ?? '' }
+  const type = chip?.dataset.type as BlockType | undefined
+  const value = chip?.dataset.value
+  if (!type || !(type in SPEAK_OF) || value === undefined) {
+    throw new Error(`托盘块读不出身份:${chip?.outerHTML ?? '(没有块)'}`)
+  }
+  return { type, value }
 }
 
 /** 托盘里还没入槽的块。 */
@@ -442,7 +453,8 @@ describe('拼音积木 · 游戏', () => {
   })
 
   // 连击的粒度是「每放一块」,不是「每答一题」—— 孩子的节奏本来就是一块一块搭出来的。
-  it('每放一块上报一次:放对 first,放错 wrong', () => {
+  // 断言必须是**全序**而不是「调用过某值」:多报一次、顺序颠倒,连击就都算错了。
+  it('每放一块上报一次,且按序:放错 wrong → 放对 first', () => {
     const onBlock = vi.fn()
     render(
       <PinyinBlocksGame unitIndex={1} levelIndex={0} speak={vi.fn()} onBlock={onBlock} />,
@@ -450,9 +462,8 @@ describe('拼音积木 · 游戏', () => {
     // 用声调块当「必定放不下」的那一块:四个调恒全出(bà 只要四声),
     // 所以「声调块 1」在任何题上都无处可落 —— 不受干扰块随机性影响。
     fireEvent.keyDown(screen.getByLabelText('声调块 1'), { key: 'Enter' })
-    expect(onBlock).toHaveBeenCalledWith('wrong')
     // 再放对一块
     fireEvent.keyDown(screen.getByLabelText('积木 b'), { key: 'Enter' })
-    expect(onBlock).toHaveBeenCalledWith('first')
+    expect(onBlock.mock.calls).toEqual([['wrong'], ['first']])
   })
 })

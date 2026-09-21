@@ -108,10 +108,10 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onBlock, 
   const [hoverSlot, setHoverSlot] = useState<string | null>(null)
   const [burst, setBurst] = useState(false)
 
-  /** 本关累计错误次数。星级靠它,提示回强也靠它 —— 「卡住了」是同一种信号。 */
-  // @ts-expect-error Task 7 用它做提示回强;tsconfig 的 noUnusedLocals 现在会报 TS6133。
-  // 读到它的那天这行会变成 TS2578(unused directive)—— 那时把它删掉就是。
-  const [missCount, setMissCount] = useState(0)
+  /** 本关累计错误次数。星级靠它,提示回强也靠它 —— 「卡住了」是同一种信号。
+   *  这一版没人读它的**值**(任务 7 的提示回强才读),故先不接出绑定 ——
+   *  tsc 的 noUnusedLocals 会把没人读的绑定当成死变量,而它是活的,只是还没到读的那天。 */
+  const [, setMissCount] = useState(0)
   const missRef = useRef(0)
   /** 同步计数:placeBlock 的闭包里读到的是旧 state,而判定发生在同一次调用里。 */
   function noteMiss() {
