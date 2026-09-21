@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/shared/services'
 import { createPinyinProgressService, mergeClear } from './pinyin-progress'
 import type { ApiService, PinyinProgressData } from '@/shared/services'
 
@@ -40,11 +41,61 @@ describe('拼音进度服务', () => {
     expect(service.getSnapshot().data.totalStars).toBe(10)
   })
 
+  // 报错文案每条用例各不相同:callbacks 是模块级共享 mock,同一个字符串会被别的用例
+  // 的调用喂成假绿(删掉 report 也照绿)。
   it('写失败要报错且乐观值回退', async () => {
-    const api = fakeApi({ putPinyinProgress: vi.fn().mockRejectedValue(new Error('boom')) })
+    const api = fakeApi({ putPinyinProgress: vi.fn().mockRejectedValue(new Error('boom-rollback')) })
     const service = createPinyinProgressService(api, callbacks)
-    await expect(service.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })).rejects.toThrow('boom')
+    await expect(service.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })).rejects.toThrow('boom-rollback')
     expect(service.getSnapshot().data.stars).toEqual({})
+    expect(callbacks.onError).toHaveBeenCalledWith('boom-rollback')
+  })
+
+  // 进度接口是最后一道(旧服务删光后还是唯一一道)—— 401 必须回登录态,不能只弹个红 toast。
+  it('401 走 onUnauthorized,不走普通报错', async () => {
+    const api = fakeApi({
+      getPinyinProgress: vi.fn().mockRejectedValue(new ApiError(401, 'unauthorized-401')),
+    })
+    const service = createPinyinProgressService(api, callbacks)
+    await service.load()
+    expect(callbacks.onUnauthorized).toHaveBeenCalled()
+    expect(callbacks.onError).not.toHaveBeenCalledWith('unauthorized-401')
+    expect(service.getSnapshot().status).toBe('error')
+  })
+
+  // 失败的写只剩「历史」这一重身份:它若漏进可见值,孩子会看见一笔根本没存下来的星尘。
+  // 此处刻意让失败那笔的数字**大于**在飞那笔 —— MAX 掩盖不了漏掉的那行 `continue`。
+  it('失败的写躲在 pending 之后时不污染可见值', async () => {
+    const puts: Array<{ resolve: () => void; reject: (error: unknown) => void }> = []
+    const api = fakeApi({
+      putPinyinProgress: vi.fn(() => new Promise<void>((resolve, reject) => { puts.push({ resolve, reject }) })),
+    })
+    const service = createPinyinProgressService(api, callbacks)
+    const first = service.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })
+    const second = service.recordClear({ levelId: 'u1-1', stars: 1, starDust: 5 })
+    puts[1]?.reject(new Error('second-boom'))
+    await expect(second).rejects.toThrow('second-boom')
+    expect(service.getSnapshot().data).toEqual({ stars: { 'u1-0': 3 }, totalStars: 10 })
+    puts[0]?.resolve()
+    await first
+    expect(service.getSnapshot().data).toEqual({ stars: { 'u1-0': 3 }, totalStars: 10 })
+  })
+
+  // 累加基准必须是**含在飞乐观值**的可见值:两笔未落地时连通的第二关,两笔星尘都得在。
+  // 换成 settled 基准 → 后一笔把前一笔的星尘冲掉,提交出去的也就少了一笔(且 MAX 救不回来)。
+  it('乐观累加基准是可见值,不是在飞未落地的 settled', async () => {
+    const puts: Array<() => void> = []
+    // 显式标参数类型:否则 mock.calls 是零元 tuple,取 [1][0] 过不了 tsc。
+    const put = vi.fn((_data: PinyinProgressData) => new Promise<void>((resolve) => { puts.push(resolve) }))
+    const api = fakeApi({ putPinyinProgress: put })
+    const service = createPinyinProgressService(api, callbacks)
+    const first = service.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })
+    const second = service.recordClear({ levelId: 'u1-1', stars: 2, starDust: 50 })
+    expect(put.mock.calls[1]?.[0]).toEqual({ stars: { 'u1-0': 3, 'u1-1': 2 }, totalStars: 60 })
+    expect(service.getSnapshot().data).toEqual({ stars: { 'u1-0': 3, 'u1-1': 2 }, totalStars: 60 })
+    puts.forEach((resolve) => resolve())
+    await Promise.all([first, second])
+    expect(service.getSnapshot().data).toEqual({ stars: { 'u1-0': 3, 'u1-1': 2 }, totalStars: 60 })
   })
 
   // 星尘只增不减且服务端只取 MAX —— 同一笔星尘被计两次就**永久**多出来,只有 DELETE 能救。

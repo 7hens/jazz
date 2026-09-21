@@ -1,3 +1,4 @@
+import { ApiError } from '@/shared/services'
 import type {
   ApiService,
   LevelClear,
@@ -85,7 +86,8 @@ export function createPinyinProgressService(
   }
 
   function report(error: unknown) {
-    callbacks.onError(errorMessage(error))
+    if (error instanceof ApiError && error.status === 401) callbacks.onUnauthorized()
+    else callbacks.onError(errorMessage(error))
   }
 
   function visibleSnapshot(): PinyinProgressSnapshot {
