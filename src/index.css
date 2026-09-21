@@ -52,9 +52,11 @@
   --color-block-initial: #2563eb; /* 声母 · 蓝 */
   --color-block-initial-edge: #1e40af;
   --color-block-initial-ink: #ffffff; /* 压 #2563eb 实测 5.17:1 */
-  --color-block-medial: #fb923c; /* 介母 · 橙 */
-  --color-block-medial-edge: #c2410c;
-  --color-block-medial-ink: #6b2308; /* 压 #fb923c 实测 4.96:1(#7c2d12 只有 4.14,不够) */
+  /* 介母 · 青 —— 蓝(声母)与绿(韵母)之间。块面本身是那两色的渐变(见 .pblock--medial),
+     这里三个是它的定色版:边框/厚度/槽位提示用。 */
+  --color-block-medial: #2d7ea8;
+  --color-block-medial-edge: #1b5478;
+  --color-block-medial-ink: #ffffff; /* 压渐变两端 #1e40af→#047857 实测 8.6:1 → 5.5:1,全程够 */
   --color-block-final: #34d399; /* 韵母 · 绿 */
   --color-block-final-edge: #047857;
   --color-block-final-ink: #064e3b; /* 压 #34d399 实测 5.06:1 */
@@ -610,10 +612,23 @@
   --pb-edge: var(--color-block-initial-edge);
   --pb-ink: var(--color-block-initial-ink);
 }
+/* 介母 = 从声母滑向韵母的那个过渡音,所以它的面就是「声母蓝 → 韵母绿」本身。
+   颜色是**位置**的,不是块的 —— 同一块 i 站在介母槽里才穿它;
+   xī guā 的 i 是韵腹,就该是纯韵母绿(见 PinyinBlocksGame 里按槽位取 type)。
+   两端取 edge 深色版:亮蓝→亮绿跨度过大,白字压不住中点(实测 3.2:1,深版 8.6→5.5)。
+   118deg + 48%/52% 的窄过渡:要的是**斜切的分界线**,不是糊成一片的第三色 ——
+   孩子看到的要是「蓝的这边 + 绿的那边」,中间那条缝就是介母本身。 */
 .pblock--medial {
   --pb: var(--color-block-medial);
   --pb-edge: var(--color-block-medial-edge);
   --pb-ink: var(--color-block-medial-ink);
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.24), transparent 58%),
+    linear-gradient(
+      118deg,
+      var(--color-block-initial-edge) 0 48%,
+      var(--color-block-final-edge) 52% 100%
+    );
 }
 .pblock--final {
   --pb: var(--color-block-final);
@@ -629,16 +644,6 @@
   --pb: var(--color-gold);
   --pb-edge: var(--color-gold-edge);
   --pb-ink: var(--color-gold-ink);
-}
-
-/* 双身份块(i/u/ü):「介母色 → 韵母色」渐变,表示它两边都能放。
-   盘中入槽一个样 —— 落进哪个槽不改变它可两用的身份,变纯色会让孩子以为换了一块。 */
-.pblock--dual {
-  background-image: linear-gradient(
-    118deg,
-    var(--color-block-final) 0 45%,
-    var(--color-block-medial) 55% 100%
-  );
 }
 
 .pblock--tone {
@@ -708,9 +713,18 @@
   border-color: color-mix(in srgb, var(--color-block-initial) 55%, transparent);
   background-color: color-mix(in srgb, var(--color-block-initial) 12%, transparent);
 }
+/* 介母槽:跟介母块同一套斜切双色(参数必须一致,两边一漂移孩子就对不上号了),
+   只是化成淡版 —— 太浓会像个已经填好的槽。
+   斜切只能由背景承载:CSS 的 dashed 边框不吃渐变,border-image 会把虚线变成实线。
+   边框取渐变中点色的淡版,是这套双色里唯一能用的单色。 */
 .pslot--medial {
-  border-color: color-mix(in srgb, var(--color-block-medial) 55%, transparent);
-  background-color: color-mix(in srgb, var(--color-block-medial) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-block-medial) 58%, transparent);
+  background-color: transparent;
+  background-image: linear-gradient(
+    118deg,
+    color-mix(in srgb, var(--color-block-initial-edge) 16%, transparent) 0 48%,
+    color-mix(in srgb, var(--color-block-final-edge) 16%, transparent) 52% 100%
+  );
 }
 .pslot--final {
   border-color: color-mix(in srgb, var(--color-block-final) 55%, transparent);

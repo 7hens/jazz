@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { DUAL_VALUES, type BlockType } from './blocks'
+import { speakOf } from './blocks'
 import { UNITS, type Level } from './levels'
 import {
   autoTargetId,
@@ -38,18 +38,6 @@ export type PinyinBlocksGameProps = {
    * strong = 槽位染类型色(教「该拿哪种块」);mid = 只给数量;weak = 连颜色线索都撤掉。
    */
   hint?: 'strong' | 'mid' | 'weak'
-}
-
-/**
- * i/u/ü 是双身份块:落在介母槽或韵母槽上都合法(jiā 的 i 是介母,bīn 的 i 是韵腹)。
- * 画成「介母色 → 韵母色」的渐变,表示这块两边都能放。
- *
- * 判据是「**本题**是否两种槽都在场」,而不是「值是不是 i/u/ü」——
- * tù 里只有韵母槽,u 就只能是韵腹,给它画渐变是假话。
- * 盘中与入槽共用这一个判据,颜色才不会在落位的一瞬间变掉。
- */
-function isDualBlock(value: string, type: BlockType, dualInPlay: boolean): boolean {
-  return dualInPlay && DUAL_VALUES.has(value) && (type === 'medial' || type === 'final')
 }
 
 /** 槽位的显示尺寸:声调槽是圆片,其余同宽。 */
@@ -141,9 +129,6 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
   const placedBlockIds = useMemo(() => new Set(Object.values(placement)), [placement])
   const liveBlocks = tray.filter((b) => !placedBlockIds.has(b.id))
   const welded = level.syl.some((s) => s.weld)
-  /** 题面同时摆出介母槽与韵母槽,i/u/ü 的「两边都能放」才是个真问题。 */
-  const dualInPlay =
-    level.syl.some((s) => s.medial !== undefined) && level.syl.some((s) => s.final !== undefined)
 
   const succeed = useCallback(() => {
     setStatus('solved')
@@ -209,6 +194,15 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       })
     },
     [status],
+  )
+
+  /** 点块就出声:孩子得先听见这块读什么,才谈得上把它拼出来。声调块没有可念的音,静默。 */
+  const speakBlock = useCallback(
+    (block: TrayBlock) => {
+      const word = speakOf(block.type, block.value)
+      if (word) speak(word)
+    },
+    [speak],
   )
 
   const autoPlace = useCallback(
@@ -286,6 +280,9 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
 
   const onDown = (e: React.PointerEvent<HTMLDivElement>, blockId: string) => {
     if (status !== 'playing') return
+    // 按下的那一刻就念 —— 不管这一下最后是点选还是拖拽,意图都是「我要用这块」。
+    const block = tray.find((b) => b.id === blockId)
+    if (block) speakBlock(block)
     const rect = e.currentTarget.getBoundingClientRect()
     drag.current = {
       blockId,
@@ -326,11 +323,10 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       >
         {block ? (
           <BlockChip
+            // 颜色跟着**槽**走:站在介母位才穿那身过渡色。所以块从托盘搬进槽时
+            // 不会变色(托盘块的类型本来就由它要落的槽决定),落错槽才会 —— 那正是要给的信号。
             type={slot.type}
             value={block.value}
-            // 双身份渐变入槽后照旧 —— 块落进韵母槽并不改掉它「两边都能放」的身份,
-            // 盘中是渐变、入槽变纯色会让孩子以为换了一块。
-            dual={isDualBlock(block.value, slot.type, dualInPlay)}
             placed
             welded={welded && status === 'solved' && Boolean(level.syl[slot.sylIdx]?.weld)}
             onClick={() => takeBack(slot.id)}
@@ -352,13 +348,14 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       tabIndex={0}
       aria-label={b.type === 'tone' ? `声调块 ${b.value}` : `积木 ${b.value}`}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') autoPlace(b.id)
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        speakBlock(b)
+        autoPlace(b.id)
       }}
     >
       <BlockChip
         type={b.type}
         value={b.value}
-        dual={isDualBlock(b.value, b.type, dualInPlay)}
         dim={draggingId === b.id}
         className={cn(b.type === 'tone' ? TRAY_BOX_TONE : TRAY_BOX)}
       />

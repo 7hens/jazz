@@ -19,11 +19,9 @@ function ToneGlyph({ value }: { value: string }) {
 }
 
 export type BlockChipProps = {
-  /** 显示的块类。双身份块入槽后由槽位定型,故这里传的是「槽位类型」而非块自身类型。 */
+  /** 块类。入槽后传的是「槽位类型」—— 颜色跟着位置走,站在介母位才穿那身过渡色。 */
   type: BlockType
   value: string
-  /** 盘中未定型:斜纹提示 i/u/ü 两边都能放。 */
-  dual?: boolean
   placed?: boolean
   dim?: boolean
   welded?: boolean
@@ -40,7 +38,6 @@ export type BlockChipProps = {
 export function BlockChip({
   type,
   value,
-  dual,
   placed,
   dim,
   welded,
@@ -56,7 +53,6 @@ export function BlockChip({
       className={cn(
         'pblock font-extrabold',
         TYPE_CLASS[type],
-        dual && 'pblock--dual',
         placed && 'pblock--placed',
         dim && 'pblock--dim',
         welded && 'pblock--welded',

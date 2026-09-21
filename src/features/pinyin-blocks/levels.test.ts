@@ -5,8 +5,10 @@ import {
   INITIALS_ALL,
   MEDIALS,
   NASALS,
+  TONE_VALUES,
   WELD_INITIALS,
   poolFor,
+  speakOf,
 } from './blocks'
 import { UNITS, type Level, type Syllable } from './levels'
 
@@ -84,6 +86,30 @@ describe('拼音积木关卡数据', () => {
       expect(seen.has(key), `${key} 重复出现在 ${seen.get(key)} 与 ${where(entry)}`).toBe(false)
       seen.set(key, where(entry))
     }
+  })
+
+  // 点一块就要念出这块的音。表里漏了谁,那块就成了哑巴 —— 且哑得没有任何提示。
+  it('每一块都有同音汉字可念,声调块除外', () => {
+    const pool = {
+      initial: INITIALS_ALL,
+      medial: MEDIALS,
+      final: [...FINAL_BASIC, ...FINAL_COMPOUND],
+      nasal: NASALS,
+    }
+    for (const [type, values] of Object.entries(pool)) {
+      for (const v of values) {
+        expect(speakOf(type as keyof typeof pool, v), `${type}:${v} 没有读音`).toMatch(/^[一-龥]$/)
+      }
+    }
+    // 声调本身不是一个能念的音。真按下去会念出「啊」这类给定韵母,反而搅混。
+    for (const t of TONE_VALUES) expect(speakOf('tone', t), `声调块 ${t}`).toBeUndefined()
+  })
+
+  // 唯一一个「换个身份换个读法」的字母。鼻尾念的是它所代表的鼻韵母,不是字母名。
+  it('n 当声母读「讷」,当鼻尾读「恩」;ng 读「鞥」', () => {
+    expect(speakOf('initial', 'n')).toBe('讷')
+    expect(speakOf('nasal', 'n')).toBe('恩')
+    expect(speakOf('nasal', 'ng')).toBe('鞥')
   })
 
   // 朗读文本必须是汉字:把拼音串喂给系统 TTS 会被逐字母念出来,这是踩过的坑。

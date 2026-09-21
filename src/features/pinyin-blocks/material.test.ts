@@ -43,6 +43,37 @@ describe('index.css 拼音积木材质段', () => {
     expect(css).toMatch(/\.pblock\s*\{[^}]*--pb:/)
   })
 
+  // 介母 = 从声母滑向韵母的那个过渡音,所以它的面就是那两色的**斜切**。
+  // 双色是「介母这个位置」的语义,不是装饰 —— 别的块类有渐变就说明有人又按「值」着色了。
+  it('介母块面是斜切的「声母 → 韵母」双色,且只有介母有双色面', () => {
+    const start = css.indexOf('.pblock--medial {')
+    expect(start).toBeGreaterThan(-1)
+    const rule = css.slice(start, css.indexOf('}', start))
+    expect(rule).toContain('var(--color-block-initial-edge)')
+    expect(rule).toContain('var(--color-block-final-edge)')
+
+    // 分界线要斜 —— 90deg 的竖切读不出「从声母滑向韵母」这层意思。
+    // 取最后一个角:第一个是那层 180deg 的白色高光。
+    const angles = [...rule.matchAll(/(\d+(?:\.\d+)?)deg/g)].map((m) => Number(m[1]))
+    const angle = angles[angles.length - 1]
+    expect(angle, '缺角度').toBeDefined()
+    expect(angle, '竖直平切读不出「滑过去」').toBeGreaterThan(95)
+    expect(angle, '斜过头就快成横切了').toBeLessThan(160)
+
+    // 两端各写死一个停点:过渡带窄才叫分界线,宽了就是糊成一片的第三色。
+    const band = rule.match(/initial-edge\)\s*0\s*(\d+)%[\s\S]*?final-edge\)\s*(\d+)%/)
+    expect(band, '要写死两端停点才谈得上分界线').not.toBeNull()
+    expect(Number(band?.[2]) - Number(band?.[1]), '过渡带超过 8% 就糊了').toBeLessThanOrEqual(8)
+
+    for (const cls of ['pblock--initial', 'pblock--final', 'pblock--nasal', 'pblock--tone']) {
+      const i = css.indexOf(`.${cls} {`)
+      expect(i, cls).toBeGreaterThan(-1)
+      expect(css.slice(i, css.indexOf('}', i)), cls).not.toContain('linear-gradient')
+    }
+    // 双身份块那套「一块画两种色」的类是删掉的:颜色跟位置走,不跟块走。
+    expect(css).not.toContain('.pblock--dual')
+  })
+
   it('声调块独占金石 token(金 = 声调,与四类字母块都不撞色)', () => {
     const start = css.indexOf('.pblock--tone {')
     expect(start).toBeGreaterThan(-1)
@@ -50,6 +81,33 @@ describe('index.css 拼音积木材质段', () => {
     expect(tone).toContain('var(--color-gold)')
     expect(tone).toContain('var(--color-gold-edge)')
     expect(tone).toContain('var(--color-gold-ink)')
+  })
+
+  // 槽和块是同一件事的两半:槽在说「该拿哪种块过来」。图案对不上,这条线索就白给了。
+  it('介母槽用与介母块同参数的斜切双色,只是化成淡版', () => {
+    const ruleOf = (sel: string) => {
+      const start = css.indexOf(sel)
+      expect(start, sel).toBeGreaterThan(-1)
+      return css.slice(start, css.indexOf('}', start))
+    }
+    /** 斜切双色的三要素。角度取最后一个 —— 块面第一层是 180deg 的白色高光。 */
+    const cut = (rule: string) => {
+      const degs = [...rule.matchAll(/(\d+)deg/g)].map((m) => Number(m[1]))
+      return {
+        deg: degs[degs.length - 1],
+        from: Number(rule.match(/\)\s*0\s*(\d+)%/)?.[1]),
+        to: Number(rule.match(/\)\s*(\d+)%\s*100%/)?.[1]),
+      }
+    }
+    const block = cut(ruleOf('.pblock--medial {'))
+    const slot = cut(ruleOf('.pslot--medial {'))
+    expect(block).toEqual(slot)
+    expect(block.from).toBeLessThan(block.to)
+
+    // 槽色必须淡 —— 浓了就像个已经填好的槽,孩子会以为不用放块。
+    const alphas = [...ruleOf('.pslot--medial {').matchAll(/edge\)\s*(\d+)%,\s*transparent/g)].map((m) => Number(m[1]))
+    expect(alphas, '两个端点色各要一条淡版').toHaveLength(2)
+    for (const a of alphas) expect(a, '太浓就像填好的槽').toBeLessThanOrEqual(25)
   })
 
   it('槽位有强/弱两档提示类(试玩的难度旋钮靠它落地)', () => {

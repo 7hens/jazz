@@ -28,6 +28,41 @@ export const TONE_VALUES = ['1', '2', '3', '4'] as const
 /** 双身份块:介母槽与韵母槽都能放,入槽后颜色跟着槽位走。 */
 export const DUAL_VALUES: ReadonlySet<string> = new Set(MEDIALS)
 
+/* ------------------------------------------------------------ 块的读音 */
+
+/**
+ * 每一块念什么 —— 一律给**同音汉字**,不给字母本身。
+ * 系统 TTS 拿到 'b' 会按英文念 "bee"、拿到 'a' 会念 "诶",都不是要教的音。
+ *
+ * 按**类型**分组,因为同一个字母换个身份就读法不同:
+ * n 当声母读「讷」(nè),当鼻尾读「恩」(en)—— 前鼻音的名字本来就是它自己。
+ */
+export const SPEAK_OF: Readonly<Record<BlockType, Readonly<Record<string, string>>>> = {
+  /** 声母 · 小学的**呼读音**(b 读「玻」,不是纯粹的 /p/) */
+  initial: {
+    b: '玻', p: '坡', m: '摸', f: '佛', d: '得', t: '特', n: '讷', l: '勒',
+    g: '哥', k: '科', h: '喝', j: '基', q: '欺', x: '希',
+    zh: '知', ch: '吃', sh: '诗', r: '日', z: '资', c: '雌', s: '思',
+    y: '衣', w: '乌',
+  },
+  /** 介母:身份换了音不变 —— i 当介母还是「衣」 */
+  medial: { i: '衣', u: '乌', ü: '迂' },
+  /** 韵母:单韵母取单字,复韵母整块不拆、给整块的音(ai → 凹) */
+  final: {
+    a: '啊', o: '哦', e: '鹅', i: '衣', u: '乌', ü: '迂',
+    ai: '凹', ei: '诶', ao: '熬', ou: '欧', iu: '优', ui: '威', ie: '耶', üe: '约', er: '儿',
+  },
+  /** 鼻尾念的是它代表的那个鼻韵母(en / eng),不是字母名。「鞥」是 ēng 唯一的字,生僻但音准。 */
+  nasal: { n: '恩', ng: '鞥' },
+  /** 声调本身不是一个能念的音 —— 硬找字来念会跟题面打架,故留空。 */
+  tone: {},
+}
+
+/** 这一块念什么;查不到(声调块)返回 undefined,调用方据此静默。 */
+export function speakOf(type: BlockType, value: string): string | undefined {
+  return SPEAK_OF[type]?.[value]
+}
+
 /** 焊死的声母:它们拼上 i 之后读音不是「声母 + 衣」,拼合时金箍焊成一体。 */
 export const WELD_INITIALS = ['zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y'] as const
 

@@ -62,34 +62,87 @@ describe('拼音积木 · 游戏', () => {
     expect(screen.getByText('马')).toBeInTheDocument()
   })
 
-  /** 把介母槽填上,返回落位的那块。 */
+  /** 点「介母 u」进介母槽,返回落位的那块 —— 题目(guā)里 u 唯一,不必猜顺序。 */
   function placeMedial() {
     const medialSlot = document.querySelector<HTMLElement>('[data-slot-id="s0-m"]')
     expect(medialSlot).not.toBeNull()
-    const tray = screen.getByLabelText('拼装台')
-    for (const el of Array.from(tray.ownerDocument.querySelectorAll<HTMLElement>('[data-block-id]'))) {
-      fireEvent.keyDown(el, { key: 'Enter' })
-      if (medialSlot?.classList.contains('pslot--filled')) break
-    }
+    fireEvent.keyDown(screen.getByLabelText('积木 u'), { key: 'Enter' })
+    expect(medialSlot?.classList.contains('pslot--filled'), 'u 该落进介母槽').toBe(true)
     return { medialSlot, placed: medialSlot?.querySelector('.pblock') }
   }
 
-  // 双身份块盘中是渐变、入槽后必须还是渐变 —— 变纯色孩子会以为换了一块。
-  it('题面有介母槽时,i 块盘中入槽都是渐变', () => {
-    mount(4, 1) // 🐦 niǎo = n + 介母 i + ao
-    expect((screen.getByLabelText('积木 i') as HTMLElement).querySelector('.pblock--dual')).not.toBeNull()
-    const { placed } = placeMedial()
-    expect(placed?.classList.contains('pblock--dual')).toBe(true)
+  // 颜色跟着**位置**走:站在介母槽里才穿那身「声母蓝 → 韵母绿」的过渡色。
+  // 判据不能是「值是不是 i/u/ü」—— xī guā 的 i 是 xī 的韵腹,给它画过渡色是假话。
+  it('xī guā 的 i 按韵母着色,不因「i 也能当介母」而着色', () => {
+    mount(6, 0) // 🍉 xī guā
+    const trayType = (v: string) =>
+      document.querySelector<HTMLElement>(`[aria-label="积木 ${v}"] [data-type]`)?.dataset.type
+
+    expect(trayType('i'), 'xī 的 i 是韵腹').toBe('final')
+    expect(trayType('u'), 'guā 的 u 是介母').toBe('medial')
+    // 槽位一侧同样:xī 那组根本没有介母槽
+    expect(document.querySelector('[data-slot-id="s0-f"]')).not.toBeNull()
+    expect(document.querySelector('[data-slot-id="s0-m"]')).toBeNull()
+    expect(document.querySelector('[data-slot-id="s1-m"]'), 'guā 的介母槽').not.toBeNull()
   })
 
-  // tù 里只有韵母槽,u 就只能是韵腹。给它画渐变是在说一件不成立的事。
-  it('题面没有介母槽时,u 块不带渐变', () => {
-    mount(1, 2) // 🐰 tù = t + u
-    expect(document.querySelectorAll('.pblock--dual')).toHaveLength(0)
-    fireEvent.keyDown(screen.getByLabelText('积木 u'), { key: 'Enter' })
-    const placed = document.querySelector('[data-slot-id="s0-f"] .pblock')
-    expect(placed).not.toBeNull()
-    expect(placed?.classList.contains('pblock--dual')).toBe(false)
+  it('块入槽后按槽位定型:介母槽里是介母色,韵母槽里是韵母色', () => {
+    mount(4, 0) // 🍉 guā = g + 介母 u + a
+    const { placed } = placeMedial()
+    expect(placed?.getAttribute('data-type')).toBe('medial')
+
+    fireEvent.keyDown(screen.getByLabelText('积木 a'), { key: 'Enter' })
+    expect(document.querySelector('[data-slot-id="s0-f"] .pblock')?.getAttribute('data-type')).toBe('final')
+  })
+
+  // 看见字母 ≠ 知道它读什么。4-8 岁孩子正是靠「按一下、听一声」建立形音联系的。
+  it('点一块就念出这一块的音,念的是同音汉字', () => {
+    const { speak } = mount(1, 0) // 👨 bà = b + a
+    fireEvent.keyDown(screen.getByLabelText('积木 b'), { key: 'Enter' })
+    // 喂 'b' 会被 TTS 按英文念成 "bee"。呼读音「玻」才是小学教的那个音。
+    expect(speak).toHaveBeenCalledWith('玻')
+    fireEvent.keyDown(screen.getByLabelText('积木 a'), { key: 'Enter' })
+    expect(speak).toHaveBeenCalledWith('啊')
+  })
+
+  // 同一个字母两个身份,读法得跟着身份走 —— 鼻尾念的是它代表的那个鼻韵母。
+  it('鼻尾 n 念「恩」(前鼻音的名字就是它自己)', () => {
+    const { speak } = mount(3, 0) // 🚪 mén = m + e + 鼻尾 n
+    // 托盘里可能同时有鼻尾 n 和当干扰块发的声母 n —— 按 data-type 认身份,不按字符
+    const nasalN = screen
+      .getAllByLabelText('积木 n')
+      .find((el) => el.querySelector('[data-type="nasal"]') !== null)
+    expect(nasalN, '题面该有鼻尾 n').toBeDefined()
+    fireEvent.keyDown(nasalN as HTMLElement, { key: 'Enter' })
+    expect(speak).toHaveBeenCalledWith('恩')
+  })
+
+  it('鼻尾 ng 念「鞥」', () => {
+    const { speak } = mount(3, 2) // 🏡 fáng = f + a + ng
+    fireEvent.keyDown(screen.getByLabelText('积木 ng'), { key: 'Enter' })
+    expect(speak).toHaveBeenCalledWith('鞥')
+  })
+
+  it('声母 n 仍念「讷」,不跟着鼻尾走', () => {
+    const { speak } = mount(6, 2) // 🥛 niú nǎi:两块 n 都是声母
+    const ns = screen.getAllByLabelText('积木 n')
+    expect(ns).toHaveLength(2)
+    fireEvent.keyDown(ns[0] as HTMLElement, { key: 'Enter' })
+    expect(speak).toHaveBeenCalledWith('讷')
+  })
+
+  it('按下的那一刻就念 —— 拖拽的起点也算', () => {
+    const { speak } = mount(1, 0)
+    fireEvent.pointerDown(screen.getByLabelText('积木 b'), { clientX: 10, clientY: 10 })
+    expect(speak).toHaveBeenCalledWith('玻')
+    fireEvent.pointerUp(window, { clientX: 10, clientY: 10 })
+  })
+
+  // 声调不是一个能念的音。硬找一个字来念(「妈麻马骂」之类)会跟题面的读音打架。
+  it('声调块不发字母音', () => {
+    const { speak } = mount(1, 0)
+    fireEvent.keyDown(screen.getByLabelText('声调块 4'), { key: 'Enter' })
+    expect(speak).not.toHaveBeenCalled()
   })
 
   it('声调块单独成行,与组合块分开', () => {
