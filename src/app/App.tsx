@@ -8,6 +8,7 @@ import { ColdStartWizard, FoundationStepGate } from '@/features/foundation'
 import { LingLing } from '@/features/lingling'
 import { LessonEntry, type LessonCelebration } from '@/features/lesson'
 import { LuckyBonus } from '@/features/lucky-bonus'
+import { PinyinBlocksEntry } from '@/features/pinyin-blocks'
 import { CHAPTER_1, ChapterRunnerView, QianziguEntry, resolveDebugRow } from '@/features/qianzigu'
 import { SettingsEntry } from '@/features/settings'
 import {
@@ -69,6 +70,11 @@ export default function App() {
   const [celebration, setCelebration] = useState<Celebration | null>(null)
   // dev-only URL 直达(?s=1.1.N)的一次性伪起点:消费一次即清,生产构建不解析参数。
   const [debugRow, setDebugRow] = useState<ChapterProgressRow | null>(null)
+  // dev-only 试玩路由 ?mock=pinyin —— 直达拼音积木试玩台。
+  // 不进 phase 状态机:它是挂在正式玩法旁边的一块试验田,退出即回世界壳,不干扰既有流程。
+  const [mockRoute, setMockRoute] = useState<string | null>(() =>
+    import.meta.env.DEV ? new URLSearchParams(window.location.search).get('mock') : null,
+  )
   const [showDiagnosis, setShowDiagnosis] = useState(false)
   const diagnosisOffered = useRef(false)
   const previousAuthStatus = useRef(authSnap.status)
@@ -179,6 +185,8 @@ export default function App() {
     content = <BootScreen />
   } else if (authSnap.status !== 'authenticated') {
     content = <AuthEntry />
+  } else if (mockRoute === 'pinyin') {
+    content = <PinyinBlocksEntry onExit={() => setMockRoute(null)} />
   } else if (showDiagnosis) {
     // 冷启动小测盖在双世界壳前;onClose 后回落下方 world 分支,0 星不进任何世界。
     content = (

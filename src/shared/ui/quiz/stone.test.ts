@@ -79,8 +79,12 @@ describe('index.css 材质类存在性', () => {
   it('材质类不写颜色字面量:hex 与 rgb()/hsl() 一并拦(白色高光除外)', () => {
     // marker 缺失时 indexOf 返回 -1、slice(-1) 只取末字符 → 断言会静默空转,故先显式断言 marker 存在。
     const marker = '/* ===== 题面糖果材质'
+    // 终点也要断言存在:本段原先靠「marker 到文件尾」界定,拼音积木段追加在它后面之后,
+    // 那个隐式假设就变成了「把下一段也算进本段的检查范围」。加终点 = 把边界写死。
+    const until = '/* ===== 拼音积木材质'
     expect(css).toContain(marker)
-    const block = css.slice(css.indexOf(marker))
+    expect(css).toContain(until)
+    const block = css.slice(css.indexOf(marker), css.indexOf(until))
     expect(block).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
 
     // 只查 hex 会放过 rgb() —— `rgb(31 58 95 / 0.35)` 就是 --color-shadow(#1f3a5f) 的字面量写法,
