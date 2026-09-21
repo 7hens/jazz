@@ -26,6 +26,12 @@
 
 ### feature 轨 — 目标 `0.2.0`(未发;新能力,兼容 → minor)
 
+> 🔴 **2026-09-21 轨整并**:产品口径「**开始落实到真正的游戏里**」+「**原来的东西都推倒重来**」。
+> 拼音积木试验田扶正为**唯一玩法**,本轨旧条目与下行 `0.3.0` **全轨**一并作废(行就地留痕,不删)。
+> 版本轨**继续沿用 `0.2.0`** —— 不新开轨、不重编版本号。迁移账见下行「远程 D1 迁移」行的裁定结果。
+
+- [ ] `P0` `[feature]` 拼音积木取代全游戏(去故事化 · 纯拼音 · 单向课程)— 试验田(`?mock=pinyin`,零持久化)扶正为唯一玩法,千字谷 / 字母林 / 词课 / 基础引导 / 出题引擎 / 词库整批删除。骨架:单元地图(7 格**名片块**,零文本自表意)+ 单元内线性 + 每关星级 1-3 + 星尘全局累计;迁移 `0008_pinyin_progress`(每 user 一行,星级 JSON + 星尘,两条线单调升走 MAX 合并,worker 读-改-写);关卡加**显式稳定 id**(存档只认 id,顺序可调);三档提示收敛成两个 CSS 变量、按单元固定撤 + 连错 2 次回强;连击 / 成就 / 幸运奖励**全留**、触发点从词课结算重锚到关卡结算(成就目录 5/8 条换锚点)。**分两次提交先建后删**,删除为独立可 revert 提交。**本行取代本轨全部旧条目与 `0.3.0` 全轨** — [design](superpowers/specs/2026-09-21-pinyin-blocks-full-game-design.md)
+
 - [x] `P0` `[feature]` 趣味性系统(fun-system)— 开发完成并入 main,随 0.2.0 一起发 — [plan](superpowers/plans/2026-09-04-fun-system.md) / [spec](superpowers/specs/2026-09-04-fun-system-design.md)
 - [x] `P0` `[feature]` 前端架构重构 — 开发完成并入 main,随 0.2.0 一起发 — [plan](superpowers/plans/2026-09-04-dev-architecture-refactor.md) / [spec](superpowers/specs/2026-09-04-dev-architecture-refactor-design.md)
 - [x] `P0` `[feature]` 基础引导自适应教学层(foundation-learning)— 开发完成并入 main,随 0.2.0 一起发 — [spec](superpowers/specs/2026-09-05-foundation-learning-design.md) / [plan·core](superpowers/plans/2026-09-05-foundation-learning-core.md) / [plan·embed](superpowers/plans/2026-09-05-foundation-learning-embed.md)
@@ -39,6 +45,10 @@
 - [x] `P0` `[feature]` 声调锚统一 qi 四调 + 删轻声 — 拼音短教声调单元锚改同一音节 qi:ton1 七 `qī` `7️⃣` / ton2 旗 `qí` `🚩` / ton3 企 `qǐ` `🐧` / ton4 气 `qì` `🎈`;轻声 ton0 整体退役(本无出题、decompose 只顺带产键记过)→ `PINYIN_TONES` 4 项、轻声音节不再产声调单元键,帽子/月亮等 ~21 轻声音不再为幽灵单元强制补教 — 已并入 main(commit 008bfa8),随 0.2.0 发
 
 ### feature 轨 — 目标 `0.3.0`(未发;新能力,兼容 → minor)
+
+> ❌ **整轨失效(2026-09-21)**:被上行「拼音积木取代全游戏」整体取代。本轨全部条目的处置对象 —— 千字谷章节与故事线、词课三技能、句型步、答题卡壳与糖果材质、故事屋世界观 —— **随词课与千字谷一起删除**,不再执行。
+> 其中两条的通用教训**并入新行验收**:①「台词从待教的词倒推」(来自「ch1 故事打磨」)②「Tailwind 扫描器陷阱:材质类必须走 `index.css` 普通类,否则 test/lint 全绿而只有 build 暴露」(来自「糖果材质 + 爽感层」)。
+> 旧行**就地留痕不删**(防反复),其失效标记下不再追加维护。
 
 > ⚠ **2026-09-16 轨内账目**:本轨 9 条**三种状态混用**(「开发完成待发」/「spec 已出待评审」/「未立项」)。按 PLAN 规则「排进本轮开工 → 升当前迭代」,**无 spec 者不占本轮** —— 现存 1 条违规(见「句型步题型改造」行,已就地标注处置待裁)。另:**本轨实际被 `0.2.0` 阻塞**(迁移账见 `0.2.0` 轨「远程 D1 迁移」行)。
 
