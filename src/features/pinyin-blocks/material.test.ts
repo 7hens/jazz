@@ -154,6 +154,28 @@ describe('index.css 拼音积木材质段', () => {
     expect(rule).toContain('position: absolute')
   })
 
+  // 地图格子上「亮几颗 = 通了几关」是这张地图唯一的信息出口:格子不写汉字,也没有别处说进度。
+  // 把 --on 改成中性色、或把暗星调实,格子就再也看不出「过了多少」,而一切都还是绿的。
+  it('地图星位:暗星是 --color-ink 的淡版,亮星独占 --color-gold', () => {
+    const ruleOf = (sel: string) => {
+      const start = css.indexOf(sel)
+      expect(start, sel).toBeGreaterThan(-1)
+      return css.slice(start, css.indexOf('}', start))
+    }
+    const off = ruleOf('.pstar {')
+    expect(off, '暗星的色必须由 --color-ink 淡出来:换成别的 token 就换了它跟底色的关系').toContain(
+      'color-mix(in srgb, var(--color-ink)',
+    )
+    // 抓浓度上限:暗星调实了就和亮星分不出来,「亮了几颗」这层信息随之消失。
+    const dim = Number(off.match(/var\(--color-ink\)\s*(\d+)%/)?.[1])
+    expect(dim, '暗星得是淡版,不是把 ink 原色铺上去').toBeGreaterThan(0)
+    expect(dim, '暗星太实就压过了亮星').toBeLessThan(50)
+
+    expect(ruleOf('.pstar--on {'), '亮星丢了金色,格子只剩那串数字在说进度').toContain(
+      'color: var(--color-gold)',
+    )
+  })
+
   it('材质段不写颜色字面量:hex 与 rgb()/hsl() 一并拦(白色高光除外)', () => {
     const start = css.indexOf(MARKER)
     expect(start).toBeGreaterThan(-1)

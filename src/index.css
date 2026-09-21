@@ -825,3 +825,14 @@
     opacity: 0;
   }
 }
+
+/* 地图格子上的星:未通关是空壳,通关才填色 —— 形状先给,颜色后给，
+   一眼能看出「这格过了几关」而不只是「过没过」。 */
+.pstar {
+  font-size: 0.9rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--color-ink) 14%, transparent);
+}
+.pstar--on {
+  color: var(--color-gold);
+}
