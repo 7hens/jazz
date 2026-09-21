@@ -182,10 +182,12 @@ describe('拼音积木关卡数据', () => {
 
   // 撤档的**位置**是产品决策(哪几个单元还看得见颜色),不是实现细节 —— 钉边界,不抄整张表。
   // 到最后一关还全染色,颜色就成了拐杖;这也是唯一挡得住「整张表被改成全 strong」的东西。
-  it('脚手架逐段撤走:强档到 u3 为止,末两关不许再有颜色', () => {
+  // u5 也钉住:留一个能自由改的格子,档位边界就会被静默挪走(中档缩成只剩 u4 一关也算「中档」)。
+  it('脚手架逐段撤走:强档到 u3,中档到 u5,末两关不许再有颜色', () => {
     expect(HINT_BY_UNIT.u1, '开局必须给满脚手架').toBe('strong')
     expect(HINT_BY_UNIT.u3, 'u1-u3 是强档').toBe('strong')
     expect(HINT_BY_UNIT.u4, 'u4 起撤到中档').toBe('mid')
+    expect(HINT_BY_UNIT.u5, '中档要覆盖 u4-u5,不许缩成一关').toBe('mid')
     expect(HINT_BY_UNIT.u6, 'u6 起撤到弱档').toBe('weak')
     expect(HINT_BY_UNIT.u7, '最后一关还染色 —— 颜色就成了拐杖').toBe('weak')
   })
