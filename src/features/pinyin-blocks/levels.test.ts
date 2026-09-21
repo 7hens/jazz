@@ -129,4 +129,38 @@ describe('拼音积木关卡数据', () => {
       expect(new Set(sizes).size, `${u.id} 音节数不一致`).toBe(1)
     }
   })
+
+  // 存档只认 id。id 一重复,两个关就共用一份星 —— 而且是静默的,没有任何报错。
+  it('每关都有稳定 id,格式合规且全局唯一', () => {
+    const seen = new Map<string, string>()
+    for (const entry of allLevels) {
+      const level = entry.level
+      const label = where(entry)
+      expect(level.id, `${label} 缺 id`).toMatch(/^u\d+-\d+$/)
+      const owner = seen.get(level.id)
+      expect(owner, `${level.id} 重复出现在 ${owner} 与 ${label}`).toBeUndefined()
+      seen.set(level.id, label)
+    }
+    expect(seen.size, 'id 总数该等于关卡总数').toBe(allLevels.length)
+  })
+
+  // 地图格子靠名片表意 —— 名片空了,那一格对 4-8 岁的孩子就是一块灰砖。
+  it('每个单元都有非空名片,且名片里的块都在块目录定义域内', () => {
+    const pool: Record<string, readonly string[]> = {
+      initial: INITIALS_ALL,
+      medial: MEDIALS,
+      final: [...FINAL_BASIC, ...FINAL_COMPOUND],
+      nasal: NASALS,
+      tone: TONE_VALUES,
+    }
+    for (const u of UNITS) {
+      expect(u.badge.length, `${u.id} 名片为空`).toBeGreaterThan(0)
+      for (const block of u.badge) {
+        expect(pool[block.type], `${u.id} 名片块类型 ${block.type}`).toBeDefined()
+        expect(pool[block.type], `${u.id} 名片块 ${block.type}:${block.value}`).toContain(block.value)
+      }
+      // 声调块不该出现在名片里:它不是一个「这个单元教什么」的答案
+      expect(u.badge.some((b) => b.type === 'tone'), `${u.id} 名片混进了声调块`).toBe(false)
+    }
+  })
 })
