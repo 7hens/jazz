@@ -166,8 +166,9 @@ describe('拼音积木关卡数据', () => {
     }
   })
 
-  // 脚手架要随课程撤掉 —— 到最后一关还全染色,颜色就成了拐杖。
-  it('每个单元都有提示基线,且随课程递减不回头', () => {
+  // 只降不升 = 不回头。**它不保证「真的降过」** —— 一张全 strong 的表照样满足它,
+  // 所以别把「随课程递减」的承诺挂在这一条上;那半边由下面钉边界的那条负责。
+  it('每个单元都有提示基线,且只降不升(不回头)', () => {
     const order = { strong: 0, mid: 1, weak: 2 } as const
     let previous = -1
     for (const u of UNITS) {
@@ -177,6 +178,16 @@ describe('拼音积木关卡数据', () => {
       expect(rank, `${u.id} 的提示比上一单元更强 —— 脚手架回头了`).toBeGreaterThanOrEqual(previous)
       previous = rank
     }
+  })
+
+  // 撤档的**位置**是产品决策(哪几个单元还看得见颜色),不是实现细节 —— 钉边界,不抄整张表。
+  // 到最后一关还全染色,颜色就成了拐杖;这也是唯一挡得住「整张表被改成全 strong」的东西。
+  it('脚手架逐段撤走:强档到 u3 为止,末两关不许再有颜色', () => {
+    expect(HINT_BY_UNIT.u1, '开局必须给满脚手架').toBe('strong')
+    expect(HINT_BY_UNIT.u3, 'u1-u3 是强档').toBe('strong')
+    expect(HINT_BY_UNIT.u4, 'u4 起撤到中档').toBe('mid')
+    expect(HINT_BY_UNIT.u6, 'u6 起撤到弱档').toBe('weak')
+    expect(HINT_BY_UNIT.u7, '最后一关还染色 —— 颜色就成了拐杖').toBe('weak')
   })
 
   // 连错回强是「救急垫脚石」,不是存档:它只该让提示变强,不该让它变弱。

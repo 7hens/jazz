@@ -138,6 +138,9 @@ describe('index.css 拼音积木材质段', () => {
       const rule = css.slice(i, css.indexOf('}', i))
       expect(rule, name).toContain('var(--slot-line)')
       expect(rule, `${name} 没留住中性底,弱档会整个消失`).toContain('var(--slot-base-line)')
+      // 声调槽是个**圆片**。这条半径原本单独立成一条 .pslot--tone 规则,合并时最容易顺手丢 ——
+      // 而丢了只表现为「圆角方块」,没有任何非视觉信号。合并越干净,越要把留下来的东西钉住。
+      if (name === 'tone') expect(rule, '声调槽丢了 border-radius,圆片退化成圆角方块').toContain('border-radius: 999px')
       // 一条规则只能有一条:拆成两条时,上面那句「取第一条」就成了假绿(self-asserting)。
       expect(css.split(`.pslot--${name} {`).length - 1, `${name} 只该有一条规则`).toBe(1)
     }
