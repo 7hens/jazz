@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { UNITS } from './levels'
@@ -76,5 +78,24 @@ describe('拼音单元地图', () => {
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={onOpenParent} />)
     fireEvent.click(screen.getByLabelText('家长'))
     expect(onOpenParent).toHaveBeenCalled()
+  })
+
+  /**
+   * 这条钉的是**源码形态**,不是布局:名片尺寸必须维持 h-8(32px)+ 字号覆盖带 `!`。
+   * - 32px 是那句布局预算算术的输入(5×32+4×4 = 176 ≤ 177.3),改回 h-9 就等于算术作废;
+   * - `!` 是覆盖标记:BlockChip 在同一个元素上写死了 text-[1.75rem]/text-[1.35rem],
+   *   同特异性下胜负由 Tailwind 的样式表顺序定,而任意 rem 值按**字典序**排,
+   *   所以不带 `!` 的 text-[0.85rem] 会被盖回大字号 —— 静默失效,全套测试仍绿。
+   * 级联本身在 jsdom 里测不出来(环境无 CSS),由构建产物实测
+   * (`.text-[0.85rem]!{font-size:.85rem!important}`)与 T15 冒烟兜底。
+   */
+  it('名片尺寸常量:盒子缩到 h-8,字号覆盖带 `!`', () => {
+    const src = readFileSync(join(process.cwd(), 'src/features/pinyin-blocks/UnitMap.tsx'), 'utf8')
+    const badge = src.match(/const BADGE_BOX = '([^']*)'/)?.[1]
+    expect(badge, 'BADGE_BOX 没了,下面的断言会静默空转').toBeDefined()
+    expect(badge, '盒子不再是 32px,布局预算就得重算').toMatch(/(?:^| )h-8(?: |$)/)
+    expect(badge, '字号覆盖丢了 `!`:会被块自己的 text-[1.75rem] 按样式表顺序盖掉').toMatch(
+      /text-\[[^\]]+\]!/,
+    )
   })
 })
