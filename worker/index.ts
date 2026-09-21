@@ -2,6 +2,11 @@ import { handleLogin, handleLogout, handleMe } from './auth'
 import { jsonResponse } from './_lib/http'
 import { handleGetBasicsProgress, handlePutBasicsProgress } from './basics'
 import { handleGetChapterProgress, handlePutChapterProgress } from './chapter-progress'
+import {
+  handleDeletePinyinProgress,
+  handleGetPinyinProgress,
+  handlePutPinyinProgress,
+} from './pinyin-progress'
 import { handleGetProgress, handlePutProgress, handleDeleteProgress } from './progress'
 import { handleGetSettings, handlePutSettings } from './settings'
 
@@ -51,6 +56,11 @@ export default {
       case '/api/chapter-progress':
         if (method === 'GET') return handleGetChapterProgress(request, env)
         if (method === 'PUT') return handlePutChapterProgress(request, env)
+        return methodNotAllowed()
+      case '/api/pinyin-progress':
+        if (method === 'GET') return handleGetPinyinProgress(request, env)
+        if (method === 'PUT') return handlePutPinyinProgress(request, env)
+        if (method === 'DELETE') return handleDeletePinyinProgress(request, env)
         return methodNotAllowed()
       default:
         // 未匹配的 /api/*(拼错/遗留路径)一律 JSON 404,绝不落到静态资源
