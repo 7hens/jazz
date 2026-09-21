@@ -1,6 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { UNITS } from './levels'
+import { canPlace, slotsFor } from './rules'
+import type { Block, BlockType } from './blocks'
+import type { AnswerKind } from '@/shared/services'
 import { PinyinBlocksGame } from './PinyinBlocksGame'
 
 /** 游戏组件只吃 props,不碰服务注册表 —— 测试直接渲染,无需 fake service。 */
@@ -10,27 +13,50 @@ function mount(unit: number, level: number, onAdvance = vi.fn()) {
   return { ...utils, speak, onAdvance }
 }
 
-/** 按题目要求把正确块一个个点进去(点选路径 = 自动落位)。 */
-function solveCorrectly() {
-  const tray = screen.getByLabelText('拼装台')
-  const blocks = Array.from(tray.ownerDocument.querySelectorAll<HTMLElement>('[data-block-id]'))
-  // 逐块点,点错的会被游戏拒绝(不落位),故反复扫到没有进展为止
-  let progressed = true
-  while (progressed) {
-    progressed = false
-    const slots = Array.from(tray.ownerDocument.querySelectorAll<HTMLElement>('[data-slot-id]'))
-    const filled = new Set(slots.filter((s) => s.classList.contains('pslot--filled')).map((s) => s.dataset.slotId))
-    for (const el of blocks) {
-      const before = filled.size
-      fireEvent.keyDown(el, { key: 'Enter' })
-      const now = Array.from(tray.ownerDocument.querySelectorAll<HTMLElement>('[data-slot-id]')).filter((s) =>
-        s.classList.contains('pslot--filled'),
-      ).length
-      if (now > before) {
-        progressed = true
-        break
-      }
-    }
+function mountWithSolved(
+  unit: number,
+  level: number,
+  onSolved: (stars: number) => void,
+  onBlock?: (kind: AnswerKind) => void,
+) {
+  const speak = vi.fn()
+  const utils = render(
+    <PinyinBlocksGame unitIndex={unit} levelIndex={level} speak={speak} onSolved={onSolved} onBlock={onBlock} />,
+  )
+  return { ...utils, speak }
+}
+
+/** 通关回调是在成功动画**放完之后**才发的(260ms 判定 + 1600ms 停顿),得把时钟推过去。 */
+function settle() {
+  act(() => vi.advanceTimersByTime(3000))
+}
+
+/** 读一块托盘积木的身份 —— 类型与值印在里层的 .pblock 上。 */
+function blockOf(el: HTMLElement): Block {
+  const chip = el.querySelector<HTMLElement>('[data-value]')
+  return { type: chip?.dataset.type as BlockType, value: chip?.dataset.value ?? '' }
+}
+
+/** 托盘里还没入槽的块。 */
+function trayBlocks(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-block-id]')).filter(
+    (el) => el.closest('[data-slot-id]') === null,
+  )
+}
+
+/**
+ * 按题目要求把正确块一个个点进去(点选路径 = 自动落位),**一次不错**。
+ *
+ * 只点「放得下」的那一块 —— 乱点放不下的块会自己制造错误次数(点错也算错),
+ * 星级就永远只有一个值,星级测试也就无从谈起。
+ */
+function solveCorrectly(unit: number, level: number) {
+  for (const slot of slotsFor(UNITS[unit]!.levels[level]!)) {
+    const fits = trayBlocks().filter((el) => canPlace(blockOf(el), slot))
+    // 优先类型完全相同的块:双身份块(i/u/ü)可能被前一个槽用掉
+    const pick = fits.find((el) => blockOf(el).type === slot.type) ?? fits[0]
+    expect(pick, `${slot.type}:${slot.value} 在托盘里找不到可放块`).toBeDefined()
+    fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
   }
 }
 
@@ -57,7 +83,7 @@ describe('拼音积木 · 游戏', () => {
 
   it('拼对后同时亮出拼音与对应汉字(认读要扣到字上)', async () => {
     mount(1, 1) // 🐴 mǎ
-    solveCorrectly()
+    solveCorrectly(1, 1)
     expect(await screen.findByText('mǎ')).toBeInTheDocument()
     expect(screen.getByText('马')).toBeInTheDocument()
   })
@@ -153,7 +179,7 @@ describe('拼音积木 · 游戏', () => {
 
   it('点对块会落位,拼齐后亮出拼音答案', async () => {
     const { speak } = mount(1, 0) // 👨 bà
-    solveCorrectly()
+    solveCorrectly(1, 0)
     expect(await screen.findByText('bà')).toBeInTheDocument()
     // 朗读喂的是同音汉字 —— 喂 'bà' 会被 TTS 逐字母念出来
     expect(speak).toHaveBeenCalledWith('爸')
@@ -273,7 +299,7 @@ describe('拼音积木 · 游戏', () => {
 
   it('整体认读音节拼对后出现焊接标记(zhī)', async () => {
     mount(5, 0) // 🕷️ zhī
-    solveCorrectly()
+    solveCorrectly(5, 0)
     expect(await screen.findByText('zhī')).toBeInTheDocument()
     const weld = document.querySelector('.pweld')
     expect(weld).not.toBeNull()
@@ -282,7 +308,7 @@ describe('拼音积木 · 游戏', () => {
 
   it('非整体认读音节不出现焊接标记', async () => {
     mount(1, 0) // 👨 bà
-    solveCorrectly()
+    solveCorrectly(1, 0)
     await screen.findByText('bà')
     expect(document.querySelector('.pweld')).toBeNull()
   })
@@ -315,5 +341,118 @@ describe('拼音积木 · 游戏', () => {
         unmount()
       }
     }
+  })
+
+  // 「错」= 触发红圈抖动的那件事。三处都要算:放错槽、点选无槽可落、全填后判出错块。
+  it('一次不错通关给三星', () => {
+    vi.useFakeTimers()
+    try {
+      const onSolved = vi.fn()
+      render(<PinyinBlocksGame unitIndex={1} levelIndex={0} speak={vi.fn()} onSolved={onSolved} />)
+      solveCorrectly(1, 0)
+      settle()
+      expect(onSolved).toHaveBeenCalledWith(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('放错拖拽算一次错,拿二星', () => {
+    vi.useFakeTimers()
+    try {
+      const onSolved = vi.fn()
+      const onBlock = vi.fn()
+      mountWithSolved(1, 0, onSolved, onBlock) // 👨 bà:声母槽要 b,韵母槽要 a
+      // 把 b 拖到韵母槽上 —— 放不下,红一下
+      const finalSlot = document.querySelector<HTMLElement>('[data-slot-id="s0-f"]') as HTMLElement
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(finalSlot)
+      const b = Array.from(document.querySelectorAll<HTMLElement>('[data-block-id]')).find(
+        (el) => el.getAttribute('aria-label') === '积木 b',
+      )
+      fireEvent.pointerDown(b as HTMLElement, { clientX: 10, clientY: 10 })
+      fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
+      fireEvent.pointerUp(window, { clientX: 40, clientY: 40 })
+      // 拖错槽既算一次错,也要上报一次 —— 两条手势(拖 / 点)说的是同一件事
+      expect(onBlock).toHaveBeenCalledWith('wrong')
+      solveCorrectly(1, 0)
+      settle()
+      expect(onSolved).toHaveBeenCalledWith(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // 点选路径「无槽可落」与拖错槽是同一件事的另一种手势,不能只有拖拽那半边算错。
+  it('点一块放不下的块也算一次错,拿二星', () => {
+    vi.useFakeTimers()
+    try {
+      const onSolved = vi.fn()
+      mountWithSolved(1, 0, onSolved) // 👨 bà 只要四声,「声调块 1」恒无处可落
+      fireEvent.keyDown(screen.getByLabelText('声调块 1'), { key: 'Enter' })
+      solveCorrectly(1, 0)
+      settle()
+      expect(onSolved).toHaveBeenCalledWith(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // 两条推进路径只能跑一条 —— 都跑的话 advance 里那个 setRound 会把这关重挂一次
+  // (表现是闪一下、发牌换一副),孩子刚拼好的题面凭空消失。
+  it('给了 onSolved 就不再自走推进(关不重挂)', () => {
+    vi.useFakeTimers()
+    try {
+      const onSolved = vi.fn()
+      const onAdvance = vi.fn()
+      render(
+        <PinyinBlocksGame
+          unitIndex={1}
+          levelIndex={0}
+          speak={vi.fn()}
+          onSolved={onSolved}
+          onAdvance={onAdvance}
+        />,
+      )
+      solveCorrectly(1, 0)
+      settle()
+      expect(onSolved).toHaveBeenCalledWith(3)
+      expect(onAdvance, '外层接管时不该自走').not.toHaveBeenCalled()
+      // 重挂会连 placement 一起清掉 —— 槽里还是满的,说明这一关没被重挂
+      expect(
+        document.querySelector('[data-slot-id="s0-i"]')?.classList.contains('pslot--filled'),
+        '关卡被重挂了(placement 被清空)',
+      ).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // 试玩路径:外层不管结算时,关内自己往下一关走。
+  it('没给 onSolved 时关内自走推进', () => {
+    vi.useFakeTimers()
+    try {
+      const onAdvance = vi.fn()
+      mount(1, 0, onAdvance) // 👨 bà 是 u2-0
+      solveCorrectly(1, 0)
+      settle()
+      expect(onAdvance).toHaveBeenCalledWith(1, 1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // 连击的粒度是「每放一块」,不是「每答一题」—— 孩子的节奏本来就是一块一块搭出来的。
+  it('每放一块上报一次:放对 first,放错 wrong', () => {
+    const onBlock = vi.fn()
+    render(
+      <PinyinBlocksGame unitIndex={1} levelIndex={0} speak={vi.fn()} onBlock={onBlock} />,
+    )
+    // 用声调块当「必定放不下」的那一块:四个调恒全出(bà 只要四声),
+    // 所以「声调块 1」在任何题上都无处可落 —— 不受干扰块随机性影响。
+    fireEvent.keyDown(screen.getByLabelText('声调块 1'), { key: 'Enter' })
+    expect(onBlock).toHaveBeenCalledWith('wrong')
+    // 再放对一块
+    fireEvent.keyDown(screen.getByLabelText('积木 b'), { key: 'Enter' })
+    expect(onBlock).toHaveBeenCalledWith('first')
   })
 })

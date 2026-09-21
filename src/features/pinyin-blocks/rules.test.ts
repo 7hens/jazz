@@ -9,6 +9,7 @@ import {
   requiredBlocks,
   slotsFor,
   solutionValues,
+  starsFor,
   toneBlocks,
   wrongSlotIds,
   type Placement,
@@ -273,6 +274,22 @@ describe('判定闭环:每关都能被正确块填满并通过', () => {
         if (spare.size > 0) expect(extra.length, `${level.pinyin} 缺干扰块`).toBeGreaterThan(0)
       }
     }
+  })
+})
+
+describe('starsFor', () => {
+  // 0 错才给三星 —— 「一次就对」与「错一次再对」是两件事,差在有没有真听出来。
+  it('星级按本关错误次数判:0 错三星 / 1-2 错二星 / 更多一星', () => {
+    expect(starsFor(0)).toBe(3)
+    expect(starsFor(1)).toBe(2)
+    expect(starsFor(2)).toBe(2)
+    expect(starsFor(3)).toBe(1)
+    expect(starsFor(99)).toBe(1)
+  })
+
+  // 一星也是通关。孩子不该因为「拿不到三星」而觉得这一关没过。
+  it('再错也保底一星,不会出现 0 星', () => {
+    for (const miss of [0, 1, 5, 1000]) expect(starsFor(miss)).toBeGreaterThanOrEqual(1)
   })
 })
 

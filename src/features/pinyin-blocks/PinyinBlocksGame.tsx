@@ -7,6 +7,7 @@ import {
   canPlace,
   isComplete,
   slotsFor,
+  starsFor,
   wrongSlotIds,
   type Rng,
   type Slot,
@@ -14,6 +15,7 @@ import {
 } from './rules'
 import { BlockChip } from './BlockChip'
 import { cn } from '@/shared/ui/utils'
+import type { AnswerKind } from '@/shared/services'
 
 /** 所有点击目标 ≥ 44px —— 4-8 岁的手指够得着。 */
 const MAIN_BOX = 'h-[4.5rem] w-[4.5rem] sm:h-[5.25rem] sm:w-[5.25rem]'
@@ -30,8 +32,12 @@ export type PinyinBlocksGameProps = {
   /** 朗读(拼音串)。由 Entry 从 SpeechService 注入 —— feature 内不碰 useService。 */
   speak: (text: string) => void
   playSound?: (cue: 'correct' | 'wrong' | 'victory' | 'tap') => void
+  /** 每放一块上报一次 —— 连击靠它驱动。放对 'first',放错 'wrong'。 */
+  onBlock?: (kind: AnswerKind) => void
   unitIndex?: number
   levelIndex?: number
+  /** 通关:交出本关星级(1..3),由入口页负责落库与推进。 */
+  onSolved?: (stars: number) => void
   onAdvance?: (unit: number, level: number) => void
   /**
    * 凹槽提示强度 —— 试玩用的难度旋钮,试完再定死成哪一种:
@@ -72,7 +78,8 @@ type RoundProps = {
   hint: 'strong' | 'mid' | 'weak'
   speak: (text: string) => void
   playSound?: PinyinBlocksGameProps['playSound']
-  onFinished: () => void
+  onBlock?: (kind: AnswerKind) => void
+  onSolved: (stars: number) => void
 }
 
 /**
@@ -80,7 +87,7 @@ type RoundProps = {
  * 状态重置靠外层换 key 重挂,而不是「effect 里 setState」——
  * 后者每一关都要多渲染一次,而且是 React 里最容易出竞态的写法。
  */
-function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinished }: RoundProps) {
+function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onBlock, onSolved }: RoundProps) {
   const unit = UNITS[unitIdx] ?? UNITS[0]!
   const level: Level = unit.levels[lvlIdx] ?? unit.levels[0]!
 
@@ -100,6 +107,17 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [hoverSlot, setHoverSlot] = useState<string | null>(null)
   const [burst, setBurst] = useState(false)
+
+  /** 本关累计错误次数。星级靠它,提示回强也靠它 —— 「卡住了」是同一种信号。 */
+  // @ts-expect-error Task 7 用它做提示回强;tsconfig 的 noUnusedLocals 现在会报 TS6133。
+  // 读到它的那天这行会变成 TS2578(unused directive)—— 那时把它删掉就是。
+  const [missCount, setMissCount] = useState(0)
+  const missRef = useRef(0)
+  /** 同步计数:placeBlock 的闭包里读到的是旧 state,而判定发生在同一次调用里。 */
+  function noteMiss() {
+    missRef.current += 1
+    setMissCount(missRef.current)
+  }
 
   const timer = useRef<number | null>(null)
   const clearTimer = useCallback(() => {
@@ -135,14 +153,15 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
     playSound?.('victory')
     speak(level.read)
     setBurst(true)
+    const stars = starsFor(missRef.current)
     timer.current = window.setTimeout(
       () => {
         setBurst(false)
-        onFinished()
+        onSolved(stars)
       },
       welded ? 2100 : 1600,
     )
-  }, [level, onFinished, playSound, speak, welded])
+  }, [level, onSolved, playSound, speak, welded])
 
   const placeBlock = useCallback(
     (blockId: string, slotId: string) => {
@@ -151,11 +170,14 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       const slot = slots.find((s) => s.id === slotId)
       if (!block || !slot) return
       if (!canPlace(block, slot)) {
+        noteMiss()
+        onBlock?.('wrong')
         playSound?.('wrong')
         flashReject(slotId)
         return
       }
       playSound?.('tap')
+      onBlock?.('first')
       const next: Record<string, string> = { ...placement }
       for (const [sid, bid] of Object.entries(next)) if (bid === blockId) delete next[sid]
       next[slotId] = blockId
@@ -168,6 +190,8 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
         timer.current = window.setTimeout(succeed, 260)
         return
       }
+      noteMiss()
+      onBlock?.('wrong')
       setStatus('wrong')
       setWrongIds(wrong)
       playSound?.('wrong')
@@ -181,7 +205,7 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
         setStatus('playing')
       }, 720)
     },
-    [status, tray, slots, placement, succeed, playSound, clearTimer, flashReject],
+    [status, tray, slots, placement, succeed, playSound, onBlock, clearTimer, flashReject],
   )
 
   const takeBack = useCallback(
@@ -211,9 +235,13 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       if (!block) return
       const target = autoTargetId(block, slots, placement)
       if (target) placeBlock(blockId, target)
-      else playSound?.('wrong')
+      else {
+        noteMiss()
+        onBlock?.('wrong')
+        playSound?.('wrong')
+      }
     },
-    [tray, slots, placement, placeBlock, playSound],
+    [tray, slots, placement, placeBlock, playSound, onBlock],
   )
 
   /* ------------------------------------------------------------------ 拖拽
@@ -458,8 +486,10 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
 export function PinyinBlocksGame({
   speak,
   playSound,
+  onBlock,
   unitIndex,
   levelIndex,
+  onSolved,
   onAdvance,
   hint = 'strong',
 }: PinyinBlocksGameProps) {
@@ -468,6 +498,7 @@ export function PinyinBlocksGame({
   const unit = unitIndex ?? self.unit
   const level = levelIndex ?? self.level
 
+  /** 关内自己往下走(试玩路径)。由外层控关时不动 —— 那是 LevelEntry 的事。 */
   const advance = () => {
     const u = UNITS[unit] ?? UNITS[0]!
     const next =
@@ -486,7 +517,12 @@ export function PinyinBlocksGame({
       hint={hint}
       speak={speak}
       playSound={playSound}
-      onFinished={advance}
+      onBlock={onBlock}
+      // 有 onSolved 就归外层管(结算 + 推进),没有才走自走逻辑
+      onSolved={(stars) => {
+        if (onSolved) onSolved(stars)
+        else advance()
+      }}
     />
   )
 }
