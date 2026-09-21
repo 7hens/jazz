@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/shared/services'
 import { createPinyinProgressService, mergeClear } from './pinyin-progress'
 import type { ApiService, PinyinProgressData } from '@/shared/services'
@@ -14,7 +14,18 @@ function fakeApi(overrides: Partial<ApiService> = {}): ApiService {
   } as unknown as ApiService
 }
 
-const callbacks = { onUnauthorized: vi.fn(), onError: vi.fn() }
+// 每条用例一份新 mock:模块级单例下,谁先调用谁就成了别人的「证据」——
+// 删掉 report 也照样绿(断言收到的是别的用例的回声),且「文案各不相同」这种约定
+// 没有任何东西在守,一次复制粘贴就漏回去。故连记录都不共享。
+function makeCallbacks() {
+  return { onUnauthorized: vi.fn(), onError: vi.fn() }
+}
+
+let callbacks: ReturnType<typeof makeCallbacks>
+
+beforeEach(() => {
+  callbacks = makeCallbacks()
+})
 
 describe('拼音进度服务', () => {
   // 重玩拿一星不该把三星冲掉 —— 服务端取 max,本地这一层也必须先取 max。
@@ -41,25 +52,26 @@ describe('拼音进度服务', () => {
     expect(service.getSnapshot().data.totalStars).toBe(10)
   })
 
-  // 报错文案每条用例各不相同:callbacks 是模块级共享 mock,同一个字符串会被别的用例
-  // 的调用喂成假绿(删掉 report 也照绿)。
   it('写失败要报错且乐观值回退', async () => {
-    const api = fakeApi({ putPinyinProgress: vi.fn().mockRejectedValue(new Error('boom-rollback')) })
+    const api = fakeApi({ putPinyinProgress: vi.fn().mockRejectedValue(new Error('boom')) })
     const service = createPinyinProgressService(api, callbacks)
-    await expect(service.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })).rejects.toThrow('boom-rollback')
+    await expect(service.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })).rejects.toThrow('boom')
     expect(service.getSnapshot().data.stars).toEqual({})
-    expect(callbacks.onError).toHaveBeenCalledWith('boom-rollback')
+    expect(callbacks.onError).toHaveBeenCalledWith('boom')
   })
 
   // 进度接口是最后一道(旧服务删光后还是唯一一道)—— 401 必须回登录态,不能只弹个红 toast。
-  it('401 走 onUnauthorized,不走普通报错', async () => {
+  // 断言用计数 + 「一次都没调 onError」:`.not.toHaveBeenCalledWith(某文案)` 挡不住
+  // 「既报 401 又顺手报一次别的错」这种双发,计数与 not 一起才把这一类堵死。
+  it('401 走 onUnauthorized,不走普通报错,且只走一次', async () => {
     const api = fakeApi({
       getPinyinProgress: vi.fn().mockRejectedValue(new ApiError(401, 'unauthorized-401')),
     })
     const service = createPinyinProgressService(api, callbacks)
+    const reportsBefore = callbacks.onUnauthorized.mock.calls.length
     await service.load()
-    expect(callbacks.onUnauthorized).toHaveBeenCalled()
-    expect(callbacks.onError).not.toHaveBeenCalledWith('unauthorized-401')
+    expect(callbacks.onUnauthorized).toHaveBeenCalledTimes(reportsBefore + 1)
+    expect(callbacks.onError).not.toHaveBeenCalled()
     expect(service.getSnapshot().status).toBe('error')
   })
 
@@ -123,5 +135,13 @@ describe('拼音进度服务', () => {
     resolveGet?.({ stars: { 'u1-0': 3 }, totalStars: 100 })
     await loading
     expect(service.getSnapshot().data).toEqual({ stars: {}, totalStars: 0 })
+  })
+
+  // 失败要有人知道:静默吞掉的 reset 会让孩子以为存档清了,实际一条没删。
+  it('resetAll 失败要报错', async () => {
+    const api = fakeApi({ deletePinyinProgress: vi.fn().mockRejectedValue(new Error('reset-boom')) })
+    const service = createPinyinProgressService(api, callbacks)
+    await expect(service.resetAll()).rejects.toThrow('reset-boom')
+    expect(callbacks.onError).toHaveBeenCalledWith('reset-boom')
   })
 })
