@@ -532,15 +532,13 @@ export type { LevelStars, LevelClear, PinyinProgressData, PinyinProgressSnapshot
 export { PinyinProgressService } from './pinyin-progress'
 ```
 
-- [ ] **Step 3: 改 ApiService 接口**
+- [ ] **Step 3: 改 ApiService 接口（只加不删）**
 
-在 `src/shared/services/api.ts` 里删三个旧方法、加三个新的：
+在 `src/shared/services/api.ts` 里**新增**三个方法：
 
 ```ts
 import type { PinyinProgressData } from './pinyin-progress'
 ```
-
-接口里删掉 `getProgress` / `putProgress` / `deleteProgress` / `getBasicsProgress` / `putBasicsProgress` / `getChapterProgress` / `putChapterProgress`，加入：
 
 ```ts
   getPinyinProgress(): Promise<PinyinProgressData>
@@ -548,7 +546,7 @@ import type { PinyinProgressData } from './pinyin-progress'
   deletePinyinProgress(): Promise<void>
 ```
 
-同时删掉不再使用的 `ApiWordProgress` 类型导出与 `ApiBasicsProgressRow` / `ApiChapterProgressRow` 的 import（后者随 Task 13 删文件时一并消失，**本步先只删 `ApiWordProgress`**，另两个的 import 留到 Task 13 再摘 —— 它们此刻还被同文件的其他方法用着，删早了会编译不过）。
+> ⚠ **旧的七个方法（`getProgress` / `putProgress` / `deleteProgress` / `getBasicsProgress` / `putBasicsProgress` / `getChapterProgress` / `putChapterProgress`）与 `ApiWordProgress` 类型本步一律不动。** 它们的消费方（`features/progress/`、`features/foundation/`、`features/qianzigu/`）要到 Task 13 才删 —— 现在摘掉，中间十个 Task 全程 `tsc -b` 红，违反 Global Constraints「每个 Task 结束 tsc 全绿」。**新旧并存十个 Task 是刻意的**，Task 13 随文件一并清。
 
 - [ ] **Step 4: 先写失败的 api 测试**
 
@@ -1625,6 +1623,7 @@ Expected: PASS
 `PinyinBlocksGame.tsx`：
 
 - 删掉 `PinyinBlocksGameProps.hint` 与 `RoundProps.hint`
+- **`hint` 从 props 换成组件自算**：`PinyinRound` 内 `const hint = hintFor(unit.id, missCount)`（`missCount` 来自 Task 6）
 - `PinyinRound` 内计算：`const hint = hintFor(unit.id, missCount)`
 - 拼装台容器挂提示类：
 
@@ -1639,6 +1638,9 @@ Expected: PASS
         )}
       >
 ```
+
+- **[必做，否则 `tsc -b` 立刻红]** 同一步里修剪 `src/features/pinyin-blocks/PinyinBlocksEntry.tsx` —— 它此刻正在传 `hint={hint}`（`:98`），而 `hint` prop 刚被删掉。删三样：`const [hint, setHint] = useState<Hint>('strong')`、试玩控制台里那组三档提示按钮、以及 `hint={hint}` 传参。该文件 Task 12 会整个删除，所以这只是一次三行的临时修剪，不是重复劳动。
+- 删掉该文件顶部 `type Hint = ...`（若因删按钮而失去引用）
 
 - `renderSlot` 的空槽分支简化为一条（类型类**恒挂**，浓淡交给变量）：
 
@@ -2256,12 +2258,29 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
 ]
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [ ] **Step 5: 切断旧词课路径的成就扫描（搭桥）**
 
-Run: `npx vitest run src/features/achievements/achievements.test.ts`
-Expected: PASS
+`AchievementState` 一换口径，`src/features/lesson/settlement.ts` 里构造旧字段的那个调用点立刻类型不匹配 —— 而 `features/lesson/` 要到 Task 13 才删。
 
-- [ ] **Step 6: 提交**
+**不要给那四个词库字段编映射**：`completedWords` / `categoryDone` / `perfectWords` / `totalWords` 在关卡语境里没有对应来源，硬凑就是造假数据；尤其 `totalLevels: 0` 会让 `completedLevels >= totalLevels` 恒真，「大法师」当场白送。
+
+改为**短路**：
+
+```ts
+  // 【过渡桥】词课路径与它的成就接线在 Task 13 整条删除。
+  // 这里不再扫描:旧口径的四个字段(词数/分类/整词完美)在关卡语境里没有对应来源,
+  // 编一套映射等于造假数据。新路径的成就由 pinyin-blocks/settle.ts 承担。
+  const achievements: readonly TAchievement[] = []
+```
+
+同时删掉 `src/features/lesson/settlement.test.ts` 里断言成就触发的用例（保留其余）。
+
+- [ ] **Step 6: 跑测试确认通过**
+
+Run: `npx vitest run src/features/achievements/achievements.test.ts src/features/lesson/settlement.test.ts`
+Expected: PASS（后者只剩不涉成就的用例）
+
+- [ ] **Step 7: 提交**
 
 ```bash
 npx tsc -b
@@ -2276,6 +2295,9 @@ feat(achievements): 成就目录换锚到关卡
 
 弹窗保留汉字文案 —— 它是全游戏唯一还给孩子看汉字的地方,低频、emoji 已
 承担主视觉、且这些是给家长看的里程碑。这是**故意的例外**,不是遗漏。
+
+旧词课路径的成就扫描在此短路(见 Step 5),不是漏接:它的四个输入字段在
+关卡语境里没有对应来源,编一套映射等于造假数据。该路径随 Task 13 删除。
 
 护栏钉死目录里不再出现词课字段名。
 
@@ -3018,6 +3040,11 @@ npx tsc -b
 ```
 Expected: 起初会报一批「找不到模块」。**逐个修**：删 import、删引用、删测试。这一步没有捷径，但 `tsc` 会把你带到每一个漏网点。
 
+**两处明确点名**（清单里容易漏，先写在这）：
+
+- `src/app/useCompletedWords.ts` —— 整文件删掉。它 import `ProgressService`，本步删掉该契约后就红了；而新 App（Task 12）根本没引用它。
+- `src/features/lesson/settlement.ts` —— Task 10 在那里搭了一座「成就短路」的过渡桥，随本步与整个 `lesson/` 一起消失。**它不该在删除后留下任何残迹**，包括那句桥注释。
+
 ```bash
 npm test
 ```
@@ -3167,15 +3194,13 @@ Expected: 0 命中（红线：勿重建旧结构）。
 
 **不截图**：用 DevTools 的 Elements / Console / Network 面板。重点看 Network 里 `PUT /api/pinyin-progress` 的请求体与响应，确认 `stars` 取 max 而非覆盖。
 
-- [ ] **Step 4: 推送**
+- [ ] **Step 4: 合并回 main**
 
-```bash
-git push origin main
-```
+本次在 topic 分支 `feat/pinyin-full-game` 上执行（项目铁律：大 plan 走 topic 分支 + worktree，成即合删）。**不要直接 `git push origin main`** —— 走 `superpowers:finishing-a-development-branch` 把分支合回 main，之后推 main。
 
 - [ ] **Step 5: 发布**
 
-跑 `/release` skill 的流水线。**红线**：`tag` 仅在部署成功 + 冒烟通过后打；`wrangler` 命令一律显式 `--config wrangler.toml`；迁移顺序 preview → prod。
+**在合并后的 main 上**跑 `/release` skill 的流水线。**红线**：`tag` 仅在部署成功 + 冒烟通过后打；`wrangler` 命令一律显式 `--config wrangler.toml`；迁移顺序 preview → prod。
 
 ---
 
