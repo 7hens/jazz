@@ -1,5 +1,6 @@
 import { ApiError } from '@/shared/services'
 import type { ApiBasicsProgressRow, ApiChapterProgressRow } from '@/shared/services'
+import type { PinyinProgressData } from '@/shared/services'
 import type { ApiService, ApiUserSettings, ApiWordProgress, User } from '@/shared/services/api'
 
 type JsonObject = Record<string, unknown>
@@ -12,6 +13,7 @@ type SettingsResponse = { settings: ApiUserSettings }
 type OkResponse = { ok: true }
 type BasicsProgressResponse = { rows: ApiBasicsProgressRow[] }
 type ChapterProgressResponse = { row: ApiChapterProgressRow | null }
+type PinyinProgressResponse = { stars: Record<string, number>; totalStars: number }
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -91,6 +93,23 @@ function isChapterProgressRow(value: unknown): value is ApiChapterProgressRow {
 
 function isChapterProgressResponse(value: unknown): value is ChapterProgressResponse {
   return isObject(value) && (value.row === null || isChapterProgressRow(value.row))
+}
+
+/** 星数上限与前端星级判定(1..3)、worker 的 LEVEL_ID/上限三处对齐,有锚定测试防漂移。 */
+export const LEVEL_ID = /^u\d+-\d+$/
+
+function isLevelStars(value: unknown): value is Record<string, number> {
+  if (!isObject(value)) return false
+  return Object.entries(value).every(([key, stars]) =>
+    LEVEL_ID.test(key) && (stars === 1 || stars === 2 || stars === 3))
+}
+
+function isPinyinProgressResponse(value: unknown): value is PinyinProgressResponse {
+  return isObject(value)
+    && isLevelStars(value.stars)
+    && typeof value.totalStars === 'number'
+    && Number.isInteger(value.totalStars)
+    && value.totalStars >= 0
 }
 
 function isOkResponse(value: unknown): value is OkResponse {
@@ -193,6 +212,19 @@ export function createHttpApiService(fetcher: typeof fetch = fetch): ApiService 
           },
         }),
       }, isOkResponse)
+    },
+    async getPinyinProgress() {
+      const payload = await request('/api/pinyin-progress', {}, isPinyinProgressResponse)
+      return { stars: payload.stars, totalStars: payload.totalStars } satisfies PinyinProgressData
+    },
+    async putPinyinProgress(data) {
+      await request('/api/pinyin-progress', {
+        method: 'PUT',
+        body: JSON.stringify({ stars: data.stars, totalStars: data.totalStars }),
+      }, isOkResponse)
+    },
+    async deletePinyinProgress() {
+      await request('/api/pinyin-progress', { method: 'DELETE' }, isOkResponse)
     },
   }
 }

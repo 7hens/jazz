@@ -26,6 +26,9 @@ function createApi(): ApiService {
     putBasicsProgress: async () => undefined,
     getChapterProgress: async () => null,
     putChapterProgress: async () => undefined,
+    getPinyinProgress: async () => ({ stars: {}, totalStars: 0 }),
+    putPinyinProgress: async () => undefined,
+    deletePinyinProgress: async () => undefined,
   }
 }
 

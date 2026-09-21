@@ -1,6 +1,7 @@
 import type { ApiBasicsProgressRow, BasicsProgressRow } from './basics-progress'
 import type { ApiChapterProgressRow } from './chapter-progress'
 import type { ServiceToken } from './core'
+import type { PinyinProgressData } from './pinyin-progress'
 import type { WordProgress } from './progress'
 import type { UserSettings } from './settings'
 
@@ -37,6 +38,9 @@ export interface ApiService {
   putBasicsProgress(rows: BasicsProgressRow[]): Promise<void>
   getChapterProgress(): Promise<ApiChapterProgressRow | null>
   putChapterProgress(row: ApiChapterProgressRow): Promise<void>
+  getPinyinProgress(): Promise<PinyinProgressData>
+  putPinyinProgress(data: PinyinProgressData): Promise<void>
+  deletePinyinProgress(): Promise<void>
 }
 
 export const ApiService = Symbol('ApiService') as unknown as ServiceToken<ApiService>
