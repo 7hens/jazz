@@ -5,8 +5,11 @@
 import type { LevelStars } from '@/shared/services'
 import { UNITS, type Unit } from './levels'
 
-/** 一关算不算通:有 key 且星数 ≥ 1。「0 星」与「没这个 key」是同一件事。 */
-function cleared(stars: LevelStars, levelId: string): boolean {
+/**
+ * 一关算不算通:有 key 且星数 ≥ 1。「0 星」与「没这个 key」是同一件事。
+ * 导出给地图用 —— 地图上「亮一颗星」与这里必须同义,否则「通关」就有了两个定义。
+ */
+export function cleared(stars: LevelStars, levelId: string): boolean {
   return (stars[levelId] ?? 0) >= 1
 }
 

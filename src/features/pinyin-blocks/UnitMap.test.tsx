@@ -3,6 +3,17 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { UNITS } from './levels'
 import { UnitMap } from './UnitMap'
 
+/**
+ * 「零文本」要拦的是**读不出的汉字文本**,不只是 CJK 基本区:
+ * 只写 [一-鿿](= U+4E00–9FFF)时,中文标点「，。」、扩展 A「㐀」、全角「Ａ」、兼容表意整类漏过。逐段对应:
+ *   \p{Script=Han}  → 基本区 + 扩展 A–H + 兼容表意(繁体「單」同区,一并拦,且无需枚举扩展区码位)
+ *   U+3000–303F     → CJK 标点(。「」)
+ *   U+FF00–FFEF     → 全角/半角形式(Ａ，ａ)
+ *   U+2E80–2EFF / U+31C0–31EF → CJK 部首 / 笔画
+ * ★(U+2605)与 🔒(U+1F512)刻意落在所有区间之外 —— 它们是地图自己的形状语义,不是文字。
+ */
+const HAN_TEXT = /[\p{Script=Han}\u3000-\u303f\uff00-\uffef\u{2e80}-\u{2eff}\u{31c0}-\u{31ef}]/u
+
 describe('拼音单元地图', () => {
   it('七个单元各占一格,名片用真积木渲染', () => {
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
@@ -16,7 +27,10 @@ describe('拼音单元地图', () => {
   it('标题与单元名等汉字不出现在地图上', () => {
     const { container } = render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
     const map = container.querySelector('[data-unit-map]')
-    expect(map?.textContent ?? '').not.toMatch(/[一-鿿]/)
+    // 先断言锚点存在:取不到时下面那句 `?? ''` 会把「锚点被删掉」判成「通过」——
+    // 同样的坑在 stone.test.ts 里写着(那里是先断言 marker 存在,免得 indexOf 返回 -1 让断言静默空转)。
+    expect(map, 'data-unit-map 锚点没了,下面的零文本断言就恒绿').not.toBeNull()
+    expect(map?.textContent ?? '').not.toMatch(HAN_TEXT)
   })
 
   it('只解锁 u1:其余格子锁上且点不动', () => {

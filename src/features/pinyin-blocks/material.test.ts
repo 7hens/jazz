@@ -174,6 +174,14 @@ describe('index.css 拼音积木材质段', () => {
     expect(ruleOf('.pstar--on {'), '亮星丢了金色,格子只剩那串数字在说进度').toContain(
       'color: var(--color-gold)',
     )
+
+    // 一条规则只能有一条:拆成两条时,上面那句「取第一条」就成了假绿(self-asserting)。
+    // 实测过的坏法 —— 末尾再追加一条 `.pstar { color: var(--color-gold) }`,构建产物里
+    // `.pstar--on,.pstar{color:var(--color-gold)}` 排在最后、特异性同为 0-1-0 → 胜出,
+    // 连未通关的暗星一起变金,「这格过了几关」这层唯一信息彻底消失,而上面两句依然全绿。
+    for (const sel of ['.pstar {', '.pstar--on {']) {
+      expect(css.split(sel).length - 1, `${sel} 只该有一条规则`).toBe(1)
+    }
   })
 
   it('材质段不写颜色字面量:hex 与 rgb()/hsl() 一并拦(白色高光除外)', () => {
