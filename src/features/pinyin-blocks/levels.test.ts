@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   FINAL_BASIC,
   FINAL_COMPOUND,
+  HINT_BY_UNIT,
   INITIALS_ALL,
   MEDIALS,
   NASALS,
   TONE_VALUES,
   WELD_INITIALS,
+  hintFor,
   poolFor,
   speakOf,
 } from './blocks'
@@ -162,5 +164,35 @@ describe('拼音积木关卡数据', () => {
       // 声调块不该出现在名片里:它不是一个「这个单元教什么」的答案
       expect(u.badge.some((b) => b.type === 'tone'), `${u.id} 名片混进了声调块`).toBe(false)
     }
+  })
+
+  // 脚手架要随课程撤掉 —— 到最后一关还全染色,颜色就成了拐杖。
+  it('每个单元都有提示基线,且随课程递减不回头', () => {
+    const order = { strong: 0, mid: 1, weak: 2 } as const
+    let previous = -1
+    for (const u of UNITS) {
+      const hint = HINT_BY_UNIT[u.id]
+      expect(hint, `${u.id} 缺提示基线`).toBeDefined()
+      const rank = order[hint as keyof typeof order]
+      expect(rank, `${u.id} 的提示比上一单元更强 —— 脚手架回头了`).toBeGreaterThanOrEqual(previous)
+      previous = rank
+    }
+  })
+
+  // 连错回强是「救急垫脚石」,不是存档:它只该让提示变强,不该让它变弱。
+  it('连错 2 次把提示提到强档,且只升不降', () => {
+    for (const u of UNITS) {
+      const base = hintFor(u.id, 0)
+      expect(hintFor(u.id, 1)).toBe(base)
+      expect(hintFor(u.id, 2)).toBe('strong')
+      expect(hintFor(u.id, 7)).toBe('strong')
+    }
+  })
+
+  // 表外的单元 id 兜底强档:新单元总得先能玩,漏登记不该让整关变成一块灰砖。
+  // 上面那条循环只走 UNITS,兜底那半边没人走过 —— 少了这条,删掉 `?? 'strong'` 全仓仍绿。
+  it('表里没有的单元 id 兜底强档', () => {
+    expect(hintFor('u99', 0)).toBe('strong')
+    expect(hintFor('', 0)).toBe('strong')
   })
 })

@@ -104,17 +104,43 @@ describe('index.css 拼音积木材质段', () => {
     expect(block).toEqual(slot)
     expect(block.from).toBeLessThan(block.to)
 
-    // 槽色必须淡 —— 浓了就像个已经填好的槽,孩子会以为不用放块。
-    const alphas = [...ruleOf('.pslot--medial {').matchAll(/edge\)\s*(\d+)%,\s*transparent/g)].map((m) => Number(m[1]))
-    expect(alphas, '两个端点色各要一条淡版').toHaveLength(2)
-    for (const a of alphas) expect(a, '太浓就像填好的槽').toBeLessThanOrEqual(25)
+    // 两个端点色各要一条淡版,且浓度由容器变量给 —— 写死百分比就拿不到三档了
+    const stops = [...ruleOf('.pslot--medial {').matchAll(/edge\)\s*var\(--slot-fill\)/g)]
+    expect(stops, '两个端点色各要一条淡版').toHaveLength(2)
   })
 
-  it('槽位有强/弱两档提示类(试玩的难度旋钮靠它落地)', () => {
-    for (const cls of ['pslot--initial', 'pslot--medial', 'pslot--final', 'pslot--nasal']) {
-      expect(css).toContain(`.${cls}`)
+  // 三档提示只该由容器上的两个变量表达。再冒出一条 .pslot--plain 这类复制规则,
+  // 就说明有人又按「一档一套规则」写了 —— 那是这套变量要解决的问题本身。
+  it('提示三档只调容器上的两个变量,没有按档复制的槽规则', () => {
+    for (const cls of ['.pslots ', '.pslots--mid ', '.pslots--weak ']) {
+      const start = css.indexOf(cls)
+      expect(start, cls).toBeGreaterThan(-1)
+      const rule = css.slice(start, css.indexOf('}', start))
+      expect(rule, cls).toContain('--slot-line:')
+      expect(rule, cls).toContain('--slot-fill:')
     }
-    expect(css).toContain('.pslot--plain')
+    // 弱档把线宽置 0 → 类型色整条退回中性,不需要另一条规则来「撤掉颜色」
+    const weak = css.slice(css.indexOf('.pslots--weak '), css.indexOf('}', css.indexOf('.pslots--weak ')))
+    expect(weak).toContain('--slot-line: 0%')
+    // 禁的是**这条规则**,不是这个名字:注释里点名它是解释「为什么它不必存在」。
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toContain('.pslot--plain')
+
+    // 「退回中性」得真有一条中性色可退:弱档下类型色贡献 0,槽只剩这一条虚线。
+    // 它一没,弱档的槽就是彻底不可见 —— 那不是「撤掉线索」,是把题目删了。
+    const base = css.indexOf('.pslot {')
+    expect(base, '.pslot {').toBeGreaterThan(-1)
+    expect(css.slice(base, css.indexOf('}', base)), '--slot-base-line 的定义').toContain('--slot-base-line:')
+
+    // 五套类型规则一律读这两个变量,谁自己写死百分比谁就是漏网的
+    for (const name of ['initial', 'medial', 'final', 'nasal', 'tone']) {
+      const i = css.indexOf(`.pslot--${name} {`)
+      expect(i, name).toBeGreaterThan(-1)
+      const rule = css.slice(i, css.indexOf('}', i))
+      expect(rule, name).toContain('var(--slot-line)')
+      expect(rule, `${name} 没留住中性底,弱档会整个消失`).toContain('var(--slot-base-line)')
+      // 一条规则只能有一条:拆成两条时,上面那句「取第一条」就成了假绿(self-asserting)。
+      expect(css.split(`.pslot--${name} {`).length - 1, `${name} 只该有一条规则`).toBe(1)
+    }
   })
 
   it('焊缝定位写死在 CSS 里,不靠 Tailwind 任意值(那边逃不过 v4 扫描器的坑)', () => {

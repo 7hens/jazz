@@ -701,47 +701,52 @@
 .pslot {
   position: relative;
   border-radius: var(--radius-2xl);
-  border: 3px dashed color-mix(in srgb, var(--color-ink) 16%, transparent);
+  /* 类型色按 --slot-line 的比例混进中性色。0% 时整条退回中性 —— 弱档就是这样来的,
+     不必再有一条 .pslot--plain 把每套规则复制一遍。 */
+  --slot-base-line: color-mix(in srgb, var(--color-ink) 16%, transparent);
+  border: 3px dashed var(--slot-base-line);
   background-color: color-mix(in srgb, var(--color-surface) 46%, transparent);
   transition: border-color 0.18s, background-color 0.18s, transform 0.12s;
 }
-.pslot--tone {
-  border-radius: 999px;
-}
-/* 提示档「强」:槽位染上对应块类的颜色,孩子一眼知道该拿哪种块过来 */
+
+/* 提示强度:三档只调容器上这两个变量,块类型规则一律照读。
+   强 55/12 → 中 30/6 → 弱 0/0。 */
+.pslots        { --slot-line: 55%; --slot-fill: 12%; }
+.pslots--mid   { --slot-line: 30%; --slot-fill: 6%; }
+.pslots--weak  { --slot-line: 0%;  --slot-fill: 0%; }
+
+/* 提示档「强」的浓淡基线:槽位染上对应块类的颜色,孩子一眼知道该拿哪种块过来 */
 .pslot--initial {
-  border-color: color-mix(in srgb, var(--color-block-initial) 55%, transparent);
-  background-color: color-mix(in srgb, var(--color-block-initial) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-block-initial) var(--slot-line), var(--slot-base-line));
+  background-color: color-mix(in srgb, var(--color-block-initial) var(--slot-fill), transparent);
 }
-/* 介母槽:跟介母块同一套斜切双色(参数必须一致,两边一漂移孩子就对不上号了),
-   只是化成淡版 —— 太浓会像个已经填好的槽。
+/* 介母槽:跟介母块同一套斜切双色(角度与两端停点必须一致,两边一漂移孩子就对不上号),
+   只是化成淡版 —— 浓了就像个已经填好的槽。
    斜切只能由背景承载:CSS 的 dashed 边框不吃渐变,border-image 会把虚线变成实线。
-   边框取渐变中点色的淡版,是这套双色里唯一能用的单色。 */
+   边框取介母定色版的淡版,是这套双色里唯一能用的单色。 */
 .pslot--medial {
-  border-color: color-mix(in srgb, var(--color-block-medial) 58%, transparent);
+  border-color: color-mix(in srgb, var(--color-block-medial) var(--slot-line), var(--slot-base-line));
   background-color: transparent;
   background-image: linear-gradient(
     118deg,
-    color-mix(in srgb, var(--color-block-initial-edge) 16%, transparent) 0 48%,
-    color-mix(in srgb, var(--color-block-final-edge) 16%, transparent) 52% 100%
+    color-mix(in srgb, var(--color-block-initial-edge) var(--slot-fill), transparent) 0 48%,
+    color-mix(in srgb, var(--color-block-final-edge) var(--slot-fill), transparent) 52% 100%
   );
 }
 .pslot--final {
-  border-color: color-mix(in srgb, var(--color-block-final) 55%, transparent);
-  background-color: color-mix(in srgb, var(--color-block-final) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-block-final) var(--slot-line), var(--slot-base-line));
+  background-color: color-mix(in srgb, var(--color-block-final) var(--slot-fill), transparent);
 }
 .pslot--nasal {
-  border-color: color-mix(in srgb, var(--color-block-nasal) 55%, transparent);
-  background-color: color-mix(in srgb, var(--color-block-nasal) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-block-nasal) var(--slot-line), var(--slot-base-line));
+  background-color: color-mix(in srgb, var(--color-block-nasal) var(--slot-fill), transparent);
 }
+/* 声调槽是圆片;颜色与其余类型槽同一套变量 —— 上面那条 border-radius
+   单拎出去的写法会让 .pslot--tone 出现两次,护栏查第一条就会摸到空变量。 */
 .pslot--tone {
-  border-color: color-mix(in srgb, var(--color-gold-edge) 60%, transparent);
-  background-color: color-mix(in srgb, var(--color-gold) 14%, transparent);
-}
-/* 提示档「弱」:撤掉全部颜色线索,只留凹槽本身 */
-.pslot--plain {
-  border-color: color-mix(in srgb, var(--color-ink) 14%, transparent);
-  background-color: color-mix(in srgb, var(--color-surface) 50%, transparent);
+  border-radius: 999px;
+  border-color: color-mix(in srgb, var(--color-gold-edge) var(--slot-line), var(--slot-base-line));
+  background-color: color-mix(in srgb, var(--color-gold) var(--slot-fill), transparent);
 }
 .pslot--over {
   transform: scale(1.07);

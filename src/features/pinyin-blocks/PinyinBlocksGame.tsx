@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { speakOf } from './blocks'
+import { hintFor, speakOf } from './blocks'
 import { UNITS, type Level } from './levels'
 import {
   autoTargetId,
@@ -39,11 +39,6 @@ export type PinyinBlocksGameProps = {
   /** 通关:交出本关星级(1..3),由入口页负责落库与推进。 */
   onSolved?: (stars: number) => void
   onAdvance?: (unit: number, level: number) => void
-  /**
-   * 凹槽提示强度 —— 试玩用的难度旋钮,试完再定死成哪一种:
-   * strong = 槽位染类型色(教「该拿哪种块」);mid = 只给数量;weak = 连颜色线索都撤掉。
-   */
-  hint?: 'strong' | 'mid' | 'weak'
 }
 
 /** 槽位的显示尺寸:声调槽是圆片,其余同宽。 */
@@ -75,7 +70,6 @@ type RoundProps = {
   unitIdx: number
   lvlIdx: number
   round: number
-  hint: 'strong' | 'mid' | 'weak'
   speak: (text: string) => void
   playSound?: PinyinBlocksGameProps['playSound']
   onBlock?: (kind: AnswerKind) => void
@@ -87,7 +81,7 @@ type RoundProps = {
  * 状态重置靠外层换 key 重挂,而不是「effect 里 setState」——
  * 后者每一关都要多渲染一次,而且是 React 里最容易出竞态的写法。
  */
-function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onBlock, onSolved }: RoundProps) {
+function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolved }: RoundProps) {
   const unit = UNITS[unitIdx] ?? UNITS[0]!
   const level: Level = unit.levels[lvlIdx] ?? unit.levels[0]!
 
@@ -108,16 +102,17 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onBlock, 
   const [hoverSlot, setHoverSlot] = useState<string | null>(null)
   const [burst, setBurst] = useState(false)
 
-  /** 本关累计错误次数。星级靠它,提示回强也靠它 —— 「卡住了」是同一种信号。
-   *  这一版没人读它的**值**(任务 7 的提示回强才读),故先不接出绑定 ——
-   *  tsc 的 noUnusedLocals 会把没人读的绑定当成死变量,而它是活的,只是还没到读的那天。 */
-  const [, setMissCount] = useState(0)
+  /** 本关累计错误次数。星级靠它,提示回强也靠它 —— 「卡住了」是同一种信号。 */
+  const [missCount, setMissCount] = useState(0)
   const missRef = useRef(0)
   /** 同步计数:placeBlock 的闭包里读到的是旧 state,而判定发生在同一次调用里。 */
   function noteMiss() {
     missRef.current += 1
     setMissCount(missRef.current)
   }
+
+  /** 本关此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。 */
+  const hint = hintFor(unit.id, missCount)
 
   const timer = useRef<number | null>(null)
   const clearTimer = useCallback(() => {
@@ -344,9 +339,8 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onBlock, 
           block && 'pslot--filled',
           hoverSlot === slot.id && 'pslot--over',
           (wrongIds.includes(slot.id) || reject?.id === slot.id) && 'pslot--wrong',
-          // 提示档只影响空槽
-          !block && hint === 'strong' && (isTone ? 'pslot--tone' : `pslot--${slot.type}`),
-          !block && hint === 'weak' && 'pslot--plain',
+          // 类型类恒挂:强/中/弱是染色深浅的差别,由容器上的两个变量决定,不是挂不挂类。
+          !block && (isTone ? 'pslot--tone' : `pslot--${slot.type}`),
         )}
       >
         {block ? (
@@ -414,8 +408,16 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onBlock, 
         {level.emoji}
       </div>
 
-      {/* 拼装台 */}
-      <div className="flex min-h-[7.5rem] items-end justify-center gap-1" role="group" aria-label="拼装台">
+      {/* 拼装台 —— 提示档挂在这一层:槽位一律照读 --slot-line / --slot-fill */}
+      <div
+        role="group"
+        aria-label="拼装台"
+        className={cn(
+          'pslots flex min-h-[7.5rem] items-end justify-center gap-1',
+          hint === 'mid' && 'pslots--mid',
+          hint === 'weak' && 'pslots--weak',
+        )}
+      >
         {level.syl.map((syl, si) => {
           const group = slots.filter((s) => s.sylIdx === si)
           const mains = group.filter((s) => s.type !== 'tone')
@@ -491,7 +493,6 @@ export function PinyinBlocksGame({
   levelIndex,
   onSolved,
   onAdvance,
-  hint = 'strong',
 }: PinyinBlocksGameProps) {
   const [self, setSelf] = useState({ unit: 0, level: 0 })
   const [round, setRound] = useState(0)
@@ -514,7 +515,6 @@ export function PinyinBlocksGame({
       unitIdx={unit}
       lvlIdx={level}
       round={round}
-      hint={hint}
       speak={speak}
       playSound={playSound}
       onBlock={onBlock}
