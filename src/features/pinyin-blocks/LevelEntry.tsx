@@ -7,6 +7,7 @@ import {
   PinyinProgressService,
   SettingsService,
   SpeechService,
+  type AnswerKind,
 } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { UNITS } from './levels'
@@ -75,6 +76,10 @@ export function LevelEntry({
   // → 指针监听 effect),每次渲染换一个新引用就会重挂监听。所以这里必须是稳定引用。
   const handleSolvedProp = useCallback((stars: number) => { void handleSolved(stars) }, [handleSolved])
 
+  // 与上面同形、同因:onBlock 也在游戏那串依赖链上(placeBlock → onMove → 指针监听 effect),
+  // 每次渲染换引用会重挂监听,拖拽中途重渲染会让正在进行的拖拽静默死掉。
+  const handleBlock = useCallback((kind: AnswerKind) => { combo.answer(kind) }, [combo])
+
   return (
     <div className="flex min-h-screen flex-col">
       <div className="flex items-center justify-between px-4 py-3">
@@ -97,7 +102,7 @@ export function LevelEntry({
         speak={speak}
         playSound={audio.play}
         // 连击的落点:每放一块上报一次。放对 'first'、放错 'wrong'
-        onBlock={(kind) => { combo.answer(kind) }}
+        onBlock={handleBlock}
         onSolved={handleSolvedProp}
       />
     </div>
