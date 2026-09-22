@@ -25,9 +25,12 @@ describe('成就集', () => {
     expect(names).not.toContain('painter_10')
   })
   it('早晚与连续天数口径', () => {
-    expect(checkAchievements({ ...BASE, hour: 8 }, []).map((a) => a.id)).toContain('early_bird')
-    expect(checkAchievements({ ...BASE, hour: 22 }, []).map((a) => a.id)).toContain('night_owl')
+    expect(checkAchievements({ ...BASE, hour: 9 }, []).map((a) => a.id)).toContain('early_bird')
+    expect(checkAchievements({ ...BASE, hour: 10 }, []).map((a) => a.id)).not.toContain('early_bird')
+    expect(checkAchievements({ ...BASE, hour: 21 }, []).map((a) => a.id)).toContain('night_owl')
+    expect(checkAchievements({ ...BASE, hour: 20 }, []).map((a) => a.id)).not.toContain('night_owl')
     expect(checkAchievements({ ...BASE, consecutiveDays: 7 }, []).map((a) => a.id)).toContain('dedicated')
+    expect(checkAchievements({ ...BASE, consecutiveDays: 6 }, []).map((a) => a.id)).not.toContain('dedicated')
   })
 })
 
@@ -40,22 +43,24 @@ describe('成就目录 · 换锚到关卡', () => {
   })
 
   it('零错一关解锁「完美主义」', () => {
-    const earned = checkAchievements({ ...BASE, perfectLevels: 1 }, []).map((a) => a.id)
-    expect(earned).toContain('perfect_level')
+    expect(checkAchievements({ ...BASE, perfectLevels: 1 }, []).map((a) => a.id)).toContain('perfect_level')
+    expect(checkAchievements({ ...BASE, perfectLevels: 0 }, []).map((a) => a.id)).not.toContain('perfect_level')
   })
 
   it('连击 15 仍然原样可解锁', () => {
     expect(checkAchievements({ ...BASE, maxCombo: 15 }, []).map((a) => a.id)).toContain('combo_15')
+    expect(checkAchievements({ ...BASE, maxCombo: 14 }, []).map((a) => a.id)).not.toContain('combo_15')
   })
 
   it('一次会话首通 5 关解锁「马拉松」', () => {
     expect(checkAchievements({ ...BASE, firstCompleteToday: 5 }, []).map((a) => a.id)).toContain('marathon')
+    expect(checkAchievements({ ...BASE, firstCompleteToday: 4 }, []).map((a) => a.id)).not.toContain('marathon')
   })
 
   it('一个单元全三星解锁「收集者」', () => {
     expect(checkAchievements({ ...BASE, perfectUnits: 1 }, []).map((a) => a.id)).toContain('collector')
     // 零单元全三星不该白送 —— 与大法师的 36/37 边界同形。
-    expect(checkAchievements(BASE, []).map((a) => a.id)).not.toContain('collector')
+    expect(checkAchievements({ ...BASE, perfectUnits: 0 }, []).map((a) => a.id)).not.toContain('collector')
   })
 
   it('全部关卡通关解锁「大法师」', () => {
