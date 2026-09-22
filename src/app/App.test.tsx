@@ -5,36 +5,21 @@ import {
   AchievementService,
   AudioService,
   AuthService,
-  BasicsService,
   CelebrateService,
-  ChapterService,
   ComboService,
-  FoundationService,
   LuckyBonusService,
-  ProgressRulesService,
-  ProgressService,
-  QuestionEngineService,
+  PinyinProgressService,
   SettingsService,
   SpeechService,
-  ToastService,
-  VocabularyService,
 } from '@/shared/services'
 import type {
   AuthSnapshot,
-  BasicsProgressRow,
-  BasicsProgressSnapshot,
-  ChapterProgressSnapshot,
-  ChoiceQuestion,
   ComboSnapshot,
-  ProgressSnapshot,
+  PinyinProgressSnapshot,
   SettingsSnapshot,
-  ToastData,
   User,
   UserSettings,
-  WordProgress,
-  WordUnit,
 } from '@/shared/services'
-import { createProgressRulesService } from '@/features/lesson'
 import App from './App'
 
 const user: User = { id: 'u', email: '', name: '' }
@@ -46,45 +31,6 @@ const settings: UserSettings = {
   consecutiveDays: 0,
   lastActiveDate: '',
   updatedAt: '2026-09-05T00:00:00.000Z',
-}
-
-// 老用户进度:词 1 已有一行(未整词完成,仍可进词课);任何 progress 有行即不触发冷启动小测。
-const partialRow: WordProgress = {
-  wordId: 1,
-  completed: { pinyin: false, hanzi: false, english: false },
-  sentenceLevel: 0,
-  bonusGranted: false,
-  starsEarned: 0,
-  updatedAt: '2026-09-05T00:00:00.000Z',
-}
-
-const word: WordUnit = {
-  id: 1,
-  emoji: '☀️',
-  pinyin: 'tài yáng',
-  hanzi: '太阳',
-  english: 'sun',
-  category: 'nature',
-}
-
-const firstChoice: ChoiceQuestion = {
-  kind: 'choice',
-  prompt: '选出太阳的汉字',
-  options: [
-    { id: 'a', text: '太阳' },
-    { id: 'b', text: '月亮' },
-  ],
-  answerId: 'a',
-}
-
-const secondChoice: ChoiceQuestion = {
-  kind: 'choice',
-  prompt: '选出太阳的拼音',
-  options: [
-    { id: 'c', text: 'tài yáng' },
-    { id: 'd', text: 'yuè liang' },
-  ],
-  answerId: 'c',
 }
 
 // 快照需稳定引用(useSyncExternalStore 要求);publish 替换为新对象并通知订阅。
@@ -104,7 +50,8 @@ function createStore<T>(initial: T) {
   }
 }
 
-function registerAll() {
+/** 只登记 App 相位机真正取用的服务 —— 未注册的服务会当场抛错,那本身也是断言。 */
+function registerAll(opts: { settingsPublishes?: boolean } = {}) {
   registry.clear()
 
   const authStore = createStore<AuthSnapshot>({ status: 'checking' })
@@ -118,79 +65,29 @@ function registerAll() {
     markAnonymous: () => authStore.publish({ status: 'anonymous' }),
   }
 
-  const progressStore = createStore<ProgressSnapshot>({ status: 'idle', data: {} })
+  const progressStore = createStore<PinyinProgressSnapshot>({ status: 'idle', data: { stars: {}, totalStars: 0 } })
   const progressLoad = vi.fn(async () => {
     progressStore.publish({ status: 'ready', data: progressStore.getSnapshot().data })
   })
-  const progress: ProgressService = {
+  const progress: PinyinProgressService = {
     getSnapshot: progressStore.getSnapshot,
     subscribe: progressStore.subscribe,
     load: progressLoad,
-    seed: () => undefined,
-    saveStep: async () => undefined,
-    saveAll: async () => undefined,
-    resetAll: async () => undefined,
+    recordClear: vi.fn(async () => undefined),
+    resetAll: vi.fn(async () => undefined),
   }
 
   const settingsStore = createStore<SettingsSnapshot>({ status: 'idle', data: settings })
   const settingsLoad = vi.fn(async () => {
+    // settingsPublishes: false 用来复现「设置没拉回来就进了关卡」那一格。
+    if (opts.settingsPublishes === false) return
     settingsStore.publish({ status: 'ready', data: settingsStore.getSnapshot().data })
   })
   const settingsService: SettingsService = {
     getSnapshot: settingsStore.getSnapshot,
     subscribe: settingsStore.subscribe,
     load: settingsLoad,
-    save: async () => undefined,
-  }
-
-  const ch1Words: WordUnit[] = [
-    { id: 13, emoji: '🏠', pinyin: 'fáng zi', hanzi: '房子', english: 'house', category: 'shape' },
-    { id: 7, emoji: '🚪', pinyin: 'mén', hanzi: '门', english: 'door', category: 'shape' },
-    { id: 14, emoji: '🔑', pinyin: 'yào shi', hanzi: '钥匙', english: 'key', category: 'shape' },
-    { id: 8, emoji: '🪟', pinyin: 'chuāng hu', hanzi: '窗户', english: 'window', category: 'shape' },
-    { id: 19, emoji: '💡', pinyin: 'tái dēng', hanzi: '台灯', english: 'lamp', category: 'shape' },
-  ]
-  const allWords = [word, ...ch1Words]
-  const vocabulary: VocabularyService = {
-    getAllWords: () => allWords,
-    wordById: (id) => allWords.find((w) => w.id === id),
-    sentenceSetFor: () => undefined,
-  }
-
-  const chapterStore = createStore<ChapterProgressSnapshot>({ status: 'idle', data: { row: null } })
-  const chapterLoad = vi.fn(async () => {
-    chapterStore.publish({ status: 'ready', data: chapterStore.getSnapshot().data })
-  })
-  const chapter: ChapterService = {
-    getSnapshot: chapterStore.getSnapshot,
-    subscribe: chapterStore.subscribe,
-    load: chapterLoad,
     save: vi.fn(async () => undefined),
-    clear: vi.fn(async () => undefined),
-  }
-
-  const questionEngine: QuestionEngineService = {
-    optionCountFor: () => 2,
-    textOf: (w) => w.hanzi,
-    speakOf: (w) => w.hanzi,
-    distractorsFor: () => [],
-    makeChoice: () => firstChoice,
-    makeListen: () => ({
-      kind: 'listen-choice',
-      prompt: '听一听,选一选',
-      promptSpeak: word.hanzi,
-      options: [{ id: 'a', text: word.hanzi }],
-      answerId: 'a',
-    }),
-    makeMatch: () => ({
-      kind: 'match',
-      prompt: '配对',
-      left: [{ id: 'a', text: word.hanzi }],
-      right: [{ id: 'a', text: word.emoji }],
-      answerMap: { a: 'a' },
-    }),
-    makeStepQuestions: () => [firstChoice, secondChoice],
-    makeSentenceQuestions: () => [],
   }
 
   const comboStore = createStore<ComboSnapshot>({ combo: 0, maxCombo: 0 })
@@ -198,7 +95,7 @@ function registerAll() {
     getSnapshot: comboStore.getSnapshot,
     subscribe: comboStore.subscribe,
     answer: vi.fn(() => 0),
-    reset: () => undefined,
+    reset: vi.fn(),
     getBonus: vi.fn(() => 0),
   }
 
@@ -214,108 +111,31 @@ function registerAll() {
 
   const speech: SpeechService = { speak: () => true, speakRole: () => true, stop: () => undefined }
   const celebrate: CelebrateService = { play: vi.fn() }
-  const toastStore = createStore<readonly ToastData[]>([])
-  const toast: ToastService = {
-    getSnapshot: toastStore.getSnapshot,
-    subscribe: toastStore.subscribe,
-    show: vi.fn(() => 1),
-    dismiss: () => undefined,
-  }
   const achievements: AchievementService = { scan: () => [] }
   const lucky: LuckyBonusService = { roll: () => 0 }
 
-  // 基础教学门:测试沿用旧行为 —— 空单元列表 → stepGate.judge 恒 false,词课不进教学门。
-  const basicsStore = createStore<BasicsProgressSnapshot>({ status: 'idle', data: {} })
-  const basicsLoad = vi.fn(async () => {
-    basicsStore.publish({ status: 'ready', data: basicsStore.getSnapshot().data })
-  })
-  const basicsRecord = vi.fn(async () => undefined)
-  const basicsSaveAll = vi.fn(async (_rows: readonly BasicsProgressRow[]) => {})
-  const basics: BasicsService = {
-    getSnapshot: basicsStore.getSnapshot,
-    subscribe: basicsStore.subscribe,
-    load: basicsLoad,
-    recordAnswer: basicsRecord,
-    markTaught: async () => undefined,
-    saveAll: basicsSaveAll,
-  }
-  const foundation: FoundationService = {
-    unitsFor: () => [],
-    needFor: () => 'none',
-  }
-
   registry.register(AuthService, auth)
-  registry.register(ProgressService, progress)
+  registry.register(PinyinProgressService, progress)
   registry.register(SettingsService, settingsService)
-  registry.register(ChapterService, chapter)
-  registry.register(VocabularyService, vocabulary)
-  registry.register(QuestionEngineService, questionEngine)
   registry.register(ComboService, combo)
   registry.register(AudioService, audio)
   registry.register(SpeechService, speech)
   registry.register(CelebrateService, celebrate)
-  registry.register(ToastService, toast)
   registry.register(AchievementService, achievements)
   registry.register(LuckyBonusService, lucky)
-  registry.register(ProgressRulesService, createProgressRulesService())
-  registry.register(FoundationService, foundation)
-  registry.register(BasicsService, basics)
 
-  return {
-    auth,
-    authStore,
-    check,
-    progressLoad,
-    settingsLoad,
-    basicsLoad,
-    basicsRecord,
-    basicsSaveAll,
-    celebrate,
-    chapter,
-    chapterLoad,
-    chapterStore,
-    play: audio.play,
-    progressStore,
-    settingsStore,
-    basicsStore,
-  }
+  return { authStore, check, progressLoad, progressStore, settingsLoad, settingsStore }
 }
 
-/** 认证登录;fresh 不预置 progress 行(→触发冷启动小测),默认预置 1 行 = 老用户(→直达群岛)。 */
-function mountApp(opts: { returning?: boolean } = {}) {
-  const svc = registerAll()
+/** 登录态挂载 App(认证在 check 内同步 publish,与生产同序)。 */
+function mountApp(opts: { settingsPublishes?: boolean } = {}) {
+  const svc = registerAll(opts)
   svc.check.mockImplementation((): Promise<undefined> => {
     svc.authStore.publish({ status: 'authenticated', user })
     return Promise.resolve(undefined)
   })
-  if (opts.returning !== false) {
-    svc.progressStore.publish({ status: 'idle', data: { 1: partialRow } })
-  }
   const utils = render(<App />)
   return { svc, ...utils }
-}
-
-/** 老用户登录 → 双世界壳 → 点「字母林」直达群岛(主页标题出现)。 */
-async function renderAuthenticatedHome() {
-  const { svc } = mountApp({ returning: true })
-  // 登录后首落世界壳
-  await waitFor(() => expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument())
-  fireEvent.click(screen.getByRole('button', { name: /字母林/ }))
-  await waitFor(() => expect(screen.getByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument())
-  return svc
-}
-
-/** 点当前小测题首个选项(题面 shuffle 随机;对错都推进,故任选即可)。 */
-function clickAnyOption(container: HTMLElement) {
-  const grid = Array.from(container.querySelectorAll('div.grid')).find((el) => el.querySelectorAll('button').length > 0)
-  expect(grid, '应存在选项 grid').toBeTruthy()
-  const btn = grid!.querySelectorAll('button')[0] as HTMLElement
-  fireEvent.click(btn)
-}
-
-/** 提交当前题(新确认制:点选项后再点「就它了!」才判)。 */
-function confirmAnswer() {
-  fireEvent.click(screen.getByRole('button', { name: '就它了!' }))
 }
 
 beforeEach(() => registry.clear())
@@ -329,119 +149,74 @@ describe('App 路由', () => {
     expect(await screen.findByRole('button', { name: /进入魔法岛/ })).toBeInTheDocument()
   })
 
-  it('boot → home(老用户):认证成功后加载 progress/settings 并直达主页,不弹小测', async () => {
-    const svc = await renderAuthenticatedHome()
+  it('登录后直达单元地图:progress 与 settings 都拉了', async () => {
+    const { svc, container } = mountApp()
 
-    expect(await screen.findByText(/收集 100 个词的星尘/)).toBeInTheDocument()
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
     await waitFor(() => expect(svc.progressLoad).toHaveBeenCalled())
+    // settings 不拉 = 关卡结算会拿 defaultSettings() 覆盖服务端(连续天数/成就清零)
     await waitFor(() => expect(svc.settingsLoad).toHaveBeenCalled())
-    await waitFor(() => expect(svc.basicsLoad).toHaveBeenCalled())
-    await waitFor(() => expect(svc.chapterLoad).toHaveBeenCalled())
-    expect(screen.queryByRole('heading', { name: '魔法入门小测' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /进入魔法岛/ })).toBeNull()
   })
 
-  it('401 → login:会话转为匿名后回到登录门', async () => {
-    const svc = await renderAuthenticatedHome()
+  it('地图零汉字:格子靠名片积木自表意(文字部分是 aria-label,不进 textContent)', async () => {
+    const { container } = mountApp()
 
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
+    const text = container.querySelector('[data-unit-map]')!.textContent ?? ''
+    expect(text).not.toMatch(/[一-鿿]/)
+  })
+
+  it('401 → login:会话转为匿名后(哪怕相位还停在地图)回到登录门', async () => {
+    const { svc, container } = mountApp()
+
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
     act(() => svc.authStore.publish({ status: 'anonymous' }))
 
     expect(await screen.findByRole('button', { name: /进入魔法岛/ })).toBeInTheDocument()
+    // 认证分支排在最前,相位不参与决策 —— 匿名态下不该还留着地图
+    expect(container.querySelector('[data-unit-map]')).toBeNull()
   })
 
-  it('world → qianzigu-map:世界壳点千字谷进章节地图,返回回世界壳', async () => {
-    const { svc } = mountApp({ returning: true })
-    await waitFor(() => expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument())
+  it('map → level:点单元进关卡页,带本单元进度与回地图按钮', async () => {
+    const { container } = mountApp()
 
-    fireEvent.click(screen.getByRole('button', { name: /千字谷/ }))
-    expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
 
-    fireEvent.click(screen.getByRole('button', { name: '返回世界' }))
-    expect(await screen.findByRole('heading', { name: '选择你的世界' })).toBeInTheDocument()
-    await waitFor(() => expect(svc.chapterLoad).toHaveBeenCalled())
+    expect(await screen.findByRole('button', { name: '回地图' })).toBeInTheDocument()
+    expect(container.querySelector('[data-unit-map]')).toBeNull()
+    expect(screen.getByText('1/3')).toBeInTheDocument() // u1 三关,从第一关进
   })
 
-  it('world → qianzigu-map → ch1 开始 → chapter 相位跑首幕,返回回地图', async () => {
-    const { svc } = mountApp({ returning: true })
-    await waitFor(() => expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument())
+  it('map → parent → map:家长面板开合', async () => {
+    const { container } = mountApp()
 
-    fireEvent.click(screen.getByRole('button', { name: /千字谷/ }))
-    expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: '家长' }))
 
-    fireEvent.click(screen.getByRole('button', { name: '开始' }))
-    // 首幕标记:open 以旁白起头(ch1.ts),故断言首行。
-    expect(await screen.findByText(/早上的千字谷镇/)).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: '返回地图' }))
-    expect(await screen.findByRole('heading', { name: '千字谷 · 章节地图' })).toBeInTheDocument()
-    await waitFor(() => expect(svc.chapterLoad).toHaveBeenCalled())
-  })
-
-  it('home → lesson:点可用词进入对应词的答题屏', async () => {
-    await renderAuthenticatedHome()
-
-    fireEvent.click(screen.getByRole('button', { name: /^词 1 / }))
-
-    expect(await screen.findByRole('button', { name: '返回地图' })).toBeInTheDocument()
-  })
-
-  it('settings:开合家长设置面板后回到主页', async () => {
-    await renderAuthenticatedHome()
-
-    fireEvent.click(screen.getByRole('button', { name: '家长菜单' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /学习设置/ }))
-    expect(await screen.findByRole('switch', { name: /汉语/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '家长设置' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '完成' }))
-    expect(await screen.findByRole('heading', { name: '收集 100 个词的星尘' })).toBeInTheDocument()
-  })
-})
-
-describe('App 冷启动诊断', () => {
-  it('fresh 零进度 → 登录后进小测,不进群岛', async () => {
-    mountApp({ returning: false })
-
-    expect(await screen.findByRole('heading', { name: '魔法入门小测' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: '收集 100 个词的星尘' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '家长' })).toBeInTheDocument()
   })
 
-  it('fresh 跳过小测 → 回群岛,会话内不再弹(空基础/空进度空转 publish 也不重弹)', async () => {
-    const { svc } = mountApp({ returning: false })
+  it('设置没就绪时停在 boot:既不渲染关卡页,也**不偷偷进地图**', async () => {
+    // 场景:登录已成功、进度的确 ready(所以地图能画),但设置的 load 没回来 ——
+    // 此时点单元进关卡,必须停在 BootScreen 等设置,而不是拿默认设置去结算。
+    const { container } = mountApp({ settingsPublishes: false })
 
-    await screen.findByRole('heading', { name: '魔法入门小测' })
-    fireEvent.click(screen.getByRole('button', { name: '跳过小测' }))
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
 
-    expect(await screen.findByRole('heading', { name: '选择你的世界' })).toBeInTheDocument()
-
-    act(() => { svc.progressStore.publish({ status: 'ready', data: {} }) })
-    act(() => { svc.basicsStore.publish({ status: 'ready', data: {} }) })
-    expect(screen.queryByRole('heading', { name: '魔法入门小测' })).not.toBeInTheDocument()
-  })
-
-  it('fresh 答完小测 → saveAll 写基线,回群岛', async () => {
-    vi.useFakeTimers()
-    try {
-      const { svc, container } = mountApp({ returning: false })
-      await act(async () => {})
-
-      expect(screen.getByRole('heading', { name: '魔法入门小测' })).toBeInTheDocument()
-      fireEvent.click(screen.getByRole('button', { name: '开始' }))
-
-      for (let i = 0; i < 6; i++) {
-        clickAnyOption(container)
-        confirmAnswer()
-        act(() => { vi.advanceTimersByTime(700) })
-      }
-
-      expect(screen.getByRole('button', { name: '开始游戏' })).toBeInTheDocument()
-      fireEvent.click(screen.getByRole('button', { name: '开始游戏' }))
-
-      expect(svc.basicsSaveAll).toHaveBeenCalledTimes(1)
-      const rows = svc.basicsSaveAll.mock.calls[0][0] as readonly BasicsProgressRow[]
-      expect(rows.length).toBeGreaterThan(0)
-      expect(svc.basicsRecord).not.toHaveBeenCalled() // 逐题零写,基线只在「开始游戏」一次性落库
-      expect(screen.getByRole('heading', { name: '选择你的世界' })).toBeInTheDocument()
-    } finally {
-      vi.useRealTimers()
-    }
+    // 关键区分断在正向断言之前,失败信息才指得准「悄悄进了哪儿」:
+    // `data-unit-map` 只有地图有(条件并进上层 if 会落到地图分支 → 红在这),
+    // `回地图` 只有关卡有(把就绪门整个删掉 → 红在这)。
+    // 两条都为 null 时,**并不能**说明停在 BootScreen(logout 那一格也能过)——
+    // 所以下面必须再有正向断言。
+    expect(document.querySelector('[data-unit-map]')).toBeNull()
+    expect(screen.queryByRole('button', { name: '回地图' })).toBeNull()
+    // 正向:确实停在 BootScreen(唯一渲染 `.animate-spin` 的分支),不是空白页
+    await waitFor(() => expect(container.querySelector('.animate-spin')).not.toBeNull())
   })
 })
