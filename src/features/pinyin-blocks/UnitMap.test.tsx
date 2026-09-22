@@ -20,8 +20,10 @@ const HAN_TEXT = /[\p{Script=Han}\u3000-\u303f\uff00-\uffef\u{2e80}-\u{2eff}\u{3
 describe('拼音单元地图', () => {
   it('每个单元各占一格:名片用真积木渲染(u1 格为证)', () => {
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
-    const cells = document.querySelectorAll('[data-unit-id]')
-    expect(cells).toHaveLength(UNITS.length)
+    const cells = [...document.querySelectorAll<HTMLElement>('[data-unit-id]')]
+    // 钉**身份序列**,不只钉数量:数量相等只是它的推论,而「复制一格 + 删一格」数量照样相等 ——
+    // 那种改动下名字里的「每个单元」就是假的,这条断言必须能红。
+    expect(cells.map((cell) => cell.dataset.unitId)).toEqual(UNITS.map((unit) => unit.id))
     // 名片是块本体,不是 emoji、不是文字
     expect(cells[0]?.querySelectorAll('.pblock').length).toBe(UNITS[0]!.badge.length)
   })
@@ -39,12 +41,14 @@ describe('拼音单元地图', () => {
   it('u1 解锁可点、u2 锁上点不动(只核这两格)', () => {
     const onPick = vi.fn()
     render(<UnitMap stars={{}} totalStars={0} onPick={onPick} onOpenParent={vi.fn()} />)
-    const cells = document.querySelectorAll<HTMLElement>('[data-unit-id]')
-    expect(cells[0]?.dataset.locked).toBe('false')
-    expect(cells[1]?.dataset.locked).toBe('true')
-    fireEvent.click(cells[1] as HTMLElement)
+    // 按 **id** 取,不按位置取 —— 名字点的是 u1/u2,位置在 `UNITS` 前面插入单元时就会错位
+    // (那时 `cells[0]` 是新单元、真正叫 u1 的那格其实是锁着的),断言与名字要的是同一件事。
+    const cellOf = (id: string) => document.querySelector<HTMLElement>(`[data-unit-id="${id}"]`)
+    expect(cellOf('u1')?.dataset.locked).toBe('false')
+    expect(cellOf('u2')?.dataset.locked).toBe('true')
+    fireEvent.click(cellOf('u2') as HTMLElement)
     expect(onPick).not.toHaveBeenCalled()
-    fireEvent.click(cells[0] as HTMLElement)
+    fireEvent.click(cellOf('u1') as HTMLElement)
     expect(onPick).toHaveBeenCalledWith(0)
   })
 
@@ -157,17 +161,24 @@ describe('拼音单元地图', () => {
   })
 
   // `!` 不是为了当前的参数顺序(twMerge 自己就会删掉输家),而是为了**顺序变了也成立**。
-  // 读源码里实际的字号类再喂进 cn,才能在源码丢掉 `!` 时真的红。
+  // 参与合并的**两个来源**的字号类都得从源码里读出来 —— 硬编码哪一个,都会和它声称要模拟的那个来源脱钩:
+  // 块自己那支一旦也带上 `!`,硬编码的不带 `!` 的 `text-[1.75rem]` 照样被调用方压住,用例绿着放行。
   it('名片字号覆盖不依赖 cn 的参数顺序', () => {
-    const badge = readFileSync(join(process.cwd(), 'src/features/pinyin-blocks/UnitMap.tsx'), 'utf8')
-      .match(/const BADGE_BOX = '([^']*)'/)?.[1]
+    const src = (file: string) =>
+      readFileSync(join(process.cwd(), 'src/features/pinyin-blocks', file), 'utf8')
+    const badge = src('UnitMap.tsx').match(/const BADGE_BOX = '([^']*)'/)?.[1]
     expect(badge, 'BADGE_BOX 没了,下面的断言会静默空转').toBeDefined()
     const size = badge!.match(/text-\[[^\]]+\]!?/)?.[0]
     expect(size, 'BADGE_BOX 里没有字号类').toBeDefined()
-    // 倒序 = 调用方 className 排在块自己写死的 text-[1.75rem] 之前。这正是没有 `!` 会失守的那一格。
+    // 块自带的字号是三元分支(`isTone ? … : …`),名片块走**非声调**那支 —— 取冒号后面那支。
+    const chipBranch = src('BlockChip.tsx').match(/isTone \? '[^']*' : '([^']*)'/)?.[1]
+    expect(chipBranch, 'BlockChip.tsx 的非声调字号分支没解析到,下面的断言会静默空转').toBeDefined()
+    const chipSize = chipBranch!.match(/text-\[[^\]]+\]!?/)?.[0]
+    expect(chipSize, 'BlockChip.tsx 非声调那支里没有字号类').toBeDefined()
+    // 倒序 = 调用方 className 排在块自己写死的字号之前。这正是没有 `!` 会失守的那一格。
     expect(
-      cn(badge!, 'pblock font-extrabold text-[1.75rem]'),
-      '调用方字号被块自己写死的字号盖掉了',
+      cn(badge!, `pblock font-extrabold ${chipSize}`),
+      `调用方字号被块自己写死的 ${chipSize} 盖掉了`,
     ).toContain(size)
   })
 })
