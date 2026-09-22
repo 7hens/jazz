@@ -5,6 +5,8 @@ description: Use when 撰写、评审或结构化互动叙事 —— 世界观/�
 
 # 互动叙事:创作与结构(game-story-design)
 
+> ⚠ **本仓库现状(2026-09-22)**:本 skill 的**主题文档已在「拼音积木取代全游戏」迁移中被删除** —— 世界观圣经 / 逐幕分镜 / 角色与伏笔台账(`docs/design/game-story-bible.md`、`game-direction.md` 等四档)与台词源 `src/features/qianzigu/ch1.ts` 全部整批删除,**当前没有锚点**;现行玩法(拼音积木)不含叙事内容。**本 skill 的方法论部分不受影响**;要重新引入叙事,先按 `docs/PLAN.md` 立项、再由新的项目文档承接(技能内永不复制台词)。
+
 ## 定位与原则
 
 故事 = 一个有代价的选择被反复推到极限。本技能管同一份交付的**两半 + 一块**:两半顺序不可倒,留痕附加。
@@ -198,5 +200,5 @@ description: Use when 撰写、评审或结构化互动叙事 —— 世界观/�
 
 - **交棒 →** `game-visual-design`:外貌锚与演出钩子定稿后**只存一处**(项目设计文档),视觉侧按锚点合成 prompt,勿再抄一份。
 - **交棒 →** `game-audio-design`:角色声纹卡定稿后再转译成 rate/pitch。
-- 本仓库(词库学习岛·千字谷):世界观圣经 / 角色台账 / 伏笔台账 → `docs/design/game-story-bible.md`;逐幕演出与交互分镜 → `docs/design/game-direction.md`。台词权威 = `src/features/qianzigu/ch1.ts`;**上述文档只写意图,严禁复制台词**。
+- 本仓库(拼音积木岛)**当前没有故事侧锚点**:这里原本写着「世界观圣经 / 角色台账 / 伏笔台账 → `docs/design/game-story-bible.md`;逐幕演出与交互分镜 → `docs/design/game-direction.md`;台词权威 = `src/features/qianzigu/ch1.ts`」,而**这四档台账与那个台词源已随「拼音积木取代全游戏」整批删除**,本技能在本仓库**处于无锚状态**(详见顶部横幅)。重新引入叙事时:先按 `docs/PLAN.md` 立项 → 由新的项目文档承接世界观 / 角色 / 伏笔 / 台词,**技能内只放指针、永不复制台词**。
 - 也勿在一个项目里虚构与其设定冲突的新体系;新体系先入该项目 `PLAN` 想法池立项。

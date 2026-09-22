@@ -1,9 +1,9 @@
 ---
 name: release
-description: Use when user asks to 发布 / release / 上线 / deploy to production / bump version / npm version / 打 tag on this 词库学习岛 repo, needs worker rollback or release troubleshooting, or is about to tag or version-bump before a browser smoke is confirmed.
+description: Use when user asks to 发布 / release / 上线 / deploy to production / bump version / npm version / 打 tag on this 拼音积木岛 repo, needs worker rollback or release troubleshooting, or is about to tag or version-bump before a browser smoke is confirmed.
 ---
 
-# Release（词库学习岛生产发布）
+# Release（拼音积木岛生产发布）
 
 ## 核心原则
 
