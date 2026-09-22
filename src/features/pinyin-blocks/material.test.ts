@@ -138,12 +138,16 @@ describe('index.css 拼音积木材质段', () => {
     expect(base, '.pslot {').toBeGreaterThan(-1)
     expect(css.slice(base, css.indexOf('}', base)), '--slot-base-line 的定义').toContain('--slot-base-line:')
 
-    // 五套类型规则一律读这两个变量,谁自己写死百分比谁就是漏网的
+    // 五套类型规则一律读**两个**容器变量(--slot-line 描边 / --slot-fill 填充)+ 中性底线,
+    // 谁自己写死百分比谁就是漏网的 —— 三句都要断:只断 --slot-line 的话,把 --slot-fill 写死成
+    // 40% 照样全绿(本文件第一版就是这样漏的;`--slot-line` 那句断的是「填」这一半的兄弟,
+    // 不是它自己)。.pslot--medial 的两个 edge 停点由上面那条用例单独断,这里不重复钉。
     for (const name of ['initial', 'medial', 'final', 'nasal', 'tone']) {
       const i = css.indexOf(`.pslot--${name} {`)
       expect(i, name).toBeGreaterThan(-1)
       const rule = css.slice(i, css.indexOf('}', i))
       expect(rule, name).toContain('var(--slot-line)')
+      expect(rule, `${name} 把填充写死了,档位就不再只由容器变量表达`).toContain('var(--slot-fill)')
       expect(rule, `${name} 没留住中性底,弱档会整个消失`).toContain('var(--slot-base-line)')
       // 声调槽是个**圆片**。这条半径原本单独立成一条 .pslot--tone 规则,合并时最容易顺手丢 ——
       // 而丢了只表现为「圆角方块」,没有任何非视觉信号。合并越干净,越要把留下来的东西钉住。
@@ -151,6 +155,30 @@ describe('index.css 拼音积木材质段', () => {
       // 一条规则只能有一条:拆成两条时,上面那句「取第一条」就成了假绿(self-asserting)。
       expect(css.split(`.pslot--${name} {`).length - 1, `${name} 只该有一条规则`).toBe(1)
     }
+  })
+
+  // 三档的**值**不钉(见上一条:浓淡是可调设计,钉死会变成改色即红),但**序**要钉 ——
+  // 「三档」的全部语义就是一层比一层弱。它只读相对顺序,把 55/30/0 调成 50/25/0 照样绿;
+  // 而「中档比强档还浓」「相邻两档相等(那一档白设)」才是真回归。
+  it('提示三档的浓淡递减:强 > 中 > 弱(两个变量各一遍)', () => {
+    const tier = (sel: string) => {
+      const i = css.indexOf(sel)
+      expect(i, sel).toBeGreaterThan(-1)
+      const body = css.slice(i, css.indexOf('}', i))
+      const num = (name: string) => {
+        const m = body.match(new RegExp(`${name}:\\s*(\\d+)%`))
+        expect(m, `${sel} 缺 ${name}`).not.toBeNull()
+        return Number(m?.[1])
+      }
+      return { line: num('--slot-line'), fill: num('--slot-fill') }
+    }
+    const strong = tier('.pslots ')
+    const mid = tier('.pslots--mid ')
+    const weak = tier('.pslots--weak ')
+    expect(strong.line, '描边:强该比中浓').toBeGreaterThan(mid.line)
+    expect(mid.line, '描边:中该比弱浓').toBeGreaterThan(weak.line)
+    expect(strong.fill, '填充:强该比中浓').toBeGreaterThan(mid.fill)
+    expect(mid.fill, '填充:中该比弱浓').toBeGreaterThan(weak.fill)
   })
 
   it('焊缝定位写死在 CSS 里,不靠 Tailwind 任意值(那边逃不过 v4 扫描器的坑)', () => {
@@ -228,5 +256,15 @@ describe('index.css 拼音积木材质段', () => {
       expect(start, `.pblock--${type} {`).toBeGreaterThan(-1)
       expect(css.slice(start, css.indexOf('}', start)), `${type} 块面没走 ${token}`).toContain(`var(${token})`)
     }
+
+    // 链子的最后一环:**谁把 `--pb-ink` 涂到字上**。上面只证明「类型类把 --pb-ink 指到某个 token」,
+    // 而`.pblock` 的 `color: var(--pb-ink)` 才是唯一消费点(`grep -n "var(--pb-ink)" src/index.css`
+    // 全文件只此一处)—— 删掉它,类型类照旧声明、token 照旧存在,整条链断而全量用例全绿。
+    const pblock = css.indexOf('.pblock {')
+    expect(pblock, '.pblock {').toBeGreaterThan(-1)
+    expect(
+      css.slice(pblock, css.indexOf('}', pblock)),
+      '.pblock 没把 --pb-ink 涂到文字色上,上面那些声明就都白指了',
+    ).toContain('color: var(--pb-ink)')
   })
 })
