@@ -81,17 +81,58 @@ describe('拼音单元地图', () => {
     expect(onOpenParent).toHaveBeenCalled()
   })
 
-  // 常量**值**可以是对的而**接线**是断的:把 className={BADGE_BOX} 的传参删掉,
-  // 常量还在、源码形态没变,名片却回到 BlockChip 自带的 1.75rem —— u7 溢出回归,全套仍绿。
-  // 这条从渲染结果里读,同时钉住宽度轴(w-8 才是布局预算的约束轴,h-8 不是)。
-  it('名片尺寸真的挂到了块上(宽度轴 + 字号覆盖)', () => {
+  /**
+   * 整格契约:**把 u7 名片那格布局预算的每一个输入一次读齐**,每行注明它在那句算术里管什么
+   * (算术本体在 `UnitMap.tsx` 顶部那段注释里):
+   *   可用宽 = max-w-2xl(672) − gap-4×2(32) → /列数(grid-cols-2 或 sm:grid-cols-3)
+   *            − p-4(32) − border-2(4) = 177.33;
+   *   需求宽 = 5×w-8(32) + 4×gap-1(4) = 176 ≤ 177.33(**宽度**是约束轴;h-8 只管盒高)。
+   * 少一个输入,那句算术就不成立 —— 这一类漏了三轮,故一次钉齐,不再一轮补一个类。
+   *
+   * **这条测试只钉「输入没被改动」,不验证布局**:jsdom 既没有 CSS 也没有布局引擎,
+   * 像素、折行、级联都测不出来。产物侧(`npm run build` 后扫 CSS)与 T15 人工冒烟兜底。
+   * 改这里任何一条 → 必须回去重算那段注释里的算术。
+   */
+  it('u7 名片的布局预算:每个输入都在(不验证布局,只钉输入)', () => {
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
-    const badge = document.querySelector('[data-unit-id="u7"] .pblock')
-    expect(badge, '取不到 u7 的名片块,下面的断言会静默空转').not.toBeNull()
-    const cls = badge!.className
-    expect(cls, '盒子宽度跑了:5×32+4×4=176 是那句预算算术的约束轴').toContain('w-8')
-    expect(cls, '盒子高度跑了:预算算术的输入之一是 h-8').toContain('h-8')
-    expect(cls, '字号覆盖没接到块上:会回落到 BlockChip 自带的 1.75rem').toMatch(/text-\[[^\]]+\]!/)
+    const cell = document.querySelector('[data-unit-id="u7"]')
+    expect(cell, '取不到 u7 格子,下面的断言会静默空转').not.toBeNull()
+    // 网格是格子的父元素、名片行是块的父元素:这么取才钉得住「接线」,而不是只钉常量的值。
+    const grid = cell!.parentElement
+    expect(grid, 'u7 格子没有父元素,取不到网格').not.toBeNull()
+    const badge = cell!.querySelector('.pblock')
+    expect(badge, '取不到 u7 的名片块').not.toBeNull()
+    const row = badge!.parentElement
+    expect(row, '取不到名片行的容器').not.toBeNull()
+
+    // 字号覆盖:必须是带 `!` 的那一个(块自己也在这元素上写死 text-[1.75rem],别抓错人)
+    const size = badge!.className.match(/text-\[[\d.]+rem\]!/)?.[0]
+    expect(size, '字号覆盖没接到块上:会回落到 BlockChip 自带的 1.75rem').toBeDefined()
+
+    const token = (t: string) => new RegExp(`(?:^| )${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`)
+    const CONTRACT: readonly (readonly [string, string, string, string])[] = [
+      ['网格可用宽封顶', grid!.className, 'max-w-2xl', '177.33 的被除数 672:改小 = 可用宽变少'],
+      ['网格列数(窄屏)', grid!.className, 'grid-cols-2', '375px 手机走这档'],
+      ['网格列数(≥sm)', grid!.className, 'sm:grid-cols-3', '那个 /3'],
+      ['网格列间距', grid!.className, 'gap-4', '可用宽里减 2×16=32'],
+      ['格子内边距', cell!.className, 'p-4', '可用宽里再减 32'],
+      ['格子描边', cell!.className, 'border-2', 'border-box 下再减 4(R1 就是漏了它)'],
+      ['块的宽', badge!.className, 'w-8', '约束轴:5×32 + 4×4 = 176'],
+      ['块的高', badge!.className, 'h-8', '盒高 32(非约束轴)'],
+      ['块的字号覆盖', badge!.className, size!, '缩盒不缩字 = 28px 字塞进 32px 盒'],
+      ['名片行间距', row!.className, 'gap-1', '需求宽里的 4×4'],
+      ['名片行换行', row!.className, 'flex-wrap', '≤640px 的唯一安全网:176 > 156 时靠它折行,而不是被 flex-shrink 压窄'],
+    ]
+    for (const [what, cls, t, why] of CONTRACT) {
+      expect(cls, `${what}:丢了 ${t} —— ${why}`).toMatch(token(t))
+    }
+
+    // 字号的**上界**(不是钉某个具体值:0.85→0.9rem 这种微调不该红,那是装饰)。
+    // 32px 定宽盒:最长的块面值是 2 字符,粗体下约 0.575em/字符 → 1rem 时约 18px,留有余量;
+    // 1.75rem(=28px,块在游戏里的字号)正好是塞不下那档。
+    const rem = Number(size!.match(/text-\[([\d.]+)rem\]/)![1])
+    expect(rem, '字号得写 rem').toBeGreaterThan(0)
+    expect(rem, `${size} 塞进 32px 定宽盒会顶格/糊`).toBeLessThanOrEqual(1)
   })
 
   // `!` 不是为了当前的参数顺序(twMerge 自己就会删掉输家),而是为了**顺序变了也成立**。
