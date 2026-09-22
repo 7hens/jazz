@@ -24,7 +24,11 @@ function makeDB(opts: {
   settingsRow?: Record<string, unknown> | null
 }) {
   const calls: Call[] = []
+  /** 每条 `prepare(sql)` 都记 —— 「压根没碰库」只有靠它才可证:calls 只记 bind,
+   *  一条不 bind 的 `prepare(...).first()` 在 calls 里是隐形的。 */
+  const prepared: string[] = []
   const stmt = (sql: string): FakeStmt => {
+    prepared.push(sql)
     const self: FakeStmt = {
       bind(...args: unknown[]) {
         calls.push({ sql, args })
@@ -41,7 +45,7 @@ function makeDB(opts: {
     }
     return self
   }
-  return { calls, DB: { prepare: stmt } }
+  return { calls, prepared, DB: { prepare: stmt } }
 }
 
 const USER = { id: 'u1', email: 'admin@life.local', name: '私密用户' }
@@ -82,19 +86,20 @@ async function putAndReadArgs(
 }
 
 describe('settings · GET 契约', () => {
-  // 无 cookie / 错 token 都在 getAuthenticatedUser 里就返回 null,一条 SQL 都不该发。
-  it('无 cookie:401,且不碰库', async () => {
+  // 无 cookie / 错 token 都在 getAuthenticatedUser 里就返回 null,一条 SQL 都不该 prepare。
+  // 断在 prepared 而不是 calls:calls 只记 bind,证明不了「没碰库」。
+  it('无 cookie:401,且一条 SQL 都没 prepare', async () => {
     const db = makeDB({ user: USER })
     const res = await handleGetSettings(getRequest(), envWith(db))
     expect(res.status).toBe(401)
-    expect(db.calls).toEqual([])
+    expect(db.prepared).toEqual([])
   })
 
-  it('错 token:401', async () => {
+  it('错 token:401,且一条 SQL 都没 prepare', async () => {
     const db = makeDB({ user: USER })
     const res = await handleGetSettings(getRequest('jazz_token=bad'), envWith(db))
     expect(res.status).toBe(401)
-    expect(db.calls).toEqual([])
+    expect(db.prepared).toEqual([])
   })
 
   it('用户行在、user_settings 无行:给空默认值', async () => {
@@ -148,13 +153,18 @@ describe('settings · GET 契约', () => {
   })
 
   // 读的那条 SELECT 已经不再碰两列 —— 把列加回去就是今天零覆盖的回归(曾经全绿)。
-  it('GET 发的 SELECT 不含 enable_chinese / enable_english', async () => {
+  // 断「列表**恰好**是这三列」而不是「不含某两个子串」:后者放得进任何新列,前者放不进。
+  it('GET 发的 SELECT 恰好只读这三列(enable_* 两列不再被读)', async () => {
     const db = makeDB({ user: USER, settingsRow: null })
     await handleGetSettings(getRequest('jazz_token=tok'), envWith(db))
     const select = db.calls.find((c) => /FROM user_settings/i.test(c.sql))
     expect(select, '没发 user_settings 的 SELECT').toBeDefined()
-    expect(select?.sql).not.toContain('enable_chinese')
-    expect(select?.sql).not.toContain('enable_english')
+    const columns = select?.sql.match(/SELECT\s+([\s\S]*?)\s+FROM/i)?.[1]
+    expect(columns?.split(',').map((c) => c.trim())).toEqual([
+      'earned_achievements',
+      'consecutive_days',
+      'last_active_date',
+    ])
   })
 })
 
@@ -200,18 +210,19 @@ describe('settings · PUT 契约', () => {
   })
 
   // 写的那条 INSERT 也不再提两列 —— 这是 T13 删列后最该钉住的不变量。
-  it('PUT 发的 INSERT:SQL 与全部绑定参数都不含 enable_chinese / enable_english', async () => {
+  // 列序与「恰好 5 列」已由上面那条钉死;这里守的是**整条语句文本**:两列不许以任何形式
+  // (列定义 / WHERE / SET)回到 SQL 里。
+  // 「绑定参数摊平后不含列名」那半句已删 —— 列名只会出现在 SQL 文本里,args 里恒不含,
+  // 那是永远为真的空转断言,给不出任何信号。
+  it('PUT 发的 INSERT 语句文本不含 enable_chinese / enable_english', async () => {
     const db = makeDB({ user: USER })
     await handlePutSettings(
       putRequest(JSON.stringify({ settings: { earnedAchievements: ['a'], consecutiveDays: 1 } })),
       envWith(db),
     )
     const insert = insertCall(db.calls)
-    const flattened = JSON.stringify(insert.args)
     expect(insert.sql).not.toContain('enable_chinese')
     expect(insert.sql).not.toContain('enable_english')
-    expect(flattened).not.toContain('enable_chinese')
-    expect(flattened).not.toContain('enable_english')
   })
 
   it('清洗成就:非 string 逐项丢掉', async () => {
@@ -220,7 +231,7 @@ describe('settings · PUT 契约', () => {
   })
 
   // 连续天数是「天数」:负数 / 小数 / 字符串 / 非有限数都不该原样落库。
-  it('清洗连续天数:取非负整数字面量,其余归零', async () => {
+  it('清洗连续天数:钳成非负整数,其余归零', async () => {
     const cases: Array<[unknown, number]> = [
       [-5, 0],
       [2.7, 2],
@@ -243,21 +254,25 @@ describe('settings · PUT 契约', () => {
 })
 
 describe('settings · 路由', () => {
-  it('POST /api/settings → 405', async () => {
+  // 405 是**路由层**给的:没进 handler,自然一条 SQL 都不该 prepare。
+  it('POST /api/settings → 405,不进 handler(不碰库)', async () => {
     const db = makeDB({ user: USER })
     const res = await worker.fetch(
       new Request('http://localhost/api/settings', { method: 'POST' }),
       envWith(db),
     )
     expect(res.status).toBe(405)
+    expect(db.prepared).toEqual([])
   })
 
-  it('GET /api/nope → JSON 404(带 message)', async () => {
+  it('GET /api/nope → JSON 404,body 带非空 message', async () => {
     const db = makeDB({ user: USER })
     const res = await worker.fetch(new Request('http://localhost/api/nope'), envWith(db))
     expect(res.status).toBe(404)
     expect(res.headers.get('content-type')).toContain('application/json')
-    expect((await res.json()) as { message?: string }).toHaveProperty('message')
+    const body = (await res.json()) as { message?: unknown }
+    expect(typeof body.message).toBe('string')
+    expect(body.message).not.toBe('')
   })
 })
 

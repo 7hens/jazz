@@ -101,7 +101,9 @@ describe('关卡结算', () => {
   })
 
   // 同一成就重复拿到不该写第二遍:去重语义(new Set)今天也没有守卫。
-  it('重复拿到已拥有的成就:该 id 只留一份,既有顺序不变', async () => {
+  // 注意这是**合成输入**:真实 `checkAchievements` 已经用 earned 集过滤过,交不回已拥有的 id
+  // (achievements.ts:30)。这里守的是 settle.ts **自己的**契约 —— 上游哪天改了过滤,save 仍不该写第二份。
+  it('scan 交回已拥有的成就:settle 自己去重,只留一份、既有顺序不变', async () => {
     const save = vi.fn().mockResolvedValue(undefined)
     const already: Achievement = {
       id: 'old_two',

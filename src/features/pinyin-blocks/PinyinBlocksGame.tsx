@@ -283,8 +283,11 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
   // pointerup 与 pointercancel 走同一个收尾:前者落块,后者只拆干净。
   // 名字用 e.type 区分,是为了让「注册」与「摘除」用的是同一个函数身份 —— 两个互相引用的
   // useCallback 会成环(deps 里互相要求对方),这里用一个 handler 绕开。
+  // 具名函数表达式(不是箭头函数):内层的 `onPointerEnd` 绑定**恒等于刚被创建的那个函数对象**,
+  // 所以「注册」与「摘除」拿到的必然是同一个身份(useCallback 命中缓存时返回的也正是它);
+  // 写成箭头函数引用外层的 const,读到的就是「本轮渲染的那个」,identity 中途变过就会摘错人。
   const onPointerEnd = useCallback(
-    (e: PointerEvent) => {
+    function onPointerEnd(e: PointerEvent) {
       const d = drag.current
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onPointerEnd)

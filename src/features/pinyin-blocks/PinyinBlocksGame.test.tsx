@@ -81,6 +81,10 @@ describe('拼音积木 · 游戏', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    // 幽灵块被 appendChild 到 document.body、不在 React 树里 —— cleanup() 清不掉它。
+    // 上一条用例若漏拆,残块会污染下一条的计数:漏拆只该让**漏拆的那条**红,
+    // 不该让后面每条都跟着红(那会把「红在哪」搅成噪声)。
+    document.querySelectorAll('.pblock--dragging').forEach((el) => el.remove())
   })
 
   it('渲染题面图与拼装台,作答期间不出现汉字', () => {
@@ -231,27 +235,34 @@ describe('拼音积木 · 游戏', () => {
     expect(document.querySelectorAll('.pblock--dragging').length, '第一指的幽灵块必须被拆掉').toBe(0)
   })
 
-  // 切后台 / 浏览器抢走手势只发 pointercancel,不发 pointerup。它必须把手上这摊拆干净,
-  // 但**不能**替孩子落块 —— 手势被系统收走时,孩子并没有做出「放在这里」的决定。
-  it('pointercancel:拆干净且不补落一块', () => {
-    mount(1, 0) // 👨 bà:声母槽 s0-i 要 b
-    const slot = () => document.querySelector<HTMLElement>('[data-slot-id="s0-i"]') as HTMLElement
-    expect(slot().getAttribute('aria-label'), '起始该是空槽').toBe('空槽')
-    vi.spyOn(document, 'elementFromPoint').mockReturnValue(slot())
-
+  // 切后台 / 浏览器抢走手势只发 pointercancel,不发 pointerup。它必须把手上这摊拆干净。
+  it('pointercancel:幽灵块拆掉,不留残影', () => {
+    mount(1, 0)
     fireEvent.pointerDown(screen.getByLabelText('积木 b'), { clientX: 10, clientY: 10 })
     fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
     expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块该已挂上').toBe(1)
 
     fireEvent.pointerCancel(window, { clientX: 40, clientY: 40 })
     expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块必须拆掉').toBe(0)
-    expect(slot().getAttribute('aria-label'), '手势被收走不该落块').toBe('空槽')
-    expect(slot().classList.contains('pslot--filled')).toBe(false)
+  })
 
-    // 收尾已把 drag 清空:此后残留的 pointerup 必须是 no-op,不许回头补落一块。
+  // 手势被系统收走时,孩子并没有做出「放在这里」的决定 —— 收尾之后的 pointerup 不许回头补落一块。
+  // 单独立一条:与上面那条合写时,幽灵块那句会先红,这半句永远轮不到被证伪(除非拆开)。
+  it('pointercancel 之后的 pointerup 不补落一块', () => {
+    mount(1, 0) // 👨 bà:声母槽 s0-i 要 b,命中它会真的落位
+    const slot = () => document.querySelector<HTMLElement>('[data-slot-id="s0-i"]') as HTMLElement
+    expect(slot().getAttribute('aria-label'), '起始该是空槽').toBe('空槽')
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(slot())
+
+    fireEvent.pointerDown(screen.getByLabelText('积木 b'), { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
+    // 钉住「拖拽真的在飞」——否则下面那句空槽可能只是没拖起来。
+    expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块该已挂上').toBe(1)
+
+    fireEvent.pointerCancel(window, { clientX: 40, clientY: 40 })
     fireEvent.pointerUp(window, { clientX: 40, clientY: 40 })
-    expect(slot().classList.contains('pslot--filled'), '残影般的 pointerup 不该补落一块').toBe(false)
-    expect(document.querySelectorAll('.pblock--dragging').length).toBe(0)
+    expect(slot().classList.contains('pslot--filled'), '手势被系统收走后不该补落一块').toBe(false)
+    expect(slot().getAttribute('aria-label')).toBe('空槽')
   })
 
   // 放错只有音效等于没有反馈 —— 声音关掉(或本来就是静音环境)后孩子只看到块弹回去。
