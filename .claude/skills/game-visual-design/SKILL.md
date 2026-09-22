@@ -5,7 +5,7 @@ description: Use when 设计全屏漫画式游戏的视觉演出 —— 气泡�
 
 # 游戏视觉设计(全屏漫画演出 + AI 素材)
 
-> ⚠ **本仓库现状(2026-09-22)**:本 skill 的**主题文档已在「拼音积木取代全游戏」迁移中被删除** —— 现状接缝表 / 角色注册 / 素材回填点与红线(`docs/design/game-visual.md` + `game-assets.md`)整批删除,**当前没有锚点**。本仓库活着的视觉接缝只剩 `src/index.css`(主题 token + 拼音积木材质段)。**本 skill 的方法论部分不受影响**;要重新建这类文档,先按 `docs/PLAN.md` 立项。
+> ⚠ **本仓库现状(2026-09-22)**:本 skill 的**主题文档已在「拼音积木取代全游戏」迁移中被删除** —— 现状接缝表 / 角色注册 / 素材回填点与红线(`docs/design/game-visual.md` + `game-assets.md`)整批删除,**当前没有锚点**。本仓库**当前也没有接缝映射表** —— 视觉状态分散在两处活接缝:**主题 token 与积木材质类**(`--color-*` 一族、`.pblock` / `.pslot` / `.pstar`)在 `src/index.css`,**尺寸 / 布局类**在 `src/features/pinyin-blocks/` 的组件里由调用方以 Tailwind 传入(`BlockChip` 的注释写明的就是这个分工)。**本 skill 的方法论部分不受影响**;要重新建这类文档,先按 `docs/PLAN.md` 立项。
 
 ## 定位与原则
 
@@ -54,7 +54,7 @@ description: Use when 设计全屏漫画式游戏的视觉演出 —— 气泡�
 
 - **前置 →** `game-story-design`(外貌锚 + 分支/演出钩子)定稿后再排视觉;缺外貌锚先回故事侧角色卡补,别在视觉侧另发明一套。
 - **交棒 →** 素材 prompt 档 / 角色设定表产出后,回填点归**该项目设计文档**;技能与其它文档**只放指针**。
-- 以本仓库为例:那份「现状接缝、角色注册、素材回填点与红线」文档(`docs/design/game-visual.md` + `game-assets.md`)**已随「拼音积木取代全游戏」删除,当前没有替代锚点**(详见顶部横幅);活着的视觉接缝只有 `src/index.css`(主题 token 与拼音积木材质段),动手前先读它、并先 grep 复核再改。
+- 以本仓库为例:那份「现状接缝、角色注册、素材回填点与红线」文档(`docs/design/game-visual.md` + `game-assets.md`)**已随「拼音积木取代全游戏」删除,当前没有替代锚点**(详见顶部横幅);活着的视觉接缝是 `src/index.css`(主题 token 与积木材质类)与 `src/features/pinyin-blocks/` 的组件(尺寸 / 布局类),动手前先读这两处、并先 grep 复核再改。
 - 其他项目同理:映射表放各自设计文档,勿写死在技能里。
 
 ## 快速参考(常见操作 → 去哪看)
@@ -70,7 +70,7 @@ description: Use when 设计全屏漫画式游戏的视觉演出 —— 气泡�
 | **过无障碍闸门** | 本 SKILL「无障碍闸门」表 |
 | 素材回填 / 既有角色查询 | ai-materials 回填节 + 目标项目设计文档(本仓库那份 `game-assets.md` + `game-visual.md` **已删除**,见顶部横幅) |
 | 角色外貌锚 | **项目设计文档**(故事侧角色卡产出),本技能只消费 |
-| 把蓝图落进具体代码 | 目标项目舞台/角色/UI 组件接缝(本仓库的接缝映射表 `docs/design/game-visual.md` **已删除**;现只剩 `src/index.css` 一处活接缝) |
+| 把蓝图落进具体代码 | 目标项目舞台/角色/UI 组件接缝(本仓库的接缝映射表 `docs/design/game-visual.md` **已删除**;现存活接缝 = `src/index.css` 的主题 token 与积木材质类 + `src/features/pinyin-blocks/` 组件的尺寸 / 布局类) |
 
 ## 无障碍闸门(设计稿就过,不留到测试)
 
