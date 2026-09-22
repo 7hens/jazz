@@ -82,16 +82,22 @@ describe('拼音单元地图', () => {
   })
 
   /**
-   * 整格契约:**把 u7 名片那格布局预算的每一个输入一次读齐**,每行注明它在那句算术里管什么
-   * (算术本体在 `UnitMap.tsx` 顶部那段注释里):
-   *   可用宽 = max-w-2xl(672) − gap-4×2(32) → /列数(grid-cols-2 或 sm:grid-cols-3)
-   *            − p-4(32) − border-2(4) = 177.33;
-   *   需求宽 = 5×w-8(32) + 4×gap-1(4) = 176 ≤ 177.33(**宽度**是约束轴;h-8 只管盒高)。
-   * 少一个输入,那句算术就不成立 —— 这一类漏了三轮,故一次钉齐,不再一轮补一个类。
+   * u7 名片那格的布局预算:**钉住它的输入(含块数这个乘数),不验证布局**。三条边界各自说清:
    *
-   * **这条测试只钉「输入没被改动」,不验证布局**:jsdom 既没有 CSS 也没有布局引擎,
-   * 像素、折行、级联都测不出来。产物侧(`npm run build` 后扫 CSS)与 T15 人工冒烟兜底。
-   * 改这里任何一条 → 必须回去重算那段注释里的算术。
+   * 1) **覆盖什么**:那句算术的**输入**,含块数(乘数)。逐项 = 下面 `CONTRACT` 表 11 行 + 块数上界,
+   *    每行注明它在那句算术里管什么(算术本体在 `UnitMap.tsx` 顶部那段注释里):
+   *      可用宽 = max-w-2xl(672) − gap-4×2(32) → /列数(grid-cols-2 或 sm:grid-cols-3)
+   *              − p-4(32) − border-2(4) = 177.33;
+   *      需求宽 = 5×w-8(32) + 4×gap-1(4) = 176 ≤ 177.33(**宽度**是约束轴;h-8 只管盒高)。
+   *    改这里任何一条 → 必须回去重算那段注释里的算术。
+   *
+   * 2) **不验证什么**:jsdom 既没有 CSS 也没有布局引擎,像素、折行、级联都测不出来。
+   *    产物侧(`npm run build` 后扫 CSS)与 T15 人工冒烟兜底。
+   *
+   * 3) **知道没守什么**(别把第 1 条读成「全覆盖」):**新加的、消耗宽度的类不在内**。
+   *    实测:往格子/网格上再加 `px-8`、`mx-2` 这类消耗宽的类 → 整集全绿。这是**开放的类集合**,
+   *    补不完,所以写在这里声明边界而不是往 `CONTRACT` 表里堆。后果是 u7 **折行**而非溢出
+   *    (靠名片行的 `flex-wrap`,良性方向)——但「预算被悄悄吃掉」这件事确实没有断言在守。
    */
   it('u7 名片的布局预算:每个输入都在(不验证布局,只钉输入)', () => {
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
@@ -105,9 +111,16 @@ describe('拼音单元地图', () => {
     const row = badge!.parentElement
     expect(row, '取不到名片行的容器').not.toBeNull()
 
-    // 字号覆盖:必须是带 `!` 的那一个(块自己也在这元素上写死 text-[1.75rem],别抓错人)
-    const size = badge!.className.match(/text-\[[\d.]+rem\]!/)?.[0]
-    expect(size, '字号覆盖没接到块上:会回落到 BlockChip 自带的 1.75rem').toBeDefined()
+    // 字号覆盖:必须是带 `!` 的那一个(块自己也在这元素上写死 text-[1.75rem],别抓错人)。
+    // 分两步问:先只管「接上没有」(不挑单位),再单独挑单位 —— 合成一条的话,
+    // 「单位不对」和「压根没接上」会报同一条消息,而后者对前者是**假因**。
+    const override = badge!.className.match(/text-\[[^\]]+\]!/)?.[0]
+    expect(override, '字号覆盖没接到块上:会回落到 BlockChip 自带的 1.75rem').toBeDefined()
+    const size = override!.match(/^text-\[[\d.]+rem\]!$/) ? override : undefined
+    expect(
+      size,
+      `字号覆盖 ${override} 的单位不是 rem:px 这种绝对值不随根字号缩放,孩子调大浏览器字号时这块字不跟着变大`,
+    ).toBeDefined()
 
     const token = (t: string) => new RegExp(`(?:^| )${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`)
     const CONTRACT: readonly (readonly [string, string, string, string])[] = [
@@ -127,11 +140,19 @@ describe('拼音单元地图', () => {
       expect(cls, `${what}:丢了 ${t} —— ${why}`).toMatch(token(t))
     }
 
+    // 乘数也是输入:上面那句「5×w-8 + 4×gap-1」里的 5 从没被断言过。钉上界而非钉死 ——
+    // u7 是最宽的名片(其余单元 1/2/1/2/3/2 块),6 块需 6×32+5×4 = 212 > 177.33,单行设计即失效。
+    // 数的是**渲染出来的块**(与 `CONTRACT` 表同源,不从 `UNITS` 反查以免同义反复);
+    // `.pblock` 只由 BlockChip 产出、u7 格子里只有名片行用它(星位是 `.pstar`,锁是 emoji),
+    // 所以这个数就是名片块数 —— 若星位也换成块,这里会直接翻倍报红。
+    const blocks = cell!.querySelectorAll('.pblock')
+    expect(blocks.length, '名片块数超过预算:6 块要 212px,超出 177.33 的可用宽,单行设计失效').toBeLessThanOrEqual(5)
+
     // 字号的**上界**(不是钉某个具体值:0.85→0.9rem 这种微调不该红,那是装饰)。
     // 32px 定宽盒:最长的块面值是 2 字符,粗体下约 0.575em/字符 → 1rem 时约 18px,留有余量;
     // 1.75rem(=28px,块在游戏里的字号)正好是塞不下那档。
     const rem = Number(size!.match(/text-\[([\d.]+)rem\]/)![1])
-    expect(rem, '字号得写 rem').toBeGreaterThan(0)
+    expect(rem, `${size} 不是正的 rem 值:0rem 会把块面值缩成看不见`).toBeGreaterThan(0)
     expect(rem, `${size} 塞进 32px 定宽盒会顶格/糊`).toBeLessThanOrEqual(1)
   })
 
