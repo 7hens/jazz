@@ -229,21 +229,33 @@ describe('拼音积木 · 游戏', () => {
     // 先钉住「幽灵块确实已挂上」——否则后面的 0 可能只是没拖起来,不是拆干净了。
     expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块该已挂上').toBe(1)
 
+    // 名字说的是「**第二指按下时**」拆掉 —— 只断末尾的 0 的话,一个「等到 pointerup 才把所有
+    // 幽灵块一次性清掉」的写法也能全绿,而 A 的幽灵块会冻在屏幕上直到松手。
     fireEvent.pointerDown(b, { clientX: 100, clientY: 100 })
+    expect(document.querySelectorAll('.pblock--dragging').length, '第二指一按下,A 的幽灵块就该没了').toBe(0)
+
     fireEvent.pointerMove(window, { clientX: 60, clientY: 60 })
+    expect(document.querySelectorAll('.pblock--dragging').length, 'B 的拖拽该照常起幽灵块').toBe(1)
+
     fireEvent.pointerUp(window, { clientX: 60, clientY: 60 })
-    expect(document.querySelectorAll('.pblock--dragging').length, '第一指的幽灵块必须被拆掉').toBe(0)
+    expect(document.querySelectorAll('.pblock--dragging').length, 'B 的幽灵块也该拆掉').toBe(0)
   })
 
   // 切后台 / 浏览器抢走手势只发 pointercancel,不发 pointerup。它必须把手上这摊拆干净。
-  it('pointercancel:幽灵块拆掉,不留残影', () => {
+  // 「残影」有两半:**幽灵块**(挂在 body 上的节点)与**源块的压暗**(`draggingId` 的可见投影,
+  // 见 PinyinBlocksGame.tsx 的 dim={draggingId === b.id})。只数幽灵块的话,漏掉
+  // setDraggingId(null) 仍然全绿,而那块会永久压暗 —— 名字说的「不留残影」就不成立。
+  it('pointercancel:幽灵块拆掉,源块也不再压暗(不留残影)', () => {
     mount(1, 0)
+    const source = () => screen.getByLabelText('积木 b').querySelector<HTMLElement>('.pblock')
     fireEvent.pointerDown(screen.getByLabelText('积木 b'), { clientX: 10, clientY: 10 })
     fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
     expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块该已挂上').toBe(1)
+    expect(source()?.classList.contains('pblock--dim'), '拖拽期源块该压暗(否则下面那句是假绿)').toBe(true)
 
     fireEvent.pointerCancel(window, { clientX: 40, clientY: 40 })
     expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块必须拆掉').toBe(0)
+    expect(source()?.classList.contains('pblock--dim'), '幽灵块没了,源块的压暗也必须归零').toBe(false)
   })
 
   // 手势被系统收走时,孩子并没有做出「放在这里」的决定 —— 收尾之后的 pointerup 不许回头补落一块。
@@ -382,13 +394,25 @@ describe('拼音积木 · 游戏', () => {
     expect(document.querySelectorAll('[role="group"] [data-slot-id]').length).toBeGreaterThan(3)
   })
 
-  it('提示档「强」:容器不带降档类,空槽恒挂类型类', () => {
+  it('提示档「强」:容器不带降档类,每个空槽都挂一个类型类', () => {
     render(<PinyinBlocksGame unitIndex={1} levelIndex={0} speak={vi.fn()} />) // u2 = 强档
     const stage = screen.getByLabelText('拼装台')
     expect(stage.classList.contains('pslots')).toBe(true)
     expect(stage.classList.contains('pslots--mid')).toBe(false)
     expect(stage.classList.contains('pslots--weak')).toBe(false)
-    expect(document.querySelector('.pslot--initial')).not.toBeNull()
+    // 「每个空槽都挂」= 逐槽断,而不是「存在一个 .pslot--initial」——
+    // 后者漏掉别的槽(如韵母槽)的类型类照样全绿,而那些槽的颜色正是照这个类取的。
+    const TYPE_CLASSES = ['pslot--initial', 'pslot--medial', 'pslot--final', 'pslot--nasal', 'pslot--tone']
+    const emptySlots = Array.from(document.querySelectorAll<HTMLElement>('[data-slot-id]')).filter(
+      (el) => !el.classList.contains('pslot--filled'),
+    )
+    expect(emptySlots.length, '这一关该有空槽可断').toBeGreaterThan(0)
+    for (const slot of emptySlots) {
+      expect(
+        TYPE_CLASSES.filter((c) => slot.classList.contains(c)),
+        `空槽 ${slot.dataset.slotId} 的类型类`,
+      ).toHaveLength(1)
+    }
   })
 
   // 中档是强/弱之间的那一格。两档好写,中间那档最容易在改动里被漏掉。

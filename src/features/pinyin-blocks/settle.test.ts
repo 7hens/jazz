@@ -50,6 +50,9 @@ describe('关卡结算', () => {
     )
     expect(roll).not.toHaveBeenCalled()
     expect(result.luckyReward).toBe(0)
+    // 「不再计首通」得单独断:今天 sessionCleared 与 lucky 同源于 firstClear,
+    // 但名字承诺了它,就该有一条断言直接看着它 —— 哪天两者拆开(只改计数的来源),这句才拦得住。
+    expect(result.sessionCleared).toBe(0)
     // 传上去的是**本次**的原始星数(1),取 max 是服务端的事。
     expect(recordClear).toHaveBeenCalledWith({ levelId: 'u1-0', stars: 1, starDust: 0 })
   })

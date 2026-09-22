@@ -254,14 +254,19 @@ describe('settings · PUT 契约', () => {
 })
 
 describe('settings · 路由', () => {
-  // 405 是**路由层**给的:没进 handler,自然一条 SQL 都不该 prepare。
-  it('POST /api/settings → 405,不进 handler(不碰库)', async () => {
+  // 「不进 handler」只有**body** 证得了:405 这个状态码本身不够 —— 路由表若哪天把 POST 转发给
+  // handlePutSettings,无 cookie 的请求会在 auth 早退成 401,但对着**带 cookie** 的请求它照样
+  // 可能与 405 撞上。`Method Not Allowed` 这句只在路由层的 methodNotAllowed() 里产出,
+  // **没有任何 handler 会给出它** —— 断到它就是断「响应出自路由层」。
+  // prepared 为空守的是更窄的一句:这条路由层的路径自己没发任何 SQL。
+  it('POST /api/settings → 405,body 是路由层那句 Method Not Allowed(不进 handler、不碰库)', async () => {
     const db = makeDB({ user: USER })
     const res = await worker.fetch(
       new Request('http://localhost/api/settings', { method: 'POST' }),
       envWith(db),
     )
     expect(res.status).toBe(405)
+    expect(((await res.json()) as { message?: unknown }).message).toBe('Method Not Allowed')
     expect(db.prepared).toEqual([])
   })
 
