@@ -18,7 +18,7 @@ import { UnitMap } from './UnitMap'
 const HAN_TEXT = /[\p{Script=Han}\u3000-\u303f\uff00-\uffef\u{2e80}-\u{2eff}\u{31c0}-\u{31ef}]/u
 
 describe('拼音单元地图', () => {
-  it('七个单元各占一格,名片用真积木渲染', () => {
+  it('每个单元各占一格:名片用真积木渲染(u1 格为证)', () => {
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
     const cells = document.querySelectorAll('[data-unit-id]')
     expect(cells).toHaveLength(UNITS.length)
@@ -36,7 +36,7 @@ describe('拼音单元地图', () => {
     expect(map?.textContent ?? '').not.toMatch(HAN_TEXT)
   })
 
-  it('只解锁 u1:其余格子锁上且点不动', () => {
+  it('u1 解锁可点、u2 锁上点不动(只核这两格)', () => {
     const onPick = vi.fn()
     render(<UnitMap stars={{}} totalStars={0} onPick={onPick} onOpenParent={vi.fn()} />)
     const cells = document.querySelectorAll<HTMLElement>('[data-unit-id]')
@@ -61,7 +61,7 @@ describe('拼音单元地图', () => {
     expect(cell?.textContent).toContain(`2/${unit.levels.length}`)
   })
 
-  it('零星的关只留暗星位', () => {
+  it('零星的关:一颗都不亮,进度数字归零', () => {
     const unit = UNITS[0]!
     render(<UnitMap stars={{ [unit.levels[0]!.id]: 0 }} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
     const cell = document.querySelector<HTMLElement>('[data-unit-id="u1"]')
@@ -69,12 +69,12 @@ describe('拼音单元地图', () => {
     expect(cell?.textContent).toContain(`0/${unit.levels.length}`)
   })
 
-  it('星尘计数显示在顶部', () => {
+  it('星尘计数带可读标签(星尘 340)', () => {
     render(<UnitMap stars={{}} totalStars={340} onPick={vi.fn()} onOpenParent={vi.fn()} />)
     expect(screen.getByLabelText('星尘 340')).toBeInTheDocument()
   })
 
-  it('齿轮开家长面板', () => {
+  it('点「家长」按钮请求开家长面板', () => {
     const onOpenParent = vi.fn()
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={onOpenParent} />)
     fireEvent.click(screen.getByLabelText('家长'))
@@ -99,7 +99,7 @@ describe('拼音单元地图', () => {
    *    补不完,所以写在这里声明边界而不是往 `CONTRACT` 表里堆。后果是 u7 **折行**而非溢出
    *    (靠名片行的 `flex-wrap`,良性方向)——但「预算被悄悄吃掉」这件事确实没有断言在守。
    */
-  it('u7 名片的布局预算:每个输入都在(不验证布局,只钉输入)', () => {
+  it('u7 名片的布局预算:已知的输入都在(不验证布局,只钉输入)', () => {
     render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
     const cell = document.querySelector('[data-unit-id="u7"]')
     expect(cell, '取不到 u7 格子,下面的断言会静默空转').not.toBeNull()
