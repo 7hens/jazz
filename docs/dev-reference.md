@@ -105,7 +105,7 @@
 - **`Level.id` 形如 `u2-3` 是存档键,与显示顺序解耦**:挪关、插关都不改已有 id(序号只在建关时取一次)。改 id = 已存的星跟错关。
 - **朗读真相 = 同音汉字**:`Level.read` 必须是同音汉字(如 `pinyin: 'bà'` 配 `read: '爸'`),由 `LevelEntry` 以 `speech.speak(text, 'zh-CN')` 播出。系统 TTS 拿到 `bà` 这种拉丁串会逐字母念(或按英文规则念),所以**拼音串只上屏、不进 TTS**;关卡数据里没有 `speak` 字段,也没有从拼音反推读音的解析器。音效(对/错/通关)另走 `AudioService`(Web Audio 合成),与语音是两条路。
 - **speech 首响治理(0.2.0 发音延时/无声)**:`features/speech` 创建即 `getVoices()` 预取 + `voiceschanged` 刷新缓存(空轮询不覆盖好缓存);语音未就绪时保留**最新一条**朗读、就绪即补播(不静默丢);空闲冷启动**不 cancel** 立即播,仅引擎忙才 `cancel` 且隔 ~30ms 再播(防 Chrome 同 tick 吞句头);有 voices 但无匹配 voice 时降级引擎默认音(utterance 只带 BCP47 `lang`);**不做引擎暖机**(取舍 2026-09-09):曾用 `volume=0` 真音节想「无声唤醒」懒初始化 TTS(Chrome 需真实样本才起音频管线、空句不唤醒),但 Firefox/Chrome 语音后端不遵守 `utterance.volume=0`,暖机句会在会话首次交互真实响一声 → 暖机整体删除。`speak` 仅「无引擎 / 无语音源且永等不到 voices」时返 `false`(静默),入队与降级均返 `true`。
-- **存留但生产零调用的语音面(登记,勿当死代码误删)**:`SpeechService.speakRole` / `SpeechRole` / `SpeakRoleOptions`(角色语速/音高表 `SPEECH_ROLE_VOICE`)是千字谷台词角色的遗留 —— 唯一消费者是 `features/speech/speech.test.ts` 与 `shared/services/speech.contract.test.ts`(删它得连带删测试,故留给人决定);`AudioCue` 里的 `'streak'` 同理(只在 `audio.test.ts` 出现)。这两处**不是**本轮清理对象。
+- **存留但生产零调用的语音面(登记,勿当死代码误删)**:`SpeechService.speakRole` / `SpeechRole` / `SpeakRoleOptions`(角色语速/音高表 `SPEECH_ROLE_VOICE`)是千字谷台词角色的遗留 —— 唯一消费者是 `features/speech/speech.test.ts` 与 `shared/services/speech.contract.test.ts`(删它得连带删测试,故留给人决定);`AudioCue` 里的 `'streak'` 同理(**生产无触发点** —— 除 `features/audio/audio.ts` 的实现分支与 `shared/services/audio.ts` 的联合类型外,它今天只出现在 `audio.test.ts`,生产代码里没有任何调用点传它)。这两处**不是**本轮清理对象。
 
 ---
 
