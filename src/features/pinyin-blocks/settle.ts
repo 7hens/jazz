@@ -30,7 +30,10 @@ export type LevelSettlement = Readonly<{
 
 export type SettleInput = Readonly<{
   levelId: string
-  /** 本次拿到的星(1..3)。 */
+  /**
+   * 本次拿到的星。**接受 [0,3]**,0 = 失败;域外的值(负数/小数/NaN/超过 3)
+   * 在 `settleLevel` 里被归一,下游只见归一后的值。
+   */
   stars: number
   /** 结算**之前**的星级表 —— 用来判断这是不是首通。 */
   currentStars: LevelStars
@@ -75,18 +78,23 @@ export async function settleLevel(input: SettleInput, services: SettleServices):
   const now = clock()
   const today = todayKey(now)
 
+  // 信任边界:星级只接受 [0,3] 的整数。服务端落库走 MAX 合并、只升不降,
+  // 混进来的 4 写进去就永远回不来(不可撤销的数据污染),所以在这里收拾干净。
+  // 下界是 0 不是 1 —— 把 0 星抬成 1 星等于失败送星。
+  const stars = Number.isFinite(input.stars) ? Math.min(3, Math.max(0, Math.trunc(input.stars))) : 0
+
   // 首通 = 这一关此前一颗星都没有,**且这次是真的过关了**。
-  // `stars === 0`(失败)落在 SettleInput.stars 的域(1..3)之外:不认它,
-  // 否则故意输也能掷幸运、也能刷 `firstCompleteToday`(连败 5 次解锁「马拉松」)。
-  const firstClear = input.stars > 0 && (input.currentStars[input.levelId] ?? 0) === 0
+  // `stars === 0`(失败)不是通关:不认它,否则故意输也能掷幸运、
+  // 也能刷 `firstCompleteToday`(连败 5 次解锁「马拉松」)。
+  const firstClear = stars > 0 && (input.currentStars[input.levelId] ?? 0) === 0
 
   // 重玩不再掷幸运、不再计首通 —— 否则刷同一关就能刷星尘,运气变成农活。
-  const comboReward = input.stars > 0 ? services.combo.getBonus() : 0
+  const comboReward = stars > 0 ? services.combo.getBonus() : 0
   const luckyReward = firstClear ? services.lucky.roll(input.rng) : 0
 
   const nextStars: LevelStars = {
     ...input.currentStars,
-    [input.levelId]: Math.max(input.currentStars[input.levelId] ?? 0, input.stars),
+    [input.levelId]: Math.max(input.currentStars[input.levelId] ?? 0, stars),
   }
   const settingsWithStreak: UserSettings = {
     ...input.settings,
@@ -120,9 +128,9 @@ export async function settleLevel(input: SettleInput, services: SettleServices):
       }
 
   await Promise.allSettled([
-    services.progress.recordClear({ levelId: input.levelId, stars: input.stars, starDust }),
+    services.progress.recordClear({ levelId: input.levelId, stars, starDust }),
     services.settings.save(settings),
   ])
 
-  return { stars: input.stars, starDust, luckyReward, achievements, sessionCleared }
+  return { stars, starDust, luckyReward, achievements, sessionCleared }
 }

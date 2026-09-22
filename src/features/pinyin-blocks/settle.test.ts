@@ -136,4 +136,31 @@ describe('关卡结算', () => {
     )
     expect(scan.mock.calls[1]?.[0]).toMatchObject({ perfectLevels: 3, perfectUnits: 1 })
   })
+
+  // 星级是信任边界:落库后走服务端 MAX 合并(只升不降),混进来的 4 写进去
+  // 就永远回不来 —— 不可撤销的数据污染,所以在这里钳到 [0,3]。
+  it('星级越界:5 钳到 3,不落到进度里', async () => {
+    const recordClear = vi.fn().mockResolvedValue(undefined)
+    const result = await settleLevel(
+      { ...INPUT, stars: 5, currentStars: {} },
+      { ...SERVICES, progress: { recordClear } },
+    )
+    expect(result.stars).toBe(3)
+    expect(recordClear).toHaveBeenCalledWith({ levelId: 'u1-0', stars: 3, starDust: 0 })
+  })
+
+  // 下界是 0 不是 1:把 0 星抬成 1 星等于失败送星。
+  it('星级越界:-1 钳到 0,仍不掷幸运、不计首通', async () => {
+    const recordClear = vi.fn().mockResolvedValue(undefined)
+    const roll = vi.fn().mockReturnValue(50)
+    const result = await settleLevel(
+      { ...INPUT, stars: -1, currentStars: {}, sessionCleared: 2 },
+      { ...SERVICES, progress: { recordClear }, lucky: { roll } },
+    )
+    expect(result.stars).toBe(0)
+    expect(recordClear).toHaveBeenCalledWith({ levelId: 'u1-0', stars: 0, starDust: 0 })
+    expect(roll).not.toHaveBeenCalled()
+    expect(result.luckyReward).toBe(0)
+    expect(result.sessionCleared).toBe(2)
+  })
 })
