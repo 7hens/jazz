@@ -121,9 +121,14 @@ describe('index.css 拼音积木材质段', () => {
       expect(rule, cls).toContain('--slot-line:')
       expect(rule, cls).toContain('--slot-fill:')
     }
-    // 弱档把线宽置 0 → 类型色整条退回中性,不需要另一条规则来「撤掉颜色」
+    // 弱档把线宽与填充都置 0 → 类型色整条退回中性,不需要另一条规则来「撤掉颜色」。
+    // **两个变量都要钉**:只钉 --slot-line 的话,把 --slot-fill 抬到 40% 会让槽在「没有边框」的
+    // 同时仍有底色 —— 弱档就不再是「退回中性」,而是一条不留边框的隐蔽染色线索,本文件照旧全绿。
+    // 中/强两档的取值不钉:那两个数是可调的浓淡梯度,本用例的名字(「只调容器上的两个变量」)
+    // 承诺的是**差异落在哪一层**,不是具体数字;钉死它们只会把调色变成改测试。
     const weak = css.slice(css.indexOf('.pslots--weak '), css.indexOf('}', css.indexOf('.pslots--weak ')))
     expect(weak).toContain('--slot-line: 0%')
+    expect(weak).toContain('--slot-fill: 0%')
     // 禁的是**这条规则**,不是这个名字:注释里点名它是解释「为什么它不必存在」。
     expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toContain('.pslot--plain')
 
@@ -215,6 +220,13 @@ describe('index.css 拼音积木材质段', () => {
       '--color-block-nasal-ink',
     ]) {
       expect(css).toContain(token)
+      // 光「token 在文件里存在」撑不起这个名字:token 定义在 :root、却没被任何块面用,照样全绿。
+      // 名字说的是**块面走它**,所以要到对应那条块规则里看接线。
+      // (声调块走的是金石 token,不在这四支里 —— 它的接线由上面「声调块独占金石 token」那条守。)
+      const type = token.replace('--color-block-', '').replace('-ink', '')
+      const start = css.indexOf(`.pblock--${type} {`)
+      expect(start, `.pblock--${type} {`).toBeGreaterThan(-1)
+      expect(css.slice(start, css.indexOf('}', start)), `${type} 块面没走 ${token}`).toContain(`var(${token})`)
     }
   })
 })

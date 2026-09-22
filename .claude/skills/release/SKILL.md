@@ -27,7 +27,7 @@ flowchart TD
     G --> H{"闸门②<br/>生产读写确认?"}
     H -->|否| H1["✋ 停 → 修/rollback → 重走 deploy → ②"]
     H1 --> G
-    H -->|是| I["npm version minor<br/>(patch/minor/major)"]
+    H -->|是| I["npm version patch/minor/major<br/>(按影响面选一个)"]
     I --> J["git push origin main --tags"]
 ```
 
@@ -53,7 +53,7 @@ flowchart TD
    ```bash
    printf 'jazz-preview-%s\n' "$(openssl rand -hex 16)" | npx wrangler secret put ADMIN_TOKEN --config wrangler.toml --env preview
    ```
-5. **闸门①**:给用户 preview URL + 冒烟 5 步(登录 → 词1 三技能结算 +110 → 解锁词2 → 关拼音词2 只 2 步 → 刷新持久)。**等用户明确「通过」**。不因 preview==prod、时间紧、用户催就跳过。
+5. **闸门①**:给用户 preview URL + 冒烟 8 步(① 「家长通行令牌」登录 → 落在**单元地图**:只有第 1 单元可点,第 2 单元起带 🔒;② 进第 1 单元(右上角 **1/3**)→ **按住**一块积木拖动,**幽灵块跟着手指走**、松手落进槽里;松手落在**放不下的槽**上则不落位、该槽红一下(落在空处则什么都不发生);③ 拖到一半**切后台 / 被系统收走手势**(`pointercancel`)→ 幽灵块当场消失、源块的压暗同时归零;④ **两指同按**:第二指按下的瞬间,第一指的幽灵块消失 —— 屏幕上任何时刻至多一个幽灵块;⑤ 拼齐最后一块(含声调块)→ 答案行亮出拼音 + 汉字并朗读,**紧接着再拖一块**(结算动画约 260ms,**抢在它前面**)→ 不卡死、不丢块,随后照常进下一关;⑥ **刷新页面** → 仍是登录态;回地图看刚才过的关:星星亮着、该单元进度与刷新前一致;⑦ 第 1 单元 3 关全通 → 自动回地图:该单元 **3/3**、三个星位全亮,第 2 单元的 🔒 **消失**且可点进去;⑧ 窄屏(**640px 与 375px** 各看一次):地图格子里徽章行**正常换行不溢出**,关内积木盘里的块**不被压扁**(还是方的,没被 flex 挤成细条))。**等用户明确「通过」**。不因 preview==prod、时间紧、用户催就跳过。
 6. `npm run deploy`(生产)→ 记录输出 version id。**禁止与 `npm version`/tag 连写**。
 7. **闸门②**:给用户生产 URL,确认核心读写。**不折叠**:preview 通过 ≠ 生产闸门通过。
 8. 两闸门通过后:`npm version minor -m "chore(release): v%s"`(bug=patch / 新能力=minor / 破坏=1.0.0 起 major)。

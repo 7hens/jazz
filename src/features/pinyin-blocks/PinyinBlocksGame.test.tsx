@@ -186,10 +186,29 @@ describe('拼音积木 · 游戏', () => {
     expect(speak).not.toHaveBeenCalled()
   })
 
+  // 「单独成行、与组合块分开」是**行容器**这件事,不是 CSS 的事:声调块与组合块各占
+  // 积木盘里的一个子行(PinyinBlocksGame.tsx 积木盘那段的两个子 div)。只断「有 4 个声调块」的话,
+  // 把两行并成一行照样全绿 —— 而「合成一行」正是这条用例要拦的那件事
+  //(声调是另一个维度,混进字母块里只是噪音;源码里那句注释就写在那两个子行的上方)。
   it('声调块单独成行,与组合块分开', () => {
     mount(1, 1)
-    const toneBlocks = document.querySelectorAll('[aria-label^="声调块"]')
+    const toneBlocks = Array.from(document.querySelectorAll<HTMLElement>('[aria-label^="声调块"]'))
     expect(toneBlocks).toHaveLength(4) // 四调恒全出
+
+    const rows = (els: HTMLElement[]) => new Set(els.map((el) => el.parentElement))
+    const toneRows = rows(toneBlocks)
+    const comboBlocks = Array.from(document.querySelectorAll<HTMLElement>('[aria-label^="积木 "]'))
+    expect(comboBlocks.length, '这一关该有组合块可断').toBeGreaterThan(0)
+    const comboRows = rows(comboBlocks)
+
+    // 先是「同类都在同一行」:否则下面那句「两行的容器不同」可能只是同类自己散成了好几行。
+    expect(toneRows.size, '声调块该都在同一行').toBe(1)
+    expect(comboRows.size, '组合块该都在同一行').toBe(1)
+    const toneRow = [...toneRows][0]
+    const comboRow = [...comboRows][0]
+    expect(toneRow, '两行不该是同一个容器').not.toBe(comboRow)
+    // 并列而非嵌套:两层行容器都得挂在积木盘这一层上(把声调行塞进组合行里也不算「分开」)。
+    expect(toneRow?.parentElement, '两行该是积木盘的两个并列子行').toBe(comboRow?.parentElement)
   })
 
   it('点对块会落位,拼齐后亮出拼音答案', async () => {
@@ -349,15 +368,44 @@ describe('拼音积木 · 游戏', () => {
     }
   })
 
+  // 名字说的是**韵母槽**,而下面原先只查了**介母槽** —— 两个不同的槽。
+  // 只查介母槽的话,「canPlace 放宽到声母块也能进韵母槽」这类回归照样全绿(注入实测);
+  // 顺带把 `if (g)` 那条空转也堵上:块没找到时它会让「找不到」与「被正确拒绝」都是绿。
   it('声母块塞不进韵母槽(类型不符,值也不同)', () => {
-    mount(4, 0) // guā:g + 介母 u + a
-    const trayBlocks = document.querySelectorAll<HTMLElement>('[data-block-id]')
-    const g = Array.from(trayBlocks).find((el) => el.dataset.value === 'g' || el.querySelector('[data-value="g"]'))
-    const medialSlot = document.querySelector<HTMLElement>('[data-slot-id="s0-m"]')
-    expect(medialSlot).not.toBeNull()
-    // 直接构造落位:点击 g 块不会占用介母槽
-    if (g) fireEvent.keyDown(g, { key: 'Enter' })
-    expect(document.querySelector('[data-slot-id="s0-m"]')?.classList.contains('pslot--filled')).toBe(false)
+    vi.useFakeTimers()
+    try {
+      mount(4, 0) // guā:g + 介母 u + a
+      const trayBlocks = document.querySelectorAll<HTMLElement>('[data-block-id]')
+      const g = Array.from(trayBlocks).find(
+        (el) => el.dataset.value === 'g' || el.querySelector('[data-value="g"]'),
+      )
+      const medialSlot = document.querySelector<HTMLElement>('[data-slot-id="s0-m"]')
+      expect(medialSlot).not.toBeNull()
+      expect(g, '托盘里该有声母 g').toBeDefined()
+
+      // 拖到韵母槽上:值 'g' ≠ 'a',必须被拒。
+      // **拖拽放在点击前面**:块一旦落进槽,托盘里那个节点就被 React 摘掉了,
+      // 再对它派发 pointerdown 不会冒泡到 root(下面的「幽灵块该已挂上」会先红)。
+      const finalSlot = () => document.querySelector<HTMLElement>('[data-slot-id="s0-f"]') as HTMLElement
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(finalSlot())
+      fireEvent.pointerDown(g as HTMLElement, { clientX: 10, clientY: 10 })
+      fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
+      // 先钉住「拖拽真的在飞」:否则下面那句「没落位」可能只是手势没起来。
+      expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块该已挂上').toBe(1)
+      fireEvent.pointerUp(window, { clientX: 40, clientY: 40 })
+
+      // 名字里那件事**先断** —— 「被放进去了」与「没发生」是两种不同的绿(注入实测:
+      // 放行这条回归时,下面那句正控也会红,若把它写在前面,这句就永远轮不到被证伪)。
+      expect(finalSlot().classList.contains('pslot--filled'), '声母块塞进韵母槽了').toBe(false)
+      // 正控在下:手势真的落到 s0-f 上并被拒(少了它,上面那句可能只是手势没起来)。
+      expect(finalSlot().classList.contains('pslot--wrong'), '这一次该是「试着放、被拒」而不是没发生').toBe(true)
+
+      // 点击路径:g 只会进类型相同的声母槽,不占介母槽
+      fireEvent.keyDown(g as HTMLElement, { key: 'Enter' })
+      expect(document.querySelector('[data-slot-id="s0-m"]')?.classList.contains('pslot--filled')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('双身份块 i 能落进韵母槽(lí = l + 韵母 i)', () => {
@@ -388,10 +436,24 @@ describe('拼音积木 · 游戏', () => {
     expect(document.querySelector('.pweld')).toBeNull()
   })
 
+  // 「两组」= 拼装台里两个**并列**的组容器(每组的槽各归各的),不是「一堆槽塞在同一个容器里」。
+  // 只数槽的话,把两个音节组塌成一组照样全绿 —— 而「塌成一组」正是这条用例要拦的那件事。
   it('双音节词给两组拼装组', () => {
     mount(6, 0) // 🍉 xī guā
     expect(document.querySelectorAll('[data-slot-id][data-slot-id$="-t"]')).toHaveLength(2)
     expect(document.querySelectorAll('[role="group"] [data-slot-id]').length).toBeGreaterThan(3)
+
+    const stage = screen.getByLabelText('拼装台')
+    const groups = Array.from(stage.children)
+    expect(groups, '两个音节 = 拼装台的两个并列子组').toHaveLength(2)
+    for (const group of groups) {
+      // 「组」得真是一个**音节**的整套槽:自带一个声调槽,且不止一个字母槽。
+      expect(group.querySelectorAll('[data-slot-id$="-t"]'), '每组各带自己的声调槽').toHaveLength(1)
+      expect(
+        group.querySelectorAll('[data-slot-id]:not([data-slot-id$="-t"])').length,
+        '每组至少一个字母槽',
+      ).toBeGreaterThan(0)
+    }
   })
 
   it('提示档「强」:容器不带降档类,每个空槽都挂一个类型类', () => {
