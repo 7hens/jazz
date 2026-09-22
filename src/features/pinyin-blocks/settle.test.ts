@@ -80,6 +80,44 @@ describe('关卡结算', () => {
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ earnedAchievements: ['perfect_level'] }))
   })
 
+  // 新拿的成就是**追加**到既有成就上,不是替换 —— 断在这里是因为:换成
+  // achievements.map(a => a.id)(丢掉旧的)时,上面那条既有用例仍然全绿,孩子的历史成就会被静默抹掉。
+  it('新成就追加在既有成就之后,不覆盖历史', async () => {
+    const save = vi.fn().mockResolvedValue(undefined)
+    const gained: Achievement = {
+      id: 'perfect_level',
+      name: '完美主义',
+      description: '',
+      emoji: '💎',
+      reward: 50,
+    }
+    await settleLevel(
+      { ...INPUT, currentStars: {}, settings: { ...SETTINGS, earnedAchievements: ['old_one', 'old_two'] } },
+      { ...SERVICES, settings: { save }, achievements: { scan: () => [gained] } },
+    )
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ earnedAchievements: ['old_one', 'old_two', 'perfect_level'] }),
+    )
+  })
+
+  // 同一成就重复拿到不该写第二遍:去重语义(new Set)今天也没有守卫。
+  it('重复拿到已拥有的成就:该 id 只留一份,既有顺序不变', async () => {
+    const save = vi.fn().mockResolvedValue(undefined)
+    const already: Achievement = {
+      id: 'old_two',
+      name: '旧成就',
+      description: '',
+      emoji: '🏅',
+      reward: 10,
+    }
+    await settleLevel(
+      { ...INPUT, currentStars: {}, settings: { ...SETTINGS, earnedAchievements: ['old_one', 'old_two'] } },
+      { ...SERVICES, settings: { save }, achievements: { scan: () => [already] } },
+    )
+    const saved = save.mock.calls[0]?.[0] as UserSettings
+    expect(saved.earnedAchievements).toEqual(['old_one', 'old_two'])
+  })
+
   // 连击是浏览器会话的账,结算是这一关的账 —— 谁的生命周期谁负责带过来。
   it('maxCombo 带入参并落到成就判定', async () => {
     const scan = vi.fn().mockReturnValue([])

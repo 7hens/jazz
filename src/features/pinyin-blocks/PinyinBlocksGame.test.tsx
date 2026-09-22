@@ -213,6 +213,47 @@ describe('拼音积木 · 游戏', () => {
     expect(document.querySelector('.pblock--dragging')).toBeNull()
   })
 
+  // 幽灵块挂在 document.body 上、不在 React 树里 —— 一旦漏拆,重挂组件也清不掉,只有刷新能救。
+  // 4-8 岁二指同按很常见:第二指按下时必须先把第一指的幽灵块拆掉。
+  it('二指同按:第二指按下时拆掉第一指的幽灵块,不留在 body 上', () => {
+    mount(1, 0) // 👨 bà:任何一块都能拖出幽灵块
+    const blocks = Array.from(document.querySelectorAll<HTMLElement>('[data-block-id]'))
+    const [a, b] = [blocks[0] as HTMLElement, blocks[1] as HTMLElement]
+
+    fireEvent.pointerDown(a, { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
+    // 先钉住「幽灵块确实已挂上」——否则后面的 0 可能只是没拖起来,不是拆干净了。
+    expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块该已挂上').toBe(1)
+
+    fireEvent.pointerDown(b, { clientX: 100, clientY: 100 })
+    fireEvent.pointerMove(window, { clientX: 60, clientY: 60 })
+    fireEvent.pointerUp(window, { clientX: 60, clientY: 60 })
+    expect(document.querySelectorAll('.pblock--dragging').length, '第一指的幽灵块必须被拆掉').toBe(0)
+  })
+
+  // 切后台 / 浏览器抢走手势只发 pointercancel,不发 pointerup。它必须把手上这摊拆干净,
+  // 但**不能**替孩子落块 —— 手势被系统收走时,孩子并没有做出「放在这里」的决定。
+  it('pointercancel:拆干净且不补落一块', () => {
+    mount(1, 0) // 👨 bà:声母槽 s0-i 要 b
+    const slot = () => document.querySelector<HTMLElement>('[data-slot-id="s0-i"]') as HTMLElement
+    expect(slot().getAttribute('aria-label'), '起始该是空槽').toBe('空槽')
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(slot())
+
+    fireEvent.pointerDown(screen.getByLabelText('积木 b'), { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
+    expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块该已挂上').toBe(1)
+
+    fireEvent.pointerCancel(window, { clientX: 40, clientY: 40 })
+    expect(document.querySelectorAll('.pblock--dragging').length, '幽灵块必须拆掉').toBe(0)
+    expect(slot().getAttribute('aria-label'), '手势被收走不该落块').toBe('空槽')
+    expect(slot().classList.contains('pslot--filled')).toBe(false)
+
+    // 收尾已把 drag 清空:此后残留的 pointerup 必须是 no-op,不许回头补落一块。
+    fireEvent.pointerUp(window, { clientX: 40, clientY: 40 })
+    expect(slot().classList.contains('pslot--filled'), '残影般的 pointerup 不该补落一块').toBe(false)
+    expect(document.querySelectorAll('.pblock--dragging').length).toBe(0)
+  })
+
   // 放错只有音效等于没有反馈 —— 声音关掉(或本来就是静音环境)后孩子只看到块弹回去。
   it('拖到放不下的槽:槽当场红一下,块不落位', () => {
     vi.useFakeTimers()

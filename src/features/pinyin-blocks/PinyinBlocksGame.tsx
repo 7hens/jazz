@@ -280,15 +280,21 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
     setHoverSlot(slotIdUnder(e.clientX, e.clientY))
   }, [])
 
-  const onUp = useCallback(
+  // pointerup 与 pointercancel 走同一个收尾:前者落块,后者只拆干净。
+  // 名字用 e.type 区分,是为了让「注册」与「摘除」用的是同一个函数身份 —— 两个互相引用的
+  // useCallback 会成环(deps 里互相要求对方),这里用一个 handler 绕开。
+  const onPointerEnd = useCallback(
     (e: PointerEvent) => {
-      window.removeEventListener('pointermove', onMove)
       const d = drag.current
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onPointerEnd)
+      window.removeEventListener('pointercancel', onPointerEnd)
+      if (!d) return // 已经收尾过(或卸载时清过):只摘监听,不动状态
       drag.current = null
+      d.ghost?.remove()
       setDraggingId(null)
       setHoverSlot(null)
-      if (!d) return
-      d.ghost?.remove()
+      if (e.type === 'pointercancel') return // 手势被系统收走:不该替孩子落子
       if (!d.moved) {
         autoPlace(d.blockId) // 没挪动 = 点击:自动找槽位
         return
@@ -299,10 +305,27 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
     [onMove, autoPlace, placeBlock],
   )
 
-  useEffect(() => () => window.removeEventListener('pointermove', onMove), [onMove])
+  // deps **只能**是 onMove(它恒定不变)。onPointerEnd 的 deps 含 placeBlock,而 placeBlock
+  // 的 deps 含 placement / status / tray —— 挂进来 cleanup 就会在每次落块后重跑,把监听摘掉。
+  // 卸载时若还有拖拽在飞,幽灵块挂在 body 上 → 一并拆掉;并把 ref 清空,
+  // 让此后任何残留的 onPointerEnd 变成 no-op(它第一行就读 drag.current)。
+  useEffect(
+    () => () => {
+      window.removeEventListener('pointermove', onMove)
+      drag.current?.ghost?.remove()
+      drag.current = null
+    },
+    [onMove],
+  )
 
   const onDown = (e: React.PointerEvent<HTMLDivElement>, blockId: string) => {
     if (status !== 'playing') return
+    // 上一次拖拽没收尾(二指同按 / 系统吞了 pointerup)就先拆掉它 ——
+    // 否则它的幽灵块会永久留在 body 上(不在 React 树里,重挂组件也清不掉)。
+    if (drag.current) {
+      drag.current.ghost?.remove()
+      drag.current = null
+    }
     // 按下的那一刻就念 —— 不管这一下最后是点选还是拖拽,意图都是「我要用这块」。
     const block = tray.find((b) => b.id === blockId)
     if (block) speakBlock(block)
@@ -319,7 +342,8 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
       h: rect.height,
     }
     window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp, { once: true })
+    window.addEventListener('pointerup', onPointerEnd, { once: true })
+    window.addEventListener('pointercancel', onPointerEnd, { once: true })
   }
 
   /* ------------------------------------------------------------------ 渲染 */
