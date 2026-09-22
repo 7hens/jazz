@@ -8,8 +8,6 @@ export interface SettingsServiceCallbacks {
 
 export function defaultSettings(): UserSettings {
   return {
-    enableChinese: true,
-    enableEnglish: true,
     earnedAchievements: [],
     consecutiveDays: 0,
     lastActiveDate: '',

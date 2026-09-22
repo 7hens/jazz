@@ -5,8 +5,6 @@ import { createSettingsService, defaultSettings } from './settings'
 
 function settings(overrides: Partial<UserSettings> = {}): UserSettings {
   return {
-    enableChinese: true,
-    enableEnglish: true,
     earnedAchievements: [],
     consecutiveDays: 0,
     lastActiveDate: '',
@@ -20,21 +18,12 @@ function fakeApi(overrides: Partial<ApiService> = {}): ApiService {
     me: async () => ({ id: 'u', email: 'e', name: 'n' }),
     login: async () => ({ id: 'u', email: 'e', name: 'n' }),
     logout: async () => undefined,
-    getProgress: async () => [],
-    putProgress: async () => undefined,
-    deleteProgress: async () => undefined,
     getSettings: async () => ({
-      enableChinese: true,
-      enableEnglish: true,
       earnedAchievements: [],
       consecutiveDays: 0,
       lastActiveDate: '',
     }),
     putSettings: async () => undefined,
-    getBasicsProgress: async () => [],
-    putBasicsProgress: async () => undefined,
-    getChapterProgress: async () => null,
-    putChapterProgress: async () => undefined,
     getPinyinProgress: async () => ({ stars: {}, totalStars: 0 }),
     putPinyinProgress: async () => undefined,
     deletePinyinProgress: async () => undefined,
@@ -49,8 +38,6 @@ describe('SettingsService', () => {
     expect(service.getSnapshot()).toMatchObject({
       status: 'idle',
       data: {
-        enableChinese: true,
-        enableEnglish: true,
         earnedAchievements: [],
         consecutiveDays: 0,
         lastActiveDate: '',
@@ -69,8 +56,6 @@ describe('SettingsService', () => {
     expect(service.getSnapshot().status).toBe('loading')
 
     resolveLoad({
-      enableChinese: true,
-      enableEnglish: false,
       earnedAchievements: ['first'],
       consecutiveDays: 4,
       lastActiveDate: '2026-09-04',
@@ -80,8 +65,6 @@ describe('SettingsService', () => {
     expect(service.getSnapshot()).toMatchObject({
       status: 'ready',
       data: {
-        enableChinese: true,
-        enableEnglish: false,
         earnedAchievements: ['first'],
         consecutiveDays: 4,
         lastActiveDate: '2026-09-04',
@@ -95,7 +78,7 @@ describe('SettingsService', () => {
     const service = createSettingsService(fakeApi({
       putSettings: () => new Promise<void>(resolve => { resolvePut = resolve }),
     }), { onUnauthorized: vi.fn(), onError: vi.fn() })
-    const next = settings({ enableChinese: false })
+    const next = settings({ consecutiveDays: 1 })
 
     const saving = service.save(next)
     expect(service.getSnapshot()).toEqual({ status: 'ready', data: next })
@@ -111,7 +94,7 @@ describe('SettingsService', () => {
     }), { onUnauthorized: vi.fn(), onError })
     const before = service.getSnapshot()
 
-    await expect(service.save(settings({ enableEnglish: false }))).rejects.toThrow('offline')
+    await expect(service.save(settings({ consecutiveDays: 1 }))).rejects.toThrow('offline')
 
     expect(service.getSnapshot()).toEqual(before)
     expect(service.getSnapshot()).not.toBe(before)
@@ -128,9 +111,9 @@ describe('SettingsService', () => {
       onUnauthorized: vi.fn(),
       onError: vi.fn(),
     })
-    const newest = settings({ enableChinese: false, enableEnglish: false })
+    const newest = settings({ consecutiveDays: 2 })
 
-    const first = service.save(settings({ enableChinese: false }))
+    const first = service.save(settings({ consecutiveDays: 1 }))
     const second = service.save(newest)
     resolveSecond()
     await second
@@ -152,8 +135,8 @@ describe('SettingsService', () => {
     })
     const base = service.getSnapshot()
 
-    const first = service.save(settings({ enableChinese: false }))
-    const second = service.save(settings({ enableChinese: false, enableEnglish: false }))
+    const first = service.save(settings({ consecutiveDays: 1 }))
+    const second = service.save(settings({ consecutiveDays: 2 }))
     rejectSecond(new Error('second failed'))
     await expect(second).rejects.toThrow('second failed')
     rejectFirst(new Error('first failed'))
@@ -182,13 +165,11 @@ describe('SettingsService', () => {
     const service = createSettingsService(fakeApi({
       getSettings: () => new Promise(resolve => { resolveLoad = resolve }),
     }), { onUnauthorized: vi.fn(), onError: vi.fn() })
-    const saved = settings({ enableChinese: false })
+    const saved = settings({ consecutiveDays: 1 })
 
     const loading = service.load()
     await service.save(saved)
     resolveLoad({
-      enableChinese: true,
-      enableEnglish: true,
       earnedAchievements: [],
       consecutiveDays: 0,
       lastActiveDate: '',
@@ -204,7 +185,7 @@ describe('SettingsService', () => {
     const service = createSettingsService(fakeApi({
       getSettings: () => new Promise((_resolve, reject) => { rejectLoad = reject }),
     }), { onUnauthorized: vi.fn(), onError })
-    const saved = settings({ enableChinese: false })
+    const saved = settings({ consecutiveDays: 1 })
 
     const loading = service.load()
     await service.save(saved)
@@ -232,7 +213,7 @@ describe('SettingsService', () => {
 
     void service.save(settings())
     unsubscribe()
-    void service.save(settings({ enableChinese: false }))
+    void service.save(settings({ consecutiveDays: 1 }))
 
     expect(listener).toHaveBeenCalledOnce()
   })

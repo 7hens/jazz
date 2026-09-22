@@ -3,8 +3,6 @@ import type { Achievement, Rng, UserSettings } from '@/shared/services'
 import { settleLevel } from './settle'
 
 const SETTINGS: UserSettings = {
-  enableChinese: true,
-  enableEnglish: false,
   earnedAchievements: [],
   consecutiveDays: 0,
   lastActiveDate: '',

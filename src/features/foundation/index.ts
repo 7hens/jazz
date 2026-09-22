@@ -1,8 +1,0 @@
-export { createBasicsService } from './basics-service'
-export type { TeachQuestion } from './teach-questions'
-export type { TeachOverlayProps } from './TeachOverlay'
-export { FoundationStepGate } from './FoundationStepGate'
-export type { FoundationStepGateProps } from './FoundationStepGate'
-export { createFoundationService } from './service'
-export { ColdStartWizard } from './ColdStartWizard'
-export type { ColdStartWizardProps } from './ColdStartWizard'

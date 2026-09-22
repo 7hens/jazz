@@ -25,8 +25,6 @@ import App from './App'
 const user: User = { id: 'u', email: '', name: '' }
 
 const settings: UserSettings = {
-  enableChinese: true,
-  enableEnglish: true,
   earnedAchievements: [],
   consecutiveDays: 0,
   lastActiveDate: '',

@@ -1,13 +1,10 @@
 import { handleLogin, handleLogout, handleMe } from './auth'
 import { jsonResponse } from './_lib/http'
-import { handleGetBasicsProgress, handlePutBasicsProgress } from './basics'
-import { handleGetChapterProgress, handlePutChapterProgress } from './chapter-progress'
 import {
   handleDeletePinyinProgress,
   handleGetPinyinProgress,
   handlePutPinyinProgress,
 } from './pinyin-progress'
-import { handleGetProgress, handlePutProgress, handleDeleteProgress } from './progress'
 import { handleGetSettings, handlePutSettings } from './settings'
 
 export interface Env {
@@ -40,22 +37,9 @@ export default {
       case '/api/me':
         if (method === 'GET') return handleMe(request, env)
         return methodNotAllowed()
-      case '/api/progress':
-        if (method === 'GET') return handleGetProgress(request, env)
-        if (method === 'PUT') return handlePutProgress(request, env)
-        if (method === 'DELETE') return handleDeleteProgress(request, env)
-        return methodNotAllowed()
       case '/api/settings':
         if (method === 'GET') return handleGetSettings(request, env)
         if (method === 'PUT') return handlePutSettings(request, env)
-        return methodNotAllowed()
-      case '/api/basics-progress':
-        if (method === 'GET') return handleGetBasicsProgress(request, env)
-        if (method === 'PUT') return handlePutBasicsProgress(request, env)
-        return methodNotAllowed()
-      case '/api/chapter-progress':
-        if (method === 'GET') return handleGetChapterProgress(request, env)
-        if (method === 'PUT') return handlePutChapterProgress(request, env)
         return methodNotAllowed()
       case '/api/pinyin-progress':
         if (method === 'GET') return handleGetPinyinProgress(request, env)

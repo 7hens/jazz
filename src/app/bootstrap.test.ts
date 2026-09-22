@@ -7,12 +7,10 @@ import {
   CelebrateService,
   ComboService,
   LuckyBonusService,
-  ProgressService,
-  QuestionEngineService,
+  PinyinProgressService,
   SettingsService,
   SpeechService,
   ToastService,
-  VocabularyService,
 } from '@/shared/services'
 import { registry, type ServiceToken } from '@/shared/services/core'
 import { bootstrap } from './bootstrap'
@@ -25,12 +23,10 @@ const ALL_TOKENS: readonly ServiceToken<unknown>[] = [
   CelebrateService,
   ComboService,
   LuckyBonusService,
-  ProgressService,
-  QuestionEngineService,
+  PinyinProgressService,
   SettingsService,
   SpeechService,
   ToastService,
-  VocabularyService,
 ]
 
 beforeEach(() => registry.clear())
@@ -62,7 +58,7 @@ it('marks auth anonymous when a state service receives an unauthorized response'
   )))
   bootstrap()
 
-  await registry.get(ProgressService).load()
+  await registry.get(PinyinProgressService).load()
 
   expect(registry.get(AuthService).getSnapshot()).toEqual({ status: 'anonymous' })
 })
@@ -74,7 +70,7 @@ it('reports state service errors through the toast service', async () => {
   )))
   bootstrap()
 
-  await registry.get(ProgressService).load()
+  await registry.get(PinyinProgressService).load()
 
   expect(registry.get(ToastService).getSnapshot()).toEqual([
     { id: 1, type: 'error', message: 'Progress unavailable' },
@@ -89,7 +85,7 @@ it('keeps bootstrap error reporting available without a DOM timer host', async (
   )))
 
   expect(() => bootstrap()).not.toThrow()
-  await registry.get(ProgressService).load()
+  await registry.get(PinyinProgressService).load()
 
   expect(registry.get(ToastService).getSnapshot()).toEqual([
     { id: 1, type: 'error', message: 'Progress unavailable' },

@@ -4,36 +4,23 @@ import { createAudioService } from '@/features/audio'
 import { createAuthService } from '@/features/auth'
 import { createCelebrateService } from '@/features/celebrate'
 import { createComboService } from '@/features/combo'
-import { createBasicsService, createFoundationService } from '@/features/foundation'
 import { createLuckyBonusService } from '@/features/lucky-bonus'
-import { createProgressRulesService } from '@/features/lesson'
 import { createPinyinProgressService } from '@/features/pinyin-progress'
-import { createProgressService } from '@/features/progress'
-import { createChapterService } from '@/features/qianzigu'
-import { createQuestionEngineService } from '@/features/question-engine'
 import { createSettingsService } from '@/features/settings-state'
 import { createSpeechService } from '@/features/speech'
 import { createToastService } from '@/features/toast'
-import { createVocabularyService } from '@/features/vocabulary'
 import {
   AchievementService,
   ApiService,
   AudioService,
   AuthService,
   CelebrateService,
-  ChapterService,
   ComboService,
   LuckyBonusService,
   PinyinProgressService,
-  ProgressRulesService,
-  ProgressService,
-  QuestionEngineService,
   SettingsService,
   SpeechService,
   ToastService,
-  VocabularyService,
-  FoundationService,
-  BasicsService,
 } from '@/shared/services'
 import { registry, type ServiceToken } from '@/shared/services/core'
 
@@ -44,19 +31,12 @@ const ALL_SERVICE_TOKENS: readonly ServiceToken<unknown>[] = [
   AudioService,
   AuthService,
   CelebrateService,
-  ChapterService,
   ComboService,
   LuckyBonusService,
   PinyinProgressService,
-  ProgressRulesService,
-  ProgressService,
-  QuestionEngineService,
   SettingsService,
   SpeechService,
   ToastService,
-  VocabularyService,
-  FoundationService,
-  BasicsService,
 ]
 
 export function bootstrap(): void {
@@ -81,15 +61,6 @@ export function bootstrap(): void {
     onUnauthorized: auth.markAnonymous,
     onError: (message: string) => { toast.show('error', message) },
   }
-  registry.register(ProgressService, createProgressService(api, callbacks))
   registry.register(SettingsService, createSettingsService(api, callbacks))
-  registry.register(ChapterService, createChapterService(api, callbacks))
   registry.register(PinyinProgressService, createPinyinProgressService(api, callbacks))
-
-  const vocabulary = createVocabularyService()
-  registry.register(VocabularyService, vocabulary)
-  registry.register(QuestionEngineService, createQuestionEngineService(vocabulary))
-  registry.register(ProgressRulesService, createProgressRulesService())
-  registry.register(FoundationService, createFoundationService(vocabulary))
-  registry.register(BasicsService, createBasicsService(api, callbacks))
 }
