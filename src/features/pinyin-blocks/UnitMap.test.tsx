@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { cn } from '@/shared/ui/utils'
 import { UNITS } from './levels'
 import { UnitMap } from './UnitMap'
 
@@ -80,22 +81,31 @@ describe('拼音单元地图', () => {
     expect(onOpenParent).toHaveBeenCalled()
   })
 
-  /**
-   * 这条钉的是**源码形态**,不是布局:名片尺寸必须维持 h-8(32px)+ 字号覆盖带 `!`。
-   * - 32px 是那句布局预算算术的输入(5×32+4×4 = 176 ≤ 177.3),改回 h-9 就等于算术作废;
-   * - `!` 是覆盖标记:BlockChip 在同一个元素上写死了 text-[1.75rem]/text-[1.35rem],
-   *   同特异性下胜负由 Tailwind 的样式表顺序定,而任意 rem 值按**字典序**排,
-   *   所以不带 `!` 的 text-[0.85rem] 会被盖回大字号 —— 静默失效,全套测试仍绿。
-   * 级联本身在 jsdom 里测不出来(环境无 CSS),由构建产物实测
-   * (`.text-[0.85rem]!{font-size:.85rem!important}`)与 T15 冒烟兜底。
-   */
-  it('名片尺寸常量:盒子缩到 h-8,字号覆盖带 `!`', () => {
-    const src = readFileSync(join(process.cwd(), 'src/features/pinyin-blocks/UnitMap.tsx'), 'utf8')
-    const badge = src.match(/const BADGE_BOX = '([^']*)'/)?.[1]
+  // 常量**值**可以是对的而**接线**是断的:把 className={BADGE_BOX} 的传参删掉,
+  // 常量还在、源码形态没变,名片却回到 BlockChip 自带的 1.75rem —— u7 溢出回归,全套仍绿。
+  // 这条从渲染结果里读,同时钉住宽度轴(w-8 才是布局预算的约束轴,h-8 不是)。
+  it('名片尺寸真的挂到了块上(宽度轴 + 字号覆盖)', () => {
+    render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    const badge = document.querySelector('[data-unit-id="u7"] .pblock')
+    expect(badge, '取不到 u7 的名片块,下面的断言会静默空转').not.toBeNull()
+    const cls = badge!.className
+    expect(cls, '盒子宽度跑了:5×32+4×4=176 是那句预算算术的约束轴').toContain('w-8')
+    expect(cls, '盒子高度跑了:预算算术的输入之一是 h-8').toContain('h-8')
+    expect(cls, '字号覆盖没接到块上:会回落到 BlockChip 自带的 1.75rem').toMatch(/text-\[[^\]]+\]!/)
+  })
+
+  // `!` 不是为了当前的参数顺序(twMerge 自己就会删掉输家),而是为了**顺序变了也成立**。
+  // 读源码里实际的字号类再喂进 cn,才能在源码丢掉 `!` 时真的红。
+  it('名片字号覆盖不依赖 cn 的参数顺序', () => {
+    const badge = readFileSync(join(process.cwd(), 'src/features/pinyin-blocks/UnitMap.tsx'), 'utf8')
+      .match(/const BADGE_BOX = '([^']*)'/)?.[1]
     expect(badge, 'BADGE_BOX 没了,下面的断言会静默空转').toBeDefined()
-    expect(badge, '盒子不再是 32px,布局预算就得重算').toMatch(/(?:^| )h-8(?: |$)/)
-    expect(badge, '字号覆盖丢了 `!`:会被块自己的 text-[1.75rem] 按样式表顺序盖掉').toMatch(
-      /text-\[[^\]]+\]!/,
-    )
+    const size = badge!.match(/text-\[[^\]]+\]!?/)?.[0]
+    expect(size, 'BADGE_BOX 里没有字号类').toBeDefined()
+    // 倒序 = 调用方 className 排在块自己写死的 text-[1.75rem] 之前。这正是没有 `!` 会失守的那一格。
+    expect(
+      cn(badge!, 'pblock font-extrabold text-[1.75rem]'),
+      '调用方字号被块自己写死的字号盖掉了',
+    ).toContain(size)
   })
 })
