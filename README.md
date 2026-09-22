@@ -40,7 +40,7 @@
 ### 质量状态
 
 - 全量 `npm test`(vitest,jsdom)31 个测试文件 / 249 用例全绿,覆盖关卡数据完整性、积木规则(槽位 / 干扰块 / 星级)、结算与成就、各 feature 服务与组件、`architecture.test.ts` 3 层边界;`tsc -b`、`npm run lint`(oxlint)、`npm run build` 通过。
-- 旧世界(词课 / 千字谷 / 字母林 / 基础引导 / 出题引擎 / 词库 / `shared/ui/quiz/`)的代码已删除,无残留引用。
+- 旧世界(词课 / 千字谷 / 字母林 / 基础引导 / 出题引擎 / 词库 / `shared/ui/quiz/`)的代码已删除,**无消费者引用**;`speech` 侧留下的登记保留项(生产零调用的 `speakRole` 面,勿当死代码误删)见 [docs/dev-reference.md](docs/dev-reference.md)「发音与关卡数据约定」。
 
 ## 快速上手
 

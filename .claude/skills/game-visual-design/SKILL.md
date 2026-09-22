@@ -5,7 +5,7 @@ description: Use when 设计全屏漫画式游戏的视觉演出 —— 气泡�
 
 # 游戏视觉设计(全屏漫画演出 + AI 素材)
 
-> ⚠ **本仓库现状(2026-09-22)**:本 skill 的**主题文档已在「拼音积木取代全游戏」迁移中被删除** —— 现状接缝表 / 角色注册 / 素材回填点与红线(`docs/design/game-visual.md` + `game-assets.md`)整批删除,**当前没有锚点**。本仓库**当前也没有接缝映射表** —— 视觉状态分散在两处活接缝:**主题 token 与积木材质类**(`--color-*` 一族、`.pblock` / `.pslot` / `.pstar`)在 `src/index.css`,**尺寸 / 布局类**在 `src/features/pinyin-blocks/` 的组件里由调用方以 Tailwind 传入(`BlockChip` 的注释写明的就是这个分工)。**本 skill 的方法论部分不受影响**;要重新建这类文档,先按 `docs/PLAN.md` 立项。
+> ⚠ **本仓库现状(2026-09-22)**:本 skill 的**主题文档已在「拼音积木取代全游戏」迁移中被删除** —— 现状接缝表 / 角色注册 / 素材回填点与红线(`docs/design/game-visual.md` + `game-assets.md`)整批删除,**当前没有锚点**。本仓库**当前也没有接缝映射表** —— 视觉状态分散在两处活接缝:**主题 token 与积木材质类**(`--color-*` 一族、`.pblock` / `.pslot` / `.pstar`)在 `src/index.css`,**尺寸 / 布局类**在 `src/features/pinyin-blocks/` 的组件里 —— **调用方传入与组件自带都算**(例如 `BlockChip` 按声调与否自带 `text-[1.35rem]` / `text-[1.75rem]`,拼装台的题面图自带 `text-[6.5rem]`)。**本 skill 的方法论部分不受影响**;要重新建这类文档,先按 `docs/PLAN.md` 立项。
 
 ## 定位与原则
 
