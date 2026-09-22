@@ -72,12 +72,10 @@ export function LevelEntry({
     [unit, levelIndex, progressSnap, settingsSnap, sessionCleared, progress, settings, combo, lucky, achievements, onSettle, onExitToMap],
   )
 
-  // 游戏把 onSolved 收进 useCallback 的依赖链(PinyinBlocksGame 的 succeed → placeBlock → onUp
-  // → 指针监听 effect),每次渲染换一个新引用就会重挂监听。所以这里必须是稳定引用。
+  // 外层传给游戏的回调保持引用稳定,别每次渲染新建(与下面 handleBlock 同形)。
   const handleSolvedProp = useCallback((stars: number) => { void handleSolved(stars) }, [handleSolved])
 
-  // 与上面同形、同因:onBlock 也在游戏那串依赖链上(placeBlock → onMove → 指针监听 effect),
-  // 每次渲染换引用会重挂监听,拖拽中途重渲染会让正在进行的拖拽静默死掉。
+  // 与 handleSolvedProp 同形:外层传给游戏的回调保持引用稳定,别每次渲染新建。
   const handleBlock = useCallback((kind: AnswerKind) => { combo.answer(kind) }, [combo])
 
   return (
