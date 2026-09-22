@@ -34,35 +34,13 @@ describe('coordinateSettlement', () => {
     const events: string[] = []
     let finishProgress!: () => void
     let finishSettings!: () => void
-    const achievement = {
-      id: 'first',
-      name: 'First',
-      description: 'First word',
-      emoji: '✨',
-      reward: 20,
-    }
     const roll = vi.fn(() => {
       events.push('lucky')
       return 50
     })
-    const scan = vi.fn((state) => {
-      events.push('achievement')
-      expect(state).toEqual({
-        completedWords: 1,
-        categoryDone: 1,
-        maxCombo: 8,
-        firstCompleteToday: 1,
-        perfectWords: 1,
-        consecutiveDays: 1,
-        hour: 9,
-        totalWords: 1,
-      })
-      return [achievement]
-    })
     const enqueue = vi.fn(() => events.push('overlay'))
-    const services: SettlementServices<typeof achievement> = {
+    const services: SettlementServices = {
       lucky: { roll },
-      achievements: { scan },
       progress: {
         saveStep: vi.fn(() => {
           events.push('progress:start')
@@ -108,7 +86,8 @@ describe('coordinateSettlement', () => {
       return result
     })
 
-    expect(events).toEqual(['lucky', 'achievement', 'progress:start', 'settings:start'])
+    // 成就扫描已短路(旧词课口径无来源),事件流里不再有 'achievement'。
+    expect(events).toEqual(['lucky', 'progress:start', 'settings:start'])
     expect(navigationAvailable).toBe(false)
 
     finishProgress()
@@ -121,7 +100,6 @@ describe('coordinateSettlement', () => {
 
     expect(events).toEqual([
       'lucky',
-      'achievement',
       'progress:start',
       'settings:start',
       'progress:finish',
@@ -133,19 +111,19 @@ describe('coordinateSettlement', () => {
       newlyComplete: true,
       stepReward: 90,
       wordBonus: 20,
-      extraReward: 76,
+      extraReward: 56,
       luckyReward: 50,
       session: { firstCompleteToday: 1, perfectWords: 1 },
     })
-    expect(result.progress[1]).toMatchObject({ starsEarned: 186 })
+    expect(result.progress[1]).toMatchObject({ starsEarned: 166 })
     expect(result.settings).toMatchObject({
-      earnedAchievements: ['first'],
+      earnedAchievements: [],
       consecutiveDays: 1,
       lastActiveDate: '2026-09-05',
     })
     expect(roll).toHaveBeenCalledOnce()
-    expect(scan).toHaveBeenCalledOnce()
     expect(enqueue).toHaveBeenCalledOnce()
+    expect(enqueue).toHaveBeenCalledWith([], 50)
   })
 
   it('keeps combo and lucky rewards gated to a newly completed word', async () => {
@@ -153,10 +131,8 @@ describe('coordinateSettlement', () => {
     const saveStep = vi.fn(async () => undefined)
     const saveSettings = vi.fn(async () => undefined)
     const enqueue = vi.fn()
-    const scan = vi.fn(() => [])
     const services: SettlementServices = {
       lucky: { roll },
-      achievements: { scan },
       progress: { saveStep },
       settings: { save: saveSettings },
       overlays: { enqueue },
@@ -180,7 +156,6 @@ describe('coordinateSettlement', () => {
     expect(roll).not.toHaveBeenCalled()
     expect(saveStep).not.toHaveBeenCalled()
     expect(saveSettings).not.toHaveBeenCalled()
-    expect(scan).toHaveBeenCalledOnce()
     expect(result).toMatchObject({
       newlyComplete: false,
       extraReward: 0,
@@ -188,53 +163,5 @@ describe('coordinateSettlement', () => {
       session: { firstCompleteToday: 2, perfectWords: 5 },
     })
     expect(enqueue).toHaveBeenCalledOnce()
-  })
-
-  it('still grants a newly scanned achievement when relearning a completed word', async () => {
-    const achievement = {
-      id: 'night-owl',
-      name: 'Night owl',
-      description: 'Learn at night',
-      emoji: '🌙',
-      reward: 20,
-    }
-    const roll = vi.fn(() => 50)
-    const saveStep = vi.fn(async () => undefined)
-    const saveSettings = vi.fn(async () => undefined)
-    const enqueue = vi.fn()
-
-    const result = await coordinateSettlement({
-      word,
-      words: [word],
-      progress: { 1: completeProgress },
-      settings: { ...settings, consecutiveDays: 3, lastActiveDate: '2026-09-05' },
-      eligible: false,
-      perfect: false,
-      stepReward: 0,
-      wordBonus: 0,
-      comboReward: 99,
-      maxCombo: 12,
-      session: { firstCompleteToday: 2, perfectWords: 4 },
-      now: () => new Date(2026, 8, 5, 23, 0, 0),
-    }, {
-      lucky: { roll },
-      achievements: { scan: vi.fn(() => [achievement]) },
-      progress: { saveStep },
-      settings: { save: saveSettings },
-      overlays: { enqueue },
-    })
-
-    expect(roll).not.toHaveBeenCalled()
-    expect(result).toMatchObject({
-      newlyComplete: false,
-      extraReward: 20,
-      luckyReward: 0,
-      session: { firstCompleteToday: 2, perfectWords: 4 },
-    })
-    expect(result.progress[1]).toMatchObject({ starsEarned: 130 })
-    expect(result.settings.earnedAchievements).toEqual(['night-owl'])
-    expect(saveStep).toHaveBeenCalledExactlyOnceWith(result.progress[1])
-    expect(saveSettings).toHaveBeenCalledExactlyOnceWith(result.settings)
-    expect(enqueue).toHaveBeenCalledExactlyOnceWith([achievement], 0)
   })
 })

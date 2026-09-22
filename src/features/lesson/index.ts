@@ -17,7 +17,6 @@ export { getRandomPraise } from './praise'
 export { coordinateSettlement } from './settlement'
 export type {
   SettlementAchievement,
-  SettlementAchievementState,
   SettlementInput,
   SettlementResult,
   SettlementServices,

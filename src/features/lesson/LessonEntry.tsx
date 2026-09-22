@@ -86,7 +86,6 @@ function LessonSession({
   comboValue,
   progress,
   settings,
-  achievements,
   lucky,
   questionEngine,
   combo,
@@ -162,7 +161,6 @@ function LessonSession({
     }, {
       progress,
       settings,
-      achievements: { scan: achievements.scan },
       lucky: { roll: lucky.roll },
       overlays: {
         enqueue: (found, luckyReward) => {

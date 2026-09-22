@@ -14,17 +14,6 @@ export type SettlementAchievement = Readonly<{
   reward: number
 }>
 
-export type SettlementAchievementState = Readonly<{
-  completedWords: number
-  categoryDone: number
-  maxCombo: number
-  firstCompleteToday: number
-  perfectWords: number
-  consecutiveDays: number
-  hour: number
-  totalWords: number
-}>
-
 export type SettlementInput = Readonly<{
   word: WordUnit
   words: readonly WordUnit[]
@@ -45,9 +34,6 @@ export type SettlementInput = Readonly<{
 export type SettlementServices<TAchievement extends SettlementAchievement = SettlementAchievement> = Readonly<{
   progress: Pick<ProgressService, 'saveStep'>
   settings: Pick<SettingsService, 'save'>
-  achievements: {
-    scan(state: SettlementAchievementState, earned: string[]): readonly TAchievement[]
-  }
   lucky: {
     roll(rng?: Rng): number
   }
@@ -85,32 +71,6 @@ function nextConsecutive(previous: number, lastDate: string, today: string): num
   if (lastDate === today) return previous
   if (shiftDate(today, -1) === lastDate) return previous + 1
   return 1
-}
-
-function completedWordCount(
-  words: readonly WordUnit[],
-  progress: ProgressData,
-  settings: UserSettings,
-): number {
-  return words.filter(word => fullComplete(progress[word.id], settings)).length
-}
-
-function completedCategoryCount(
-  words: readonly WordUnit[],
-  progress: ProgressData,
-  settings: UserSettings,
-): number {
-  const categories = new Map<string, WordUnit[]>()
-  for (const word of words) {
-    const category = categories.get(word.category) ?? []
-    category.push(word)
-    categories.set(word.category, category)
-  }
-  let count = 0
-  for (const category of categories.values()) {
-    if (category.every(word => fullComplete(progress[word.id], settings))) count += 1
-  }
-  return count
 }
 
 function addReward(
@@ -180,17 +140,10 @@ export async function coordinateSettlement<TAchievement extends SettlementAchiev
     perfectWords: input.session.perfectWords + (input.perfect ? 1 : 0),
   }
 
-  // 5. Scan once using the post-completion progress and post-streak settings.
-  const achievements = services.achievements.scan({
-    completedWords: completedWordCount(input.words, progressWithImmediateReward, settingsWithStreak),
-    categoryDone: completedCategoryCount(input.words, progressWithImmediateReward, settingsWithStreak),
-    maxCombo: input.maxCombo,
-    firstCompleteToday: session.firstCompleteToday,
-    perfectWords: session.perfectWords,
-    consecutiveDays: settingsWithStreak.consecutiveDays,
-    hour: now.getHours(),
-    totalWords: input.words.length,
-  }, [...settingsWithStreak.earnedAchievements])
+  // 5. 【过渡桥】词课路径与它的成就接线在 Task 13 整条删除。
+  // 这里不再扫描:旧口径的四个字段(词数/分类/整词完美)在关卡语境里没有对应来源,
+  // 编一套映射等于造假数据。新路径的成就由 pinyin-blocks/settle.ts 承担。
+  const achievements: readonly TAchievement[] = []
 
   const achievementReward = achievements.reduce((sum, achievement) => sum + achievement.reward, 0)
   const extraReward = immediateReward + achievementReward
