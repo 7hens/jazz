@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-/** 与 stone.test.ts 同理:直接读源文件,不用 `?raw` 导入(那条路在本仓返回空串,是沉默的假绿陷阱)。 */
+/** 直接读源文件,不用 `?raw` 导入(那条路在本仓返回空串,是沉默的假绿陷阱)。 */
 const css = readFileSync(join(process.cwd(), 'src/index.css'), 'utf8')
 
 const MARKER = '/* ===== 拼音积木材质'
@@ -29,9 +29,11 @@ function topLevelBodies(source: string): string[] {
 }
 
 describe('index.css 拼音积木材质段', () => {
-  it('材质段存在,且被 stone 的护栏以终点界定(不是「marker 到文件尾」)', () => {
+  it('材质段 marker 存在(下面几条「marker 切到文件尾」断言的共同前提)', () => {
     expect(css).toContain(MARKER)
-    // 反向锚点:stone.test.ts 用本 marker 当切片终点,删了它那边会静默扩权。
+    // 这里**只**钉「marker 还在」:曾经另有一条对向护栏 —— stone.test.ts 反向拿本 marker
+    // 当**切片终点**(石材质段整段排在拼音积木段之前),删了 marker 会让那边的切片静默
+    // 扩到文件尾。stone.test.ts 已随题面世界整批删除,那条对向护栏一并消失,不再有反证。
     const section = css.slice(css.indexOf(MARKER))
     expect(section.length).toBeGreaterThan(0)
   })

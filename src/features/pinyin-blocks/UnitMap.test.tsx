@@ -33,7 +33,7 @@ describe('拼音单元地图', () => {
     const { container } = render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
     const map = container.querySelector('[data-unit-map]')
     // 先断言锚点存在:取不到时下面那句 `?? ''` 会把「锚点被删掉」判成「通过」——
-    // 同样的坑在 stone.test.ts 里写着(那里是先断言 marker 存在,免得 indexOf 返回 -1 让断言静默空转)。
+    // 锚点缺失 → querySelector 返回 null → `?? ''` 兜成空串 → 正则恒不匹配 = 静默假绿。
     expect(map, 'data-unit-map 锚点没了,下面的零文本断言就恒绿').not.toBeNull()
     expect(map?.textContent ?? '').not.toMatch(HAN_TEXT)
   })
