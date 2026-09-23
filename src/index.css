@@ -43,8 +43,6 @@
   --color-gold-ink: #4a2e00; /* 金石主行文字 —— 压 #ffc23d 实测 7.75:1 */
   --color-gold-ink-2: #6b4300; /* 金石第二行。当前 subText 恒为 emoji(图),color 对彩色字形无可见效果;
                                   保留以便该行日后承载文本 —— 那时压 #ffc23d 实测 5.37:1。 */
-  --color-gold-glow: #ffdc78; /* 爆点冲击波的金光。与 .quiz-ring 原字面量同值,故本次改动逐像素等价。 */
-
   /* 拼音积木:五类块各一色,孩子靠颜色分辨块的身份。
      与金石同理 —— 块面是「实体」,三主题恒定,故不进暗色覆盖块。
      文字色逐块给(--color-block-*-ink):块面亮就压深字、块面深就压白字,
@@ -181,10 +179,6 @@
     scroll-behavior: auto !important;
   }
 }
-
-@keyframes ll-sleep { 0%,100% { transform: scale(1) } 50% { transform: scale(0.94) } }
-@keyframes ll-bounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
-@keyframes ll-wiggle { 0%,100% { transform: rotate(-3deg) } 50% { transform: rotate(3deg) } }
 
 /* ===== 拼音积木材质(spec: 拼音积木组合游戏)
  * 硬约束(本段自立,不援引别的前例):不带 @layer 的普通类(才能压过 Tailwind 任意值类,且绕开 v4 扫描器)、
