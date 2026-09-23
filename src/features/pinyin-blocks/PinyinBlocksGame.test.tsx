@@ -94,7 +94,7 @@ describe('拼音积木 · 游戏', () => {
     expect(screen.getByLabelText('拼装台')).toBeInTheDocument()
     // 零文本:汉字只在拼对之后作为答案出现,作答期间游戏区只有字母与声调走势线
     const gameArea = container.querySelector('.relative')
-    expect(gameArea?.textContent ?? '').not.toMatch(/[一-鿿]/)
+    expect(gameArea?.textContent ?? '').not.toMatch(HAN_TEXT)
   })
 
   it('拼对后同时亮出拼音与对应汉字(认读要扣到字上)', async () => {
