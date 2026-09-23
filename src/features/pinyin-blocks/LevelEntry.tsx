@@ -70,8 +70,9 @@ export function LevelEntry({
       // 用结算交回的**结果**,不是自己 +1 —— 重玩一关不该让首通数虚增
       setSessionCleared(result.sessionCleared)
       onSettle(result)
-      // 一次成功只撒一次花:有成就 / 幸运弹层接手时由它们那一档撒,
-      // 两处同帧叠加 = 300 粒,反而把「发生了什么」糊掉(设计 §3.4)。
+      // 一次成功只撒一次花:成就弹层有自己的档(achievement),由它来撒;
+      // 幸运弹层**没有自己的档**,故被它让掉的这一关当场不撒 —— 让掉优于
+      // 两处同帧叠加 = 300 粒、把「发生了什么」糊掉(设计 §3.4)。
       if (result.achievements.length === 0 && result.luckyReward <= 0) celebrate.play('word')
       if (levelIndex + 1 < unit.levels.length) setLevelIndex(levelIndex + 1)
       else onExitToMap()

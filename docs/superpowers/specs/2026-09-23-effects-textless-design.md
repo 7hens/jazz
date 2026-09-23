@@ -96,7 +96,7 @@
 | `achievement` | 已有 | `AchievementPopup.tsx:16` |
 
 - `LevelEntry` 今天**没有** `CelebrateService`,须新接(`<Name>Entry.tsx` 是 `useService` 的合法点)。
-- **`word` 必须避让奖励弹层**:`handleSolved` 里 `onSettle` 之后 App 可能立刻弹成就/幸运,两处撒花同帧叠加 = 300 粒。→ `word` 只在 `result.achievements.length === 0 && result.luckyReward <= 0` 时放;有奖励时由 `achievement`(或幸运弹层)那一档接手。**一次成功只撒一次花。**
+- **`word` 必须避让奖励弹层**:`handleSolved` 里 `onSettle` 之后 App 可能立刻弹成就/幸运,两处撒花同帧叠加 = 300 粒。→ `word` 只在 `result.achievements.length === 0 && result.luckyReward <= 0` 时放;有奖励时由 `achievement` 那一档接手(幸运弹层**无自己的档**,故它接手时该关不撒花,见 `docs/PLAN.md` 想法池)。**一次成功只撒一次花。**
 
 ### 3.5 地图徽章栏(`UnitMap.tsx` + `MapEntry.tsx`)
 

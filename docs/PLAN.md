@@ -104,6 +104,7 @@
 - [ ] `P2` 图卡按钮缺 accessible name — 连连看右列图卡的图 `aria-hidden`、而引擎对右列选项的 `text` 恒为空串 ⇒ 读屏听到的是无名按钮;基线 `41ea069` 即存在(非「题面糖果材质」计划引入),该计划的无障碍闸门只覆盖布局/对比/动效、未覆盖控件可访问名。修法二选一:UI 侧给卡片补 `aria-label`(不动引擎),或引擎为图选项补可读文字(⚠ `question-engine` 的 `Question` 数据形状属零动红线,须先立项)。2026-09-16 入池,未立项,未确认要做
 - [ ] `P2` 千字谷 演出账补齐 — `mood` 现 **3 处**(social 惊吓 / social 收尾 happy / boss 胜利 happy,原「全章 0 处」随 ch1 换写作废);余下待办 = 节奏实测回填(现仅 2s/5s 起步值,未测);分镜/交互现状与待办清单见 `docs/design/game-direction.md` §4。来源:角色重设 2026-09-10。— ⚠ **2026-09-16 数字待重算**:本条「`mood` 现 **3 处**」及其指涉(social 惊吓 / social 收尾 happy / boss 胜利 happy)属**旧 ch1**,随「故事屋重设」重写后须**重新取证回填**;`game-direction.md` §4 同批重写
 - [ ] `P2` 关卡内星级即时反馈(连击 / 星级揭晓)— spec `2026-09-21-pinyin-blocks-full-game-design.md` §7.4 原本要求「拼齐 → 星级揭晓 → 「继续」按钮」,本版未实现(拼齐后自动推进、末关自动回地图;星只在地图格子上有点/灭两态,看不出 1–3 星);产品决定,未立项
+- [ ] `P2` 幸运奖励无自己的撒花档 — `CelebrateLevel` 四档(`combo5` / `word` / `combo10` / `achievement`)**没有幸运档**:`LuckyBonus` 只收 `{amount,onDone}`(无 celebrate 钩子,`App.tsx` 也没传),而 `LevelEntry` 的守卫(`result.achievements.length === 0 && result.luckyReward <= 0`)在幸运接手时把 `word` 让掉 → **弹了幸运的那一关撒花一记都没有,比普通通关还安静**。spec `2026-09-23-effects-textless-design.md` §3.4 触发点表本就**只列三档**、无幸运档,故这是**缺口**、不是回归。两种收法待定:①给幸运加一档(`CelebrateLevel` + `CONFIGS` + `LuckyBonus` 加 celebrate 钩子);②改守卫条件、让幸运不吞 `word` 档。**须先立项再动**(动手即改孩子可见行为)
 
 > **已废弃(2026-09-10)**:「五世界」方向被 D1「全游戏收敛为汉语世界」取代,详见
 > [千字谷镇重设 spec](superpowers/specs/2026-09-10-qianzigu-town-redesign-design.md)。原节内容见 git 历史。
