@@ -75,7 +75,7 @@ export function UnitMap({ stars, totalStars, badges, earned, onPick, onOpenParen
           (已得那格另压在白圆上,圈对白底 ≈4.4:1)。**前提:这排仍直落天空** —— 徽章栏自身与祖先
           都没有底色(`App.tsx` 的 `MotionConfig` 不套包裹 div);哪天给它包一层 `bg-surface` 的卡片,
           分母就换成 surface,这两个数要重算。数由 token 值合成推得、**非像素裁定**;
-          动 ink-2 / 天空 / 这排下面那层底色后都要重算,像素侧仍归 W-V3 / W-V4。
+          动 ink-2 / 天空 / 这排下面那层底色后都要重算,像素侧仍归 W-V4。
           独立一行 + flex-wrap,不吃格子内宽:每格 h-8 w-8 + gap-1.5,乘目录条数须落在窄屏预算内(人眼由 W-V3 兜)。 */}
       {earned === null ? null : (
         <div
