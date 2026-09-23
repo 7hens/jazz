@@ -10,22 +10,16 @@ function createApi(): ApiService {
     me: async () => ({ id: 'user', email: 'user@example.com', name: 'User' }),
     login: async () => ({ id: 'user', email: 'user@example.com', name: 'User' }),
     logout: async () => undefined,
-    getProgress: async () => [],
-    putProgress: async () => undefined,
-    deleteProgress: async () => undefined,
     getSettings: async () => ({
-      enableChinese: true,
-      enableEnglish: true,
       earnedAchievements: [],
       consecutiveDays: 0,
       lastActiveDate: '',
       updatedAt: '',
     }),
     putSettings: async () => undefined,
-    getBasicsProgress: async () => [],
-    putBasicsProgress: async () => undefined,
-    getChapterProgress: async () => null,
-    putChapterProgress: async () => undefined,
+    getPinyinProgress: async () => ({ stars: {}, totalStars: 0 }),
+    putPinyinProgress: async () => undefined,
+    deletePinyinProgress: async () => undefined,
   }
 }
 

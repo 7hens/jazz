@@ -167,3 +167,15 @@ export function autoTargetId(block: Block, slots: readonly Slot[], placement: Pl
   if (exact) return exact.id
   return empty.find((s) => canPlace(block, s))?.id ?? null
 }
+
+/**
+ * 本关星级。miss = 本关累计的错误次数(放错槽 / 点选无槽可落 / 全填后判出错块)。
+ *
+ * 一星是**通关**不是失败 —— 判定的下限必须是 1,否则「星级」会变成一道否决题,
+ * 而这一关的教学目标(拼出来)其实已经达成了。
+ */
+export function starsFor(missCount: number): number {
+  if (missCount <= 0) return 3
+  if (missCount <= 2) return 2
+  return 1
+}

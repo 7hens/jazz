@@ -1,8 +1,10 @@
 import { handleLogin, handleLogout, handleMe } from './auth'
 import { jsonResponse } from './_lib/http'
-import { handleGetBasicsProgress, handlePutBasicsProgress } from './basics'
-import { handleGetChapterProgress, handlePutChapterProgress } from './chapter-progress'
-import { handleGetProgress, handlePutProgress, handleDeleteProgress } from './progress'
+import {
+  handleDeletePinyinProgress,
+  handleGetPinyinProgress,
+  handlePutPinyinProgress,
+} from './pinyin-progress'
 import { handleGetSettings, handlePutSettings } from './settings'
 
 export interface Env {
@@ -35,22 +37,14 @@ export default {
       case '/api/me':
         if (method === 'GET') return handleMe(request, env)
         return methodNotAllowed()
-      case '/api/progress':
-        if (method === 'GET') return handleGetProgress(request, env)
-        if (method === 'PUT') return handlePutProgress(request, env)
-        if (method === 'DELETE') return handleDeleteProgress(request, env)
-        return methodNotAllowed()
       case '/api/settings':
         if (method === 'GET') return handleGetSettings(request, env)
         if (method === 'PUT') return handlePutSettings(request, env)
         return methodNotAllowed()
-      case '/api/basics-progress':
-        if (method === 'GET') return handleGetBasicsProgress(request, env)
-        if (method === 'PUT') return handlePutBasicsProgress(request, env)
-        return methodNotAllowed()
-      case '/api/chapter-progress':
-        if (method === 'GET') return handleGetChapterProgress(request, env)
-        if (method === 'PUT') return handlePutChapterProgress(request, env)
+      case '/api/pinyin-progress':
+        if (method === 'GET') return handleGetPinyinProgress(request, env)
+        if (method === 'PUT') return handlePutPinyinProgress(request, env)
+        if (method === 'DELETE') return handleDeletePinyinProgress(request, env)
         return methodNotAllowed()
       default:
         // 未匹配的 /api/*(拼错/遗留路径)一律 JSON 404,绝不落到静态资源

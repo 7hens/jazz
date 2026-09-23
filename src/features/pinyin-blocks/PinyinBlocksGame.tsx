@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { speakOf } from './blocks'
+import { hintFor, speakOf } from './blocks'
 import { UNITS, type Level } from './levels'
 import {
   autoTargetId,
@@ -7,6 +7,7 @@ import {
   canPlace,
   isComplete,
   slotsFor,
+  starsFor,
   wrongSlotIds,
   type Rng,
   type Slot,
@@ -14,6 +15,7 @@ import {
 } from './rules'
 import { BlockChip } from './BlockChip'
 import { cn } from '@/shared/ui/utils'
+import type { AnswerKind } from '@/shared/services'
 
 /** 所有点击目标 ≥ 44px —— 4-8 岁的手指够得着。 */
 const MAIN_BOX = 'h-[4.5rem] w-[4.5rem] sm:h-[5.25rem] sm:w-[5.25rem]'
@@ -30,14 +32,13 @@ export type PinyinBlocksGameProps = {
   /** 朗读(拼音串)。由 Entry 从 SpeechService 注入 —— feature 内不碰 useService。 */
   speak: (text: string) => void
   playSound?: (cue: 'correct' | 'wrong' | 'victory' | 'tap') => void
+  /** 每放一块上报一次 —— 连击靠它驱动。放对 'first',放错 'wrong'。 */
+  onBlock?: (kind: AnswerKind) => void
   unitIndex?: number
   levelIndex?: number
+  /** 通关:交出本关星级(1..3),由入口页负责落库与推进。 */
+  onSolved?: (stars: number) => void
   onAdvance?: (unit: number, level: number) => void
-  /**
-   * 凹槽提示强度 —— 试玩用的难度旋钮,试完再定死成哪一种:
-   * strong = 槽位染类型色(教「该拿哪种块」);mid = 只给数量;weak = 连颜色线索都撤掉。
-   */
-  hint?: 'strong' | 'mid' | 'weak'
 }
 
 /** 槽位的显示尺寸:声调槽是圆片,其余同宽。 */
@@ -69,10 +70,10 @@ type RoundProps = {
   unitIdx: number
   lvlIdx: number
   round: number
-  hint: 'strong' | 'mid' | 'weak'
   speak: (text: string) => void
   playSound?: PinyinBlocksGameProps['playSound']
-  onFinished: () => void
+  onBlock?: (kind: AnswerKind) => void
+  onSolved: (stars: number) => void
 }
 
 /**
@@ -80,7 +81,7 @@ type RoundProps = {
  * 状态重置靠外层换 key 重挂,而不是「effect 里 setState」——
  * 后者每一关都要多渲染一次,而且是 React 里最容易出竞态的写法。
  */
-function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinished }: RoundProps) {
+function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolved }: RoundProps) {
   const unit = UNITS[unitIdx] ?? UNITS[0]!
   const level: Level = unit.levels[lvlIdx] ?? unit.levels[0]!
 
@@ -100,6 +101,18 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [hoverSlot, setHoverSlot] = useState<string | null>(null)
   const [burst, setBurst] = useState(false)
+
+  /** 本关累计错误次数。星级靠它,提示回强也靠它 —— 「卡住了」是同一种信号。 */
+  const [missCount, setMissCount] = useState(0)
+  const missRef = useRef(0)
+  /** 同步计数:placeBlock 的闭包里读到的是旧 state,而判定发生在同一次调用里。 */
+  function noteMiss() {
+    missRef.current += 1
+    setMissCount(missRef.current)
+  }
+
+  /** 本关此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。 */
+  const hint = hintFor(unit.id, missCount)
 
   const timer = useRef<number | null>(null)
   const clearTimer = useCallback(() => {
@@ -135,14 +148,15 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
     playSound?.('victory')
     speak(level.read)
     setBurst(true)
+    const stars = starsFor(missRef.current)
     timer.current = window.setTimeout(
       () => {
         setBurst(false)
-        onFinished()
+        onSolved(stars)
       },
       welded ? 2100 : 1600,
     )
-  }, [level, onFinished, playSound, speak, welded])
+  }, [level, onSolved, playSound, speak, welded])
 
   const placeBlock = useCallback(
     (blockId: string, slotId: string) => {
@@ -151,11 +165,14 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       const slot = slots.find((s) => s.id === slotId)
       if (!block || !slot) return
       if (!canPlace(block, slot)) {
+        noteMiss()
+        onBlock?.('wrong')
         playSound?.('wrong')
         flashReject(slotId)
         return
       }
       playSound?.('tap')
+      onBlock?.('first')
       const next: Record<string, string> = { ...placement }
       for (const [sid, bid] of Object.entries(next)) if (bid === blockId) delete next[sid]
       next[slotId] = blockId
@@ -168,6 +185,8 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
         timer.current = window.setTimeout(succeed, 260)
         return
       }
+      noteMiss()
+      onBlock?.('wrong')
       setStatus('wrong')
       setWrongIds(wrong)
       playSound?.('wrong')
@@ -181,7 +200,7 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
         setStatus('playing')
       }, 720)
     },
-    [status, tray, slots, placement, succeed, playSound, clearTimer, flashReject],
+    [status, tray, slots, placement, succeed, playSound, onBlock, clearTimer, flashReject],
   )
 
   const takeBack = useCallback(
@@ -211,9 +230,13 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       if (!block) return
       const target = autoTargetId(block, slots, placement)
       if (target) placeBlock(blockId, target)
-      else playSound?.('wrong')
+      else {
+        noteMiss()
+        onBlock?.('wrong')
+        playSound?.('wrong')
+      }
     },
-    [tray, slots, placement, placeBlock, playSound],
+    [tray, slots, placement, placeBlock, playSound, onBlock],
   )
 
   /* ------------------------------------------------------------------ 拖拽
@@ -257,15 +280,24 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
     setHoverSlot(slotIdUnder(e.clientX, e.clientY))
   }, [])
 
-  const onUp = useCallback(
-    (e: PointerEvent) => {
-      window.removeEventListener('pointermove', onMove)
+  // pointerup 与 pointercancel 走同一个收尾:前者落块,后者只拆干净。
+  // 名字用 e.type 区分,是为了让「注册」与「摘除」用的是同一个函数身份 —— 两个互相引用的
+  // useCallback 会成环(deps 里互相要求对方),这里用一个 handler 绕开。
+  // 具名函数表达式(不是箭头函数):内层的 `onPointerEnd` 绑定**恒等于刚被创建的那个函数对象**,
+  // 所以「注册」与「摘除」拿到的必然是同一个身份(useCallback 命中缓存时返回的也正是它);
+  // 写成箭头函数引用外层的 const,读到的就是「本轮渲染的那个」,identity 中途变过就会摘错人。
+  const onPointerEnd = useCallback(
+    function onPointerEnd(e: PointerEvent) {
       const d = drag.current
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onPointerEnd)
+      window.removeEventListener('pointercancel', onPointerEnd)
+      if (!d) return // 已经收尾过(或卸载时清过):只摘监听,不动状态
       drag.current = null
+      d.ghost?.remove()
       setDraggingId(null)
       setHoverSlot(null)
-      if (!d) return
-      d.ghost?.remove()
+      if (e.type === 'pointercancel') return // 手势被系统收走:不该替孩子落子
       if (!d.moved) {
         autoPlace(d.blockId) // 没挪动 = 点击:自动找槽位
         return
@@ -276,10 +308,27 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
     [onMove, autoPlace, placeBlock],
   )
 
-  useEffect(() => () => window.removeEventListener('pointermove', onMove), [onMove])
+  // deps **只能**是 onMove(它恒定不变)。onPointerEnd 的 deps 含 placeBlock,而 placeBlock
+  // 的 deps 含 placement / status / tray —— 挂进来 cleanup 就会在每次落块后重跑,把监听摘掉。
+  // 卸载时若还有拖拽在飞,幽灵块挂在 body 上 → 一并拆掉;并把 ref 清空,
+  // 让此后任何残留的 onPointerEnd 变成 no-op(它第一行就读 drag.current)。
+  useEffect(
+    () => () => {
+      window.removeEventListener('pointermove', onMove)
+      drag.current?.ghost?.remove()
+      drag.current = null
+    },
+    [onMove],
+  )
 
   const onDown = (e: React.PointerEvent<HTMLDivElement>, blockId: string) => {
     if (status !== 'playing') return
+    // 上一次拖拽没收尾(二指同按 / 系统吞了 pointerup)就先拆掉它 ——
+    // 否则它的幽灵块会永久留在 body 上(不在 React 树里,重挂组件也清不掉)。
+    if (drag.current) {
+      drag.current.ghost?.remove()
+      drag.current = null
+    }
     // 按下的那一刻就念 —— 不管这一下最后是点选还是拖拽,意图都是「我要用这块」。
     const block = tray.find((b) => b.id === blockId)
     if (block) speakBlock(block)
@@ -296,7 +345,8 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
       h: rect.height,
     }
     window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp, { once: true })
+    window.addEventListener('pointerup', onPointerEnd, { once: true })
+    window.addEventListener('pointercancel', onPointerEnd, { once: true })
   }
 
   /* ------------------------------------------------------------------ 渲染 */
@@ -316,9 +366,8 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
           block && 'pslot--filled',
           hoverSlot === slot.id && 'pslot--over',
           (wrongIds.includes(slot.id) || reject?.id === slot.id) && 'pslot--wrong',
-          // 提示档只影响空槽
-          !block && hint === 'strong' && (isTone ? 'pslot--tone' : `pslot--${slot.type}`),
-          !block && hint === 'weak' && 'pslot--plain',
+          // 类型类恒挂:强/中/弱是染色深浅的差别,由容器上的两个变量决定,不是挂不挂类。
+          !block && (isTone ? 'pslot--tone' : `pslot--${slot.type}`),
         )}
       >
         {block ? (
@@ -386,8 +435,16 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
         {level.emoji}
       </div>
 
-      {/* 拼装台 */}
-      <div className="flex min-h-[7.5rem] items-end justify-center gap-1" role="group" aria-label="拼装台">
+      {/* 拼装台 —— 提示档挂在这一层:槽位一律照读 --slot-line / --slot-fill */}
+      <div
+        role="group"
+        aria-label="拼装台"
+        className={cn(
+          'pslots flex min-h-[7.5rem] items-end justify-center gap-1',
+          hint === 'mid' && 'pslots--mid',
+          hint === 'weak' && 'pslots--weak',
+        )}
+      >
         {level.syl.map((syl, si) => {
           const group = slots.filter((s) => s.sylIdx === si)
           const mains = group.filter((s) => s.type !== 'tone')
@@ -458,16 +515,18 @@ function PinyinRound({ unitIdx, lvlIdx, round, hint, speak, playSound, onFinishe
 export function PinyinBlocksGame({
   speak,
   playSound,
+  onBlock,
   unitIndex,
   levelIndex,
+  onSolved,
   onAdvance,
-  hint = 'strong',
 }: PinyinBlocksGameProps) {
   const [self, setSelf] = useState({ unit: 0, level: 0 })
   const [round, setRound] = useState(0)
   const unit = unitIndex ?? self.unit
   const level = levelIndex ?? self.level
 
+  /** 关内自己往下走(试玩路径)。由外层控关时不动 —— 那是 LevelEntry 的事。 */
   const advance = () => {
     const u = UNITS[unit] ?? UNITS[0]!
     const next =
@@ -483,10 +542,14 @@ export function PinyinBlocksGame({
       unitIdx={unit}
       lvlIdx={level}
       round={round}
-      hint={hint}
       speak={speak}
       playSound={playSound}
-      onFinished={advance}
+      onBlock={onBlock}
+      // 有 onSolved 就归外层管(结算 + 推进),没有才走自走逻辑
+      onSolved={(stars) => {
+        if (onSolved) onSolved(stars)
+        else advance()
+      }}
     />
   )
 }

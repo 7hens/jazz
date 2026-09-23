@@ -2,7 +2,9 @@ import { getAuthenticatedUser } from './_lib/auth'
 import { jsonResponse } from './_lib/http'
 import type { Env } from './index'
 
-type SettingsRow = { enable_chinese: number; enable_english: number
+// user_settings 仍留着 enable_chinese / enable_english 两列(0001/0004 基线不可改,老行原值保留),
+// 但新代码**不读不写**它们 —— 列都有 DEFAULT,INSERT 去列即安全。
+type SettingsRow = {
   earned_achievements: string | null; consecutive_days: number | null; last_active_date: string | null
 }
 
@@ -14,30 +16,20 @@ function parseEarned(raw: string | null | undefined): string[] {
   } catch { return [] }
 }
 
-function toEnabled(s: { enableChinese?: unknown; enableEnglish?: unknown }) {
-  const zh = s.enableChinese === true
-  const en = s.enableEnglish === true
-  if (!zh && !en) return null
-  return { zh, en }
-}
-
 export async function handleGetSettings(request: Request, env: Env): Promise<Response> {
   const user = await getAuthenticatedUser(request, env)
   if (!user) return jsonResponse({ message: '未授权' }, { status: 401 })
   const row = (await env.DB.prepare(
-    `SELECT enable_chinese, enable_english, earned_achievements, consecutive_days, last_active_date
+    `SELECT earned_achievements, consecutive_days, last_active_date
      FROM user_settings WHERE user_id = ?`,
   ).bind(user.id).first<SettingsRow>())
   if (!row) {
     return jsonResponse({
-      settings: { enableChinese: true, enableEnglish: true,
-        earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '' },
+      settings: { earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '' },
     })
   }
   return jsonResponse({
     settings: {
-      enableChinese: row.enable_chinese === 1,
-      enableEnglish: row.enable_english === 1,
       earnedAchievements: parseEarned(row.earned_achievements),
       consecutiveDays: row.consecutive_days ?? 0,
       lastActiveDate: row.last_active_date ?? '',
@@ -49,13 +41,10 @@ export async function handlePutSettings(request: Request, env: Env): Promise<Res
   const user = await getAuthenticatedUser(request, env)
   if (!user) return jsonResponse({ message: '未授权' }, { status: 401 })
   const body = (await request.json().catch(() => null)) as {
-    settings?: { enableChinese?: unknown; enableEnglish?: unknown;
-      earnedAchievements?: unknown; consecutiveDays?: unknown; lastActiveDate?: unknown }
+    settings?: { earnedAchievements?: unknown; consecutiveDays?: unknown; lastActiveDate?: unknown }
   } | null
   const s = body?.settings
   if (!s) return jsonResponse({ message: '设置不合法' }, { status: 400 })
-  const en = toEnabled(s)
-  if (!en) return jsonResponse({ message: '至少保留一个学习领域' }, { status: 400 })
   const earned = Array.isArray(s.earnedAchievements)
     ? s.earnedAchievements.filter((x): x is string => typeof x === 'string')
     : []
@@ -65,13 +54,11 @@ export async function handlePutSettings(request: Request, env: Env): Promise<Res
   const lastDate = typeof s.lastActiveDate === 'string' ? s.lastActiveDate.slice(0, 10) : ''
   await env.DB.prepare(
     `INSERT INTO user_settings
-       (user_id, enable_chinese, enable_english, earned_achievements, consecutive_days, last_active_date, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+       (user_id, earned_achievements, consecutive_days, last_active_date, updated_at)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
-       enable_chinese=excluded.enable_chinese, enable_english=excluded.enable_english,
        earned_achievements=excluded.earned_achievements, consecutive_days=excluded.consecutive_days,
        last_active_date=excluded.last_active_date, updated_at=excluded.updated_at`,
-  ).bind(user.id, en.zh ? 1 : 0, en.en ? 1 : 0,
-    JSON.stringify(earned), consecutive, lastDate, new Date().toISOString()).run()
+  ).bind(user.id, JSON.stringify(earned), consecutive, lastDate, new Date().toISOString()).run()
   return jsonResponse({ ok: true })
 }

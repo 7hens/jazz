@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   FINAL_BASIC,
   FINAL_COMPOUND,
+  HINT_BY_UNIT,
   INITIALS_ALL,
   MEDIALS,
   NASALS,
   TONE_VALUES,
   WELD_INITIALS,
+  hintFor,
   poolFor,
   speakOf,
 } from './blocks'
@@ -128,5 +130,82 @@ describe('拼音积木关卡数据', () => {
       if (u.levels.length === 1) continue
       expect(new Set(sizes).size, `${u.id} 音节数不一致`).toBe(1)
     }
+  })
+
+  // 存档只认 id。id 一重复,两个关就共用一份星 —— 而且是静默的,没有任何报错。
+  it('每关都有稳定 id,格式合规且全局唯一', () => {
+    const seen = new Map<string, string>()
+    for (const entry of allLevels) {
+      const level = entry.level
+      const label = where(entry)
+      expect(level.id, `${label} 缺 id`).toMatch(/^u\d+-\d+$/)
+      const owner = seen.get(level.id)
+      expect(owner, `${level.id} 重复出现在 ${owner} 与 ${label}`).toBeUndefined()
+      seen.set(level.id, label)
+    }
+    expect(seen.size, 'id 总数该等于关卡总数').toBe(allLevels.length)
+  })
+
+  // 地图格子靠名片表意 —— 名片空了,那一格对 4-8 岁的孩子就是一块灰砖。
+  it('每个单元都有非空名片,且名片里的块都在块目录定义域内', () => {
+    const pool: Record<string, readonly string[]> = {
+      initial: INITIALS_ALL,
+      medial: MEDIALS,
+      final: [...FINAL_BASIC, ...FINAL_COMPOUND],
+      nasal: NASALS,
+      tone: TONE_VALUES,
+    }
+    for (const u of UNITS) {
+      expect(u.badge.length, `${u.id} 名片为空`).toBeGreaterThan(0)
+      for (const block of u.badge) {
+        expect(pool[block.type], `${u.id} 名片块类型 ${block.type}`).toBeDefined()
+        expect(pool[block.type], `${u.id} 名片块 ${block.type}:${block.value}`).toContain(block.value)
+      }
+      // 声调块不该出现在名片里:它不是一个「这个单元教什么」的答案
+      expect(u.badge.some((b) => b.type === 'tone'), `${u.id} 名片混进了声调块`).toBe(false)
+    }
+  })
+
+  // 只降不升 = 不回头。**它不保证「真的降过」** —— 一张全 strong 的表照样满足它,
+  // 所以别把「随课程递减」的承诺挂在这一条上;那半边由下面钉边界的那条负责。
+  it('每个单元都有提示基线,且只降不升(不回头)', () => {
+    const order = { strong: 0, mid: 1, weak: 2 } as const
+    let previous = -1
+    for (const u of UNITS) {
+      const hint = HINT_BY_UNIT[u.id]
+      expect(hint, `${u.id} 缺提示基线`).toBeDefined()
+      const rank = order[hint as keyof typeof order]
+      expect(rank, `${u.id} 的提示比上一单元更强 —— 脚手架回头了`).toBeGreaterThanOrEqual(previous)
+      previous = rank
+    }
+  })
+
+  // 撤档的**位置**是产品决策(哪几个单元还看得见颜色),不是实现细节 —— 钉边界,不抄整张表。
+  // 到最后一关还全染色,颜色就成了拐杖;这也是唯一挡得住「整张表被改成全 strong」的东西。
+  // u5 也钉住:留一个能自由改的格子,档位边界就会被静默挪走(中档缩成只剩 u4 一关也算「中档」)。
+  it('脚手架逐段撤走:强档到 u3,中档到 u5,末两关不许再有颜色', () => {
+    expect(HINT_BY_UNIT.u1, '开局必须给满脚手架').toBe('strong')
+    expect(HINT_BY_UNIT.u3, 'u1-u3 是强档').toBe('strong')
+    expect(HINT_BY_UNIT.u4, 'u4 起撤到中档').toBe('mid')
+    expect(HINT_BY_UNIT.u5, '中档要覆盖 u4-u5,不许缩成一关').toBe('mid')
+    expect(HINT_BY_UNIT.u6, 'u6 起撤到弱档').toBe('weak')
+    expect(HINT_BY_UNIT.u7, '最后一关还染色 —— 颜色就成了拐杖').toBe('weak')
+  })
+
+  // 连错回强是「救急垫脚石」,不是存档:它只该让提示变强,不该让它变弱。
+  it('连错 2 次把提示提到强档,且只升不降', () => {
+    for (const u of UNITS) {
+      const base = hintFor(u.id, 0)
+      expect(hintFor(u.id, 1)).toBe(base)
+      expect(hintFor(u.id, 2)).toBe('strong')
+      expect(hintFor(u.id, 7)).toBe('strong')
+    }
+  })
+
+  // 表外的单元 id 兜底强档:新单元总得先能玩,漏登记不该让整关变成一块灰砖。
+  // 上面那条循环只走 UNITS,兜底那半边没人走过 —— 少了这条,删掉 `?? 'strong'` 全仓仍绿。
+  it('表里没有的单元 id 兜底强档', () => {
+    expect(hintFor('u99', 0)).toBe('strong')
+    expect(hintFor('', 0)).toBe('strong')
   })
 })

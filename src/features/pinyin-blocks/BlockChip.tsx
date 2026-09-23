@@ -32,7 +32,9 @@ export type BlockChipProps = {
 }
 
 /**
- * 积木块的唯一渲染点。尺寸与间距由调用方用 Tailwind 给,颜色/厚度/圆角全在 index.css 的
+ * 积木块的唯一渲染点。尺寸与间距**大多**由调用方用 Tailwind 给 —— 字号除外:本组件自带兜底
+ * (`text-[1.75rem]`,声调块 `text-[1.35rem]`),调用方 `className` 里的字号是**覆盖**它
+ * (地图名片那档就靠这个覆盖把 u7 收进格子里)。颜色/厚度/圆角全在 index.css 的
  * `.pblock` 一族里(走 token,禁颜色字面量)。
  */
 export function BlockChip({

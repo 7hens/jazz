@@ -1,1 +1,0 @@
-export { createVocabularyService } from './vocabulary'

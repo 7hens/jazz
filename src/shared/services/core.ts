@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react'
  * 服务访问机制:注册 / 取用 / 订阅 收在一个文件。
  *
  * 「服务接口」与「注册/取用 key」同名一体:每个契约文件同时导出同名 const —— 接口占 type
- * 空间、token 占 value 空间(类型见下方 ServiceToken),调用方 `import { ProgressService }`
+ * 空间、token 占 value 空间(类型见下方 ServiceToken),调用方 `import { SettingsService }`
  * 一个 import 拿全。旧集中清单 keys.ts / map.ts 已删;注册/取用同源,无第三张手工映射。
  */
 

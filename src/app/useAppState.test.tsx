@@ -2,92 +2,66 @@ import { act, renderHook } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { useAppState } from './useAppState'
 
-it('starts in boot without a selected word', () => {
+it('starts in boot with no unit selected', () => {
   const { result } = renderHook(() => useAppState())
 
   expect(result.current.phase).toBe('boot')
-  expect(result.current.currentWordId).toBeNull()
-  expect(result.current.currentChapterId).toBeNull()
+  expect(result.current.currentUnitIndex).toBeNull()
 })
 
-it('enters and exits a lesson', () => {
+it('boot → map:exitToMap 是登录成功后的落点', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.enterLesson(7))
+  act(() => result.current.actions.exitToMap())
 
-  expect(result.current.phase).toBe('lesson')
-  expect(result.current.currentWordId).toBe(7)
-
-  act(() => result.current.actions.exitToHome())
-
-  expect(result.current.phase).toBe('world')
+  expect(result.current.phase).toBe('map')
+  expect(result.current.currentUnitIndex).toBeNull()
 })
 
-it('opens and closes settings', () => {
+it('map → level:enterUnit 记下单元并进关卡', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.openSettings())
-  expect(result.current.phase).toBe('settings')
+  act(() => result.current.actions.enterUnit(2))
 
-  act(() => result.current.actions.closeSettings())
-  expect(result.current.phase).toBe('world')
+  expect(result.current.phase).toBe('level')
+  expect(result.current.currentUnitIndex).toBe(2)
 })
 
-it('advances the active lesson word', () => {
+it('level → map:exitToMap 回地图并把 currentUnitIndex 清干净', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.enterLesson(7))
-  act(() => result.current.actions.nextWord())
+  act(() => result.current.actions.enterUnit(4))
+  expect(result.current.currentUnitIndex).toBe(4)
 
-  expect(result.current.currentWordId).toBe(8)
+  act(() => result.current.actions.exitToMap())
+
+  expect(result.current.phase).toBe('map')
+  // 清干净是有意的:残留的单元号会让「回地图后又进关卡」渲染错单元(或复用旧 key)。
+  expect(result.current.currentUnitIndex).toBeNull()
 })
 
-it('navigates world shell entries: qianzigu-map / letter-forest / world', () => {
+it('map → parent → map:家长面板开得开、合得上', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.enterQianziguMap())
-  expect(result.current.phase).toBe('qianzigu-map')
+  act(() => result.current.actions.exitToMap())
+  act(() => result.current.actions.openParent())
+  expect(result.current.phase).toBe('parent')
 
-  act(() => result.current.actions.enterLetterForest())
-  expect(result.current.phase).toBe('letter-forest')
-
-  act(() => result.current.actions.enterWorld())
-  expect(result.current.phase).toBe('world')
+  act(() => result.current.actions.closeParent())
+  expect(result.current.phase).toBe('map')
 })
 
-it('enterChapter carries chapterId and closeChapter returns to the map', () => {
+it('level → parent → map:关卡里开家长面板,关掉落回地图(不是关卡)', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.enterQianziguMap())
-  act(() => result.current.actions.enterChapter(1))
+  act(() => result.current.actions.enterUnit(1))
+  act(() => result.current.actions.openParent())
+  expect(result.current.phase).toBe('parent')
 
-  expect(result.current.phase).toBe('chapter')
-  expect(result.current.currentChapterId).toBe(1)
+  act(() => result.current.actions.closeParent())
 
-  act(() => result.current.actions.closeChapter())
-
-  expect(result.current.phase).toBe('qianzigu-map')
-  expect(result.current.currentChapterId).toBeNull()
-})
-
-it('exits a lesson back to the map it was launched from (letter-forest)', () => {
-  const { result } = renderHook(() => useAppState())
-
-  act(() => result.current.actions.enterLetterForest())
-  act(() => result.current.actions.enterLesson(3))
-  expect(result.current.phase).toBe('lesson')
-
-  act(() => result.current.actions.exitToHome())
-  expect(result.current.phase).toBe('letter-forest')
-})
-
-it('closes settings back to the map it was launched from (letter-forest)', () => {
-  const { result } = renderHook(() => useAppState())
-
-  act(() => result.current.actions.enterLetterForest())
-  act(() => result.current.actions.openSettings())
-  expect(result.current.phase).toBe('settings')
-
-  act(() => result.current.actions.closeSettings())
-  expect(result.current.phase).toBe('letter-forest')
+  expect(result.current.phase).toBe('map')
+  // 相位是唯一真源:closeParent 不负责清单元号,残留值本身进不了关卡分支
+  // (App 的关卡分支要求 phase === 'level')。
+  expect(result.current.currentUnitIndex).toBe(1)
 })
