@@ -46,8 +46,7 @@
 
 ```bash
 npm install            # 装依赖
-npm run dev:init       # 新环境一条命令:本地 D1 迁移后连跑 dev(:3000)
-npm run dev            # 全栈本地 :3000(Vite + workerd + 本地 D1)
+npm run dev            # 全栈本地 :3000(Vite + workerd + 本地 D1);启动前自动应用本地 D1 迁移
 npm test               # vitest 全量(jsdom;含 architecture 边界)
 npm run lint           # oxlint
 npm run build          # tsc -b && vite build → 前端 dist/client

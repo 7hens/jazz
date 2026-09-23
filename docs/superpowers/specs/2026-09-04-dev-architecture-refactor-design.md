@@ -253,6 +253,8 @@ worker/
 - `npm run db:local`：只应用本地 D1 migrations
 - `npm run dev:init`：应用 migrations 后启动开发服务器
 
+> **勘误(2026-09-24,实施后据 `package.json` 实况更正)**:本节描述的 `dev:init` **已删除**;`npm run dev` 的语义也变了 —— 现在由 npm 的 `predev` 钩子先跑 `npm run db:local` 应用本地 D1 迁移,再起 vite,原先要靠 `dev:init` 才做到的初始化现在是 `dev` 的默认行为。**本节原文保留、不追改**:本段的 json 块与下面三条清单是 2026-09-04 的历史记录,不是当前事实;当前脚本以 `package.json` 为准。§11 第 1 步与 §12 的对应验收项同此,已在原处标注。
+
 测试基础设施增加 jsdom、React Testing Library 和统一 setup，并让 Vitest 同时识别 `*.test.ts` 与 `*.test.tsx`。
 
 测试范围：
@@ -275,7 +277,7 @@ worker/
 
 ## 11. 渐进迁移顺序
 
-1. 配置路径别名、服务基础设施、组件测试环境和 `dev:init`。
+1. 配置路径别名、服务基础设施、组件测试环境和 `dev:init`。 (**已过时:见 §10 勘误**)
 2. 提取 ApiService、AuthService 和 auth feature。
 3. 提取 ProgressService 与 SettingsService。
 4. 迁移 vocabulary、question-engine 和 lesson。
@@ -294,6 +296,6 @@ worker/
 - `bootstrap.ts` 是唯一生产服务注册点。
 - 页面型 feature 通过 Entry 组装，纯 UI 只依赖 props。
 - 异步服务有明确加载、错误与重试状态。
-- 本地开发继续使用 Worker + D1，`npm run dev:init` 可完成初始化后启动。
+- 本地开发继续使用 Worker + D1，`npm run dev:init` 可完成初始化后启动。 (**已过时:见 §10 勘误 —— 初始化现由 `dev` 的 `predev` 钩子自动完成**)
 - `npm test`、`npm run lint`、`npm run build` 和 `npm run db:local` 通过。
 
