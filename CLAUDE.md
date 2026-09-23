@@ -60,8 +60,11 @@ npm run deploy:preview # build && wrangler deploy --env preview(独立 D1,冒烟
 | 部署/版本/tag/迁移/后端 handler 事实 | `docs/dev-reference.md` |
 | 前端操作细则 | `docs/frontend-dev-standard.md` |
 | 需求/任务/优先级 | `docs/PLAN.md` |
+| **手工走查 / 浏览器冒烟条目**(发布闸门①的来源) | `docs/walkthrough.md` |
 
 ## 注意
+
+- **改用户可见行为**(样式 / 布局 / 手势 / 动画 / 文案 / 持久化 / 发音):**同一个提交里必须同时更新 `docs/walkthrough.md`** —— jsdom 判不了的(像素、手势、真 cookie)只有人眼能判,清单不跟着改就等于没闸门。
 
 - **改关卡**:只改 `src/features/pinyin-blocks/levels.ts`(单元顺序即难度阶梯;每关 `id` 形如 `u2-3` 是**存档键**,与显示顺序解耦 —— 挪关不改 id、新关照式追加)。块**显式写死**,不由拼音串反推;`read` 必须是**同音汉字**(TTS 拿到 `bà` 这种拉丁串会逐字母念)。
 - **改玩法/结算/成就**:先看纯逻辑与其测试再动 UI —— 槽位 / 干扰块 / 星级在 `src/features/pinyin-blocks/rules.ts`(可注入 `rng` 保证确定性);解锁与统计口径在 `progress-stats.ts`(地图与成就同一份);结算(星级归一 / 首通 / 连续天数 / 成就扫描)在 `settle.ts`;成就目录在 `src/features/achievements/achievements.ts`;入库合并只升不降在 `src/features/pinyin-progress/`。
