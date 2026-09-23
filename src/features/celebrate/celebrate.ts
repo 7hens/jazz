@@ -4,7 +4,12 @@ import type { CelebrateLevel, CelebrateService } from '@/shared/services'
 type Confetti = (options: confetti.Options) => unknown
 
 // 档位即撒花规模。`combo5` 这一档是「放对一块就撒花」的替代 ——
-// 一关 15 块 × 30 粒 = 撒 15 次,孩子很快就不看了;单块反馈已有槽位填色 + correct 音效(设计 §3.4)。
+// 一关要落好几块,每块都撒孩子很快就不看了;单块放对**已有**反馈:槽位填色 +
+// **落块音效**那一档(`'tap'`,出处 `PinyinBlocksGame.tsx` 的 `placeBlock`;
+// `AudioCue` 里虽有 `'correct'`,但它今天**生产零调用点** —— 登记见 `docs/dev-reference.md`)。
+// 不写死块数:落块次数 = 该关槽位数、托盘块数另算,任何写死的乘积都会随关卡增删变假
+//(原注释写的「一关 15 块 × 30 粒 = 撒 15 次」与「correct 音效」两处都是假的:实测落块最多 8 次、
+//  最大托盘 12 块)。(设计 §3.4)
 const CONFIGS: Record<CelebrateLevel, confetti.Options> = {
   combo5: { particleCount: 30, spread: 50 },
   word: { particleCount: 100, spread: 80, origin: { y: 0.6 } },
