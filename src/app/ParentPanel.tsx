@@ -81,8 +81,9 @@ export function ParentPanel({ onClose }: { onClose(): void }) {
                         两个主题都读不出东西。
                         副文本用 ink-2 而非 ink-3 —— ink-3 只有 2.26:1(light)/ 3.82:1(dark);
                         ink-2 是 4.40:1(light)/ 7.75:1(dark),已是既有 token 里最接近小字 AA(4.5:1)的
-                        一个(ink 到 11.48:1,但主副同一浓度就没主次了)。两态同色,不随未得变淡。
-                        数由 token 值合成推得、**非像素裁定**;像素侧归 W-P5。 */}
+                        一个(ink 是 11.48:1(light,#1f3a5f 压 #ffffff)/ 13.88:1(dark,#e8f1fb 压 #14223d),
+                        但主副同一浓度就没主次了)。两态同色,不随未得变淡。
+                        数由 token 值合成推得、**非像素裁定**;像素侧归 W-P5(两态)/ W-P6(未得那行的说明)。 */}
                     <span aria-hidden className={cn('text-xl', got ? '' : 'opacity-45')}>
                       {achievement.emoji}
                     </span>
