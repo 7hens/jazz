@@ -27,7 +27,7 @@ describe('拼音单元地图', () => {
 
   // 零文本:孩子读不出「单韵母」三个字,格子只能靠块自表意。
   it('标题与单元名等汉字不出现在地图上', () => {
-    const { container } = render(<UnitMap {...base} />)
+    const { container } = render(<UnitMap {...base} earned={[]} />)
     const map = container.querySelector('[data-unit-map]')
     // 先断言锚点存在:取不到时下面那句 `?? ''` 会把「锚点被删掉」判成「通过」——
     // 锚点缺失 → querySelector 返回 null → `?? ''` 兜成空串 → 正则恒不匹配 = 静默假绿。
@@ -191,11 +191,19 @@ describe('拼音单元地图', () => {
     const badges = [...document.querySelectorAll<HTMLElement>('[data-badge-id]')]
     expect(badges.map((badge) => badge.dataset.badgeId)).toEqual(ACHIEVEMENTS.map((a) => a.id))
     expect(badges.map((badge) => badge.dataset.badgeEarned)).toEqual(ACHIEVEMENTS.map(() => 'false'))
+    // 未得格**不画字形**(空圈)。这一句与下面那条用例的第二句合起来,才锁住「两态在孩子眼里分得开」——
+    // 只断 data-* 的话,把 emoji 改成无条件渲染(= 两态长得一样)照样全绿,而那正是 brief 的原始形态。
+    expect(badges.map((badge) => badge.textContent)).toEqual(ACHIEVEMENTS.map(() => ''))
   })
 
   it('已得的格亮起,且只有它亮', () => {
     render(<UnitMap {...base} earned={['perfect_level']} />)
     const lit = [...document.querySelectorAll<HTMLElement>('[data-badge-earned="true"]')]
     expect(lit.map((badge) => badge.dataset.badgeId)).toEqual(['perfect_level'])
+    // 「已得」这个信号今天**全靠那枚彩色 emoji**承载(两态共用同一圈描边、内芯亮度只差一点点)——
+    // 用 textContent 取,不走 getByText(emoji 在 aria-hidden 的 span 里)。
+    expect(lit[0], '没有已得格,下面的字形断言会静默空转').toBeDefined()
+    const emoji = ACHIEVEMENTS.find((a) => a.id === 'perfect_level')!.emoji
+    expect(lit[0]!.textContent, '已得格里没有那枚图标:两态在屏幕上就分不开了').toContain(emoji)
   })
 })
