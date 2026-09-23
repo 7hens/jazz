@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
 import type { Achievement, CelebrateLevel } from '@/shared/services'
+import { REWARD_CARD } from '@/shared/ui/reward-card'
+import { cn } from '@/shared/ui/utils'
 
 type Props = {
   list: readonly Achievement[]
@@ -24,14 +26,12 @@ export function AchievementPopup({ list, onDone, celebrate }: Props) {
       <motion.div
         initial={{ opacity: 0, scale: 0.8, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-xs rounded-[2rem] border border-hairline bg-surface p-6 text-center shadow-pop"
+        data-reward-card
+        className={cn(REWARD_CARD, 'border-hairline bg-surface')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-5xl" aria-hidden>{a.emoji}</div>
-        <p className="mt-3 text-lg font-extrabold text-accent">解锁成就</p>
-        <h2 className="text-xl font-extrabold">{a.name}</h2>
-        <p className="mt-1 text-sm text-ink-2">{a.description}</p>
-        <p className="mt-2 text-sm font-bold text-emerald">+{a.reward} 星尘</p>
+        <p className="mt-3 text-lg font-extrabold text-emerald">+{a.reward} ⭐</p>
       </motion.div>
     </div>
   )
