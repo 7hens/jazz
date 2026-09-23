@@ -21,6 +21,7 @@ import type {
   UserSettings,
 } from '@/shared/services'
 import { HAN_TEXT } from '@/shared/testing/han-text'
+import { ACHIEVEMENTS } from '@/features/achievements'
 import App from './App'
 
 const user: User = { id: 'u', email: '', name: '' }
@@ -217,5 +218,22 @@ describe('App 路由', () => {
     expect(screen.queryByRole('button', { name: '回地图' })).toBeNull()
     // 正向:确实停在 BootScreen(唯一渲染 `.animate-spin` 的分支),不是空白页
     await waitFor(() => expect(container.querySelector('.animate-spin')).not.toBeNull())
+  })
+
+  // settings 在路上时地图照样画得出来(App 的地图分支只等 progress),但徽章栏必须**整个不出现** ——
+  // 画成「全暗」等于对孩子说「你一个成就都没拿到」,而真相是「还不知道」。
+  it('settings 未就绪时地图上不出现徽章栏(而不是画成全暗)', async () => {
+    const { container } = mountApp({ settingsPublishes: false })
+
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
+    expect(document.querySelectorAll('[data-badge-id]')).toHaveLength(0)
+  })
+
+  it('settings 就绪后徽章栏出现,目录全量的格全暗(知道且为空 ≠ 不知道)', async () => {
+    const { container } = mountApp()
+
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
+    expect(document.querySelectorAll('[data-badge-id]')).toHaveLength(ACHIEVEMENTS.length)
+    expect(document.querySelectorAll('[data-badge-earned="true"]')).toHaveLength(0)
   })
 })

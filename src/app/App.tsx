@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MotionConfig } from 'motion/react'
 import { Loader2 } from 'lucide-react'
-import { AchievementPopup } from '@/features/achievements'
+import { ACHIEVEMENTS, AchievementPopup } from '@/features/achievements'
 import { AuthEntry } from '@/features/auth'
 import { LuckyBonus } from '@/features/lucky-bonus'
 import { LevelEntry, MapEntry, type LevelSettlement } from '@/features/pinyin-blocks'
@@ -84,7 +84,7 @@ export default function App() {
   } else if (progressSnap.status !== 'ready') {
     content = <BootScreen />
   } else {
-    content = <MapEntry onPick={actions.enterUnit} onOpenParent={actions.openParent} />
+    content = <MapEntry badges={ACHIEVEMENTS} onPick={actions.enterUnit} onOpenParent={actions.openParent} />
   }
 
   return (

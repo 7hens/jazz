@@ -1,5 +1,5 @@
 import { Settings, Star } from 'lucide-react'
-import type { LevelStars } from '@/shared/services'
+import type { Achievement, LevelStars } from '@/shared/services'
 import { cn } from '@/shared/ui/utils'
 import { BlockChip } from './BlockChip'
 import { UNITS } from './levels'
@@ -8,6 +8,15 @@ import { cleared, isUnitUnlocked } from './progress-stats'
 export type UnitMapProps = {
   stars: LevelStars
   totalStars: number
+  /** 成就目录(emoji 是孩子唯一看得懂的那一列)。由 app 组装层注入 —— features 之间禁互引。 */
+  badges: readonly Achievement[]
+  /**
+   * 已得的成就 id。**`null` = 还不知道**(settings 未就绪)→ 整条徽章栏不渲染。
+   *
+   * 为什么不是空数组:`App.tsx` 的地图分支只等 `progressSnap.status === 'ready'`,**不等 settings**。
+   * 用 `[]` 冒充的话,徽章栏会先显示成「一个都没拿到」再跳变 —— 那是屏幕上出现的一句假话。
+   */
+  earned: readonly string[] | null
   onPick(unitIndex: number): void
   onOpenParent(): void
 }
@@ -35,7 +44,7 @@ const BADGE_BOX = 'h-8 w-8 text-[0.85rem]!'
  * 单元地图。**零文本** —— 格子靠名片积木自表意,不写「单韵母」这类字:
  * 4-8 岁的孩子读不出它们,而积木是他刚在游戏里摸过的东西。
  */
-export function UnitMap({ stars, totalStars, onPick, onOpenParent }: UnitMapProps) {
+export function UnitMap({ stars, totalStars, badges, earned, onPick, onOpenParent }: UnitMapProps) {
   return (
     <div data-unit-map className="min-h-screen px-4 pb-10 pt-4">
       <div className="mx-auto flex max-w-2xl items-center justify-between">
@@ -55,6 +64,41 @@ export function UnitMap({ stars, totalStars, onPick, onOpenParent }: UnitMapProp
           <Settings className="h-5 w-5" aria-hidden />
         </button>
       </div>
+
+      {/* 成就徽章栏:每格 = 目录里的一条,**按目录全量渲染** —— spec 的「还有几个空着」才是收集动机,
+          只显已得的话它的信息量不超过成就弹层。两态:
+            已得 = 白圆 + 图标;未得 = **空圈**(不画图标,圈内只留一层淡白)。
+          **未得态不压 opacity**:整块压透明度会把那圈描边连同底色一起合进天空 —— 徽章栏自己没有底色,
+          它直接落在 body 的天空渐变上,30% 合成下的圈对天空只有 1.0 上下,等于「一片空白」。
+          这一类比(压暗压到看不见)jsdom 永远测不出(无 CSS 引擎),人眼由 W-V3 兜。
+          两态**共用** `border-ink-2` 描边,它就是「这是一个空位」的承载者:对天空 ≈3.3:1
+          (已得那格另压在白圆上,圈对白底 ≈4.4:1)—— 这两个数由 token 值合成推得、**非像素裁定**;
+          动 ink-2 或天空那对 token 后要重算,像素侧仍归 W-V3。
+          独立一行 + flex-wrap,不吃格子内宽:每格 h-8 w-8 + gap-1.5,乘目录条数须落在窄屏预算内(人眼由 W-V3 兜)。 */}
+      {earned === null ? null : (
+        <div
+          data-achievement-badges
+          className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-1.5"
+        >
+          {badges.map((badge) => {
+            const got = earned.includes(badge.id)
+            return (
+              <span
+                key={badge.id}
+                data-badge-id={badge.id}
+                data-badge-earned={got ? 'true' : 'false'}
+                aria-label={`成就 ${badge.name}${got ? '(已得)' : '(未得)'}`}
+                className={cn(
+                  'flex h-8 w-8 items-center justify-center rounded-full border border-ink-2 text-base',
+                  got ? 'bg-surface' : 'bg-surface/40',
+                )}
+              >
+                {got ? <span aria-hidden>{badge.emoji}</span> : null}
+              </span>
+            )
+          })}
+        </div>
+      )}
 
       <div className="mx-auto mt-6 grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-3">
         {UNITS.map((unit, index) => {
