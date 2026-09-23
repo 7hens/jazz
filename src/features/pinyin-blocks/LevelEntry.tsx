@@ -3,6 +3,7 @@ import {
   AchievementService,
   AudioService,
   CelebrateService,
+  celebrationFor,
   ComboService,
   LuckyBonusService,
   PinyinProgressService,
@@ -10,7 +11,6 @@ import {
   SpeechService,
   type AnswerKind,
 } from '@/shared/services'
-import { celebrationFor } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { UNITS } from './levels'
 import { PinyinBlocksGame } from './PinyinBlocksGame'
