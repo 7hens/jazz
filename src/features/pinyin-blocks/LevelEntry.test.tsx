@@ -215,3 +215,39 @@ describe('关卡页 · 撒花接线', () => {
     expect(celebrate.play).not.toHaveBeenCalledWith('word')
   })
 })
+
+describe('关卡页 · 连击圆点', () => {
+  const litCount = () => document.querySelectorAll('[data-combo-dots] .bg-accent').length
+  const announced = () =>
+    Number(document.querySelector<HTMLElement>('[data-combo-dots]')?.dataset.comboLit)
+
+  it('会话连击 0 → 一颗不亮', () => {
+    mountLevelEntry()
+    expect(announced()).toBe(0)
+    expect(litCount()).toBe(0)
+  })
+
+  it('会话连击 3 → 亮 3 颗', () => {
+    const { comboStore } = mountLevelEntry()
+    act(() => comboStore.set({ combo: 3, maxCombo: 3 }))
+    expect(announced()).toBe(3)
+    expect(litCount()).toBe(3)
+  })
+
+  it('会话连击 7 → 封顶 5 颗', () => {
+    const { comboStore } = mountLevelEntry()
+    act(() => comboStore.set({ combo: 7, maxCombo: 7 }))
+    expect(announced()).toBe(5)
+    expect(litCount()).toBe(5)
+  })
+
+  // 断的是**填色**这一态,不写动画:App.tsx 的 MotionConfig reducedMotion="user" 全局生效,
+  // 纯动画表达对减动效用户等于不存在。
+  it('答错归零 → 全部熄灭(填色态跟着快照走)', () => {
+    const { comboStore } = mountLevelEntry()
+    act(() => comboStore.set({ combo: 4, maxCombo: 4 }))
+    expect(litCount()).toBe(4)
+    act(() => comboStore.set({ combo: 0, maxCombo: 4 }))
+    expect(litCount()).toBe(0)
+  })
+})

@@ -12,9 +12,13 @@ import {
   type AnswerKind,
 } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
+import { cn } from '@/shared/ui/utils'
 import { UNITS } from './levels'
 import { PinyinBlocksGame } from './PinyinBlocksGame'
 import { settleLevel, type LevelSettlement } from './settle'
+
+/** 连击圆点:5 颗封顶 —— 再多也读不出来,而 5 正好对上第一个撒花档。 */
+const COMBO_DOTS = [0, 1, 2, 3, 4] as const
 
 /**
  * 关卡页入口。一关拼完 → 结算 → **自动**推进到下一关;单元最后一关则自动回地图
@@ -42,11 +46,14 @@ export function LevelEntry({
   const celebrate = useService(CelebrateService)
   const progressSnap = useServiceSnapshot(progress)
   const settingsSnap = useServiceSnapshot(settings)
+  const comboSnap = useServiceSnapshot(combo)
 
   const [sessionCleared, setSessionCleared] = useState(0)
   const unit = UNITS[unitIndex] ?? UNITS[0]!
   const firstUncleared = unit.levels.findIndex((level) => (progressSnap.data.stars[level.id] ?? 0) === 0)
   const [levelIndex, setLevelIndex] = useState(firstUncleared < 0 ? 0 : firstUncleared)
+
+  const comboLit = Math.min(comboSnap.combo, COMBO_DOTS.length)
 
   const speak = useCallback((text: string) => speech.speak(text, 'zh-CN'), [speech])
 
@@ -104,8 +111,26 @@ export function LevelEntry({
         >
           ←
         </button>
-        <span className="text-sm font-bold text-ink-3 tabular-nums">
-          {levelIndex + 1}/{unit.levels.length}
+        <span className="flex items-center gap-2">
+          {/* 连击圆点:会话连击(见 spec §3.3 的裁定),封顶 5 颗。
+              靠「亮/暗」两态表达,脉冲只作增强 —— 减动效用户也必须看得见。 */}
+          <span
+            data-combo-dots
+            data-combo-lit={comboLit}
+            aria-label={`连击 ${comboLit}`}
+            className="flex items-center gap-1"
+          >
+            {COMBO_DOTS.map((index) => (
+              <span
+                key={index}
+                aria-hidden
+                className={cn('h-2.5 w-2.5 rounded-full', index < comboLit ? 'bg-accent' : 'bg-hairline')}
+              />
+            ))}
+          </span>
+          <span className="text-sm font-bold text-ink-3 tabular-nums">
+            {levelIndex + 1}/{unit.levels.length}
+          </span>
         </span>
       </div>
       <PinyinBlocksGame
