@@ -113,7 +113,7 @@ export function LevelEntry({
         </button>
         <span className="flex items-center gap-2">
           {/* 连击圆点:会话连击(见 spec §3.3 的裁定),封顶 5 颗。
-              靠「亮/暗」两态表达,脉冲只作增强 —— 减动效用户也必须看得见。 */}
+              靠「亮/暗」两态表达 —— 减动效用户也必须看得见。 */}
           <span
             data-combo-dots
             data-combo-lit={comboLit}
@@ -124,7 +124,7 @@ export function LevelEntry({
               <span
                 key={index}
                 aria-hidden
-                className={cn('h-2.5 w-2.5 rounded-full', index < comboLit ? 'bg-accent' : 'bg-hairline')}
+                className={cn('h-2.5 w-2.5 rounded-full', index < comboLit ? 'bg-accent' : 'bg-ink-2')}
               />
             ))}
           </span>
