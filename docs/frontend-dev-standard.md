@@ -22,7 +22,7 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 - 领域数据/规则按**语义属主**落 feature(关卡与积木规则 → `features/pinyin-blocks/levels.ts` / `rules.ts`),跨 feature 消费经 shared 契约服务流出(无状态透传,工厂在属主 feature,契约 + token 在 `shared/services/`);运行时行为 → 服务。shared root 不再堆宽松领域文件,只留契约/中性基础件/机制。
 - app 不含业务规则(答题/结算/奖励/持久化),Page 组件属 feature。
 - 中性视觉基础件在 `shared/ui/`(button / card / input / label / `reward-card.ts`(奖励弹层共用几何) + `utils.ts` 的 `cn`,features 可引);业务 UI 归各自 feature。
-- **凡在 `src/shared/**` 增删文件 ⇒ 必须同时 grep 并更新三处目录枚举**:本文件本节上一条、`CLAUDE.md`「架构」节的 `src/shared/` 行、`docs/dev-reference.md`「前端 3 层明细」的 `src/shared/` 行。只改其中一处 = 另外两处**从改的那一刻起就是假话**(2026-09-23 本支加 `ui/reward-card.ts` 与 `testing/` 时漏了这条,终审扫出)。命令(三处都会被这条命中,实测 `grep` 出 3 行):`grep -rn 'button / card / input / label' CLAUDE.md docs/`。
+- **凡在 `src/shared/**` 增删文件 ⇒ 必须同时 grep 并更新三处目录枚举**:本文件本节上一条、`CLAUDE.md`「架构」节的 `src/shared/` 行、`docs/dev-reference.md`「前端 3 层明细」的 `src/shared/` 行。只改其中一处 = 另外两处**从改的那一刻起就是假话**(2026-09-23 本支加 `ui/reward-card.ts` 与 `testing/` 时漏了这条,终审扫出)。命令(**命中那三处枚举 + 本规则自身** —— grep 的是上面那串字面,这条规则里也写着它,所以它一定会把自己数进去;**`grep` 出几行不在这里抄死,自己跑**):`grep -rn 'button / card / input / label' CLAUDE.md docs/`。
 
 ## 2 Feature 类型
 
