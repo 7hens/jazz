@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-/** 直接读源文件,不用 `?raw` 导入(那条路在本仓返回空串,是沉默的假绿陷阱)。 */
+/** 直接读源文件(本文件比的是 CSS 文本本身,读成字符串最好操作 —— 与别处用 `?raw` 的模块无关)。 */
 const css = readFileSync(join(process.cwd(), 'src/index.css'), 'utf8')
 
 const MARKER = '/* ===== 拼音积木材质'
@@ -76,6 +76,10 @@ describe('index.css 拼音积木材质段', () => {
       // 会当场红。改成扫**全部**同选择器规则体 —— 追加一条带渐变的规则(0-1-0 后写的赢)
       // 照样被抓住,而合法两条不会被误伤。(`.pblock--medial` 不在这一列:它是唯一允许有
       // 双色面的一支,由上面那句单独断。)
+      // **射程边界(别把这句话读大)**:下面数的是**字面子串** `.pblock--x {` —— 选择器后
+      // 一个空格,与本文件其余读法同一写法。等价但字面不同的形态(选择器与 `{` 之间无空格 /
+      // 写成选择器列表 `.pblock--x, .y {` / `{` 另起一行)**不在本守卫射程内**,数不到
+      // (今天 src/index.css 里这三种写法 0 次)。
       const bodies = css.split(`.${cls} {`).slice(1).map((part) => part.slice(0, part.indexOf('}')))
       expect(bodies.length, `${cls} 一条规则都没有`).toBeGreaterThan(0)
       for (const body of bodies) expect(body, cls).not.toContain('linear-gradient')
@@ -85,20 +89,21 @@ describe('index.css 拼音积木材质段', () => {
   })
 
   it('声调块独占金石 token(金 = 声调,与四类字母块都不撞色)', () => {
-    const start = css.indexOf('.pblock--tone {')
-    expect(start).toBeGreaterThan(-1)
-    const tone = css.slice(start, css.indexOf('}', start))
-    expect(tone).toContain('var(--color-gold)')
-    expect(tone).toContain('var(--color-gold-edge)')
-    expect(tone).toContain('var(--color-gold-ink)')
-
-    // `.pblock--tone {` 是**合法两条**(变量一条、圆角一条)—— 所以这里不能钉「只该有一条」,
-    // 但要钉住「就是这两条、且第二条是圆角那条」:上面三句读的是**第一处**,多出或换掉一条
-    // (0-1-0 后写的赢)它们照样全绿,而金墨/圆片实际已被推翻。
+    // `.pblock--tone {` 是**合法两条**(变量一条、圆角一条)—— 所以这里既不钉「只该有一条」,
+    // 也**不钉条数**:断言读**全部**同名规则的**并集**。两条合并成一条(等价的 CSS 简化)照样绿;
+    // 而往任一条里塞 `--pb: var(--color-block-*)`(0-1-0 后写的赢,声调块的脸真的变成声母蓝)
+    // 会被下面「并集里不许有字母块色」抓住。这条用例守的是**声调块的脸 = 金石 + 圆片**,
+    // 不是「恰好两条规则」—— 钉条数曾在一次合法合并上响亮假红。
     const toneBodies = css.split('.pblock--tone {').slice(1).map((part) => part.slice(0, part.indexOf('}')))
-    expect(toneBodies, '.pblock--tone { 只该有两条(变量 + 圆角)').toHaveLength(2)
+    expect(toneBodies.length, '.pblock--tone { 一条规则都没有').toBeGreaterThan(0)
+    const tone = toneBodies.join('\n')
+    expect(tone).toContain('--pb: var(--color-gold)')
+    expect(tone).toContain('--pb-edge: var(--color-gold-edge)')
+    expect(tone).toContain('--pb-ink: var(--color-gold-ink)')
+    // 金被推翻的形态只有一种:四类字母块的色漏进这条链(后写的那条赢)。禁的是整个色族,不是某个 token。
+    expect(tone, '字母块色漏进声调块 = 声调块的脸被换掉').not.toContain('--color-block-')
     // 丢掉这条半径只表现为「圆角方块」,没有任何非视觉信号 —— 合并/重排时最容易被顺手丢。
-    expect(toneBodies[1], '第二条该是圆角那条').toContain('border-radius: 999px')
+    expect(tone, '圆角那条丢了,圆片退化成圆角方块').toContain('border-radius: 999px')
   })
 
   // 槽和块是同一件事的两半:槽在说「该拿哪种块过来」。图案对不上,这条线索就白给了。
@@ -267,7 +272,7 @@ describe('index.css 拼音积木材质段', () => {
     }
   })
 
-  it('块面文字色走 --color-block-*-ink,不是一律白字压橙底', () => {
+  it('块面文字色走 --color-block-*-ink,且 --pb 一族三个变量都在 .pblock 上被消费', () => {
     for (const token of [
       '--color-block-initial-ink',
       '--color-block-medial-ink',
@@ -285,17 +290,42 @@ describe('index.css 拼音积木材质段', () => {
       expect(css.slice(start, css.indexOf('}', start)), `${type} 块面没走 ${token}`).toContain(`var(${token})`)
     }
 
-    // 链子的最后一环:**谁把 `--pb-ink` 涂到字上**。上面只证明「类型类把 --pb-ink 指到某个 token」,
-    // 而`.pblock` 的 `color: var(--pb-ink)` 才是唯一消费点(`grep -n "var(--pb-ink)" src/index.css`
-    // 全文件只此一处)—— 删掉它,类型类照旧声明、token 照旧存在,整条链断而全量用例全绿。
+    // 链子的最后一环:**谁把 --pb 一族涂到块面上**。上面只证明「类型类把 --pb-ink 指到某个 token」,
+    // 而 `.pblock` 是这个族的**基座消费点**(`var(--pb)` 与 `var(--pb-ink)` 全文件各只此一处;
+    // `var(--pb-edge)` 另有两处 = `.pblock--placed` 的入槽压平、`.pblock--welded` 的焊死覆盖,
+    // 那两处丢了只影响那两个态,不在这里断)。删掉 `.pblock` 里任一行,类型类照旧声明、token
+    // 照旧存在,整条链断而全量用例全绿(复审注入实测:删面与删厚度那两行都曾 274 全绿)。
+    // 一族三个变量只守一个 = 漏。
     // 这一环同样是「取第一处」:追加一条 `.pblock { color: rgb(255 255 255) }` 排在最后、
     // 0-1-0 胜出,白字真的压上去而下面这句读的还是第一条(复审注入,实测 274 全绿)。
     expect(css.split('.pblock {').length - 1, '.pblock { 只该有一条规则').toBe(1)
     const pblock = css.indexOf('.pblock {')
     expect(pblock, '.pblock {').toBeGreaterThan(-1)
-    expect(
-      css.slice(pblock, css.indexOf('}', pblock)),
-      '.pblock 没把 --pb-ink 涂到文字色上,上面那些声明就都白指了',
-    ).toContain('color: var(--pb-ink)')
+    const pblockBody = css.slice(pblock, css.indexOf('}', pblock))
+    expect(pblockBody, '.pblock 没把 --pb-ink 涂到文字色上,上面那些声明就都白指了').toContain(
+      'color: var(--pb-ink)',
+    )
+    // 面与厚度各一条:删掉面 → 块面塌成透明;删掉厚度 → 糖果块丢掉实心底边。两者都只改观感,
+    // 没有任何非视觉信号,而块面是这个游戏唯一的身份线索(`--pb` 恰好也不是 `--pb-ink` /
+    // `--pb-edge` 的子串,所以这两句各自只认自己那一行)。
+    expect(pblockBody, '.pblock 没把 --pb 铺到背景色上,类型类赋的色就没人用').toContain('var(--pb)')
+    expect(pblockBody, '.pblock 没把 --pb-edge 用在厚度上,糖果块就丢了实心底边').toContain('var(--pb-edge)')
+  })
+
+  // `.pblock--welded`(整体认读焊死态)与五类块**同特异性**,靠**写在后面**才在焊死那一刻赢下金墨。
+  // 它是「没有名字的那一族」的样本:删掉整条、或把它挪到类型类前面,本文件其余用例照旧全绿
+  // (复审注入实测:删整条 274 全绿),而焊死块当场变回声母蓝。
+  it('.pblock--welded 靠源序赢下金墨:金色 token + 排在类型类之后', () => {
+    const welded = '.pblock--welded {'
+    expect(css.split(welded).length - 1, `${welded} 只该有一条规则`).toBe(1)
+    const start = css.indexOf(welded)
+    expect(start, welded).toBeGreaterThan(-1)
+    const rule = css.slice(start, css.indexOf('}', start))
+    expect(rule).toContain('--pb: var(--color-gold)')
+    expect(rule).toContain('--pb-edge: var(--color-gold-edge)')
+    expect(rule).toContain('--pb-ink: var(--color-gold-ink)')
+    // 同特异性 ⇒ 源序就是胜负本身:挪到类型类前面,`.pblock--initial` 那族会赢,金墨真的输掉。
+    // 拿任意一个类型类比都行(这里取 .pblock--nasal,它在类型类那组的最末)。
+    expect(start, 'welded 排在类型类之前,金墨会真的输掉').toBeGreaterThan(css.indexOf('.pblock--nasal {'))
   })
 })

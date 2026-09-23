@@ -15,7 +15,8 @@ import { PinyinBlocksGame } from './PinyinBlocksGame'
 import { settleLevel, type LevelSettlement } from './settle'
 
 /**
- * 关卡页入口。一关拼完 → 结算 → 继续下一关(单元最后一关的「继续」回地图)。
+ * 关卡页入口。一关拼完 → 结算 → **自动**推进到下一关;单元最后一关则自动回地图
+ * (两处都不是按钮 —— 屏幕上没有「继续」,后面那个 setLevelIndex / onExitToMap 就是全部)。
  *
  * 本关是单元内第几关由 unitIndex 决定,恒从该单元**第一个未通关**的关口进 ——
  * 地图上点的是单元,不是具体某一关。

@@ -408,7 +408,7 @@ describe('拼音积木 · 游戏', () => {
     }
   })
 
-  it('双身份块 i 能落进韵母槽(lí = l + 韵母 i)', () => {
+  it('韵母块 i 能落进韵母槽(lí = l + 韵母 i)', () => {
     mount(1, 3) // 🍐 lí
     const finalSlot = document.querySelector<HTMLElement>('[data-slot-id="s0-f"]')
     expect(finalSlot).not.toBeNull()
