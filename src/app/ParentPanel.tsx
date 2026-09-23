@@ -50,10 +50,10 @@ export function ParentPanel({ onClose }: { onClose(): void }) {
 
         <div className="mt-5">
           <h3 className="text-sm font-bold text-ink-2">成就</h3>
-          {/* settings 没到位就不画目录:把目录全量画成「未得」是在屏幕上说假话(同 MapEntry 的 null 口径) */}
-          {settingsSnap.status !== 'ready' ? (
-            <p className="mt-2 text-sm text-ink-2">成就数据读取中…</p>
-          ) : (
+          {/* settings 没到位就不画目录:把目录全量画成「未得」是在屏幕上说假话(同 MapEntry 的 null 口径)。
+              两种「没到位」还得分着说 —— 拉取失败说成「读取中」是一句永久的假话,而且会把真故障
+              盖成「还没读到」,走查遇到它只会记「未验」。 */}
+          {settingsSnap.status === 'ready' ? (
             <ul className="mt-2 space-y-2">
               {ACHIEVEMENTS.map((achievement) => {
                 const got = settingsSnap.data.earnedAchievements.includes(achievement.id)
@@ -64,17 +64,21 @@ export function ParentPanel({ onClose }: { onClose(): void }) {
                     data-earned={got ? 'true' : 'false'}
                     className={cn(
                       'flex items-start gap-2 rounded-2xl border border-hairline p-2',
-                      got ? 'bg-surface-2' : 'border-dashed',
+                      got ? '' : 'border-dashed',
                     )}
                   >
-                    {/* 两态的区别全落在**标记**上(底色 / 虚线描边 / 图标浓淡 / 「· 已得」二字),
+                    {/* 两态**承重**的只有两处:图标浓淡(未得更淡)与名字后的「· 已得」(只出现在已得那行)。
+                        描边与底色都不承重 —— border-hairline 压 surface 合成出来只有 1.19:1,
+                        虚线实线的深浅看不出来,只当个陪衬,别拿它当判据(W-P5 也按这个口径判);
+                        已得行**不加底色**:bg-surface-2 压白只有 1.07:1(同样看不出来),却会把
+                        已得那行的说明从 4.40:1 拉到 4.11:1 —— 等于让已得态变成两态里更难读的那个,
+                        与本页「还差什么读得清」的取向正相反。
                         不给正文降透明度:说明那行是「还差什么」的出口,整块压暗后 ink-3 对 surface
                         只剩 1.52:1(按 55% 合成),读不出东西。
-                        副文本用 ink-2 而非 ink-3 —— ink-3 只有 2.26:1(light)/ 3.82:1(dark)。
-                        ink-2 是 4.40:1(未得那行,落 surface)/ 4.11:1(已得那行,落 surface-2);
-                        暗色下 7.75:1 / 6.63:1。它已是既有 token 里最接近小字 AA(4.5:1)的一个
-                        (ink 到 11.48:1,但主副同一浓度就没主次了)。两态同色,不随未得变淡。
-                        数由 token 值合成推得、**非像素裁定**;像素侧归 W-P4。 */}
+                        副文本用 ink-2 而非 ink-3 —— ink-3 只有 2.26:1(light)/ 3.82:1(dark);
+                        ink-2 是 4.40:1(light)/ 7.75:1(dark),已是既有 token 里最接近小字 AA(4.5:1)的
+                        一个(ink 到 11.48:1,但主副同一浓度就没主次了)。两态同色,不随未得变淡。
+                        数由 token 值合成推得、**非像素裁定**;像素侧归 W-P5。 */}
                     <span aria-hidden className={cn('text-xl', got ? '' : 'opacity-45')}>
                       {achievement.emoji}
                     </span>
@@ -91,6 +95,10 @@ export function ParentPanel({ onClose }: { onClose(): void }) {
                 )
               })}
             </ul>
+          ) : settingsSnap.status === 'error' ? (
+            <p className="mt-2 text-sm text-ink-2">成就数据读取失败</p>
+          ) : (
+            <p className="mt-2 text-sm text-ink-2">成就数据读取中…</p>
           )}
         </div>
 

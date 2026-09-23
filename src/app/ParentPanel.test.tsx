@@ -35,6 +35,16 @@ function pendingSettings() {
   return { getSnapshot: () => snapshot, subscribe: () => () => {} }
 }
 
+/** 同上,但停在 error —— 拉取失败是第三种「没到位」,不许拿「读取中」把它糊过去。 */
+function failedSettings() {
+  const snapshot = {
+    status: 'error' as const,
+    data: { earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' },
+    error: '拉取失败',
+  }
+  return { getSnapshot: () => snapshot, subscribe: () => () => {} }
+}
+
 // 「取消后进度仍被清空」的两种真实长相:同步调用,或把调用推迟到微任务/定时器里。
 // 同步断言对后者完全失明 —— 所以下面的取消用例必须先排干微任务与定时器再断言。
 const DEFERRED_CLEAR = '取消后进度仍被清空:调用被推迟到微任务/定时器里,原同步断言看不见'
@@ -108,7 +118,7 @@ describe('家长面板', () => {
     ])
   })
 
-  it('成就目录全量出现(含未得),中文说明读得通', async () => {
+  it('成就目录全量出现(含未得),中文说明读得通', () => {
     register({ logout: vi.fn() }, { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() }, readySettings(['perfect_level']))
     render(<ParentPanel onClose={vi.fn()} />)
 
@@ -120,7 +130,7 @@ describe('家长面板', () => {
     }
   })
 
-  it('已得 / 未得两态分开', async () => {
+  it('已得 / 未得两态分开', () => {
     register({ logout: vi.fn() }, { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() }, readySettings(['perfect_level']))
     render(<ParentPanel onClose={vi.fn()} />)
 
@@ -140,5 +150,20 @@ describe('家长面板', () => {
 
     expect(document.querySelectorAll('[data-achievement-id]')).toHaveLength(0)
     expect(screen.getByText('成就数据读取中…')).toBeInTheDocument()
+  })
+
+  // 拉取失败(auto/api 抛错后停在 error)是**另一种**非就绪:说成「读取中」就是一句永久的假话,
+  // 大人会一直等一个不会来的目录,走查也只会记「未验」—— 真故障被这句话盖掉。
+  it('settings 读取失败时说读取失败,不说读取中', () => {
+    register(
+      { logout: vi.fn() },
+      { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() },
+      failedSettings(),
+    )
+    render(<ParentPanel onClose={vi.fn()} />)
+
+    expect(document.querySelectorAll('[data-achievement-id]')).toHaveLength(0)
+    expect(screen.queryByText('成就数据读取中…')).not.toBeInTheDocument()
+    expect(screen.getByText('成就数据读取失败')).toBeInTheDocument()
   })
 })
