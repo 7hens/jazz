@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
+import { REWARD_CARD } from '@/shared/ui/reward-card'
+import { cn } from '@/shared/ui/utils'
 
 export function LuckyBonus({ amount, onDone }: { amount: number; onDone: () => void }) {
   useEffect(() => {
@@ -12,13 +14,12 @@ export function LuckyBonus({ amount, onDone }: { amount: number; onDone: () => v
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-xs rounded-[2rem] border border-amber/50 bg-amber-100 p-6 text-center shadow-pop"
+        data-reward-card
+        className={cn(REWARD_CARD, 'border-amber/50 bg-amber-100')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-5xl" aria-hidden>🍀</div>
-        <h2 className="mt-3 text-xl font-extrabold text-amber">好运来了!</h2>
-        <p className="mt-1 text-sm text-ink-2">灵灵在草丛里找到了一颗隐藏星尘!</p>
-        <p className="mt-2 text-lg font-extrabold text-amber">+{amount} ⭐</p>
+        <p className="mt-3 text-lg font-extrabold text-amber">+{amount} ⭐</p>
       </motion.div>
     </div>
   )
