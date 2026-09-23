@@ -3,19 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { cn } from '@/shared/ui/utils'
+import { HAN_TEXT } from '@/shared/testing/han-text'
 import { UNITS } from './levels'
 import { UnitMap } from './UnitMap'
 
-/**
- * 「零文本」要拦的是**读不出的汉字文本**,不只是 CJK 基本区:
- * 只写 [一-鿿](= U+4E00–9FFF)时,中文标点「，。」、扩展 A「㐀」、全角「Ａ」、兼容表意整类漏过。逐段对应:
- *   \p{Script=Han}  → 基本区 + 扩展 A–H + 兼容表意(繁体「單」同区,一并拦,且无需枚举扩展区码位)
- *   U+3000–303F     → CJK 标点(。「」)
- *   U+FF00–FFEF     → 全角/半角形式(Ａ，ａ)
- *   U+2E80–2EFF / U+31C0–31EF → CJK 部首 / 笔画
- * ★(U+2605)与 🔒(U+1F512)刻意落在所有区间之外 —— 它们是地图自己的形状语义,不是文字。
- */
-const HAN_TEXT = /[\p{Script=Han}\u3000-\u303f\uff00-\uffef\u{2e80}-\u{2eff}\u{31c0}-\u{31ef}]/u
+// 零文本扫描用的正则与它拦什么,统一在 @/shared/testing/han-text(全仓唯一一份)。
 
 describe('拼音单元地图', () => {
   it('每个单元各占一格:名片用真积木渲染(u1 格为证)', () => {

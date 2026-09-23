@@ -488,7 +488,7 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
         {status === 'solved' ? (
           <>
             <span className="text-lg font-bold tracking-[0.3em] text-ink-3">{level.pinyin}</span>
-            <span className="text-3xl font-extrabold text-ink">{level.read}</span>
+            <span data-answer-read className="text-3xl font-extrabold text-ink">{level.read}</span>
           </>
         ) : null}
       </div>

@@ -20,6 +20,7 @@ import type {
   User,
   UserSettings,
 } from '@/shared/services'
+import { HAN_TEXT } from '@/shared/testing/han-text'
 import App from './App'
 
 const user: User = { id: 'u', email: '', name: '' }
@@ -162,7 +163,7 @@ describe('App 路由', () => {
 
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
     const text = container.querySelector('[data-unit-map]')!.textContent ?? ''
-    expect(text).not.toMatch(/[一-鿿]/)
+    expect(text).not.toMatch(HAN_TEXT)
   })
 
   it('401 → login:会话转为匿名后(哪怕相位还停在地图)回到登录门', async () => {
