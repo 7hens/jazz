@@ -1,13 +1,38 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { AuthService, PinyinProgressService } from '@/shared/services'
+import { ACHIEVEMENTS } from '@/features/achievements'
+import { AuthService, PinyinProgressService, SettingsService } from '@/shared/services'
 import { registry } from '@/shared/services/core'
 import { ParentPanel } from './ParentPanel'
 
-function register(auth: unknown, progress: unknown) {
+function register(auth: unknown, progress: unknown, settings: unknown = readySettings()) {
   registry.clear()
   registry.register(AuthService, auth as never)
   registry.register(PinyinProgressService, progress as never)
+  registry.register(SettingsService, settings as never)
+}
+
+/**
+ * 家长面板只读 settings 的「已得成就」;本文件里既有的那几条用例不关心它,给个已就绪的空账。
+ *
+ * 快照**先建好再返回**:`useSyncExternalStore` 要求 `getSnapshot` 返回稳定引用,
+ * 每次现造一个新对象会让它在「变了 → 重渲染 → 又变了」之间打转。
+ */
+function readySettings(earned: string[] = []) {
+  const snapshot = {
+    status: 'ready' as const,
+    data: { earnedAchievements: earned, consecutiveDays: 0, lastActiveDate: '', updatedAt: '' },
+  }
+  return { getSnapshot: () => snapshot, subscribe: () => () => {} }
+}
+
+/** 同上,但停在 loading —— 用来复现「面板打开时 settings 还在路上」。 */
+function pendingSettings() {
+  const snapshot = {
+    status: 'loading' as const,
+    data: { earnedAchievements: [], consecutiveDays: 0, lastActiveDate: '', updatedAt: '' },
+  }
+  return { getSnapshot: () => snapshot, subscribe: () => () => {} }
 }
 
 // 「取消后进度仍被清空」的两种真实长相:同步调用,或把调用推迟到微任务/定时器里。
@@ -81,5 +106,39 @@ describe('家长面板', () => {
       'confirm',
       'resetAll',
     ])
+  })
+
+  it('成就目录全量出现(含未得),中文说明读得通', async () => {
+    register({ logout: vi.fn() }, { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() }, readySettings(['perfect_level']))
+    render(<ParentPanel onClose={vi.fn()} />)
+
+    const items = [...document.querySelectorAll<HTMLElement>('[data-achievement-id]')]
+    expect(items.map((item) => item.dataset.achievementId)).toEqual(ACHIEVEMENTS.map((a) => a.id))
+    for (const achievement of ACHIEVEMENTS) {
+      expect(screen.getByText(new RegExp(achievement.name))).toBeInTheDocument()
+      expect(screen.getByText(new RegExp(achievement.description))).toBeInTheDocument()
+    }
+  })
+
+  it('已得 / 未得两态分开', async () => {
+    register({ logout: vi.fn() }, { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() }, readySettings(['perfect_level']))
+    render(<ParentPanel onClose={vi.fn()} />)
+
+    const earned = [...document.querySelectorAll<HTMLElement>('[data-earned="true"]')]
+    expect(earned.map((item) => item.dataset.achievementId)).toEqual(['perfect_level'])
+  })
+
+  // 面板可能在地图刚画好、settings 还在路上时被打开(App.tsx 的 parent 分支不检查 settings)。
+  // 这时候**不能**把目录全量画成「未得」—— 那是屏幕上的一句假话。
+  it('settings 没就绪时不画目录,只说读取中', () => {
+    register(
+      { logout: vi.fn() },
+      { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() },
+      pendingSettings(),
+    )
+    render(<ParentPanel onClose={vi.fn()} />)
+
+    expect(document.querySelectorAll('[data-achievement-id]')).toHaveLength(0)
+    expect(screen.getByText('成就数据读取中…')).toBeInTheDocument()
   })
 })
