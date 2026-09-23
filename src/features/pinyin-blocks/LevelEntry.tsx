@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import {
   AchievementService,
   AudioService,
+  CelebrateService,
   ComboService,
   LuckyBonusService,
   PinyinProgressService,
@@ -9,6 +10,7 @@ import {
   SpeechService,
   type AnswerKind,
 } from '@/shared/services'
+import { celebrationFor } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { UNITS } from './levels'
 import { PinyinBlocksGame } from './PinyinBlocksGame'
@@ -37,6 +39,7 @@ export function LevelEntry({
   const achievements = useService(AchievementService)
   const speech = useService(SpeechService)
   const audio = useService(AudioService)
+  const celebrate = useService(CelebrateService)
   const progressSnap = useServiceSnapshot(progress)
   const settingsSnap = useServiceSnapshot(settings)
 
@@ -67,17 +70,27 @@ export function LevelEntry({
       // 用结算交回的**结果**,不是自己 +1 —— 重玩一关不该让首通数虚增
       setSessionCleared(result.sessionCleared)
       onSettle(result)
+      // 一次成功只撒一次花:有成就 / 幸运弹层接手时由它们那一档撒,
+      // 两处同帧叠加 = 300 粒,反而把「发生了什么」糊掉(设计 §3.4)。
+      if (result.achievements.length === 0 && result.luckyReward <= 0) celebrate.play('word')
       if (levelIndex + 1 < unit.levels.length) setLevelIndex(levelIndex + 1)
       else onExitToMap()
     },
-    [unit, levelIndex, progressSnap, settingsSnap, sessionCleared, progress, settings, combo, lucky, achievements, onSettle, onExitToMap],
+    [unit, levelIndex, progressSnap, settingsSnap, sessionCleared, progress, settings, combo, lucky, achievements, celebrate, onSettle, onExitToMap],
   )
 
   // 外层传给游戏的回调保持引用稳定,别每次渲染新建(与下面 handleBlock 同形)。
   const handleSolvedProp = useCallback((stars: number) => { void handleSolved(stars) }, [handleSolved])
 
-  // 与 handleSolvedProp 同形:外层传给游戏的回调保持引用稳定,别每次渲染新建。
-  const handleBlock = useCallback((kind: AnswerKind) => { combo.answer(kind) }, [combo])
+  // 连击的落点:每放一块上报一次。放对 'first'、放错 'wrong'。
+  // answer() 的返回值此前被丢弃 —— 撒花档就挂在它上面(阈值判定在 celebrationFor)。
+  const handleBlock = useCallback(
+    (kind: AnswerKind) => {
+      const tier = celebrationFor(combo.answer(kind))
+      if (tier) celebrate.play(tier)
+    },
+    [combo, celebrate],
+  )
 
   return (
     <div className="flex min-h-screen flex-col">
