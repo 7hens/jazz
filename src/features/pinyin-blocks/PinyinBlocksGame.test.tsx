@@ -93,8 +93,8 @@ describe('拼音积木 · 游戏', () => {
     expect(screen.getByText('🐴')).toBeInTheDocument()
     expect(screen.getByLabelText('拼装台')).toBeInTheDocument()
     // 零文本:汉字只在拼对之后作为答案出现,作答期间游戏区只有字母与声调走势线
-    const gameArea = container.querySelector('.relative')
-    expect(gameArea, '缺少 .relative 游戏区锚点').not.toBeNull()
+    const gameArea = container.querySelector('[data-game-area]')
+    expect(gameArea, '缺少 data-game-area 游戏区锚点').not.toBeNull()
     expect(gameArea?.textContent ?? '').not.toMatch(HAN_TEXT)
   })
 

@@ -46,7 +46,7 @@ npm run deploy:preview # build && wrangler deploy --env preview(独立 D1,冒烟
 后端(Workers 手写路由,`worker/`):唯一入口 `worker/index.ts` + 路由表(三组 handler:`auth.ts` / `pinyin-progress.ts` / `settings.ts`),每个 handler 先 `getAuthenticatedUser`(401),全部查询按 `user_id` 绑定隔离;只做行级读写,星级逐 key 取 `MAX` + 星尘 `MAX(...)` / 读-改-写合并保证只升不降(幂等),**不解析**拼音业务语义。无路由库。
 
 前端 3 层(`src/architecture.test.ts` 守边界,**改完跑 `npm test` 须绿**):
-- `src/shared/` — 无上层依赖的契约/纯逻辑/中性 UI(`services/*` 契约 + 同名一体 token + `core.ts` 访问机制;`ui/` 基础件:button / card / input / label / utils)
+- `src/shared/` — 无上层依赖的契约/纯逻辑/中性 UI(`services/*` 契约 + 同名一体 token + `core.ts` 访问机制;`ui/` 基础件:button / card / input / label / reward-card / utils)
 - `src/features/<f>/` — 自包含,公共面 = 目录 `index.ts`,feature 间**禁编译期互引**。玩法 `pinyin-blocks`(地图 / 关卡 / 积木与规则);服务型 feature 11 个:`achievements` / `api` / `audio` / `auth` / `celebrate` / `combo` / `lucky-bonus` / `pinyin-progress` / `settings-state` / `speech` / `toast`
 - `src/app/` — composition root(`bootstrap.ts` 唯一 register 点、App/useAppState 组装;`ParentPanel.tsx` 家长面板)
 

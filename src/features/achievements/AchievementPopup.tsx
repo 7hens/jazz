@@ -27,6 +27,9 @@ export function AchievementPopup({ list, onDone, celebrate }: Props) {
         initial={{ opacity: 0, scale: 0.8, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         data-reward-card
+        // 可见面已零文本(只剩 emoji + `+N ⭐`),成就名是读屏唯一还说得出的内容。
+        // 卡片是无 role 的 div ⇒ 这个名字**可能不进无障碍树**(登记见 `docs/dev-reference.md` 前端 3 层明细末)。
+        aria-label={a.name}
         className={cn(REWARD_CARD, 'border-hairline bg-surface')}
         onClick={(e) => e.stopPropagation()}
       >

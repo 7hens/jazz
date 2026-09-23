@@ -15,6 +15,9 @@ export function LuckyBonus({ amount, onDone }: { amount: number; onDone: () => v
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         data-reward-card
+        // 同 AchievementPopup:可见面零文本,读屏只能靠这个固定名字知道「这是幸运奖励」;
+        // 卡片是无 role 的 div ⇒ 这个名字**可能不进无障碍树**(登记见 `docs/dev-reference.md` 前端 3 层明细末)。
+        aria-label="幸运奖励"
         className={cn(REWARD_CARD, 'border-amber/50 bg-amber-100')}
         onClick={(e) => e.stopPropagation()}
       >
