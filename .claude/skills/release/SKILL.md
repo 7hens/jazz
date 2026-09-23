@@ -53,7 +53,7 @@ flowchart TD
    ```bash
    printf 'jazz-preview-%s\n' "$(openssl rand -hex 16)" | npx wrangler secret put ADMIN_TOKEN --config wrangler.toml --env preview
    ```
-5. **闸门①**:给用户 preview URL + **`docs/walkthrough.md` §B 核心回归(8 条)**。条目、前提、判定口径(通过 / 未通过 / **未验**)全部以**该文件**为准 —— **那里是单一事实源,此处不再内嵌**(两处写一份必漂移)。**等用户明确「通过」**。不因 preview==prod、时间紧、用户催就跳过。**手上没有触摸设备 → 「W-C3/W-C4 未验」照实记进闸门结论,不要据此判「通过」。**
+5. **闸门①**:给用户 preview URL + **`docs/walkthrough.md` §B 核心回归**。条目、前提、判定口径(通过 / 未通过 / **未验**)全部以**该文件**为准 —— **那里是单一事实源,此处不再内嵌**(两处写一份必漂移)。**等用户明确「通过」**。不因 preview==prod、时间紧、用户催就跳过。**手上没有触摸设备 → 「W-C3/W-C4 未验」照实记进闸门结论,不要据此判「通过」。**
 6. `npm run deploy`(生产)→ 记录输出 version id。**禁止与 `npm version`/tag 连写**。
 7. **闸门②**:给用户生产 URL,确认核心读写。**不折叠**:preview 通过 ≠ 生产闸门通过。
 8. 两闸门通过后:`npm version minor -m "chore(release): v%s"`(bug=patch / 新能力=minor / 破坏=1.0.0 起 major)。
