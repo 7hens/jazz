@@ -54,8 +54,8 @@ function runningContext() {
 // 唯一能自动判的那部分;剩余(音量、音色好不好听)归人耳。
 const TONE_CASES = [
   ['correct', [[523, 'sine', 10, 10.2], [659, 'sine', 10.08, 10.31]]],
-  ['wrong', [[330, 'square', 10, 10.35]]],
   ['streak', [[523, 'sine', 10, 10.15], [659, 'sine', 10.07, 10.22], [784, 'sine', 10.14, 10.39]]],
+  ['wrong', [[330, 'square', 10, 10.35]]],
   ['victory', [[523, 'sine', 10, 10.2], [659, 'sine', 10.12, 10.32], [784, 'sine', 10.24, 10.44], [1046, 'sine', 10.36, 10.81]]],
   ['tap', [[440, 'triangle', 10, 10.13]]],
   ['achievement', [[659, 'sine', 10, 10.17], [784, 'sine', 10.1, 10.27], [988, 'sine', 10.2, 10.37], [1319, 'sine', 10.3, 10.65]]],
@@ -112,7 +112,7 @@ describe('AudioService', () => {
   // 上面那张表是**手写的**,把 achievement 的期望值抄成 tap 的、实现也抄成 tap 的,
   // 逐个用例照样全绿 —— 所以还要断「每一格都各自不同」。
   it('音色表的覆盖面 === AUDIO_CUES(加 cue 必须同时给期望值)', () => {
-    expect(TONE_CASES.map(([cue]) => cue)).toEqual([...AUDIO_CUES])
+    expect(TONE_CASES.map(([cue]) => cue).sort()).toEqual([...AUDIO_CUES].sort())
   })
 
   it('每一档响的都是自己那串音,没有两档共用同一串', () => {
