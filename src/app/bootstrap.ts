@@ -49,8 +49,10 @@ export function bootstrap(): void {
   registry.register(AuthService, auth)
 
   registry.register(AchievementService, createAchievementService())
-  registry.register(AudioService, createAudioService())
-  registry.register(CelebrateService, createCelebrateService())
+  const audio = createAudioService()
+  registry.register(AudioService, audio)
+  // 声音与撒花在同一个 play 里发出 —— 撒花档的响与不响不再取决于「谁记得接」。
+  registry.register(CelebrateService, createCelebrateService(undefined, audio.play))
   registry.register(ComboService, createComboService())
   registry.register(LuckyBonusService, createLuckyBonusService())
   registry.register(SpeechService, createSpeechService())

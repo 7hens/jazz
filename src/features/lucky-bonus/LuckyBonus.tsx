@@ -1,10 +1,21 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
+import type { CelebrateLevel } from '@/shared/services'
 import { REWARD_CARD } from '@/shared/ui/reward-card'
 import { cn } from '@/shared/ui/utils'
 
-export function LuckyBonus({ amount, onDone }: { amount: number; onDone: () => void }) {
+export function LuckyBonus({
+  amount,
+  onDone,
+  // 由组合层注入(同 AchievementPopup);不传则静默(测试 / 纯预览)。
+  celebrate,
+}: {
+  amount: number
+  onDone: () => void
+  celebrate?: (level: CelebrateLevel) => void
+}) {
   useEffect(() => {
+    if (typeof celebrate === 'function') celebrate('lucky')
     const t = window.setTimeout(onDone, 2600)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps

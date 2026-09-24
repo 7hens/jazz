@@ -94,7 +94,7 @@ export default function App() {
         celebration.achievements.length > 0 ? (
           <AchievementPopup list={celebration.achievements} celebrate={celebrateService.play} onDone={advanceCelebration} />
         ) : (
-          <LuckyBonus amount={celebration.luckyReward} onDone={() => setCelebration(null)} />
+          <LuckyBonus amount={celebration.luckyReward} celebrate={celebrateService.play} onDone={() => setCelebration(null)} />
         )
       ) : null}
     </MotionConfig>

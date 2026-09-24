@@ -19,4 +19,14 @@ describe('幸运奖励弹层', () => {
     render(<LuckyBonus amount={20} onDone={vi.fn()} />)
     expect(screen.getByText('+20 ⭐')).toBeInTheDocument()
   })
+
+  it('挂上 celebrate 时发的是 lucky 那一档', () => {
+    const celebrate = vi.fn()
+    render(<LuckyBonus amount={30} onDone={vi.fn()} celebrate={celebrate} />)
+    expect(celebrate.mock.calls.map(([level]) => level)).toEqual(['lucky'])
+  })
+
+  it('不挂 celebrate 时静默,不抛', () => {
+    expect(() => render(<LuckyBonus amount={30} onDone={vi.fn()} />)).not.toThrow()
+  })
 })
