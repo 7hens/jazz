@@ -85,11 +85,11 @@
 
 理由:一关要落好几块(落块次数 = 该关槽位数,实测今天最多 8 块),每块都撒孩子很快就不看了;单块反馈已有槽位填色 + **落块音效**(实现播的是 `'tap'`)。而 `step` 这个名字如果继续留着却表示别的意思,就是**又一个名不副实** —— 本仓的病根。改名是符号级改动(一个 union + 一个 `CONFIGS` 键 + 3 个调用点),零持久化。
 
-> **勘误(2026-09-24,实施后据源码与实况更正)**:本段原文写「一关 15 块 × 30 粒 = 撒 15 次」与「`correct` 音效(`AudioCue`)」—— 前者是**假的**(实测单关落块次数 = 槽位数,今天最多 8;最大托盘 12 块),后者**在生产里不成立**(`AudioCue` 确有 `'correct'` 这一档,但生产零调用点;落块实际播 `'tap'`,出处 `features/pinyin-blocks/PinyinBlocksGame.tsx` 的 `placeBlock`;登记见 `docs/dev-reference.md`)。**裁定与接线一字不变**(四档、`combo5` 替代「放对一块就撒花」、`step` 删除),只更正这两处依据。同一句的副本曾落在 `features/celebrate/celebrate.ts` 的注释里,已同批更正。
+> **勘误(2026-09-24,实施后据源码与实况更正)**:本段原文写「一关 15 块 × 30 粒 = 撒 15 次」与「`correct` 音效(`AudioCue`)」—— 前者是**假的**(实测单关落块次数 = 槽位数,今天最多 8;最大托盘 12 块),后者**在生产里不成立**(`AudioCue` 确有 `'correct'` 这一档,但生产零调用点;落块实际播 `'tap'`,出处 `features/pinyin-blocks/PinyinBlocksGame.tsx` 的 `placeBlock`;登记见 `docs/dev-reference.md`)。**裁定与接线一字不变**(四档、`combo5` 替代「放对一块就撒花」、`step` 删除),只更正这两处依据。同一句的副本曾落在 `features/celebrate/celebrate.ts` 的注释里,已同批更正。 (**又勘误 2026-09-24 期 1:本块上面写的「但生产零调用点」也变假了 —— `word` 档接线后 `'correct'` 有真生产调用点(见 [reward-flight spec](2026-09-24-reward-flight-design.md) §3.1);`docs/dev-reference.md` 的同名登记(「生产零触发点」)已同批更正。上面那句原文保留不追改。**)
 
 **代价若判错**:产品若要「放对一块也撒花」,`CONFIGS` 加回一档 + `PinyinBlocksGame` 里接一次 —— 一行级,可翻。
 
-**触发点**:
+**触发点**: (**已过时:2026-09-24 加第五档 `lucky` —— 见 [reward-flight spec](2026-09-24-reward-flight-design.md) §3.6**)
 
 | 档 | 触发 | 位置 |
 |---|---|---|
@@ -98,7 +98,7 @@
 | `achievement` | 已有 | `AchievementPopup.tsx:16` |
 
 - `LevelEntry` 今天**没有** `CelebrateService`,须新接(`<Name>Entry.tsx` 是 `useService` 的合法点)。
-- **`word` 必须避让奖励弹层**:`handleSolved` 里 `onSettle` 之后 App 可能立刻弹成就/幸运,两处撒花同帧叠加 = 300 粒。→ `word` 只在 `result.achievements.length === 0 && result.luckyReward <= 0` 时放;有奖励时由 `achievement` 那一档接手(幸运弹层**无自己的档**,故它接手时该关不撒花,见 `docs/PLAN.md` 想法池)。**一次成功只撒一次花。**
+- **`word` 必须避让奖励弹层**:`handleSolved` 里 `onSettle` 之后 App 可能立刻弹成就/幸运,两处撒花同帧叠加 = 300 粒。→ `word` 只在 `result.achievements.length === 0 && result.luckyReward <= 0` 时放;有奖励时由 `achievement` 那一档接手(幸运弹层**无自己的档**,故它接手时该关不撒花,见 `docs/PLAN.md` 想法池)。**一次成功只撒一次花。** (**勘误 2026-09-24:`achievement` 那一档接手这半仍成立,但「幸运弹层**无自己的档**,故它接手时该关不撒花」当场变假 —— 期 1 给了它第五档 `lucky`,该关照出、只是不出 `word`,见 [reward-flight spec](2026-09-24-reward-flight-design.md) §3.6;尾部「见 `docs/PLAN.md` 想法池」也成了死指针 —— 那条池行已 ⬆ 升轨并入 `0.2.0` 轨。原文保留不追改。**)
 
 ### 3.5 地图徽章栏(`UnitMap.tsx` + `MapEntry.tsx`)
 
