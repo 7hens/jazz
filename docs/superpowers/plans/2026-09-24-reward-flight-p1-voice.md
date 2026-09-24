@@ -87,7 +87,10 @@ import { AUDIO_CUES } from '@/shared/services'
 npx tsc -b && npx vitest run src/features/audio src/features/celebrate
 ```
 
-Expected: 全过(此时 `AudioCue` 多了两个值,但 `play` 还没实现它们 —— **这一条现在不该红**,因为分派链有 `else` 兜底。这正是要修的洞,Step 3 立它)。
+Expected: **`npx tsc -b` 会红(TS6133)**,`npx vitest` 那一半全过 —— 两半**预期不同**。红的是 Step 1 加的 `import { AUDIO_CUES }` 还没有消费点,`noUnusedLocals` 判它未使用。消费它的守卫在 Step 4,一到即消。
+vitest 那半全过是对的:此时 `AudioCue` 多了两个值,但 `play` 还没实现它们 —— **这一条现在不该红**,因为分派链有 `else` 兜底。这正是要修的洞,Step 3 立它。
+
+> **实施时更正(2026-09-24,收盘时):** 原文此处的 Expected 写的是「全过」,**那是假的** —— `tsc` 那一半在这个时点必红(实施者实测确认)。**做法不变**(这半红是中间态、Step 4 一到即消),只把预期输出改准:假话留在 plan 上,下一个人会照着它判断「我是不是做错了」。
 
 - [ ] **Step 3: 分派改成 `Record<AudioCue, () => void>`,删掉 `else`**
 
@@ -620,7 +623,9 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - [ ] 跑三闸并把**实际数字**写进 SDD 报告:`npm test`(文件数 / 用例数自己跑)、`npm run lint`(必须恰好 2 条基线 warning)、`npx tsc -b`(exit 0)。
 - [ ] **真机冒烟**(唯一能判「响不响」的口):`npm run dev`,在浏览器里走一遍 `W-L7` / `W-L8` / `W-S4` / `W-S5` 四条。**听不见 = 接线错** —— 单元测试注入的是自己的 mock,**证明不了 registry 里那根线连着**。
 - [ ] **复跑零文本守卫**:2026-09-23 支留下的三条(地图 / 两个弹层的零汉字扫描 + 关卡页「直接文本含汉字的元素恰好一个」)必须仍全绿 —— 本计划不该碰它们,但「不该」不是判据。
-- [ ] 确认改动面:应**只有** `src/` 的六个文件 + `docs/` 的四个文件;**不含** `worker/`、`migrations/`、`src/app/ParentPanel.tsx`。
+- [ ] 确认改动面:**当场跑 `git diff --name-only <基点>..HEAD`,把改动的文件全列出来**,逐个核对是否属于本计划的 Files 清单;**并确认不含** `worker/`、`migrations/`、`src/app/ParentPanel.tsx`。**不写死文件张数。**
+
+> **实施时更正(2026-09-24,收盘时):** 原文写的是「应**只有** `src/` 的六个文件 + `docs/` 的四个文件」。那个**正数是错的** —— 按各任务 Files 清单去重后 `src/` 是 **11** 个唯一文件(`shared/services/index.ts` 被 Task 1 / Task 2 共用),`docs/` 因 F7 增为 **5** 个。而且它**违反了本计划自己的 Global Constraint「不写死计数」**:写死的计数会静默变假,今天就已经变假了一次。**正数删掉,只留否定形式** —— 否定形式不会过期。
 
 ---
 
