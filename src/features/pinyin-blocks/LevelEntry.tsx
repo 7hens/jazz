@@ -77,13 +77,12 @@ export function LevelEntry({
       // 用结算交回的**结果**,不是自己 +1 —— 重玩一关不该让首通数虚增
       setSessionCleared(result.sessionCleared)
       onSettle(result)
-      // 一次成功只撒一次花,但两个分支里「被让掉的这一记」不是一个东西:
-      // - **成就分支**:成就弹层有**自己的一档**(`achievement` = 200 粒,见 `celebrate.ts` 的 CONFIGS),
-      //   不让的话就是「它 200 + word 100 = 300 粒」叠在同一个通关上,把「发生了什么」糊掉(设计 §3.4)。
-      // - **幸运分支**:幸运弹层**没有自己的档**(`LuckyBonus` 无 celebrate 钩子、`App.tsx` 也没传)
-      //   ⇒ 这里让掉的 word 就是**这一关唯一的撒花**,这一关一记都不出。
-      //   「300 粒」这个算术**只对成就分支成立**,幸运分支没有第二个档可叠、无从叠到 300。
-      //   该代价是产品选择(不是漏接线),已登记 `docs/PLAN.md` 想法池「幸运奖励无自己的撒花档」。
+      // 一次成功只撒一次花。两个分支**各自弹层都有自己的档** —— 成就 `achievement`(200 粒)、
+      // 幸运 `lucky`(60 粒),两处都在 `celebrate.ts` 的 `CONFIGS` 里(粒数照那张表核)。
+      // 所以「让掉 `word`」在两边是**同一个道理**:不让就是「它自己那一记 + `word` 的 100 粒」
+      // 叠在同一个通关上,把「发生了什么」糊掉 —— 这个算术对**两个分支都成立**,不再分岔。
+      // 而「让掉 `word`」**不等于**「这一关一记都不出」:那一记由各自弹层的档出,只是不出 `word`。
+      // 出处:spec `docs/superpowers/specs/2026-09-24-reward-flight-design.md`(幸运第五档)。
       if (result.achievements.length === 0 && result.luckyReward <= 0) celebrate.play('word')
       if (levelIndex + 1 < unit.levels.length) setLevelIndex(levelIndex + 1)
       else onExitToMap()
