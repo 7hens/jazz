@@ -7,7 +7,7 @@ type Cue = (cue: AudioCue) => void
 // 档位即撒花规模。`combo5` 这一档是「放对一块就撒花」的替代 ——
 // 一关要落好几块,每块都撒孩子很快就不看了;单块放对**已有**反馈:槽位填色 +
 // **落块音效**那一档(`'tap'`,出处 `PinyinBlocksGame.tsx` 的 `placeBlock`)。
-// 不写死块数:落块次数 = 该关槽位数、托盘块数另算,任何写死的乘积都会随关卡增删变假。
+// 不写死块数:落块次数 = 该关槽位数、托盘块数另算,任何写死的乘积都会随关卡增删变假。(设计 §3.4)
 // `lucky` 夹在 `combo5` 与 `word` 之间:幸运是白捡的,规模不该压过关卡本身。
 const CONFIGS: Record<CelebrateLevel, confetti.Options> = {
   combo5: { particleCount: 30, spread: 50 },

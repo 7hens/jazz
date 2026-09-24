@@ -14,6 +14,7 @@ import {
 } from '@/shared/services'
 import type {
   AuthSnapshot,
+  CelebrateLevel,
   ComboSnapshot,
   PinyinProgressSnapshot,
   SettingsSnapshot,
@@ -22,6 +23,7 @@ import type {
 } from '@/shared/services'
 import { HAN_TEXT } from '@/shared/testing/han-text'
 import { ACHIEVEMENTS } from '@/features/achievements'
+import { UNITS, canPlace, slotsFor, type Block, type BlockType } from '@/features/pinyin-blocks'
 import App from './App'
 
 const user: User = { id: 'u', email: '', name: '' }
@@ -50,8 +52,14 @@ function createStore<T>(initial: T) {
   }
 }
 
+type RegisterOpts = {
+  settingsPublishes?: boolean
+  /** 幸运奖励掷出的数。默认 0 = 不掷中,只有走庆祝态的用例需要它非 0。 */
+  luckyReward?: number
+}
+
 /** 只登记 App 相位机真正取用的服务 —— 未注册的服务会当场抛错,那本身也是断言。 */
-function registerAll(opts: { settingsPublishes?: boolean } = {}) {
+function registerAll(opts: RegisterOpts = {}) {
   registry.clear()
 
   const authStore = createStore<AuthSnapshot>({ status: 'checking' })
@@ -110,9 +118,11 @@ function registerAll(opts: { settingsPublishes?: boolean } = {}) {
   }
 
   const speech: SpeechService = { speak: () => true, speakRole: () => true, stop: () => undefined }
-  const celebrate: CelebrateService = { play: vi.fn() }
+  // 与 check / progressLoad 同形:mock 单独具名,接口对象只引用它 —— 断言才拿得到 `.mock`
+  const celebratePlay = vi.fn((_level: CelebrateLevel) => undefined)
+  const celebrate: CelebrateService = { play: celebratePlay }
   const achievements: AchievementService = { scan: () => [] }
-  const lucky: LuckyBonusService = { roll: () => 0 }
+  const lucky: LuckyBonusService = { roll: () => opts.luckyReward ?? 0 }
 
   registry.register(AuthService, auth)
   registry.register(PinyinProgressService, progress)
@@ -124,11 +134,11 @@ function registerAll(opts: { settingsPublishes?: boolean } = {}) {
   registry.register(AchievementService, achievements)
   registry.register(LuckyBonusService, lucky)
 
-  return { authStore, check, progressLoad, progressStore, settingsLoad, settingsStore }
+  return { authStore, check, progressLoad, progressStore, settingsLoad, settingsStore, celebratePlay }
 }
 
 /** 登录态挂载 App(认证在 check 内同步 publish,与生产同序)。 */
-function mountApp(opts: { settingsPublishes?: boolean } = {}) {
+function mountApp(opts: RegisterOpts = {}) {
   const svc = registerAll(opts)
   svc.check.mockImplementation((): Promise<undefined> => {
     svc.authStore.publish({ status: 'authenticated', user })
@@ -139,6 +149,41 @@ function mountApp(opts: { settingsPublishes?: boolean } = {}) {
 }
 
 beforeEach(() => registry.clear())
+
+/**
+ * 积木身份白名单。`Record<BlockType, true>` 让编译器管着不漏键 —— 新增一个块类,
+ * 这里当场红(与 `PinyinBlocksGame.test.tsx` 用 `SPEAK_OF` 的键同一目的;
+ * 那个表没有从 feature 公共面流出,这里改用穷举 Record 拿到同样的编译期保证)。
+ */
+const BLOCK_TYPES: Record<BlockType, true> = { initial: true, medial: true, final: true, nasal: true, tone: true }
+
+/** 托盘里还没入槽的块。 */
+function trayBlocks(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-block-id]')).filter(
+    (el) => el.closest('[data-slot-id]') === null,
+  )
+}
+
+/** 读一块托盘积木的身份 —— 类型与值印在里层的 .pblock 上。读不出就当场炸,别让病因伪装成「这关无解」。 */
+function blockOf(el: HTMLElement): Block {
+  const chip = el.querySelector<HTMLElement>('[data-value]')
+  const type = chip?.dataset.type as BlockType | undefined
+  const value = chip?.dataset.value
+  if (!type || !(type in BLOCK_TYPES) || value === undefined) {
+    throw new Error(`托盘块读不出身份:${chip?.outerHTML ?? '(没有块)'}`)
+  }
+  return { type, value }
+}
+
+/** 按题目要求把正确块一个个点进去(点选路径 = 自动落位),一次不错:u1 第一关(é)= 韵母 + 声调两块。 */
+function solveFirstLevel() {
+  for (const slot of slotsFor(UNITS[0]!.levels[0]!)) {
+    const fits = trayBlocks().filter((el) => canPlace(blockOf(el), slot))
+    const pick = fits.find((el) => blockOf(el).type === slot.type) ?? fits[0]
+    expect(pick, `${slot.type}:${slot.value} 在托盘里找不到可放块`).toBeDefined()
+    fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+  }
+}
 
 describe('App 路由', () => {
   it('boot → login:认证返回匿名时显示登录门', async () => {
@@ -235,5 +280,34 @@ describe('App 路由', () => {
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
     expect(document.querySelectorAll('[data-badge-id]')).toHaveLength(ACHIEVEMENTS.length)
     expect(document.querySelectorAll('[data-badge-earned="true"]')).toHaveLength(0)
+  })
+})
+
+describe('App 庆祝态接线', () => {
+  // App.tsx 那一行 `celebrate={celebrateService.play}` 是「幸运弹层响了」的**唯一**投递点:
+  // LevelEntry 只负责结算,撒花档由组合层传下去。断的是**行为**(注入的 CelebrateService.play
+  // 收到了 `'lucky'`),不是 `LuckyBonus.props.celebrate === celebrateService.play` 那种实现耦合 ——
+  // 前者删掉 App 那一行必红,后者只证明「React 把 prop 传下去了」而证不了它响没响。
+  it('结算出幸运奖励时,幸运弹层用组合层注入的 celebrateService.play 发出 lucky 档', async () => {
+    const { svc, container } = mountApp({ luckyReward: 50 })
+
+    await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
+    await screen.findByRole('button', { name: '回地图' })
+
+    // 通关回调在成功动画**之后**才发(260ms 判定 + 1600ms 停顿)—— 从落块起换成假时钟。
+    vi.useFakeTimers()
+    try {
+      solveFirstLevel()
+      await act(async () => { vi.advanceTimersByTime(3000) })
+
+      // 正向:确实走到了幸运弹层(🍀 只属于它;假 achievements 恒空,成就弹层不会出现)
+      expect(screen.getByText('🍀')).toBeInTheDocument()
+      // 落块期间 combo 恒返 0 ⇒ 没有任何连击档;luckyReward > 0 ⇒ 让掉的 word 档也不发。
+      // 所以这一关**唯一**该响的就是 lucky 档,逐值比对即可
+      expect(svc.celebratePlay.mock.calls.map(([level]) => level)).toEqual(['lucky'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
