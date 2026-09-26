@@ -35,7 +35,8 @@
 
 - 真源 = `migrations/` 数字前缀迁移,统一经 `wrangler d1 migrations apply` 执行并记录 `d1_migrations`(apply 幂等,已记录文件不重跑)。`schema.sql` 已下线。
 - `0001_init.sql` = **基线快照**(users + progress + user_settings 全量 `CREATE IF NOT EXISTS`,无 DROP;其中 `progress` 表已停用,见「数据模型」):新环境一条命令建齐,旧库幂等对齐。此后表结构变更一律新增 `0002_xxx.sql` …,**不改 0001**;新字段须带 `DEFAULT`/可 `NULL`,保证万一回滚旧代码不崩。
-- **顺序(不可逆,先升库后升代码)**:本地 `npm run db:local`;线上 preview → 生产 apply 仅在发布时做,命令与闸门见 `/release`。
+- **顺序(不可逆,先升库后升代码)**:本地 `npm run dev` **自动先跑 `db:local` 再起 server**(`"dev": "npm run db:local && vite …"`,迁移失败即不起,不静默放行);需单独升库时 `npm run db:local`。线上 preview → 生产 apply 仅在发布时做,命令与闸门见 `/release`。
+  - 有挂起迁移时 `wrangler` 会**交互确认一次**(「About to apply N migration(s) … continue?」);无挂起则直接报 `No migrations to apply!` 不打断。wrangler 无 `--yes`,确认步仅在检测到 CI/非交互时自动跳过。
 - `migrations/archive/` = 旧 date 前缀迁移历史(game_state 建/拆、生活记录)已下线,不参与 apply,勿再加回。
 
 ---
