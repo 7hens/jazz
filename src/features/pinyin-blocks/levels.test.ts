@@ -9,10 +9,9 @@ import {
   TONE_VALUES,
   WELD_INITIALS,
   hintFor,
-  poolFor,
   speakOf,
 } from './blocks'
-import { UNITS, type Level, type Syllable } from './levels'
+import { UNITS, taughtBlocks, type Level, type Syllable } from './levels'
 
 /** 摊平成「所属单元下标 + 关卡」,断言里好定位到具体是哪一题。 */
 const allLevels: { unit: number; unitId: string; index: number; level: Level }[] = UNITS.flatMap((u, unit) =>
@@ -51,16 +50,14 @@ describe('拼音积木关卡数据', () => {
     }
   })
 
-  it('每个块的值都在该单元已解锁的池子里(防止教还没教的块)', () => {
-    for (const { unit, level, unitId, index } of allLevels) {
-      const label = `${unitId}#${index + 1}`
-      for (const s of level.syl) {
-        if (s.initial !== undefined) expect(poolFor('initial', unit), `${label} 声母`).toContain(s.initial)
-        if (s.medial !== undefined) expect(poolFor('medial', unit), `${label} 介母`).toContain(s.medial)
-        if (s.nasal !== undefined) expect(poolFor('nasal', unit), `${label} 鼻音`).toContain(s.nasal)
-        if (s.final !== undefined) {
-          expect(poolFor('final', unit), `${label} 韵母`).toContain(s.final)
-        }
+  // 原来这条是「每个块都在该单元**硬编码的**解锁池里」。池改成从课程数据派生之后,
+  // 它变成了同义反复(池就是课程自己),故换成它真正在守的那半条性质:
+  // 池只增不减 —— 后面的单元一定收得下前面单元出过的每一个块。
+  it('块池只增不减:后一单元一定包含前一单元出过的全部块', () => {
+    const keys = (unit: number): string[] => taughtBlocks(unit).map((b) => `${b.type}:${b.value}`)
+    for (let unit = 1; unit < UNITS.length; unit++) {
+      for (const key of keys(unit - 1)) {
+        expect(keys(unit), `u${unit + 1} 的池丢了 ${key}`).toContain(key)
       }
     }
   })

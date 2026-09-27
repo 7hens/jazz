@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TONE_VALUES, poolFor, type Block } from './blocks'
+import { TONE_VALUES, type Block } from './blocks'
 import { UNITS } from './levels'
 import {
   autoTargetId,
@@ -28,6 +28,25 @@ const lv = (unit: number, index: number) => UNITS[unit]!.levels[index]!
 const GUĀ = lv(4, 0) // 🍉 guā = g + 介母 u + a
 const ZHĪ = lv(5, 0) // 🕷️ zhī = zh + i(焊死)
 const XĪGUĀ = lv(6, 0) // 🍉 xī guā = 双音节
+
+/**
+ * 该单元及之前课程里出现过的某类块值 —— **独立于 `levels.ts` 的 `taughtBlocks` 重算一遍**。
+ * 拿被测代码当判据的断言永不会红,所以这里宁可多写十行。
+ */
+function seenIn(type: Block['type'], unit: number): string[] {
+  const out = new Set<string>()
+  for (const u of UNITS.slice(0, unit + 1)) {
+    for (const level of u.levels) {
+      for (const s of level.syl) {
+        if (type === 'initial' && s.initial !== undefined) out.add(s.initial)
+        if (type === 'medial' && s.medial !== undefined) out.add(s.medial)
+        if (type === 'final' && s.final !== undefined) out.add(s.final)
+        if (type === 'nasal' && s.nasal !== undefined) out.add(s.nasal)
+      }
+    }
+  }
+  return [...out]
+}
 
 const slot = (type: Slot['type'], value: string): Slot => ({ id: 'x', type, value, sylIdx: 0 })
 const withId = (b: Block, id: string): TrayBlock => ({ ...b, id })
@@ -148,7 +167,7 @@ describe('buildBlocks', () => {
           if (block.type === 'tone') continue
           const key = `${block.type}:${block.value}`
           if (solution.has(key)) continue
-          expect(poolFor(block.type, unit), `${level.pinyin} 干扰块 ${key}`).toContain(block.value)
+          expect(seenIn(block.type, unit), `${level.pinyin} 干扰块 ${key}`).toContain(block.value)
         }
       }
     }
@@ -266,7 +285,7 @@ describe('判定闭环:每关都能被正确块填满并通过', () => {
         // (整体认读的 whole 题只有 whole 一种类型,池子为空,摊不出也不需要。)
         const spare = new Set(
           requiredBlocks(level).flatMap((b) =>
-            poolFor(b.type, unit)
+            seenIn(b.type, unit)
               .filter((v) => !solution.has(`${b.type}:${v}`))
               .map(() => b.type),
           ),

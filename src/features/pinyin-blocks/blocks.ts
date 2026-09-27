@@ -1,4 +1,4 @@
-// 拼音积木的块目录与解锁表(纯数据,不依赖任何服务)。
+// 拼音积木的块目录(纯数据,不依赖任何服务)。
 // 拆分口径 = 汉语拼音方案的「韵头-韵腹-韵尾」结构 + 小学教学惯例:
 //   - 复韵母 ai/ei/ao/ou/ie/üe 整块不拆(一个发音单元,断开读会走音);
 //   - 鼻韵母拆出鼻尾(an → a+n,ang → a+ng),鼻尾是辅音,前后鼻音辨析是教学重点;
@@ -65,27 +65,6 @@ export function speakOf(type: BlockType, value: string): string | undefined {
 
 /** 焊死的声母:它们拼上 i 之后读音不是「声母 + 衣」,拼合时金箍焊成一体。 */
 export const WELD_INITIALS = ['zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y'] as const
-
-/* ------------------------------------------------------- 单元解锁表 */
-
-/**
- * 某个块类型在第 unit 单元(0 基)时是否已解锁。
- * 干扰块只能取已解锁的块 —— 否则 U5 会冒出 U3 才教的 üe,孩子只能靠猜。
- */
-export function poolFor(type: BlockType, unit: number): readonly string[] {
-  switch (type) {
-    case 'initial':
-      return unit >= 1 ? INITIALS_ALL : []
-    case 'final':
-      return unit >= 2 ? [...FINAL_BASIC, ...FINAL_COMPOUND] : FINAL_BASIC
-    case 'nasal':
-      return unit >= 3 ? NASALS : []
-    case 'medial':
-      return unit >= 4 ? MEDIALS : []
-    default:
-      return [] // tone 恒全出(由 toneBlocks 直接补),不作干扰
-  }
-}
 
 /* ------------------------------------------------------------ 声调走势 */
 

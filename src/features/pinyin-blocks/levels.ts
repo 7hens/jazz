@@ -182,3 +182,33 @@ export const UNITS: readonly Unit[] = [
     ],
   },
 ]
+
+/* ------------------------------------------------------------ 解锁池(派生) */
+
+/** 一个音节用到的块(不含声调块),顺序 = 块面顺序。 */
+function syllableBlocks(syl: Syllable): Block[] {
+  const out: Block[] = []
+  if (syl.initial !== undefined) out.push({ type: 'initial', value: syl.initial })
+  if (syl.medial !== undefined) out.push({ type: 'medial', value: syl.medial })
+  if (syl.final !== undefined) out.push({ type: 'final', value: syl.final })
+  if (syl.nasal !== undefined) out.push({ type: 'nasal', value: syl.nasal })
+  return out
+}
+
+/**
+ * 到第 unitIndex 单元(含)为止,课程里出现过的全部块。**干扰块的唯一来源**。
+ *
+ * 从课程数据派生,不按单元序号硬编码阈值:「哪个单元教什么」只有本文件知道,
+ * 池子在 `blocks.ts` 再写一份必然漂移。语义正好是「只出孩子见过的块」。
+ */
+export function taughtBlocks(unitIndex: number): readonly Block[] {
+  const seen = new Map<string, Block>()
+  for (const unit of UNITS.slice(0, unitIndex + 1)) {
+    for (const level of unit.levels) {
+      for (const syl of level.syl) {
+        for (const block of syllableBlocks(syl)) seen.set(`${block.type}:${block.value}`, block)
+      }
+    }
+  }
+  return [...seen.values()]
+}

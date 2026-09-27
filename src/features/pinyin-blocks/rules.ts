@@ -1,8 +1,8 @@
 // 积木玩法的纯逻辑:槽位生成 / 干扰块 / 放置判定。可注入 rng 保证测试确定性。
 // 不引 React、不引服务 —— 组件只负责画和收手势。
 
-import { DUAL_VALUES, TONE_VALUES, poolFor, type Block, type BlockType } from './blocks'
-import type { Level } from './levels'
+import { DUAL_VALUES, TONE_VALUES, type Block, type BlockType } from './blocks'
+import { taughtBlocks, type Level } from './levels'
 
 /** 一个凹槽。声调槽额外带 anchor —— 它骑在哪个槽上方(韵腹 / 整体块)。 */
 export type Slot = {
@@ -112,13 +112,21 @@ export function buildBlocks(level: Level, unit: number, rng: Rng = Math.random):
   const types = [...new Set(required.map((b) => b.type))]
   const cap = level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
 
+  // 干扰块只从「该单元及之前课程里出现过的块」里取 —— 池子由课程数据派生,零硬编码。
+  const taught = new Map<BlockType, string[]>()
+  for (const block of taughtBlocks(unit)) {
+    const values = taught.get(block.type)
+    if (values) values.push(block.value)
+    else taught.set(block.type, [block.value])
+  }
+
   const cursors = new Map<BlockType, string[]>()
   for (const type of types) {
     const used = new Set(required.filter((b) => b.type === type).map((b) => b.value))
     cursors.set(
       type,
       shuffle(
-        poolFor(type, unit).filter((v) => !used.has(v)),
+        (taught.get(type) ?? []).filter((v) => !used.has(v)),
         rng,
       ),
     )
