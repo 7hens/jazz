@@ -1,9 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/shared/services'
+import { LOCAL_PROGRESS_KEY } from './local-store'
 import { createPinyinProgressService, mergeClear } from './pinyin-progress'
 import type { ApiService, PinyinProgressData } from '@/shared/services'
 
 const EMPTY: PinyinProgressData = { stars: {}, totalStars: 0 }
+
+/**
+ * 兜底副本一律注入这份内存假货,不靠环境:在 vitest 下 `window.localStorage` 实测是
+ * undefined(jsdom 裸用明明有,被 Node 26 的同名全局盖掉了)—— 靠环境就等于**测量不到**
+ * 自己有没有在写副本,绿着什么都不做。顺带让每条用例的副本互不串味。
+ */
+function memoryStorage(initial: Record<string, string> = {}) {
+  const map = new Map(Object.entries(initial))
+  return {
+    getItem: (key: string) => map.get(key) ?? null,
+    setItem: (key: string, value: string) => void map.set(key, value),
+    removeItem: (key: string) => void map.delete(key),
+  } as unknown as Storage
+}
+
+function seedLocal(data: PinyinProgressData) {
+  return memoryStorage({ [LOCAL_PROGRESS_KEY]: JSON.stringify(data) })
+}
+
+function readLocal(storage: Storage): PinyinProgressData | null {
+  const raw = storage.getItem(LOCAL_PROGRESS_KEY)
+  return raw === null ? null : JSON.parse(raw)
+}
+
+let storage: Storage
+
+function service(api: ApiService) {
+  return createPinyinProgressService(api, callbacks, { storage })
+}
+
+/** 让已在飞的 promise 全部落地。 */
+function flush() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
 
 function fakeApi(overrides: Partial<ApiService> = {}): ApiService {
   return {
@@ -25,6 +60,7 @@ let callbacks: ReturnType<typeof makeCallbacks>
 
 beforeEach(() => {
   callbacks = makeCallbacks()
+  storage = memoryStorage()
 })
 
 describe('拼音进度服务', () => {
@@ -143,5 +179,139 @@ describe('拼音进度服务', () => {
     const service = createPinyinProgressService(api, callbacks)
     await expect(service.resetAll()).rejects.toThrow('reset-boom')
     expect(callbacks.onError).toHaveBeenCalledWith('reset-boom')
+  })
+})
+
+describe('进度兜底副本', () => {
+  // 这条就是那个事故的回归测试:服务端整行没了,孩子下一次打开必须还是原来那些星。
+  it('服务端空了也丢不掉进度:本地副本把它捞回来', async () => {
+    storage = seedLocal({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    const progress = service(fakeApi())
+    await progress.load()
+    expect(progress.getSnapshot().data).toEqual({ stars: { 'u1-0': 3 }, totalStars: 120 })
+  })
+
+  // 只救回显示还不够 —— 服务端得自己长回来,否则副本一没(换设备/清浏览器)就真没了。
+  it('发现服务端落后就把并集补回去', async () => {
+    storage = seedLocal({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    const put = vi.fn().mockResolvedValue(undefined)
+    const progress = service(fakeApi({
+      getPinyinProgress: vi.fn().mockResolvedValue({ stars: { 'u1-1': 2 }, totalStars: 5 }),
+      putPinyinProgress: put,
+    }))
+    await progress.load()
+    await flush()
+    // 服务端已有的那关不能被副本盖掉 —— 两边的关都要在。
+    expect(put).toHaveBeenCalledWith({ stars: { 'u1-0': 3, 'u1-1': 2 }, totalStars: 120 })
+  })
+
+  it('服务端不落后就不多发一次写', async () => {
+    storage = seedLocal({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    const put = vi.fn().mockResolvedValue(undefined)
+    const progress = service(fakeApi({
+      getPinyinProgress: vi.fn().mockResolvedValue({ stars: { 'u1-0': 3 }, totalStars: 120 }),
+      putPinyinProgress: put,
+    }))
+    await progress.load()
+    await flush()
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  // 补写是后台动作:孩子刚打开页面就弹一个红 toast 说「同步失败」是纯噪音,而且数据并没丢。
+  it('补写失败不弹错、也不影响已经在屏幕上的进度', async () => {
+    storage = seedLocal({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    const progress = service(fakeApi({ putPinyinProgress: vi.fn().mockRejectedValue(new Error('repair-boom')) }))
+    await progress.load()
+    await flush()
+    expect(callbacks.onError).not.toHaveBeenCalled()
+    expect(progress.getSnapshot().data).toEqual({ stars: { 'u1-0': 3 }, totalStars: 120 })
+  })
+
+  it('补写不影响随后启动的 load 落地', async () => {
+    storage = seedLocal({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    let resolveGet: ((data: PinyinProgressData) => void) | undefined
+    const progress = service(fakeApi({
+      getPinyinProgress: vi.fn(() => new Promise<PinyinProgressData>((resolve) => { resolveGet = resolve })),
+    }))
+    const first = progress.load()
+    resolveGet?.({ stars: { 'u1-1': 2 }, totalStars: 5 })
+    await first
+    const second = progress.load()
+    resolveGet?.({ stars: { 'u1-2': 1 }, totalStars: 7 })
+    await second
+    expect(progress.getSnapshot().status).toBe('ready')
+    expect(progress.getSnapshot().data.stars).toEqual({ 'u1-0': 3, 'u1-1': 2, 'u1-2': 1 })
+  })
+
+  // 补写若把自己记成「用户动作」,就会把几乎同时开始的重置误判成「重置期间孩子又通关了」——
+  // 重置于是不清屏幕也不清副本,一次成功的重置看着像没生效。
+  it('补写不被误记成用户动作:同时在飞的重置照样生效', async () => {
+    storage = seedLocal({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    let resolveGet: ((data: PinyinProgressData) => void) | undefined
+    let resolveDelete: (() => void) | undefined
+    const progress = service(fakeApi({
+      getPinyinProgress: vi.fn(() => new Promise<PinyinProgressData>((resolve) => { resolveGet = resolve })),
+      deletePinyinProgress: vi.fn(() => new Promise<void>((resolve) => { resolveDelete = () => resolve() })),
+    }))
+    const loading = progress.load()
+    const resetting = progress.resetAll()
+    resolveGet?.({ stars: {}, totalStars: 0 })
+    await loading
+    await flush()
+    resolveDelete?.()
+    await resetting
+    expect(progress.getSnapshot().data).toEqual(EMPTY)
+    expect(storage.getItem(LOCAL_PROGRESS_KEY)).toBeNull()
+  })
+
+  it('坏掉的副本被忽略,以服务端为准', async () => {
+    storage = memoryStorage({ [LOCAL_PROGRESS_KEY]: '{"stars":{"u1-0":99}' })
+    const progress = service(fakeApi({
+      getPinyinProgress: vi.fn().mockResolvedValue({ stars: { 'u1-0': 3 }, totalStars: 120 }),
+    }))
+    await progress.load()
+    expect(progress.getSnapshot().data).toEqual({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    expect(readLocal(storage)).toEqual({ stars: { 'u1-0': 3 }, totalStars: 120 })
+  })
+
+  // 副本若是把服务端会 400 的键也吞下去,坏掉的就不只是显示 —— 之后每一次 PUT(通关、自愈)
+  // 都会被整份打回来,孩子再也存不进任何进度。所以格式不对要**整份**当没有,而不是逐条筛。
+  it('副本里混进服务端会拒的关 id 时整份丢弃,之后通关仍写得进去', async () => {
+    storage = memoryStorage({
+      [LOCAL_PROGRESS_KEY]: JSON.stringify({ stars: { 'not-a-level': 3, 'u1-0': 3 }, totalStars: 120 }),
+    })
+    const put = vi.fn().mockResolvedValue(undefined)
+    const progress = service(fakeApi({ putPinyinProgress: put }))
+    await progress.load()
+    await progress.recordClear({ levelId: 'u1-1', stars: 3, starDust: 10 })
+    expect(put).toHaveBeenCalledWith({ stars: { 'u1-1': 3 }, totalStars: 10 })
+  })
+
+  // 兜底副本不能是「只在 load 时读一次」的死物 —— 不然这次通关的星下次打开就没了。
+  it('通关落地后副本跟着更新', async () => {
+    const progress = service(fakeApi())
+    await progress.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })
+    expect(readLocal(storage)).toEqual({ stars: { 'u1-0': 3 }, totalStars: 10 })
+  })
+
+  // 没存下来的值不许进副本:进了的话,下次一打开就会「复活」一笔服务端从来没有过的星尘。
+  it('写失败回退后副本不保留乐观值', async () => {
+    const progress = service(fakeApi({ putPinyinProgress: vi.fn().mockRejectedValue(new Error('boom')) }))
+    await expect(progress.recordClear({ levelId: 'u1-0', stars: 3, starDust: 10 })).rejects.toThrow('boom')
+    expect(readLocal(storage)?.stars).toEqual({})
+    expect(readLocal(storage)?.totalStars).toBe(0)
+  })
+
+  // 重置若不清副本,下次 load 会拿它把刚清掉的进度原样顶回来 —— 重置等于没做。
+  it('重置成功后副本被清,再 load 也不复活', async () => {
+    storage = seedLocal({ stars: { 'u1-0': 3 }, totalStars: 120 })
+    const progress = service(fakeApi({ getPinyinProgress: vi.fn().mockResolvedValue(EMPTY) }))
+    await progress.load()
+    await flush()
+    await progress.resetAll()
+    expect(storage.getItem(LOCAL_PROGRESS_KEY)).toBeNull()
+    await progress.load()
+    await flush()
+    expect(progress.getSnapshot().data).toEqual(EMPTY)
   })
 })
