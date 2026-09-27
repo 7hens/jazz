@@ -91,25 +91,48 @@ export function createAudioService(options: AudioServiceOptions = {}): AudioServ
     void pendingResume.promise.then(playNow).catch(() => undefined)
   }
 
-  function play(cue: AudioCue) {
-    if (!soundOn) return
-    if (cue === 'correct') {
+  // 一音一表:每个 cue 一格,没有兜底分支。加 cue 而漏了这里 = `Record<AudioCue, …>`
+  // 在编译期就报错 —— 这是把「静默播成 'tap'」那个洞从类型层堵死的那一半。
+  const TONES: Record<AudioCue, () => void> = {
+    correct: () => {
       tone(523, 0, 0.15)
       tone(659, 0.08, 0.18)
-    } else if (cue === 'streak') {
+    },
+    streak: () => {
       tone(523, 0, 0.1)
       tone(659, 0.07, 0.1)
       tone(784, 0.14, 0.2)
-    } else if (cue === 'wrong') {
+    },
+    wrong: () => {
       tone(330, 0, 0.3, 'square', 0.22)
-    } else if (cue === 'victory') {
+    },
+    victory: () => {
       tone(523, 0, 0.15, 'sine', 0.3)
       tone(659, 0.12, 0.15, 'sine', 0.3)
       tone(784, 0.24, 0.15, 'sine', 0.3)
       tone(1046, 0.36, 0.4, 'sine', 0.3)
-    } else {
+    },
+    tap: () => {
       tone(440, 0, 0.08, 'triangle', 0.18)
-    }
+    },
+    // 成就:四音上行收在高位,比 victory 短、比 correct 亮 ——
+    // 「又收了一枚」,不是「赢了」。
+    achievement: () => {
+      tone(659, 0, 0.12)
+      tone(784, 0.1, 0.12)
+      tone(988, 0.2, 0.12)
+      tone(1319, 0.3, 0.3)
+    },
+    // 幸运:两声三角波,纯五度跳进(A5 → E6)。与成就那串正弦琶音在**音色**上就分得开。
+    lucky: () => {
+      tone(880, 0, 0.12, 'triangle', 0.26)
+      tone(1320, 0.12, 0.28, 'triangle', 0.26)
+    },
+  }
+
+  function play(cue: AudioCue) {
+    if (!soundOn) return
+    TONES[cue]()
   }
 
   const service: AudioService = {

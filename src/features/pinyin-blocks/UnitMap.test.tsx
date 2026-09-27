@@ -2,24 +2,21 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { ACHIEVEMENTS } from '@/features/achievements'
 import { cn } from '@/shared/ui/utils'
+import { HAN_TEXT } from '@/shared/testing/han-text'
 import { UNITS } from './levels'
 import { UnitMap } from './UnitMap'
 
-/**
- * 「零文本」要拦的是**读不出的汉字文本**,不只是 CJK 基本区:
- * 只写 [一-鿿](= U+4E00–9FFF)时,中文标点「，。」、扩展 A「㐀」、全角「Ａ」、兼容表意整类漏过。逐段对应:
- *   \p{Script=Han}  → 基本区 + 扩展 A–H + 兼容表意(繁体「單」同区,一并拦,且无需枚举扩展区码位)
- *   U+3000–303F     → CJK 标点(。「」)
- *   U+FF00–FFEF     → 全角/半角形式(Ａ，ａ)
- *   U+2E80–2EFF / U+31C0–31EF → CJK 部首 / 笔画
- * ★(U+2605)与 🔒(U+1F512)刻意落在所有区间之外 —— 它们是地图自己的形状语义,不是文字。
- */
-const HAN_TEXT = /[\p{Script=Han}\u3000-\u303f\uff00-\uffef\u{2e80}-\u{2eff}\u{31c0}-\u{31ef}]/u
+// 零文本扫描用的正则与它拦什么,统一在 @/shared/testing/han-text(全仓唯一一份)。
+
+// UnitMap 的 props 基座:各用例共用。earned 默认 null(= 还不知道),
+// 需要徽章栏的用例自己覆盖 —— 这样「不小心渲染出来了」不会污染别的用例。
+const base = { stars: {}, totalStars: 0, badges: ACHIEVEMENTS, earned: null, onPick: vi.fn(), onOpenParent: vi.fn() }
 
 describe('拼音单元地图', () => {
   it('每个单元各占一格:名片用真积木渲染(u1 格为证)', () => {
-    render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    render(<UnitMap {...base} />)
     const cells = [...document.querySelectorAll<HTMLElement>('[data-unit-id]')]
     // 钉**身份序列**,不只钉数量:数量相等只是它的推论,而「复制一格 + 删一格」数量照样相等 ——
     // 那种改动下名字里的「每个单元」就是假的,这条断言必须能红。
@@ -30,7 +27,7 @@ describe('拼音单元地图', () => {
 
   // 零文本:孩子读不出「单韵母」三个字,格子只能靠块自表意。
   it('标题与单元名等汉字不出现在地图上', () => {
-    const { container } = render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    const { container } = render(<UnitMap {...base} earned={[]} />)
     const map = container.querySelector('[data-unit-map]')
     // 先断言锚点存在:取不到时下面那句 `?? ''` 会把「锚点被删掉」判成「通过」——
     // 锚点缺失 → querySelector 返回 null → `?? ''` 兜成空串 → 正则恒不匹配 = 静默假绿。
@@ -40,7 +37,7 @@ describe('拼音单元地图', () => {
 
   it('u1 解锁可点、u2 锁上点不动(只核这两格)', () => {
     const onPick = vi.fn()
-    render(<UnitMap stars={{}} totalStars={0} onPick={onPick} onOpenParent={vi.fn()} />)
+    render(<UnitMap {...base} onPick={onPick} />)
     // 按 **id** 取,不按位置取 —— 名字点的是 u1/u2,位置在 `UNITS` 前面插入单元时就会错位
     // (那时 `cells[0]` 是新单元、真正叫 u1 的那格其实是锁着的),断言与名字要的是同一件事。
     const cellOf = (id: string) => document.querySelector<HTMLElement>(`[data-unit-id="${id}"]`)
@@ -57,7 +54,7 @@ describe('拼音单元地图', () => {
   it('通关的格子亮起对应颗数,没通的留着暗星位', () => {
     const unit = UNITS[0]!
     const stars = { [unit.levels[0]!.id]: 2, [unit.levels[1]!.id]: 1 }
-    render(<UnitMap stars={stars} totalStars={20} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    render(<UnitMap {...base} stars={stars} totalStars={20} />)
     const cell = document.querySelector<HTMLElement>('[data-unit-id="u1"]')
     expect(cell?.querySelectorAll('.pstar')).toHaveLength(unit.levels.length)
     expect(cell?.querySelectorAll('.pstar--on')).toHaveLength(2)
@@ -67,20 +64,20 @@ describe('拼音单元地图', () => {
 
   it('零星的关:一颗都不亮,进度数字归零', () => {
     const unit = UNITS[0]!
-    render(<UnitMap stars={{ [unit.levels[0]!.id]: 0 }} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    render(<UnitMap {...base} stars={{ [unit.levels[0]!.id]: 0 }} />)
     const cell = document.querySelector<HTMLElement>('[data-unit-id="u1"]')
     expect(cell?.querySelectorAll('.pstar--on')).toHaveLength(0)
     expect(cell?.textContent).toContain(`0/${unit.levels.length}`)
   })
 
   it('星尘计数带可读标签(星尘 340)', () => {
-    render(<UnitMap stars={{}} totalStars={340} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    render(<UnitMap {...base} totalStars={340} />)
     expect(screen.getByLabelText('星尘 340')).toBeInTheDocument()
   })
 
   it('点「家长」按钮请求开家长面板', () => {
     const onOpenParent = vi.fn()
-    render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={onOpenParent} />)
+    render(<UnitMap {...base} onOpenParent={onOpenParent} />)
     fireEvent.click(screen.getByLabelText('家长'))
     expect(onOpenParent).toHaveBeenCalled()
   })
@@ -104,7 +101,7 @@ describe('拼音单元地图', () => {
    *    (靠名片行的 `flex-wrap`,良性方向)——但「预算被悄悄吃掉」这件事确实没有断言在守。
    */
   it('u7 名片的布局预算:已知的输入都在(不验证布局,只钉输入)', () => {
-    render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    render(<UnitMap {...base} />)
     const cell = document.querySelector('[data-unit-id="u7"]')
     expect(cell, '取不到 u7 格子,下面的断言会静默空转').not.toBeNull()
     // 网格是格子的父元素、名片行是块的父元素:这么取才钉得住「接线」,而不是只钉常量的值。
@@ -170,7 +167,7 @@ describe('拼音单元地图', () => {
    * 折行是唯一安全网;`justify-center` 让折成两行时两行都居中,与名片行一致。
    */
   it('星排的布局预算:最多 10 关也靠 flex-wrap 折行,不越出格子', () => {
-    render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    render(<UnitMap stars={{}} totalStars={0} badges={[]} earned={null} onPick={vi.fn()} onOpenParent={vi.fn()} />)
     const cell = document.querySelector('[data-unit-id="u4"]')
     expect(cell, '取不到 u4 格子,下面的断言会静默空转').not.toBeNull()
     // 星位是文本,取它的父元素才是星排容器(与上面从 `.pblock` 取名片行的手法同源)。
@@ -219,5 +216,33 @@ describe('拼音单元地图', () => {
       cn(badge!, `pblock font-extrabold ${chipSize}`),
       `调用方字号被块自己写死的 ${chipSize} 盖掉了`,
     ).toContain(size)
+  })
+
+  // 「不知道」和「知道且为空」必须在屏幕上给出不同结果 —— 否则 settings 没到位时
+  // 徽章栏会先显示成「一个都没拿到」再跳变,那是屏幕上的一句假话。
+  it('earned 为 null(还不知道)时整条徽章栏不渲染', () => {
+    render(<UnitMap {...base} earned={null} />)
+    expect(document.querySelector('[data-achievement-badges]')).toBeNull()
+  })
+
+  it('earned 为空数组(知道且为空)时渲染目录全量格、全暗', () => {
+    render(<UnitMap {...base} earned={[]} />)
+    const badges = [...document.querySelectorAll<HTMLElement>('[data-badge-id]')]
+    expect(badges.map((badge) => badge.dataset.badgeId)).toEqual(ACHIEVEMENTS.map((a) => a.id))
+    expect(badges.map((badge) => badge.dataset.badgeEarned)).toEqual(ACHIEVEMENTS.map(() => 'false'))
+    // 未得格**不画字形**(空圈)。这一句与下面那条用例的第二句合起来,才锁住「两态在孩子眼里分得开」——
+    // 只断 data-* 的话,把 emoji 改成无条件渲染(= 两态长得一样)照样全绿,而那正是 brief 的原始形态。
+    expect(badges.map((badge) => badge.textContent)).toEqual(ACHIEVEMENTS.map(() => ''))
+  })
+
+  it('已得的格亮起,且只有它亮', () => {
+    render(<UnitMap {...base} earned={['perfect_level']} />)
+    const lit = [...document.querySelectorAll<HTMLElement>('[data-badge-earned="true"]')]
+    expect(lit.map((badge) => badge.dataset.badgeId)).toEqual(['perfect_level'])
+    // 「已得」这个信号今天**全靠那枚彩色 emoji**承载(两态共用同一圈描边、内芯亮度只差一点点)——
+    // 用 textContent 取,不走 getByText(emoji 在 aria-hidden 的 span 里)。
+    expect(lit[0], '没有已得格,下面的字形断言会静默空转').toBeDefined()
+    const emoji = ACHIEVEMENTS.find((a) => a.id === 'perfect_level')!.emoji
+    expect(lit[0]!.textContent, '已得格里没有那枚图标:两态在屏幕上就分不开了').toContain(emoji)
   })
 })

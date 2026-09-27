@@ -4,6 +4,7 @@ import { UNITS } from './levels'
 import { canPlace, slotsFor } from './rules'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
 import type { AnswerKind } from '@/shared/services'
+import { HAN_TEXT } from '@/shared/testing/han-text'
 import { PinyinBlocksGame } from './PinyinBlocksGame'
 
 /** 游戏组件只吃 props,不碰服务注册表 —— 测试直接渲染,无需 fake service。 */
@@ -107,8 +108,9 @@ describe('拼音积木 · 游戏', () => {
     expect(screen.getByText('🐴')).toBeInTheDocument()
     expect(screen.getByLabelText('拼装台')).toBeInTheDocument()
     // 零文本:汉字只在拼对之后作为答案出现,作答期间游戏区只有字母与声调走势线
-    const gameArea = container.querySelector('.relative')
-    expect(gameArea?.textContent ?? '').not.toMatch(/[一-鿿]/)
+    const gameArea = container.querySelector('[data-game-area]')
+    expect(gameArea, '缺少 data-game-area 游戏区锚点').not.toBeNull()
+    expect(gameArea?.textContent ?? '').not.toMatch(HAN_TEXT)
   })
 
   it('拼对后同时亮出拼音与对应汉字(认读要扣到字上)', async () => {
@@ -116,6 +118,22 @@ describe('拼音积木 · 游戏', () => {
     solveCorrectly(1, 1)
     expect(await screen.findByText('mǎ')).toBeInTheDocument()
     expect(screen.getByText('马')).toBeInTheDocument()
+  })
+
+  // 零汉字在**关卡页**是假的 —— 答案行那个同音汉字是教学内容,故意留的(设计 §2)。
+  // 所以这里断的不是「零」,而是「唯一 + 等值」:多出来一个汉字就红。
+  it('拼对后,直接文本含汉字的元素恰好一个 —— 就是答案行的同音汉字', async () => {
+    const { container } = mount(1, 1) // 🐴 mǎ
+    solveCorrectly(1, 1)
+    expect(await screen.findByText('mǎ')).toBeInTheDocument()
+
+    // 「直接文本」= 该元素**自身的文本子节点**,不含后代 —— 否则整棵树的根节点永远"含汉字",
+    // 断言就退化成「页面里有汉字」,等于没写。答案行今天是两个并列 span(拼音 / 汉字),只有后者命中。
+    const carriers = [...container.querySelectorAll<HTMLElement>('*')].filter((el) =>
+      [...el.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && HAN_TEXT.test(node.textContent ?? '')),
+    )
+    expect(carriers.map((el) => el.textContent)).toEqual([UNITS[1]!.levels[1]!.read])
+    expect(carriers[0]?.hasAttribute('data-answer-read'), '命中汉字的那个元素不是答案行').toBe(true)
   })
 
   /** 点「介母 u」进介母槽,返回落位的那块 —— 题目(guā)里 u 唯一,不必猜顺序。 */

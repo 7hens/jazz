@@ -414,7 +414,14 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
   )
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 pb-5">
+    <div
+      // 游戏区锚点。**必须有这个 data-* ** —— 测试原本用 `container.querySelector('.relative')`,
+      // 而槽位内层(焊缝定位那一层)也带 `relative`;一旦本行掉了 `relative` 类,
+      // 选择器会**静默命中第一个槽位的内层**,零文本扫描面缩到单个槽、测试照旧全绿。
+      // 同 `data-answer-read` 的先例:锚点用 data-*,别用会随样式漂移的类名。
+      data-game-area
+      className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 pb-5"
+    >
       {/* 重听塞在角落、压暗 —— 玩法是**看图猜音再拼**,声音是兜底不是入口;
           摆在题面正下方,孩子会一路点着听过去,拼读就不发生了。 */}
       <button
@@ -490,7 +497,7 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
         {status === 'solved' ? (
           <>
             <span className="text-lg font-bold tracking-[0.3em] text-ink-3">{level.pinyin}</span>
-            <span className="text-3xl font-extrabold text-ink">{level.read}</span>
+            <span data-answer-read className="text-3xl font-extrabold text-ink">{level.read}</span>
           </>
         ) : null}
       </div>

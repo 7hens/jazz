@@ -1,8 +1,21 @@
 import { useEffect } from 'react'
 import { motion } from 'motion/react'
+import type { CelebrateLevel } from '@/shared/services'
+import { REWARD_CARD } from '@/shared/ui/reward-card'
+import { cn } from '@/shared/ui/utils'
 
-export function LuckyBonus({ amount, onDone }: { amount: number; onDone: () => void }) {
+export function LuckyBonus({
+  amount,
+  onDone,
+  // 由组合层注入(同 AchievementPopup);不传则静默(测试 / 纯预览)。
+  celebrate,
+}: {
+  amount: number
+  onDone: () => void
+  celebrate?: (level: CelebrateLevel) => void
+}) {
   useEffect(() => {
+    if (typeof celebrate === 'function') celebrate('lucky')
     const t = window.setTimeout(onDone, 2600)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -12,13 +25,15 @@ export function LuckyBonus({ amount, onDone }: { amount: number; onDone: () => v
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-xs rounded-[2rem] border border-amber/50 bg-amber-100 p-6 text-center shadow-pop"
+        data-reward-card
+        // 同 AchievementPopup:可见面零文本,读屏只能靠这个固定名字知道「这是幸运奖励」;
+        // 卡片是无 role 的 div ⇒ 这个名字**可能不进无障碍树**(登记见 `docs/dev-reference.md` 前端 3 层明细末)。
+        aria-label="幸运奖励"
+        className={cn(REWARD_CARD, 'border-amber/50 bg-amber-100')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-5xl" aria-hidden>🍀</div>
-        <h2 className="mt-3 text-xl font-extrabold text-amber">好运来了!</h2>
-        <p className="mt-1 text-sm text-ink-2">灵灵在草丛里找到了一颗隐藏星尘!</p>
-        <p className="mt-2 text-lg font-extrabold text-amber">+{amount} ⭐</p>
+        <p className="mt-3 text-lg font-extrabold text-amber">+{amount} ⭐</p>
       </motion.div>
     </div>
   )
