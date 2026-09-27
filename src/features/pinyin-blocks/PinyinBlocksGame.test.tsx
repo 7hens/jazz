@@ -435,6 +435,29 @@ describe('拼音积木 · 游戏', () => {
     expect(document.querySelector('[data-slot-id="s0-f"]')?.classList.contains('pslot--filled')).toBe(true)
   })
 
+  // 判据接线在 PinyinBlocksGame.tsx 里(losesDots(声母, 块值)),不在 BlockChip 里 ——
+  // 单测组件只能证明「给了 dotsAway 会怎样」,证明不了「哪一关真的给了」。
+  // 下面两关只差一个声母,一个飞点、一个留点:把那条接线反过来(或把实参对调),两关各红一半。
+  it('jú 的 ü 块落位后两点飞走,块面读 u', () => {
+    mount(...at('u9-50')) // 🍊 jú = j + ü
+    fireEvent.keyDown(screen.getByLabelText('积木 ü'), { key: 'Enter' })
+
+    const chip = document.querySelector('[data-slot-id="s0-f"] .pblock')
+    expect(chip, 'ü 该落进韵母槽').not.toBeNull()
+    expect(chip?.querySelector('.pb-dot'), 'j 之后的 ü 该飞两点').not.toBeNull()
+    expect(chip?.textContent, '块面该是去点后的 u').toBe('u')
+  })
+
+  it('nǚ 的 ü 块落位后两点不飞,块面仍读 ü', () => {
+    mount(...at('u9-55')) // 👧 nǚ = n + ü
+    fireEvent.keyDown(screen.getByLabelText('积木 ü'), { key: 'Enter' })
+
+    const chip = document.querySelector('[data-slot-id="s0-f"] .pblock')
+    expect(chip, 'ü 该落进韵母槽').not.toBeNull()
+    expect(chip?.querySelector('.pb-dot'), 'n 之后的 ü 得留着两点').toBeNull()
+    expect(chip?.textContent, '块面该原样读 ü').toBe('ü')
+  })
+
   it('整体认读音节拼对后出现焊接标记(zhī)', async () => {
     mount(...at('u6-0')) // 🕷️ zhī
     solveCorrectly(...at('u6-0'))

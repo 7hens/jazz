@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hintFor, speakOf } from './blocks'
-import { UNITS, type Level } from './levels'
+import { UNITS, losesDots, type Level } from './levels'
 import {
   autoTargetId,
   buildBlocks,
@@ -378,6 +378,8 @@ function PinyinRound({ unitIdx, lvlIdx, round, speak, playSound, onBlock, onSolv
             value={block.value}
             placed
             welded={welded && status === 'solved' && Boolean(level.syl[slot.sylIdx]?.weld)}
+            // 触发判据与答案行的拼写同源:同一个 losesDots,渲染层不重算结构。
+            dotsAway={losesDots(level.syl[slot.sylIdx]?.initial, block.value)}
             onClick={() => takeBack(slot.id)}
             className={cn(boxFor(slot), isTone && PLACED_TONE)}
             data-block-id={block.id}

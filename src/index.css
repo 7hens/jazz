@@ -282,6 +282,31 @@
     0 3px 0 var(--pb-edge);
 }
 
+/* ü 飞走的两点。位置是「第一个字母的左上」—— `ü` 与 `ue` 两点都在同一处,
+   故一个固定的 left 就够,不需要按字形分支。颜色跟块面墨色走(currentColor)。 */
+.pb-glyph {
+  position: relative;
+  display: inline-block;
+}
+
+.pb-dot {
+  position: absolute;
+  left: 0.16em;
+  top: 0.04em;
+  width: 0.2em;
+  height: 0.2em;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0.3em 0 0 0 currentColor;
+  pointer-events: none;
+  animation: pb-dots-away 0.3s ease-out forwards;
+}
+
+@keyframes pb-dots-away {
+  from { opacity: 1; transform: translateY(0) }
+  to { opacity: 0; transform: translateY(-0.55em) }
+}
+
 @keyframes pblock-shake {
   0%, 100% { transform: translateX(0) }
   18% { transform: translateX(-8px) }

@@ -18,6 +18,26 @@ function ToneGlyph({ value }: { value: string }) {
   )
 }
 
+/**
+ * 块面字形。`dotsAway` 时写**去点后**的字形(`ü` → `u`、`üe` → `ue`),两点叠在第一个字母上飞走
+ * —— 孩子看到的就是「j q x y 把两点带走了」。
+ *
+ * 两点不是字符(`ü` 是一个字符),故用**一个**元素画两个圆点(`box-shadow` 复制一份):
+ * 少一层 DOM,也免了两个点各自对齐时的漂移。在位槽里块面尺寸由调用方的 className 定死,不随字形变。
+ *
+ * 减弱动效由 `index.css` 顶部那条全局 `prefers-reduced-motion` 规则接管
+ * (`animation-duration: 0.01ms`),动画瞬间落到终态 = 直接显示去点后的结果,不另写一条。
+ */
+function renderGlyph(value: string, dotsAway: boolean | undefined) {
+  if (!dotsAway || !value.startsWith('ü')) return value
+  return (
+    <span className="pb-glyph">
+      {`u${value.slice(1)}`}
+      <span className="pb-dot" aria-hidden="true" />
+    </span>
+  )
+}
+
 export type BlockChipProps = {
   /** 块类。入槽后传的是「槽位类型」—— 颜色跟着位置走,站在介母位才穿那身过渡色。 */
   type: BlockType
@@ -25,6 +45,8 @@ export type BlockChipProps = {
   placed?: boolean
   dim?: boolean
   welded?: boolean
+  /** 这一块的两点该飞走(j q x y 之后拼 ü)。由调用方用 `losesDots` 判 —— 组件不重算结构。 */
+  dotsAway?: boolean
   disabled?: boolean
   className?: string
   onClick?: () => void
@@ -43,6 +65,7 @@ export function BlockChip({
   placed,
   dim,
   welded,
+  dotsAway,
   disabled,
   className,
   onClick,
@@ -67,7 +90,7 @@ export function BlockChip({
       aria-hidden={placed ? undefined : true}
       {...rest}
     >
-      {isTone ? <ToneGlyph value={value} /> : value}
+      {isTone ? <ToneGlyph value={value} /> : renderGlyph(value, dotsAway)}
     </div>
   )
 }
