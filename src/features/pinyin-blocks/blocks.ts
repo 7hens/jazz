@@ -85,21 +85,24 @@ export const TONE_PATH: Readonly<Record<string, string>> = {
 export type Hint = 'strong' | 'mid' | 'weak'
 
 /**
- * 每个单元的提示基线。脚手架随课程推进撤掉(u1-u3 强 → u4-u5 中 → u6-u7 弱),
+ * 每个单元的提示基线。脚手架随课程推进撤掉(u1-u4 强 → u5-u8 中 → u9-u12 弱),
  * 跟难度曲线同步,而不是孩子一进关就面对满屏颜色。
+ * **复习关不参与这张表** —— 它恒弱(见 `hintFor`)。
  */
 export const HINT_BY_UNIT: Readonly<Record<string, Hint>> = {
-  u1: 'strong', u2: 'strong', u3: 'strong',
-  u4: 'mid', u5: 'mid',
-  u6: 'weak', u7: 'weak',
+  u1: 'strong', u2: 'strong', u3: 'strong', u4: 'strong',
+  u5: 'mid', u6: 'mid', u7: 'mid', u8: 'mid',
+  u9: 'weak', u10: 'weak', u11: 'weak', u12: 'weak',
 }
 
 /**
- * 本关此刻的提示档。连错 2 次临时提到强档 —— 脚手架既要会撤,也要能回来。
- * 只升不降:卡住时把颜色加回来,不会在孩子答对几次后又抽走。
- * 表里没有的单元 id 兜底强档(宁可多给线索,也不要让新单元变成一块灰砖)。
+ * 本关此刻的提示档。
+ *
+ * - 连错 2 次临时提到强档 —— 脚手架既要会撤,也要能回来。**优先于一切**,包括复习关。
+ * - 复习关恒弱:难度靠「块多、池混、提示弱」三件事,不再靠新机制。
+ * - 表里没有的单元 id 兜底强档(宁可多给线索,也不要让新单元变成一块灰砖)。
  */
-export function hintFor(unitId: string, missCount: number): Hint {
+export function hintFor(unitId: string, missCount: number, review = false): Hint {
   if (missCount >= 2) return 'strong'
-  return HINT_BY_UNIT[unitId] ?? 'strong'
+  return review ? 'weak' : (HINT_BY_UNIT[unitId] ?? 'strong')
 }

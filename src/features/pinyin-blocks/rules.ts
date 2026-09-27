@@ -110,7 +110,8 @@ export function buildBlocks(level: Level, unit: number, rng: Rng = Math.random):
   const tones = toneBlocks(level)
   const takenKeys = new Set([...required, ...tones].map(keyOf))
   const types = [...new Set(required.map((b) => b.type))]
-  const cap = level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
+  // 复习关的干扰块拉满 —— 难度的三件事之一(另两件:池天然混入前面单元的块、提示恒弱)。
+  const cap = level.review ? 5 : level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
 
   // 干扰块只从「该单元及之前课程里出现过的块」里取 —— 池子由课程数据派生,零硬编码。
   const taught = new Map<BlockType, string[]>()

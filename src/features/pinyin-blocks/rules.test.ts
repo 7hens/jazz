@@ -192,7 +192,7 @@ describe('buildBlocks', () => {
     for (let unit = 0; unit < UNITS.length; unit++) {
       for (const level of UNITS[unit]!.levels) {
         const blocks = buildBlocks(level, unit, seq([0.2, 0.8, 0.5, 0.35]))
-        const cap = level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
+        const cap = level.review ? 5 : level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
         const extra = blocks.length - requiredBlocks(level).length - toneBlocks(level).length
         expect(extra, `${level.pinyin}`).toBeLessThanOrEqual(cap)
         expect(extra, `${level.pinyin}`).toBeGreaterThanOrEqual(0)

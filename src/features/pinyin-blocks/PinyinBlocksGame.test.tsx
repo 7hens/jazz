@@ -477,37 +477,42 @@ describe('拼音积木 · 游戏', () => {
     }
   })
 
-  // 中档是强/弱之间的那一格。两档好写,中间那档最容易在改动里被漏掉。
-  it('提示档「中」:容器带中档类', () => {
-    render(<PinyinBlocksGame unitIndex={3} levelIndex={0} speak={vi.fn()} />) // u4 = 中档
+  // 强档 = 不挂任何降档类(容器基色就是强档)。u4 在 12 单元表里从「中」升回「强」——
+  // 这条钉住「升回强档时降档类真的被摘掉」,而不只是某一档还在。
+  it('提示档「强」:容器不挂降档类', () => {
+    render(<PinyinBlocksGame unitIndex={3} levelIndex={0} speak={vi.fn()} />) // u4 = 强档
     const stage = screen.getByLabelText('拼装台')
-    expect(stage.classList.contains('pslots--mid')).toBe(true)
+    expect(stage.classList.contains('pslots--mid')).toBe(false)
     expect(stage.classList.contains('pslots--weak')).toBe(false)
+    // 类型类仍在(slot 的语义没变),浓淡交给 --slot-line/--slot-fill
+    expect(document.querySelector('.pslot--initial, .pslot--final')).not.toBeNull()
   })
 
-  it('提示档「弱」:容器带降档类,颜色由变量归零', () => {
-    render(<PinyinBlocksGame unitIndex={6} levelIndex={0} speak={vi.fn()} />) // u7 = 弱档
+  // 中档是强/弱之间的那一格。u7 在 12 单元表里从「弱」退回「中」——
+  // 弱档要等批二换上 u9-u12 的数据,才有能渲染出 `pslots--weak` 的单元。
+  it('提示档「中」:容器带中档类', () => {
+    render(<PinyinBlocksGame unitIndex={6} levelIndex={0} speak={vi.fn()} />) // u7 = 中档
     const stage = screen.getByLabelText('拼装台')
-    expect(stage.classList.contains('pslots--weak')).toBe(true)
+    expect(stage.classList.contains('pslots--mid')).toBe(true)
     // 三档互斥:同时挂两个降档类,今天的观感全靠 CSS 里两条规则的先后 —— 那是巧合不是契约。
-    expect(stage.classList.contains('pslots--mid')).toBe(false)
+    expect(stage.classList.contains('pslots--weak')).toBe(false)
     // 类型类仍在(slot 的语义没变),浓淡交给 --slot-line/--slot-fill
     expect(document.querySelector('.pslot--initial, .pslot--final')).not.toBeNull()
   })
 
   // 脚手架既要会撤,也要能回来 —— 卡住的时候颜色得回来。
   it('同一关连错 2 次,容器回强档', () => {
-    render(<PinyinBlocksGame unitIndex={6} levelIndex={0} speak={vi.fn()} />) // u7 = 弱档
+    render(<PinyinBlocksGame unitIndex={6} levelIndex={0} speak={vi.fn()} />) // u7 = 中档
     const stage = () => screen.getByLabelText('拼装台')
-    expect(stage().classList.contains('pslots--weak')).toBe(true)
+    expect(stage().classList.contains('pslots--mid')).toBe(true)
     // 声调块恒四调全出,xī guā 两句都是阴平 → 「声调块 2」必定无处可落。
     // 用它而不是干扰块:干扰块由 makeRng 决定,拿它当判据等于把测试绑在发牌上。
     const wrong = screen.getByLabelText('声调块 2')
     fireEvent.keyDown(wrong, { key: 'Enter' })
-    expect(stage().classList.contains('pslots--weak'), '错 1 次还不回强').toBe(true)
+    expect(stage().classList.contains('pslots--mid'), '错 1 次还不回强').toBe(true)
     fireEvent.keyDown(wrong, { key: 'Enter' })
-    expect(stage().classList.contains('pslots--weak'), '错 2 次该回强').toBe(false)
-    expect(stage().classList.contains('pslots--mid')).toBe(false)
+    expect(stage().classList.contains('pslots--mid'), '错 2 次该回强').toBe(false)
+    expect(stage().classList.contains('pslots--weak')).toBe(false)
   })
 
   it('关卡数据里每一题都能被渲染出来(不炸)', () => {

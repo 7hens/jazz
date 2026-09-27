@@ -30,6 +30,11 @@ export type Level = {
    */
   readonly read: string
   readonly syl: readonly Syllable[]
+  /**
+   * 复习关:本单元最后一关。数据里**只记语义** —— 提示档与干扰块数由 `blocks.ts` / `rules.ts`
+   * 派生。把 `hint: 'weak'` 之类直接写进数据,产品口径一变就要逐关改 12 处。
+   */
+  readonly review?: boolean
 }
 
 export type Unit = {

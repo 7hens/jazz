@@ -179,14 +179,13 @@ describe('拼音积木关卡数据', () => {
 
   // 撤档的**位置**是产品决策(哪几个单元还看得见颜色),不是实现细节 —— 钉边界,不抄整张表。
   // 到最后一关还全染色,颜色就成了拐杖;这也是唯一挡得住「整张表被改成全 strong」的东西。
-  // u5 也钉住:留一个能自由改的格子,档位边界就会被静默挪走(中档缩成只剩 u4 一关也算「中档」)。
-  it('脚手架逐段撤走:强档到 u3,中档到 u5,末两关不许再有颜色', () => {
-    expect(HINT_BY_UNIT.u1, '开局必须给满脚手架').toBe('strong')
-    expect(HINT_BY_UNIT.u3, 'u1-u3 是强档').toBe('strong')
-    expect(HINT_BY_UNIT.u4, 'u4 起撤到中档').toBe('mid')
-    expect(HINT_BY_UNIT.u5, '中档要覆盖 u4-u5,不许缩成一关').toBe('mid')
-    expect(HINT_BY_UNIT.u6, 'u6 起撤到弱档').toBe('weak')
-    expect(HINT_BY_UNIT.u7, '最后一关还染色 —— 颜色就成了拐杖').toBe('weak')
+  // 每个档位钉住**两格**(首格 + 末格):留一个能自由改的格子,档位边界就会被静默挪走
+  // (中档缩成只剩 u5 一关也算「中档」)。末行钉格数,防止偷偷多一格少一格。
+  it('脚手架逐段撤走:强档到 u4,中档到 u8,末四关不许再有颜色', () => {
+    for (const id of ['u1', 'u2', 'u3', 'u4']) expect(HINT_BY_UNIT[id], `${id} 该是强档`).toBe('strong')
+    for (const id of ['u5', 'u6', 'u7', 'u8']) expect(HINT_BY_UNIT[id], `${id} 该是中档`).toBe('mid')
+    for (const id of ['u9', 'u10', 'u11', 'u12']) expect(HINT_BY_UNIT[id], `${id} 该是弱档`).toBe('weak')
+    expect(Object.keys(HINT_BY_UNIT), '表的格数').toHaveLength(12)
   })
 
   // 连错回强是「救急垫脚石」,不是存档:它只该让提示变强,不该让它变弱。
@@ -204,5 +203,27 @@ describe('拼音积木关卡数据', () => {
   it('表里没有的单元 id 兜底强档', () => {
     expect(hintFor('u99', 0)).toBe('strong')
     expect(hintFor('', 0)).toBe('strong')
+  })
+
+  // 复习关是难度的另一半:提示档不参与单元基线表,恒弱(连错 2 次的救急强档除外)。
+  // 漏改 `PinyinBlocksGame.tsx` 的第三参时 review 恒为 false,复习关会**静默**用单元基线 ——
+  // 这条就是为那一类静默失败设的。
+  it('复习关的提示恒为弱档,除非连错 2 次', () => {
+    for (const u of UNITS) {
+      expect(hintFor(u.id, 0, true), `${u.id} 复习关该是弱档`).toBe('weak')
+      expect(hintFor(u.id, 1, true), `${u.id} 复习关错一次仍是弱档`).toBe('weak')
+      expect(hintFor(u.id, 2, true), `${u.id} 连错 2 次要回强档`).toBe('strong')
+    }
+  })
+
+  // 复习关的数据里只有语义(`review: true`),位置与数量都得是真的:
+  // 漏标 = 这一单元没有复习关;标错位置 = 孩子还没学完就先考。
+  // ⏳ 批二启用:今天的数据里还没有任何 `review: true`,启用于 Task 5 末尾。
+  it.skip('每单元最后一关是复习关,且每单元恰好一个', () => {
+    for (const u of UNITS) {
+      const reviews = u.levels.filter((level) => level.review === true)
+      expect(reviews, `${u.id} 的复习关数`).toHaveLength(1)
+      expect(u.levels.at(-1)?.review, `${u.id} 的复习关不在最后一关`).toBe(true)
+    }
   })
 })
