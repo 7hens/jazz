@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TONE_VALUES, type Block } from './blocks'
-import { UNITS } from './levels'
+import { UNITS, type Level } from './levels'
 import {
   autoTargetId,
   buildBlocks,
@@ -24,10 +24,25 @@ const seq = (values: number[]): Rng => {
   return () => values[i++ % values.length] as number
 }
 
-const lv = (unit: number, index: number) => UNITS[unit]!.levels[index]!
-const GUĀ = lv(4, 0) // 🍉 guā = g + 介母 u + a
-const ZHĪ = lv(5, 0) // 🕷️ zhī = zh + i(焊死)
-const XĪGUĀ = lv(6, 0) // 🍉 xī guā = 双音节
+/** 按存档键取关。关卡顺序会变,**id 不会** —— 按序号取关在挪关后会静默指错题。 */
+function byId(id: string): Level {
+  for (const u of UNITS) for (const level of u.levels) if (level.id === id) return level
+  throw new Error(`没有这一关:${id}`)
+}
+
+/** 关所属单元的下标 —— `buildBlocks` 要它。 */
+function unitIdxOf(id: string): number {
+  const index = UNITS.findIndex((u) => u.levels.some((level) => level.id === id))
+  if (index < 0) throw new Error(`没有这一关:${id}`)
+  return index
+}
+
+/** `buildBlocks` 的单元下标参数一律由关卡自己的 id 推 —— 测试里不再手写「第几个单元」。 */
+const build = (level: Level, rng: Rng) => buildBlocks(level, unitIdxOf(level.id), rng)
+
+const GUĀ = byId('u5-0') // 🍉 guā = g + 介母 u + a
+const ZHĪ = byId('u6-0') // 🕷️ zhī = zh + i(焊死)
+const XĪGUĀ = byId('u7-0') // 🍉 xī guā = 双音节
 
 /**
  * 该单元及之前课程里出现过的某类块值 —— **独立于 `levels.ts` 的 `taughtBlocks` 重算一遍**。
@@ -53,19 +68,19 @@ const withId = (b: Block, id: string): TrayBlock => ({ ...b, id })
 
 describe('slotsFor', () => {
   it('按 声母 → 介母 → 韵母 → 鼻音 排,声调槽骑在韵腹上方', () => {
-    const slots = slotsFor(lv(4, 2)) // 🐻 xióng = x + 介母 i + o + ng
+    const slots = slotsFor(byId('u5-2')) // 🐻 xióng = x + 介母 i + o + ng
     expect(slots.map((s) => s.type)).toEqual(['initial', 'medial', 'final', 'nasal', 'tone'])
     expect(slots.find((s) => s.type === 'tone')?.anchor).toBe('s0-f')
   })
 
   it('y + ü 合成的音节(整体认读)照样摊成两块,声调仍骑韵腹', () => {
-    const slots = slotsFor(lv(5, 4)) // 🐟 yú = y + ü
+    const slots = slotsFor(byId('u6-4')) // 🐟 yú = y + ü
     expect(slots.map((s) => s.type)).toEqual(['initial', 'final', 'tone'])
     expect(slots.find((s) => s.type === 'tone')?.anchor).toBe('s0-f')
   })
 
   it('零声母音节不摆空声母槽', () => {
-    const slots = slotsFor(lv(2, 2)) // ❤️ ài
+    const slots = slotsFor(byId('u3-2')) // ❤️ ài
     expect(slots.map((s) => s.type)).toEqual(['final', 'tone'])
   })
 
@@ -118,21 +133,21 @@ describe('requiredBlocks(含重复)', () => {
   })
 
   it('两个音节同块时要两块 —— 去重会让后一个音节无块可放', () => {
-    const niuNai = lv(6, 2) // 🥛 niú nǎi:两个 n 声母
+    const niuNai = byId('u7-2') // 🥛 niú nǎi:两个 n 声母
     const nCount = requiredBlocks(niuNai).filter((b) => b.type === 'initial' && b.value === 'n').length
     expect(nCount).toBe(2)
 
-    const huaDuo = lv(6, 4) // 🌸 huā duǒ:两个介母 u
+    const huaDuo = byId('u7-4') // 🌸 huā duǒ:两个介母 u
     const uCount = requiredBlocks(huaDuo).filter((b) => b.type === 'medial' && b.value === 'u').length
     expect(uCount).toBe(2)
   })
 
   // iu(← iou)、ui(← uei)是独立韵母。拆成 i+ou 会拼出 niou、拆成 u+ei 会拼出 guei —— 两个不存在的音。
   it('iu / ui 是整块韵母,不摊成介母 + 韵母', () => {
-    const guī = lv(2, 5) // 🐢 guī
+    const guī = byId('u3-5') // 🐢 guī
     expect(requiredBlocks(guī).map((b) => `${b.type}:${b.value}`)).toEqual(['initial:g', 'final:ui'])
 
-    const niú = lv(6, 2).syl[0]! // 🥛 niú
+    const niú = byId('u7-2').syl[0]! // 🥛 niú
     expect(niú).toMatchObject({ initial: 'n', final: 'iu' })
     expect(niú.medial).toBeUndefined()
   })
@@ -150,7 +165,7 @@ describe('requiredBlocks(含重复)', () => {
 
 describe('buildBlocks', () => {
   it('所需块与声调块一块不少', () => {
-    const blocks = buildBlocks(GUĀ, 4, seq([0.1, 0.7, 0.3, 0.9]))
+    const blocks = build(GUĀ, seq([0.1, 0.7, 0.3, 0.9]))
     for (const need of [...requiredBlocks(GUĀ), ...toneBlocks(GUĀ)]) {
       expect(blocks.some((b) => b.type === need.type && b.value === need.value)).toBe(true)
     }
@@ -186,8 +201,9 @@ describe('buildBlocks', () => {
   })
 
   it('双音节题不超上限(块数不炸)', () => {
-    for (const level of UNITS[6]!.levels) {
-      expect(buildBlocks(level, 6, seq([0.5])).length).toBeLessThanOrEqual(
+    const unit = unitIdxOf('u7-0') // 双音节单元 —— 批二之后 UNITS[6] 不再是它
+    for (const level of UNITS[unit]!.levels) {
+      expect(build(level, seq([0.5])).length).toBeLessThanOrEqual(
         requiredBlocks(level).length + toneBlocks(level).length + 2,
       )
     }
@@ -241,7 +257,7 @@ describe('autoTargetId', () => {
 
   it('没有同类型空槽时,双身份块退到另一类槽', () => {
     // 🍐 lí = l + 韵母 i,题面没有介母槽 → 托盘里的介母 i 应能落进韵母槽
-    const liSlots = slotsFor(lv(1, 3))
+    const liSlots = slotsFor(byId('u2-3'))
     expect(autoTargetId({ type: 'medial', value: 'i' }, liSlots, {})).toBe('s0-f')
   })
 
