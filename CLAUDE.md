@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-「魔法语言岛」v2 — 拼音积木岛 — 面向儿童的拼音拼读游戏(自托管单机全栈,仓库里**只有这一套玩法**)。孩子扮演「语言小魔法师」,在地图上按单元解锁 **7 个单元 / 37 关**(单韵母 → 二拼 → 复韵母 → 鼻韵母 → 三拼介母 → 整体认读焊接 → 双音节词):每关给一张图 + 一个(或两个)音节,孩子从积木盘里挑出正确的声母/介母/韵母/鼻音块拼进凹槽、再给韵腹盖上声调块;放错累计 `miss`,一关 0 次错 = 3 星、≤2 次 = 2 星、其余 = 1 星(1 星即通关,不会「失败」)。通关产出星级 + 星尘(连击加成 / 幸运奖励 / 成就奖励),8 条隐藏成就按关卡口径扫描。MVP 闭环:登录后单档案进度**每 user 一行**(每关星级 JSON + 星尘累计,两条线单调升)存服务端。技术栈:React 19 + TS + Vite(:3000)+ Tailwind 4 + motion 前端;Cloudflare Workers(`worker/`)后端,`@cloudflare/vite-plugin` dev 内嵌 workerd;D1(binding `DB`,本地 `.wrangler/state`);单一访问令牌(env `ADMIN_TOKEN`)登录后存 HttpOnly `jazz_token` cookie 永不过期;发音走浏览器 `SpeechSynthesis`(读的是**同音汉字**,不是拼音串)。
+「魔法语言岛」v2 — 拼音积木岛 — 面向儿童的拼音拼读游戏(自托管单机全栈,仓库里**只有这一套玩法**)。孩子扮演「语言小魔法师」,在地图上按单元解锁 **12 个单元 / 91 关**(单韵母 → 声母三组 → 复韵母 → 前/后鼻韵母 → 三拼介母 → ü 行韵母 → 整体认读两组 → 双音节词,每单元末一个复习关):每关给一张图 + 一个(或两个)音节,孩子从积木盘里挑出正确的声母/介母/韵母/鼻音块拼进凹槽、再给韵腹盖上声调块;放错累计 `miss`,一关 0 次错 = 3 星、≤2 次 = 2 星、其余 = 1 星(1 星即通关,不会「失败」)。通关产出星级 + 星尘(连击加成 / 幸运奖励 / 成就奖励),8 条隐藏成就按关卡口径扫描。MVP 闭环:登录后单档案进度**每 user 一行**(每关星级 JSON + 星尘累计,两条线单调升)存服务端。技术栈:React 19 + TS + Vite(:3000)+ Tailwind 4 + motion 前端;Cloudflare Workers(`worker/`)后端,`@cloudflare/vite-plugin` dev 内嵌 workerd;D1(binding `DB`,本地 `.wrangler/state`);单一访问令牌(env `ADMIN_TOKEN`)登录后存 HttpOnly `jazz_token` cookie 永不过期;发音走浏览器 `SpeechSynthesis`(读的是**同音汉字**,不是拼音串)。
 
 **需求/任务管理**:统一收口 `docs/PLAN.md`(当前迭代 P0 / 想法池 P1·P2 / 坚决不做),单一事实源,防漂移。
 
@@ -21,7 +21,7 @@ npm run deploy         # build && wrangler deploy(生产 = 默认 env)
 npm run deploy:preview # build && wrangler deploy --env preview(独立 D1,冒烟用)
 ```
 
-`npm test` 覆盖关卡数据完整性(7 单元 / 37 关 / 块显式写死)、积木规则(槽位 / 干扰块 / 星级)、结算与成就、各 feature 服务与组件、`architecture.test.ts`(shared/features/app 3 层边界与注册纪律,违反即红)。
+`npm test` 覆盖关卡数据完整性(12 单元 / 91 关 / 块显式写死)、积木规则(槽位 / 干扰块 / 星级)、结算与成就、各 feature 服务与组件、`architecture.test.ts`(shared/features/app 3 层边界与注册纪律,违反即红)。
 
 **发布**:执行流水线(步骤/闸门/坑)走 `/release`(项目 skill);发布行为改动时 skill 与本仓库事实**两处同步**。版本规范/部署红线事实见 `docs/dev-reference.md`「部署与版本发布」。
 

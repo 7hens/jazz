@@ -104,7 +104,8 @@
 
 发音唯一出口 = `features/speech`(契约 `shared/services/speech.ts`);关卡数据 = `features/pinyin-blocks/levels.ts`。
 
-- **关卡数据**:`UNITS` = **7 单元 / 37 关**(单韵母 / 二拼 / 复韵母 / 鼻韵母 / 三拼介母 / 焊接音 / 双音节词),单元顺序即难度阶梯。`Unit.badge`(地图格里的名片块)与 `Level.syl`(槽位来源)都**显式写死,不由拼音串反推** —— 数据即答案,反推逻辑藏在解析器里出错更难查。
+- **关卡数据**:`UNITS` = **12 单元 / 91 关**(单韵母 / 声母·双唇舌尖 / 声母·舌根舌面 / 声母·翘舌平舌 / 复韵母 / 前鼻韵母 / 后鼻韵母 / 三拼·介母 / ü 行韵母 / 整体认读·一 / 整体认读·二 / 双音节词),单元顺序即难度阶梯,每单元末关 `review: true`。`Unit.badge`(地图格里的名片块)与 `Level.syl`(槽位来源)都**显式写死,不由拼音串反推** —— 数据即答案,反推逻辑藏在解析器里出错更难查。
+- **`Level.pinyin` 有机器守卫**:`levels.ts` 的 `spell(level)` 由 `syl` 结构拼出显示串(零声母 y/w 改写、`j q x y` 之后 ü 去点、标调位置),`levels.test.ts` 逐关断言 `pinyin === spell(syl)`。手写数据下这是唯一挡得住「屏幕上显示的和积木拼出来的不是一回事」的东西。同一个 `losesDots(initial, value)` 也是关内「两点飞走」动画的判据 —— 判据只此一处。
 - **`Level.id` 形如 `u2-3` 是存档键,与显示顺序解耦**:挪关、插关都不改已有 id(序号只在建关时取一次)。改 id = 已存的星跟错关。
 - **朗读真相 = 同音汉字**:`Level.read` 必须是同音汉字(如 `pinyin: 'bà'` 配 `read: '爸'`),由 `LevelEntry` 以 `speech.speak(text, 'zh-CN')` 播出。系统 TTS 拿到 `bà` 这种拉丁串会逐字母念(或按英文规则念),所以**拼音串只上屏、不进 TTS**;关卡数据里没有 `speak` 字段,也没有从拼音反推读音的解析器。音效(对/错/通关)另走 `AudioService`(Web Audio 合成),与语音是两条路。
 - **speech 首响治理(0.2.0 发音延时/无声)**:`features/speech` 创建即 `getVoices()` 预取 + `voiceschanged` 刷新缓存(空轮询不覆盖好缓存);语音未就绪时保留**最新一条**朗读、就绪即补播(不静默丢);空闲冷启动**不 cancel** 立即播,仅引擎忙才 `cancel` 且隔 ~30ms 再播(防 Chrome 同 tick 吞句头);有 voices 但无匹配 voice 时降级引擎默认音(utterance 只带 BCP47 `lang`);**不做引擎暖机**(取舍 2026-09-09):曾用 `volume=0` 真音节想「无声唤醒」懒初始化 TTS(Chrome 需真实样本才起音频管线、空句不唤醒),但 Firefox/Chrome 语音后端不遵守 `utterance.volume=0`,暖机句会在会话首次交互真实响一声 → 暖机整体删除。`speak` 仅「无引擎 / 无语音源且永等不到 voices」时返 `false`(静默),入队与降级均返 `true`。
@@ -118,7 +119,7 @@
 
 - `src/shared/` — 无上层依赖的契约、纯逻辑与中性基础件:`services/*`(契约 + 数据类随契约归属,经 `services/index.ts` barrel 流出;`core.ts` = 服务访问机制核心 `ServiceToken`·`registry`·`useService`·`useServiceSnapshot` + 快照态 `LoadState`)、`ui/`(四个中性视觉基础件 button / card / input / label + `utils.ts` 的 `cn`(同源 `tailwind-merge`,features 可引);`quiz/` 整棵与 badge / select / chart-tooltip 已随旧玩法删除)
 - `src/features/<f>/` — 自包含模块,公共面 = 该目录 `index.ts`;feature 间**禁止编译期互引**。现存两组:
-  - **玩法**:`pinyin-blocks` —— `MapEntry` / `UnitMap`(单元地图,零文本名片用真积木渲染)、`LevelEntry`(关卡入口:取服务 + 组装 + 落库)、`PinyinBlocksGame` / `BlockChip`(玩法与积木渲染)、`levels.ts`(7 单元 / 37 关课程数据)、`blocks.ts`(块池 + 提示档 `HINT_BY_UNIT` / `hintFor`)、`rules.ts`(槽位 / 干扰块 / 星级,可注入 `rng`)、`settle.ts`(一次通关的结算)、`progress-stats.ts`(解锁 / 通关数 / 完美单元数)
+  - **玩法**:`pinyin-blocks` —— `MapEntry` / `UnitMap`(单元地图,零文本名片用真积木渲染)、`LevelEntry`(关卡入口:取服务 + 组装 + 落库)、`PinyinBlocksGame` / `BlockChip`(玩法与积木渲染)、`levels.ts`(12 单元 / 91 关课程数据 + `spell()` 拼写守卫)、`blocks.ts`(块池 + 提示档 `HINT_BY_UNIT` / `hintFor`)、`rules.ts`(槽位 / 干扰块 / 星级,可注入 `rng`)、`settle.ts`(一次通关的结算)、`progress-stats.ts`(解锁 / 通关数 / 完美单元数)
   - **服务型**(11 个):`api`(唯一 fetch 封装)、`auth`(`AuthEntry` 登录门 + `LoginGate`)、`pinyin-progress`(进度:乐观保存队列 + 只升不降合并)、`settings-state`(成就集 / 连续天数)、`achievements`(目录 + 扫描 + `AchievementPopup`)、`combo`(连击加成)、`lucky-bonus`(首次通关掷幸运)、`celebrate`(彩带)、`audio`(音效)、`speech`(TTS)、`toast`
 - `src/app/` — composition root:`bootstrap.ts`(**唯一生产 `registry.register` 点**,按依赖顺序注册 11 个服务 + 幂等守卫数组)、`App.tsx`(登录态驱动 + 页面状态路由 + 庆祝队列组装;玩法 / 结算 / 奖励 / 持久化规则不落 app)、`useAppState.ts`(相位状态机 `boot`/`login`/`map`/`level`/`parent`)、`ParentPanel.tsx`(家长面板:登出 / 重置进度)、`ErrorBoundary.tsx`。`src/main.tsx` = HTML 入口(`bootstrap()` + `ToastProvider` + `<App/>`)
 
