@@ -160,6 +160,45 @@ describe('拼音单元地图', () => {
     expect(rem, `${size} 塞进 32px 定宽盒会顶格/糊`).toBeLessThanOrEqual(1)
   })
 
+  /**
+   * 星排的布局预算:与上面 u7 那条同款 —— **钉输入类(含类名 token),不验证布局**。
+   * 星位数 = 该单元的关卡数,本课程最多 10 关(u4 / u5)。`.pstar` 是 `0.9rem`:
+   * `★`(U+2605)在 CJK 上下文按全角渲染 → 单颗约 14.4px,10 颗 + 9 个 `gap-0.5`(2px)= **162px**,
+   * 而 375px 手机(`grid-cols-2`)下格子内宽 =(375−32−16)/2 − `p-4`(32) − `border-2`(4)= **127.5px**
+   * (640px 那档 156px 同样不够)。`.pstar` 是文本节点(`min-width: auto`)缩不动,而 `flex` 默认 `nowrap`
+   * → 没有 `flex-wrap` 时星排不是被压扁,是**真的画到格子外**压到邻格(格子无 `overflow` 裁剪)。
+   * 折行是唯一安全网;`justify-center` 让折成两行时两行都居中,与名片行一致。
+   */
+  it('星排的布局预算:最多 10 关也靠 flex-wrap 折行,不越出格子', () => {
+    render(<UnitMap stars={{}} totalStars={0} onPick={vi.fn()} onOpenParent={vi.fn()} />)
+    const cell = document.querySelector('[data-unit-id="u4"]')
+    expect(cell, '取不到 u4 格子,下面的断言会静默空转').not.toBeNull()
+    // 星位是文本,取它的父元素才是星排容器(与上面从 `.pblock` 取名片行的手法同源)。
+    const star = cell!.querySelector('.pstar')
+    expect(star, '取不到星位,下面的断言会静默空转').not.toBeNull()
+    const row = star!.parentElement
+    expect(row, '星位没有父元素,取不到星排容器').not.toBeNull()
+
+    const token = (t: string) => new RegExp(`(?:^| )${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`)
+    const CONTRACT: readonly (readonly [string, string, string, string])[] = [
+      [
+        '星排换行',
+        row!.className,
+        'flex-wrap',
+        '星位数 = 该单元的关卡数,最多 10;10 × 14.4 + 9 × 2 = 162 > 127.5(375px 格内宽)—— 靠它折行,而不是越界压到邻格',
+      ],
+      [
+        '星排折行时居中',
+        row!.className,
+        'justify-center',
+        '折成两行时两行都居中,而不是左对齐(与名片行同款)',
+      ],
+    ]
+    for (const [what, cls, t, why] of CONTRACT) {
+      expect(cls, `${what}:丢了 ${t} —— ${why}`).toMatch(token(t))
+    }
+  })
+
   // `!` 不是为了当前的参数顺序(twMerge 自己就会删掉输家),而是为了**顺序变了也成立**。
   // 参与合并的**两个来源**的字号类都得从源码里读出来 —— 硬编码哪一个,都会和它声称要模拟的那个来源脱钩:
   // 块自己那支一旦也带上 `!`,硬编码的不带 `!` 的 `text-[1.75rem]` 照样被调用方压住,用例绿着放行。

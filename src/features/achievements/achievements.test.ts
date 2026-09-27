@@ -5,6 +5,9 @@ import type { AchievementState } from '@/shared/services'
 import { ACHIEVEMENTS, checkAchievements, createAchievementService } from './achievements'
 
 const BASE: AchievementState = {
+  // 测试夹具值,与真源无关:真源是 settle.ts 的 totalLevelCount(UNITS)(现为 91),
+  // 这里写 37 只是给下面各条用例造一个自洽的构造;改大改小只影响本文件自己的用例构造,
+  // 不会让任何断言更有意义 —— 别把它当成「关卡总数」去跟真源对齐。
   totalLevels: 37,
   completedLevels: 0,
   perfectLevels: 0,

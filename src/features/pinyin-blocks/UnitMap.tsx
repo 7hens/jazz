@@ -89,7 +89,7 @@ export function UnitMap({ stars, totalStars, onPick, onOpenParent }: UnitMapProp
               </span>
               {/* 星排:每一关各占一个星位(星位数 = 该单元的关卡数),通关的那几个才填色 ——
                   颜色由 .pstar / .pstar--on 给,不走块面那套 --pb 一族 */}
-              <span className="flex min-h-4 items-center gap-0.5" aria-hidden>
+              <span className="flex min-h-4 flex-wrap items-center justify-center gap-0.5" aria-hidden>
                 {unit.levels.map((level) => (
                   <span
                     key={level.id}
