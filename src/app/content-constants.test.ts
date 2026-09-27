@@ -28,12 +28,12 @@ beforeEach(() => {
 })
 
 describe('内容常量:真源口径', () => {
-  it('课程 = 7 单元 / 37 关', () => {
-    expect(UNITS, '单元数').toHaveLength(7)
+  it('课程 = 12 单元 / 91 关', () => {
+    expect(UNITS, '单元数').toHaveLength(12)
     expect(
       UNITS.reduce((sum, unit) => sum + unit.levels.length, 0),
       '关数 = 各单元相加',
-    ).toBe(37)
+    ).toBe(91)
     // 每个单元至少一关:否则上面的「相加」可以靠一个空单元凑出来,而空单元在玩法里没有意义。
     for (const unit of UNITS) expect(unit.levels, `${unit.id} 的关卡`).not.toHaveLength(0)
   })

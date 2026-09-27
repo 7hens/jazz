@@ -63,8 +63,11 @@ export function speakOf(type: BlockType, value: string): string | undefined {
   return SPEAK_OF[type]?.[value]
 }
 
-/** 焊死的声母:它们拼上 i 之后读音不是「声母 + 衣」,拼合时金箍焊成一体。 */
-export const WELD_INITIALS = ['zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y'] as const
+/**
+ * 焊死的声母:它们拼上 i/u 之后读音不是「声母 + 衣/乌」,拼合时金箍焊成一体。
+ * `y` / `w` 是零声母的写法(半元音),同样属于这一批 —— `yī`、`wū` 都是整体认读。
+ */
+export const WELD_INITIALS = ['zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y', 'w'] as const
 
 /**
  * 拼上 ü 之后把两点带走的声母(去点规则)。

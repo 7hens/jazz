@@ -203,10 +203,54 @@ describe('buildBlocks', () => {
   it('双音节题不超上限(块数不炸)', () => {
     const unit = unitIdxOf('u7-0') // 双音节单元 —— 批二之后 UNITS[6] 不再是它
     for (const level of UNITS[unit]!.levels) {
+      // 复习关的上界是 5(见 G8b),普通双音节题是 2 —— 两边都要封顶,不能「复习关不数」。
+      const cap = level.review === true ? 5 : 2
       expect(build(level, seq([0.5])).length).toBeLessThanOrEqual(
-        requiredBlocks(level).length + toneBlocks(level).length + 2,
+        requiredBlocks(level).length + toneBlocks(level).length + cap,
       )
     }
+  })
+
+  // G8。「复习关更难」这条承诺的两个半边:干扰块**真的更多**,且**没有越过池子** ——
+  // 为了凑数掏出没教过的块,孩子就得在一块他从没见过的积木上做选择。
+  // 同一个 rng、同一道题面,只翻 `review` 一位对比 —— 比的是机制,不是某个具体数字。
+  it('复习关的干扰块比同题面非复习时多,且仍全部来自已教过的池', () => {
+    const seed = seq([0.11, 0.29, 0.53, 0.77])
+    for (const [unit, u] of UNITS.entries()) {
+      for (const level of u.levels) {
+        if (level.review !== true) continue
+        const solution = solutionValues(level)
+        const extras = (lvl: Level): Block[] =>
+          buildBlocks(lvl, unit, seed).filter((b) => b.type !== 'tone' && !solution.has(`${b.type}:${b.value}`))
+
+        expect(extras(level).length, `${level.pinyin} 复习关没比普通关多干扰`).toBeGreaterThan(
+          extras({ ...level, review: false }).length,
+        )
+        for (const b of extras(level)) {
+          expect(seenIn(b.type, unit), `${level.pinyin} 干扰块 ${b.type}:${b.value} 没教过`).toContain(b.value)
+        }
+      }
+    }
+  })
+
+  // G8b:复习关的干扰块上界是 5,不是「随便多几块」—— 没有这条,把 cap 从 5 改成 9 也全绿。
+  // 只要求**至少一个**复习关真的摊满:u1 的池只有 e/o/a/i/u 五个韵母,复习关的供应天然不足 5,
+  // 把上界当等号写成「每个复习关都 =5」是必然为假的断言。
+  it('复习关的干扰块上界是 5,且至少一个复习关真的摊满', () => {
+    const seed = seq([0.11, 0.29, 0.53, 0.77])
+    const counts: number[] = []
+    for (const [unit, u] of UNITS.entries()) {
+      for (const level of u.levels) {
+        if (level.review !== true) continue
+        const solution = solutionValues(level)
+        const extras = buildBlocks(level, unit, seed).filter(
+          (b) => b.type !== 'tone' && !solution.has(`${b.type}:${b.value}`),
+        )
+        counts.push(extras.length)
+        expect(extras.length, `${level.pinyin} 复习关干扰块超了上界`).toBeLessThanOrEqual(5)
+      }
+    }
+    expect(Math.max(...counts), '没有任何复习关摊满 5 —— 上界没被真的用过').toBe(5)
   })
 })
 

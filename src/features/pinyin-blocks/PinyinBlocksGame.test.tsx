@@ -31,6 +31,21 @@ function settle() {
   act(() => vi.advanceTimersByTime(3000))
 }
 
+/** 按存档键取 [单元下标, 关下标] —— 关卡搬家 / 重排后,测试不再靠「第几个」静默指错题。 */
+function at(levelId: string): [unit: number, level: number] {
+  const unit = UNITS.findIndex((u) => u.levels.some((level) => level.id === levelId))
+  if (unit < 0) throw new Error(`没有这一关:${levelId}`)
+  const level = UNITS[unit]!.levels.findIndex((l) => l.id === levelId)
+  return [unit, level]
+}
+
+/** 按单元 id 取下标 —— 提示档那几条钉的是某个单元,不是「第几格」。 */
+function unitIdx(id: string): number {
+  const index = UNITS.findIndex((u) => u.id === id)
+  if (index < 0) throw new Error(`没有这一单元:${id}`)
+  return index
+}
+
 /**
  * 读一块托盘积木的身份 —— 类型与值印在里层的 .pblock 上。
  *
@@ -115,7 +130,7 @@ describe('拼音积木 · 游戏', () => {
   // 颜色跟着**位置**走:站在介母槽里才穿那身「声母蓝 → 韵母绿」的过渡色。
   // 判据不能是「值是不是 i/u/ü」—— xī guā 的 i 是 xī 的韵腹,给它画过渡色是假话。
   it('xī guā 的 i 按韵母着色,不因「i 也能当介母」而着色', () => {
-    mount(6, 0) // 🍉 xī guā
+    mount(...at('u7-0')) // 🍉 xī guā
     const trayType = (v: string) =>
       document.querySelector<HTMLElement>(`[aria-label="积木 ${v}"] [data-type]`)?.dataset.type
 
@@ -128,7 +143,7 @@ describe('拼音积木 · 游戏', () => {
   })
 
   it('块入槽后按槽位定型:介母槽里是介母色,韵母槽里是韵母色', () => {
-    mount(4, 0) // 🍉 guā = g + 介母 u + a
+    mount(...at('u5-0')) // 🍉 guā = g + 介母 u + a
     const { placed } = placeMedial()
     expect(placed?.getAttribute('data-type')).toBe('medial')
 
@@ -148,7 +163,7 @@ describe('拼音积木 · 游戏', () => {
 
   // 同一个字母两个身份,读法得跟着身份走 —— 鼻尾念的是它代表的那个鼻韵母。
   it('鼻尾 n 念「恩」(前鼻音的名字就是它自己)', () => {
-    const { speak } = mount(3, 0) // 🚪 mén = m + e + 鼻尾 n
+    const { speak } = mount(...at('u4-0')) // 🚪 mén = m + e + 鼻尾 n
     // 托盘里可能同时有鼻尾 n 和当干扰块发的声母 n —— 按 data-type 认身份,不按字符
     const nasalN = screen
       .getAllByLabelText('积木 n')
@@ -159,13 +174,13 @@ describe('拼音积木 · 游戏', () => {
   })
 
   it('鼻尾 ng 念「鞥」', () => {
-    const { speak } = mount(3, 2) // 🏡 fáng = f + a + ng
+    const { speak } = mount(...at('u4-2')) // 🏡 fáng = f + a + ng
     fireEvent.keyDown(screen.getByLabelText('积木 ng'), { key: 'Enter' })
     expect(speak).toHaveBeenCalledWith('鞥')
   })
 
   it('声母 n 仍念「讷」,不跟着鼻尾走', () => {
-    const { speak } = mount(6, 2) // 🥛 niú nǎi:两块 n 都是声母
+    const { speak } = mount(...at('u7-2')) // 🥛 niú nǎi:两块 n 都是声母
     const ns = screen.getAllByLabelText('积木 n')
     expect(ns).toHaveLength(2)
     fireEvent.keyDown(ns[0] as HTMLElement, { key: 'Enter' })
@@ -374,7 +389,7 @@ describe('拼音积木 · 游戏', () => {
   it('声母块塞不进韵母槽(类型不符,值也不同)', () => {
     vi.useFakeTimers()
     try {
-      mount(4, 0) // guā:g + 介母 u + a
+      mount(...at('u5-0')) // guā:g + 介母 u + a
       const trayBlocks = document.querySelectorAll<HTMLElement>('[data-block-id]')
       const g = Array.from(trayBlocks).find(
         (el) => el.dataset.value === 'g' || el.querySelector('[data-value="g"]'),
@@ -421,8 +436,8 @@ describe('拼音积木 · 游戏', () => {
   })
 
   it('整体认读音节拼对后出现焊接标记(zhī)', async () => {
-    mount(5, 0) // 🕷️ zhī
-    solveCorrectly(5, 0)
+    mount(...at('u6-0')) // 🕷️ zhī
+    solveCorrectly(...at('u6-0'))
     expect(await screen.findByText('zhī')).toBeInTheDocument()
     const weld = document.querySelector('.pweld')
     expect(weld).not.toBeNull()
@@ -439,7 +454,7 @@ describe('拼音积木 · 游戏', () => {
   // 「两组」= 拼装台里两个**并列**的组容器(每组的槽各归各的),不是「一堆槽塞在同一个容器里」。
   // 只数槽的话,把两个音节组塌成一组照样全绿 —— 而「塌成一组」正是这条用例要拦的那件事。
   it('双音节词给两组拼装组', () => {
-    mount(6, 0) // 🍉 xī guā
+    mount(...at('u7-0')) // 🍉 xī guā
     expect(document.querySelectorAll('[data-slot-id][data-slot-id$="-t"]')).toHaveLength(2)
     expect(document.querySelectorAll('[role="group"] [data-slot-id]').length).toBeGreaterThan(3)
 
@@ -457,7 +472,7 @@ describe('拼音积木 · 游戏', () => {
   })
 
   it('提示档「强」:容器不带降档类,每个空槽都挂一个类型类', () => {
-    render(<PinyinBlocksGame unitIndex={1} levelIndex={0} speak={vi.fn()} />) // u2 = 强档
+    render(<PinyinBlocksGame unitIndex={unitIdx('u2')} levelIndex={0} speak={vi.fn()} />) // u2 = 强档
     const stage = screen.getByLabelText('拼装台')
     expect(stage.classList.contains('pslots')).toBe(true)
     expect(stage.classList.contains('pslots--mid')).toBe(false)
@@ -480,7 +495,7 @@ describe('拼音积木 · 游戏', () => {
   // 强档 = 不挂任何降档类(容器基色就是强档)。u4 在 12 单元表里从「中」升回「强」——
   // 这条钉住「升回强档时降档类真的被摘掉」,而不只是某一档还在。
   it('提示档「强」:容器不挂降档类', () => {
-    render(<PinyinBlocksGame unitIndex={3} levelIndex={0} speak={vi.fn()} />) // u4 = 强档
+    render(<PinyinBlocksGame unitIndex={unitIdx('u4')} levelIndex={0} speak={vi.fn()} />) // u4 = 强档
     const stage = screen.getByLabelText('拼装台')
     expect(stage.classList.contains('pslots--mid')).toBe(false)
     expect(stage.classList.contains('pslots--weak')).toBe(false)
@@ -488,10 +503,10 @@ describe('拼音积木 · 游戏', () => {
     expect(document.querySelector('.pslot--initial, .pslot--final')).not.toBeNull()
   })
 
-  // 中档是强/弱之间的那一格。u7 在 12 单元表里从「弱」退回「中」——
-  // 弱档要等批二换上 u9-u12 的数据,才有能渲染出 `pslots--weak` 的单元。
+  // 中档是强/弱之间的那一格。u7 在 12 单元表里是「中」——
+  // 弱档由 u9-u12 承担(见下面那条),不再靠任何一档兼差。
   it('提示档「中」:容器带中档类', () => {
-    render(<PinyinBlocksGame unitIndex={6} levelIndex={0} speak={vi.fn()} />) // u7 = 中档
+    render(<PinyinBlocksGame unitIndex={unitIdx('u7')} levelIndex={0} speak={vi.fn()} />) // u7 = 中档
     const stage = screen.getByLabelText('拼装台')
     expect(stage.classList.contains('pslots--mid')).toBe(true)
     // 三档互斥:同时挂两个降档类,今天的观感全靠 CSS 里两条规则的先后 —— 那是巧合不是契约。
@@ -500,12 +515,24 @@ describe('拼音积木 · 游戏', () => {
     expect(document.querySelector('.pslot--initial, .pslot--final')).not.toBeNull()
   })
 
+  // 弱档是脚手架撤到底的那一格:u9-u12 的提示基线恒弱。没有这条,
+  // 把 PinyinBlocksGame.tsx 里 `hint === 'weak' && 'pslots--weak'` 删掉,全套仍然绿。
+  it('提示档「弱」:容器带弱档类,且不带中档类', () => {
+    render(<PinyinBlocksGame unitIndex={unitIdx('u9')} levelIndex={0} speak={vi.fn()} />) // u9-50 = 弱档
+    const stage = screen.getByLabelText('拼装台')
+    expect(stage.classList.contains('pslots--weak'), 'u9 该是弱档').toBe(true)
+    // 三档互斥:弱档同时挂上中档类,浓淡就只剩 CSS 规则的先后 —— 那是巧合不是契约。
+    expect(stage.classList.contains('pslots--mid')).toBe(false)
+    // 类型类仍在(slot 的语义没变),浓淡交给 --slot-line/--slot-fill
+    expect(document.querySelector('.pslot--initial, .pslot--final')).not.toBeNull()
+  })
+
   // 脚手架既要会撤,也要能回来 —— 卡住的时候颜色得回来。
   it('同一关连错 2 次,容器回强档', () => {
-    render(<PinyinBlocksGame unitIndex={6} levelIndex={0} speak={vi.fn()} />) // u7 = 中档
+    render(<PinyinBlocksGame unitIndex={unitIdx('u5')} levelIndex={0} speak={vi.fn()} />) // u5 = 中档
     const stage = () => screen.getByLabelText('拼装台')
     expect(stage().classList.contains('pslots--mid')).toBe(true)
-    // 声调块恒四调全出,xī guā 两句都是阴平 → 「声调块 2」必定无处可落。
+    // 声调块恒四调全出,u5-0「māo」是阴平 → 「声调块 2」必定无处可落。
     // 用它而不是干扰块:干扰块由 makeRng 决定,拿它当判据等于把测试绑在发牌上。
     const wrong = screen.getByLabelText('声调块 2')
     fireEvent.keyDown(wrong, { key: 'Enter' })

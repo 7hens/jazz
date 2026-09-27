@@ -150,7 +150,7 @@ describe('HTTP API service', () => {
 
     expect(fromWorker, '没在 worker/pinyin-progress.ts 里搜到 `const LEVEL_ID = /.../` 字面量 —— 搜法失效或字面量被改名,请让本测试与 worker 同步').toBeDefined()
     expect(fromWorker, '关卡 id 格式两侧分家:必须同步改 src/features/api/api.ts 与 worker/pinyin-progress.ts 两处 LEVEL_ID(worker 会静默丢 key,下次保存即抹掉已得的星)').toBe(LEVEL_ID.toString())
-    // 两侧一起改错也得红:格式必须仍认真实关卡 id(37 个,u1-0 … u7-4)。
+    // 两侧一起改错也得红:格式必须仍认真实关卡 id(91 个,u1-0 … u12-50)。
     expect(LEVEL_ID.test('u1-0'), 'LEVEL_ID 已不认真实关卡 id —— 改回来的同时别忘了 worker/pinyin-progress.ts').toBe(true)
   })
 })

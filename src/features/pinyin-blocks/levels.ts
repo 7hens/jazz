@@ -1,7 +1,11 @@
 // 课程路径与关卡数据,外加从块结构拼出显示串的拼音规则引擎(spellSyllable / writeSyllable /
 // toneIndex / TONED / losesDots)。
-// 7 个单元由易到难:单韵母 → 二拼 → 复韵母 → 鼻韵母 → 三拼介母 → 焊接音 → 双音节词。
+// 12 个单元由易到难:单韵母 → 声母·双唇舌尖 → 声母·舌根舌面 → 声母·翘舌平舌 → 复韵母
+// → 前鼻韵母 → 后鼻韵母 → 三拼·介母 → ü 行韵母 → 整体认读·一 → 整体认读·二 → 双音节词。
 // 每题的块**显式写死**,不由拼音串反推 —— 数据即答案,反推逻辑藏在解析器里出错更难查。
+//
+// ⚠ `id` 是存档键,**前缀不等于所属单元**:旧关沿用建关时的 0–6 段序号(如 `u2-4` 今天住在 u3),
+// 新关一律从 50 起(`u5-50`、…)—— 两代键永不可能相撞。挪关不改 id。
 
 import { Ü_DROP_INITIALS, type Block } from './blocks'
 
@@ -56,23 +60,62 @@ export const UNITS: readonly Unit[] = [
       { id: 'u1-0', emoji: '🪿', pinyin: 'é', read: '鹅', syl: [{ final: 'e', tone: 2 }] },
       { id: 'u1-1', emoji: '😮', pinyin: 'ó', read: '哦', syl: [{ final: 'o', tone: 2 }] },
       { id: 'u1-2', emoji: '🗣️', pinyin: 'à', read: '啊', syl: [{ final: 'a', tone: 4 }] },
+      // i / u 不能单独作音节:零声母时写成 yi / wu。块面仍是 i / u,显示串是它们的改写。
+      { id: 'u1-50', emoji: '🪑', pinyin: 'yǐ', read: '椅', syl: [{ final: 'i', tone: 3 }] },
+      { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ final: 'u', tone: 3 }] },
+      // 复习关:一轮 a o e i u 走完
+      { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }], review: true },
     ],
   },
   {
     id: 'u2',
-    name: '二拼',
+    name: '声母 · 双唇舌尖',
     badge: [{ type: 'initial', value: 'b' }, { type: 'final', value: 'a' }],
     levels: [
       { id: 'u2-0', emoji: '👨', pinyin: 'bà', read: '爸', syl: [{ initial: 'b', final: 'a', tone: 4 }] },
       { id: 'u2-1', emoji: '🐴', pinyin: 'mǎ', read: '马', syl: [{ initial: 'm', final: 'a', tone: 3 }] },
       { id: 'u2-2', emoji: '🐰', pinyin: 'tù', read: '兔', syl: [{ initial: 't', final: 'u', tone: 4 }] },
       { id: 'u2-3', emoji: '🍐', pinyin: 'lí', read: '梨', syl: [{ initial: 'l', final: 'i', tone: 2 }] },
-      { id: 'u2-4', emoji: '🐔', pinyin: 'jī', read: '鸡', syl: [{ initial: 'j', final: 'i', tone: 1 }] },
-      { id: 'u2-5', emoji: '🦶', pinyin: 'zú', read: '足', syl: [{ initial: 'z', final: 'u', tone: 2 }] },
+      { id: 'u2-50', emoji: '👵', pinyin: 'pó', read: '婆', syl: [{ initial: 'p', final: 'o', tone: 2 }] },
+      { id: 'u2-51', emoji: '🪓', pinyin: 'fǔ', read: '斧', syl: [{ initial: 'f', final: 'u', tone: 3 }] },
+      { id: 'u2-52', emoji: '🌍', pinyin: 'dì', read: '地', syl: [{ initial: 'd', final: 'i', tone: 4 }] },
+      { id: 'u2-53', emoji: '😠', pinyin: 'nù', read: '怒', syl: [{ initial: 'n', final: 'u', tone: 4 }] },
+      { id: 'u2-54', emoji: '✏️', pinyin: 'bǐ', read: '笔', syl: [{ initial: 'b', final: 'i', tone: 3 }], review: true },
     ],
   },
   {
     id: 'u3',
+    name: '声母 · 舌根舌面',
+    badge: [{ type: 'initial', value: 'g' }, { type: 'final', value: 'a' }],
+    levels: [
+      { id: 'u2-4', emoji: '🐔', pinyin: 'jī', read: '鸡', syl: [{ initial: 'j', final: 'i', tone: 1 }] },
+      { id: 'u3-50', emoji: '🥁', pinyin: 'gǔ', read: '鼓', syl: [{ initial: 'g', final: 'u', tone: 3 }] },
+      { id: 'u3-51', emoji: '😭', pinyin: 'kū', read: '哭', syl: [{ initial: 'k', final: 'u', tone: 1 }] },
+      { id: 'u3-52', emoji: '🐯', pinyin: 'hǔ', read: '虎', syl: [{ initial: 'h', final: 'u', tone: 3 }] },
+      { id: 'u3-53', emoji: '7️⃣', pinyin: 'qī', read: '七', syl: [{ initial: 'q', final: 'i', tone: 1 }] },
+      { id: 'u3-54', emoji: '🛁', pinyin: 'xǐ', read: '洗', syl: [{ initial: 'x', final: 'i', tone: 3 }] },
+      { id: 'u3-55', emoji: '🥤', pinyin: 'hē', read: '喝', syl: [{ initial: 'h', final: 'e', tone: 1 }], review: true },
+    ],
+  },
+  {
+    id: 'u4',
+    name: '声母 · 翘舌平舌',
+    badge: [{ type: 'initial', value: 'zh' }, { type: 'final', value: 'a' }],
+    levels: [
+      { id: 'u2-5', emoji: '🦶', pinyin: 'zú', read: '足', syl: [{ initial: 'z', final: 'u', tone: 2 }] },
+      { id: 'u4-50', emoji: '🐷', pinyin: 'zhū', read: '猪', syl: [{ initial: 'zh', final: 'u', tone: 1 }] },
+      { id: 'u4-51', emoji: '🚗', pinyin: 'chē', read: '车', syl: [{ initial: 'ch', final: 'e', tone: 1 }] },
+      { id: 'u4-52', emoji: '📕', pinyin: 'shū', read: '书', syl: [{ initial: 'sh', final: 'u', tone: 1 }] },
+      { id: 'u4-53', emoji: '🔥', pinyin: 'rè', read: '热', syl: [{ initial: 'r', final: 'e', tone: 4 }] },
+      { id: 'u4-54', emoji: '🧽', pinyin: 'cā', read: '擦', syl: [{ initial: 'c', final: 'a', tone: 1 }] },
+      { id: 'u4-55', emoji: '🎨', pinyin: 'sè', read: '色', syl: [{ initial: 's', final: 'e', tone: 4 }] },
+      { id: 'u4-56', emoji: '🦆', pinyin: 'yā', read: '鸭', syl: [{ initial: 'y', final: 'a', tone: 1 }] },
+      { id: 'u4-57', emoji: '🙋', pinyin: 'wǒ', read: '我', syl: [{ initial: 'w', final: 'o', tone: 3 }] },
+      { id: 'u4-58', emoji: '📄', pinyin: 'zhǐ', read: '纸', syl: [{ initial: 'zh', final: 'i', tone: 3 }], review: true },
+    ],
+  },
+  {
+    id: 'u5',
     name: '复韵母',
     badge: [{ type: 'final', value: 'ai' }],
     levels: [
@@ -82,22 +125,42 @@ export const UNITS: readonly Unit[] = [
       { id: 'u3-3', emoji: '⚫', pinyin: 'hēi', read: '黑', syl: [{ initial: 'h', final: 'ei', tone: 1 }] },
       { id: 'u3-4', emoji: '👟', pinyin: 'xié', read: '鞋', syl: [{ initial: 'x', final: 'ie', tone: 2 }] },
       { id: 'u3-5', emoji: '🐢', pinyin: 'guī', read: '龟', syl: [{ initial: 'g', final: 'ui', tone: 1 }] },
+      // y + üe 拼出 yue(ü 去两点)—— 「两点飞走」动画的首演关,规则本身在块的拼合里显形
+      { id: 'u6-5', emoji: '🌙', pinyin: 'yuè', read: '月', syl: [{ initial: 'y', final: 'üe', tone: 4, weld: true }] },
+      // iu(← iou)是**独立韵母**,不是介母 + 韵母:拆成 i+ou 会拼出 niou
+      { id: 'u5-50', emoji: '🐮', pinyin: 'niú', read: '牛', syl: [{ initial: 'n', final: 'iu', tone: 2 }] },
+      // er 是特殊韵母:自成音节,永远不跟声母拼
+      { id: 'u5-51', emoji: '👶', pinyin: 'ér', read: '儿', syl: [{ final: 'er', tone: 2 }] },
+      { id: 'u5-52', emoji: '👍', pinyin: 'hǎo', read: '好', syl: [{ initial: 'h', final: 'ao', tone: 3 }], review: true },
     ],
   },
   {
-    id: 'u4',
-    name: '鼻韵母',
+    id: 'u6',
+    name: '前鼻韵母',
     badge: [{ type: 'final', value: 'a' }, { type: 'nasal', value: 'n' }],
     levels: [
       { id: 'u4-0', emoji: '🚪', pinyin: 'mén', read: '门', syl: [{ initial: 'm', final: 'e', nasal: 'n', tone: 2 }] },
       { id: 'u4-1', emoji: '⛰️', pinyin: 'shān', read: '山', syl: [{ initial: 'sh', final: 'a', nasal: 'n', tone: 1 }] },
-      { id: 'u4-2', emoji: '🏡', pinyin: 'fáng', read: '房', syl: [{ initial: 'f', final: 'a', nasal: 'ng', tone: 2 }] },
-      { id: 'u4-3', emoji: '🐉', pinyin: 'lóng', read: '龙', syl: [{ initial: 'l', final: 'o', nasal: 'ng', tone: 2 }] },
-      { id: 'u4-4', emoji: '🌬️', pinyin: 'fēng', read: '风', syl: [{ initial: 'f', final: 'e', nasal: 'ng', tone: 1 }] },
+      { id: 'u6-50', emoji: '✉️', pinyin: 'xìn', read: '信', syl: [{ initial: 'x', final: 'i', nasal: 'n', tone: 4 }] },
+      { id: 'u6-51', emoji: '🛞', pinyin: 'lún', read: '轮', syl: [{ initial: 'l', final: 'u', nasal: 'n', tone: 2 }] },
+      { id: 'u6-52', emoji: '🍚', pinyin: 'fàn', read: '饭', syl: [{ initial: 'f', final: 'a', nasal: 'n', tone: 4 }], review: true },
     ],
   },
   {
-    id: 'u5',
+    id: 'u7',
+    name: '后鼻韵母',
+    badge: [{ type: 'final', value: 'a' }, { type: 'nasal', value: 'ng' }],
+    levels: [
+      { id: 'u4-2', emoji: '🏡', pinyin: 'fáng', read: '房', syl: [{ initial: 'f', final: 'a', nasal: 'ng', tone: 2 }] },
+      { id: 'u4-3', emoji: '🐉', pinyin: 'lóng', read: '龙', syl: [{ initial: 'l', final: 'o', nasal: 'ng', tone: 2 }] },
+      { id: 'u4-4', emoji: '🌬️', pinyin: 'fēng', read: '风', syl: [{ initial: 'f', final: 'e', nasal: 'ng', tone: 1 }] },
+      { id: 'u5-4', emoji: '👑', pinyin: 'wáng', read: '王', syl: [{ initial: 'w', final: 'a', nasal: 'ng', tone: 2 }] },
+      { id: 'u7-50', emoji: '⭐', pinyin: 'xīng', read: '星', syl: [{ initial: 'x', final: 'i', nasal: 'ng', tone: 1 }] },
+      { id: 'u7-51', emoji: '🐑', pinyin: 'yáng', read: '羊', syl: [{ initial: 'y', final: 'a', nasal: 'ng', tone: 2 }], review: true },
+    ],
+  },
+  {
+    id: 'u8',
     name: '三拼 · 介母',
     badge: [{ type: 'initial', value: 'g' }, { type: 'medial', value: 'u' }, { type: 'final', value: 'a' }],
     levels: [
@@ -105,26 +168,64 @@ export const UNITS: readonly Unit[] = [
       { id: 'u5-1', emoji: '🐦', pinyin: 'niǎo', read: '鸟', syl: [{ initial: 'n', medial: 'i', final: 'ao', tone: 3 }] },
       { id: 'u5-2', emoji: '🐻', pinyin: 'xióng', read: '熊', syl: [{ initial: 'x', medial: 'i', final: 'o', nasal: 'ng', tone: 2 }] },
       { id: 'u5-3', emoji: '🍎', pinyin: 'guǒ', read: '果', syl: [{ initial: 'g', medial: 'u', final: 'o', tone: 3 }] },
-      { id: 'u5-4', emoji: '👑', pinyin: 'wáng', read: '王', syl: [{ initial: 'w', final: 'a', nasal: 'ng', tone: 2 }] },
+      { id: 'u8-50', emoji: '⬇️', pinyin: 'xià', read: '下', syl: [{ initial: 'x', medial: 'i', final: 'a', tone: 4 }] },
+      { id: 'u8-51', emoji: '💰', pinyin: 'qián', read: '钱', syl: [{ initial: 'q', medial: 'i', final: 'a', nasal: 'n', tone: 2 }] },
+      { id: 'u8-52', emoji: '🪥', pinyin: 'shuā', read: '刷', syl: [{ initial: 'sh', medial: 'u', final: 'a', tone: 1 }], review: true },
     ],
   },
   {
-    id: 'u6',
-    name: '焊接音',
+    id: 'u9',
+    name: 'ü 行韵母 · 两点去留',
+    badge: [{ type: 'initial', value: 'j' }, { type: 'final', value: 'ü' }],
+    levels: [
+      // ü 行四个韵母(ü / üe / ün / üan)加两点去留两面:j q x 之后去点,n l 之后保留。
+      { id: 'u9-50', emoji: '🍊', pinyin: 'jú', read: '橘', syl: [{ initial: 'j', final: 'ü', tone: 2 }] },
+      { id: 'u9-51', emoji: '🚶', pinyin: 'qù', read: '去', syl: [{ initial: 'q', final: 'ü', tone: 4 }] },
+      { id: 'u9-52', emoji: '❄️', pinyin: 'xuě', read: '雪', syl: [{ initial: 'x', final: 'üe', tone: 3 }] },
+      // ün 只与 j q x y 相拼 → 永远是去点形态,故不放在 u6(前鼻),放在这里讲
+      { id: 'u9-53', emoji: '👗', pinyin: 'qún', read: '裙', syl: [{ initial: 'q', final: 'ü', nasal: 'n', tone: 2 }] },
+      // ü 作介母的三拼 —— 顺带兑现「三拼 ü 介母」这条覆盖缺口,不必另开单元
+      { id: 'u9-54', emoji: '⭕', pinyin: 'quān', read: '圈', syl: [{ initial: 'q', medial: 'ü', final: 'a', nasal: 'n', tone: 1 }] },
+      { id: 'u9-55', emoji: '👧', pinyin: 'nǚ', read: '女', syl: [{ initial: 'n', final: 'ü', tone: 3 }] },
+      { id: 'u9-56', emoji: '🟩', pinyin: 'lǜ', read: '绿', syl: [{ initial: 'l', final: 'ü', tone: 4 }] },
+      { id: 'u9-57', emoji: '🙌', pinyin: 'jǔ', read: '举', syl: [{ initial: 'j', final: 'ü', tone: 3 }], review: true },
+    ],
+  },
+  {
+    id: 'u10',
+    name: '整体认读 · 一',
     badge: [{ type: 'initial', value: 'zh' }, { type: 'final', value: 'i' }],
     levels: [
       { id: 'u6-0', emoji: '🕷️', pinyin: 'zhī', read: '蜘', syl: [{ initial: 'zh', final: 'i', tone: 1, weld: true }] },
       { id: 'u6-1', emoji: '📏', pinyin: 'chǐ', read: '尺', syl: [{ initial: 'ch', final: 'i', tone: 3, weld: true }] },
       { id: 'u6-2', emoji: '🦁', pinyin: 'shī', read: '狮', syl: [{ initial: 'sh', final: 'i', tone: 1, weld: true }] },
       { id: 'u6-3', emoji: '🦔', pinyin: 'cì', read: '刺', syl: [{ initial: 'c', final: 'i', tone: 4, weld: true }] },
-      // y + ü 拼出 yu(ü 去两点)、y + üe 拼出 yue —— 规则本身就在块的拼合里显形
-      { id: 'u6-4', emoji: '🐟', pinyin: 'yú', read: '鱼', syl: [{ initial: 'y', final: 'ü', tone: 2, weld: true }] },
-      { id: 'u6-5', emoji: '🌙', pinyin: 'yuè', read: '月', syl: [{ initial: 'y', final: 'üe', tone: 4, weld: true }] },
-      { id: 'u6-6', emoji: '🦅', pinyin: 'yīng', read: '鹰', syl: [{ initial: 'y', final: 'i', nasal: 'ng', tone: 1, weld: true }] },
+      { id: 'u10-50', emoji: '☀️', pinyin: 'rì', read: '日', syl: [{ initial: 'r', final: 'i', tone: 4, weld: true }] },
+      { id: 'u10-51', emoji: '📝', pinyin: 'zì', read: '字', syl: [{ initial: 'z', final: 'i', tone: 4, weld: true }] },
+      { id: 'u10-52', emoji: '4️⃣', pinyin: 'sì', read: '四', syl: [{ initial: 's', final: 'i', tone: 4, weld: true }] },
+      { id: 'u10-53', emoji: '🔟', pinyin: 'shí', read: '十', syl: [{ initial: 'sh', final: 'i', tone: 2, weld: true }], review: true },
     ],
   },
   {
-    id: 'u7',
+    id: 'u11',
+    name: '整体认读 · 二',
+    badge: [{ type: 'initial', value: 'y' }, { type: 'final', value: 'ü' }, { type: 'nasal', value: 'n' }],
+    levels: [
+      { id: 'u6-4', emoji: '🐟', pinyin: 'yú', read: '鱼', syl: [{ initial: 'y', final: 'ü', tone: 2, weld: true }] },
+      { id: 'u6-6', emoji: '🦅', pinyin: 'yīng', read: '鹰', syl: [{ initial: 'y', final: 'i', nasal: 'ng', tone: 1, weld: true }] },
+      { id: 'u11-50', emoji: '🧥', pinyin: 'yī', read: '衣', syl: [{ initial: 'y', final: 'i', tone: 1, weld: true }] },
+      { id: 'u11-51', emoji: '🏠', pinyin: 'wū', read: '屋', syl: [{ initial: 'w', final: 'u', tone: 1, weld: true }] },
+      // y + ie 写成 ye:i 由 y 代劳,不写 yie
+      { id: 'u11-52', emoji: '🍃', pinyin: 'yè', read: '叶', syl: [{ initial: 'y', final: 'ie', tone: 4, weld: true }] },
+      // yuan 带介母 → **不焊**:焊接语义是「逐块拼读 ≠ 整体读音」,三拼另有介母槽要走过
+      { id: 'u11-53', emoji: '🔵', pinyin: 'yuán', read: '圆', syl: [{ initial: 'y', medial: 'ü', final: 'a', nasal: 'n', tone: 2 }] },
+      { id: 'u11-54', emoji: '🎵', pinyin: 'yīn', read: '音', syl: [{ initial: 'y', final: 'i', nasal: 'n', tone: 1, weld: true }] },
+      { id: 'u11-55', emoji: '☁️', pinyin: 'yún', read: '云', syl: [{ initial: 'y', final: 'ü', nasal: 'n', tone: 2, weld: true }] },
+      { id: 'u11-56', emoji: '🌧️', pinyin: 'yǔ', read: '雨', syl: [{ initial: 'y', final: 'ü', tone: 3, weld: true }], review: true },
+    ],
+  },
+  {
+    id: 'u12',
     name: '双音节词',
     // 五个块 = 两组音节(零宽间隔由渲染层表意),比别的单元宽 —— 一眼看出「这一格是两段」。
     badge: [
@@ -184,6 +285,17 @@ export const UNITS: readonly Unit[] = [
           { initial: 'h', medial: 'u', final: 'a', tone: 1 },
           { initial: 'd', medial: 'u', final: 'o', tone: 3 },
         ],
+      },
+      {
+        id: 'u12-50',
+        emoji: '🌳',
+        pinyin: 'dà shù',
+        read: '大树',
+        syl: [
+          { initial: 'd', final: 'a', tone: 4 },
+          { initial: 'sh', final: 'u', tone: 4 },
+        ],
+        review: true,
       },
     ],
   },

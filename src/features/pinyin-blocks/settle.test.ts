@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Achievement, Rng, UserSettings } from '@/shared/services'
+import { UNITS } from './levels'
 import { settleLevel } from './settle'
 
 const SETTINGS: UserSettings = {
@@ -166,16 +167,28 @@ describe('关卡结算', () => {
   // 完美单元数是唯一一个「跨关」的量:单元内全三星的单元数,不等于三星关数。
   it('完美单元数按「单元内全三星」算,与三星关数分开', async () => {
     const scan = vi.fn().mockReturnValue([])
-    // u1 三关只通了第一关的三星 → 三星关数 1,全三星单元 0
-    await settleLevel({ ...INPUT, currentStars: {} }, { ...SERVICES, achievements: { scan } })
-    expect(scan.mock.calls[0]?.[0]).toMatchObject({ perfectLevels: 1, perfectUnits: 0 })
-
-    // 补齐 u1 剩下两关的三星 → 三星关数 3,全三星单元 1
+    const unit = UNITS[0]!
+    const first = unit.levels[0]!
+    const last = unit.levels.at(-1)!
+    // 只通该单元第一关的三星 → 三星关数 1,全三星单元 0
     await settleLevel(
-      { ...INPUT, levelId: 'u1-2', currentStars: { 'u1-0': 3, 'u1-1': 3 } },
+      { ...INPUT, levelId: first.id, currentStars: {} },
       { ...SERVICES, achievements: { scan } },
     )
-    expect(scan.mock.calls[1]?.[0]).toMatchObject({ perfectLevels: 3, perfectUnits: 1 })
+    expect(scan.mock.calls[0]?.[0]).toMatchObject({ perfectLevels: 1, perfectUnits: 0 })
+
+    // 补齐同一单元其余各关的三星 → 三星关数 = 单元关数,全三星单元 1
+    const rest = Object.fromEntries(
+      unit.levels.filter((level) => level.id !== last.id).map((level) => [level.id, 3]),
+    )
+    await settleLevel(
+      { ...INPUT, levelId: last.id, currentStars: rest },
+      { ...SERVICES, achievements: { scan } },
+    )
+    expect(scan.mock.calls[1]?.[0]).toMatchObject({
+      perfectLevels: unit.levels.length,
+      perfectUnits: 1,
+    })
   })
 
   // 星级是信任边界:落库后走服务端 MAX 合并(只升不降),混进来的 4 写进去

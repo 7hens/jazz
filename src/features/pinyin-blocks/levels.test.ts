@@ -20,6 +20,27 @@ const allLevels: { unit: number; unitId: string; index: number; level: Level }[]
 
 const where = (l: { unitId: string; index: number }): string => `${l.unitId}#${l.index + 1}`
 
+/** 全课程的音节摊平 —— 覆盖矩阵那几条守卫共用。 */
+const allSyls = allLevels.flatMap((entry) => entry.level.syl.map((syl) => ({ ...entry, syl })))
+
+/** 16 个整体认读的**不带调**写法(汉语拼音方案的固定表)。 */
+const WELD_SYLLABLES = [
+  'zhi', 'chi', 'shi', 'ri', 'zi', 'ci', 'si',
+  'yi', 'wu', 'yu', 'ye', 'yue', 'yuan', 'yin', 'yun', 'ying',
+] as const
+
+/** 去掉调号 —— 整体认读表按不带调的写法数。 */
+const TONE_MARKS: Readonly<Record<string, string>> = {
+  ā: 'a', á: 'a', ǎ: 'a', à: 'a',
+  ē: 'e', é: 'e', ě: 'e', è: 'e',
+  ī: 'i', í: 'i', ǐ: 'i', ì: 'i',
+  ō: 'o', ó: 'o', ǒ: 'o', ò: 'o',
+  ū: 'u', ú: 'u', ǔ: 'u', ù: 'u',
+  ǖ: 'ü', ǘ: 'ü', ǚ: 'ü', ǜ: 'ü',
+}
+
+const stripTone = (s: string): string => [...s].map((c) => TONE_MARKS[c] ?? c).join('')
+
 describe('拼音积木关卡数据', () => {
   it('单元 id 与关卡非空', () => {
     expect(UNITS.length).toBeGreaterThan(0)
@@ -216,17 +237,6 @@ describe('拼音积木关卡数据', () => {
     }
   })
 
-  // 复习关的数据里只有语义(`review: true`),位置与数量都得是真的:
-  // 漏标 = 这一单元没有复习关;标错位置 = 孩子还没学完就先考。
-  // ⏳ 批二启用:今天的数据里还没有任何 `review: true`,启用于 Task 5 末尾。
-  it.skip('每单元最后一关是复习关,且每单元恰好一个', () => {
-    for (const u of UNITS) {
-      const reviews = u.levels.filter((level) => level.review === true)
-      expect(reviews, `${u.id} 的复习关数`).toHaveLength(1)
-      expect(u.levels.at(-1)?.review, `${u.id} 的复习关不在最后一关`).toBe(true)
-    }
-  })
-
   // 本文件最值钱的一条。`pinyin`(显示串)与 `syl`(孩子拼的块)是两份手写数据,
   // 在此之前**没有任何东西保证一致** —— `pinyin: 'māo'` 配 `syl: [{final:'ao'}]` 会一路全绿,
   // 而孩子看到的拼音和积木拼出来的不是一回事。
@@ -281,5 +291,84 @@ describe('拼音积木关卡数据', () => {
     for (const head of ['n', 'l']) expect(losesDots(head, 'ü'), head).toBe(false)
     expect(losesDots(undefined, 'ü'), '零声母的 ü 走另一条规则(ü → yu)').toBe(false)
     expect(losesDots('j', 'a'), '不带 ü 的音节没有两点可去').toBe(false)
+  })
+
+  /* ------------------------------------------------ 覆盖矩阵(spec §4) */
+
+  it('G2:23 个声母全部教到', () => {
+    const taught = new Set(allSyls.map((e) => e.syl.initial).filter((v) => v !== undefined))
+    for (const p of INITIALS_ALL) expect(taught, `声母 ${p} 一关都没出现过`).toContain(p)
+  })
+
+  it('G3:韵母全表教到(单韵母 / 复韵母 / er / 前鼻 / 后鼻)', () => {
+    const finals = new Set(allSyls.map((e) => e.syl.final).filter((v) => v !== undefined))
+    for (const v of FINAL_BASIC) expect(finals, `单韵母 ${v}`).toContain(v)
+    for (const v of FINAL_COMPOUND) expect(finals, `复韵母 / 特殊韵母 ${v}`).toContain(v)
+
+    // 鼻韵母按「韵腹 + 鼻尾」判:an en in un ün 与 ang eng ing ong 都得有。
+    const nasalized = new Set(
+      allSyls
+        .filter((e) => e.syl.nasal !== undefined)
+        .map((e) => `${e.syl.final}${e.syl.nasal}`),
+    )
+    for (const v of ['an', 'en', 'in', 'un', 'ün', 'ang', 'eng', 'ing', 'ong']) {
+      expect(nasalized, `鼻韵母 ${v}`).toContain(v)
+    }
+  })
+
+  // 四声是知识点,不是配色 —— 每一调都得在课程里出现过,且字母上真的带对了调号
+  // (带错调的 `pinyin` 会被 G1 抓住,这里只管「四调齐不齐」)。
+  it('G3b:四个声调全部教到', () => {
+    const tones = new Set(allLevels.flatMap((e) => e.level.syl.map((s) => s.tone)))
+    for (const t of TONE_VALUES) expect(tones, `第 ${t} 声一关都没出现过`).toContain(Number(t))
+  })
+
+  it('G4:16 个整体认读全部教到', () => {
+    const spelled = new Set(
+      allLevels.flatMap((e) => e.level.syl.map((s) => stripTone(spellSyllable(s)))),
+    )
+    for (const w of WELD_SYLLABLES) expect(spelled, `整体认读 ${w}`).toContain(w)
+  })
+
+  it('G5:ü 的三类结构各至少一关(去点 / 不去点 / 作介母)', () => {
+    // 介母槽与韵母槽都可能是那个 ü(quān 在介母位、jú 在韵母位),两处都查。
+    const drops = (s: Syllable): boolean =>
+      losesDots(s.initial, s.medial ?? '') || losesDots(s.initial, s.final ?? '')
+
+    expect(allSyls.filter((e) => drops(e.syl)).length, 'j q x y 之后去点的关').toBeGreaterThan(0)
+
+    const keep = allSyls.filter(
+      (e) => (e.syl.final ?? '').startsWith('ü') && !losesDots(e.syl.initial, e.syl.final ?? ''),
+    )
+    expect(keep.length, 'n l 之后保留两点的关').toBeGreaterThan(0)
+    for (const e of keep) {
+      expect(['n', 'l'], `${where(e)} 保留两点该只在 n / l 之后`).toContain(e.syl.initial)
+    }
+
+    expect(allSyls.filter((e) => e.syl.medial === 'ü').length, 'ü 作介母的三拼关').toBeGreaterThan(0)
+  })
+
+  // G8 写在 `rules.test.ts`(它比的是干扰块的数量机制,那里已有 `buildBlocks` / `seenIn` / `seq`)。
+
+  it('G6:每单元最后一关是复习关,且每单元恰好一个', () => {
+    for (const u of UNITS) {
+      const reviews = u.levels.filter((level) => level.review === true)
+      expect(reviews, `${u.id} 的复习关数`).toHaveLength(1)
+      expect(u.levels.at(-1)?.review, `${u.id} 的复习关不在最后一关`).toBe(true)
+    }
+  })
+
+  // spec §3.3 的硬约束:课程最前只有 a o e i u 五个韵母可用(复韵母到 u5、鼻尾到 u6/u7 才教)。
+  // 派生池兜得住「不出现没教过的块」,兜不住「孩子还没学到那个韵母就先用了它」——
+  // 池是按单元**累积**的,累积到哪一单元为止才决定孩子见没见过。
+  it('u1–u4 的例字只用单韵母,不带鼻尾', () => {
+    for (const unit of UNITS.filter((u) => ['u1', 'u2', 'u3', 'u4'].includes(u.id))) {
+      for (const level of unit.levels) {
+        for (const syl of level.syl) {
+          expect(FINAL_BASIC, `${level.id} 用了 ${syl.final}`).toContain(syl.final)
+          expect(syl.nasal, `${level.id} 用了鼻尾 ${syl.nasal}`).toBeUndefined()
+        }
+      }
+    }
   })
 })

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registry } from '@/shared/services/core'
+import { UNITS } from '@/features/pinyin-blocks'
 import {
   AchievementService,
   AudioService,
@@ -184,7 +185,8 @@ describe('App 路由', () => {
 
     expect(await screen.findByRole('button', { name: '回地图' })).toBeInTheDocument()
     expect(container.querySelector('[data-unit-map]')).toBeNull()
-    expect(screen.getByText('1/3')).toBeInTheDocument() // u1 三关,从第一关进
+    // u1 的关数由课程数据给 —— 关卡增减不该让这条断言静默钉在旧数字上
+    expect(screen.getByText(`1/${UNITS[0]!.levels.length}`)).toBeInTheDocument() // 从第一关进
   })
 
   it('map → parent → map:家长面板开合', async () => {
