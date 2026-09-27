@@ -11,7 +11,7 @@ import {
   hintFor,
   speakOf,
 } from './blocks'
-import { UNITS, taughtBlocks, type Level, type Syllable } from './levels'
+import { UNITS, losesDots, spell, spellSyllable, taughtBlocks, type Level, type Syllable } from './levels'
 
 /** 摊平成「所属单元下标 + 关卡」,断言里好定位到具体是哪一题。 */
 const allLevels: { unit: number; unitId: string; index: number; level: Level }[] = UNITS.flatMap((u, unit) =>
@@ -225,5 +225,61 @@ describe('拼音积木关卡数据', () => {
       expect(reviews, `${u.id} 的复习关数`).toHaveLength(1)
       expect(u.levels.at(-1)?.review, `${u.id} 的复习关不在最后一关`).toBe(true)
     }
+  })
+
+  // 本文件最值钱的一条。`pinyin`(显示串)与 `syl`(孩子拼的块)是两份手写数据,
+  // 在此之前**没有任何东西保证一致** —— `pinyin: 'māo'` 配 `syl: [{final:'ao'}]` 会一路全绿,
+  // 而孩子看到的拼音和积木拼出来的不是一回事。
+  // 它同时也守住了标调位置:`niú` 若被标成 `níu`,spell 产出 `níu` 而 pinyin 写 `niú`,当场红。
+  it('每关的 pinyin 与 syl 拼出来的一致', () => {
+    for (const entry of allLevels) {
+      expect(spell(entry.level), where(entry)).toBe(entry.level.pinyin)
+    }
+  })
+
+  // 标调位置与 y/w 改写本身是知识点,给纯函数单测(逐条对应 spec §7.2 的规则)。
+  it('spellSyllable:零声母改写、y 代劳 i、ü 去点、标调位置', () => {
+    const syl = (s: Omit<Syllable, 'tone'> & { tone: Syllable['tone'] }): Syllable => ({ ...s })
+
+    // 零声母:i / u / ü 单独作韵母 → yi / wu / yu;其余照抄
+    expect(spellSyllable(syl({ final: 'i', tone: 3 }))).toBe('yǐ')
+    expect(spellSyllable(syl({ final: 'u', tone: 3 }))).toBe('wǔ')
+    expect(spellSyllable(syl({ final: 'ü', tone: 2 }))).toBe('yú')
+    expect(spellSyllable(syl({ final: 'üe', tone: 4 }))).toBe('yuè')
+    expect(spellSyllable(syl({ final: 'ai', tone: 4 }))).toBe('ài')
+    expect(spellSyllable(syl({ final: 'er', tone: 2 }))).toBe('ér')
+    expect(spellSyllable(syl({ final: 'ie', tone: 4 }))).toBe('yè') // i 起头改 y,不写 yie
+    expect(spellSyllable(syl({ final: 'iu', tone: 2 }))).toBe('yóu') // 缩写 iu = iou
+    expect(spellSyllable(syl({ final: 'ui', tone: 4 }))).toBe('wèi') // 缩写 ui = uei
+    expect(spellSyllable(syl({ medial: 'u', final: 'o', tone: 3 }))).toBe('wǒ')
+    expect(spellSyllable(syl({ medial: 'i', final: 'a', tone: 1 }))).toBe('yā')
+
+    // y 是零声母的写法:后面的 i 由它代劳,不写成 yie
+    expect(spellSyllable(syl({ initial: 'y', final: 'ie', tone: 4 }))).toBe('yè')
+    expect(spellSyllable(syl({ initial: 'y', final: 'i', tone: 1 }))).toBe('yī')
+    expect(spellSyllable(syl({ initial: 'y', final: 'i', nasal: 'n', tone: 1 }))).toBe('yīn')
+    expect(spellSyllable(syl({ initial: 'y', final: 'i', nasal: 'ng', tone: 1 }))).toBe('yīng')
+
+    // j q x y 之后的 ü 去点;n l 之后保留
+    expect(spellSyllable(syl({ initial: 'j', final: 'ü', tone: 2 }))).toBe('jú')
+    expect(spellSyllable(syl({ initial: 'q', final: 'ü', nasal: 'n', tone: 2 }))).toBe('qún')
+    expect(spellSyllable(syl({ initial: 'n', final: 'ü', tone: 3 }))).toBe('nǚ')
+    expect(spellSyllable(syl({ initial: 'l', final: 'ü', tone: 4 }))).toBe('lǜ')
+    expect(spellSyllable(syl({ initial: 'q', medial: 'ü', final: 'a', nasal: 'n', tone: 1 }))).toBe('quān')
+
+    // 标调位置:有 a 标 a;没 a 而有 o/e 标它;i/u 并列标**后一个**;单个标自己
+    expect(spellSyllable(syl({ initial: 'd', medial: 'u', final: 'o', tone: 3 }))).toBe('duǒ')
+    expect(spellSyllable(syl({ initial: 'h', final: 'ei', tone: 1 }))).toBe('hēi')
+    expect(spellSyllable(syl({ initial: 'n', final: 'iu', tone: 2 }))).toBe('niú')
+    expect(spellSyllable(syl({ initial: 'g', final: 'ui', tone: 1 }))).toBe('guī')
+    expect(spellSyllable(syl({ initial: 'x', final: 'i', tone: 1 }))).toBe('xī')
+  })
+
+  // 去点判据只此一处:渲染层的「两点飞走」与 spell 共用它,不许各写一份。
+  it('losesDots:j q x y 之后去掉两点,n l 之后保留', () => {
+    for (const head of ['j', 'q', 'x', 'y']) expect(losesDots(head, 'üe'), head).toBe(true)
+    for (const head of ['n', 'l']) expect(losesDots(head, 'ü'), head).toBe(false)
+    expect(losesDots(undefined, 'ü'), '零声母的 ü 走另一条规则(ü → yu)').toBe(false)
+    expect(losesDots('j', 'a'), '不带 ü 的音节没有两点可去').toBe(false)
   })
 })

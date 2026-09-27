@@ -1,8 +1,9 @@
-// 课程路径与关卡数据(纯数据)。
+// 课程路径与关卡数据,外加从块结构拼出显示串的拼音规则引擎(spellSyllable / writeSyllable /
+// toneIndex / TONED / losesDots)。
 // 7 个单元由易到难:单韵母 → 二拼 → 复韵母 → 鼻韵母 → 三拼介母 → 焊接音 → 双音节词。
 // 每题的块**显式写死**,不由拼音串反推 —— 数据即答案,反推逻辑藏在解析器里出错更难查。
 
-import type { Block } from './blocks'
+import { Ü_DROP_INITIALS, type Block } from './blocks'
 
 /** 一个音节的结构。weld = 拼合后读音 ≠ 逐块拼读,拼对时被金箍焊成一体(整体认读音节)。 */
 export type Syllable = {
@@ -216,4 +217,79 @@ export function taughtBlocks(unitIndex: number): readonly Block[] {
     }
   }
   return [...seen.values()]
+}
+
+/* ------------------------------------------------------------ 拼写(显示串) */
+
+/**
+ * j q x y 之后的 ü 去两点。
+ *
+ * **`j q x y` 后去点这条规则的唯一判据** —— `spellSyllable` 与 BlockChip 的「两点飞走」动画共用,
+ * 渲染层不许再写一份(判据分家 = 屏幕上飞走的两点和答案行对不上)。
+ * 零声母的 `ü` → `yu` 是**另一条**规则(去点只是它的副产品),不走这里。
+ */
+export function losesDots(initial: string | undefined, value: string): boolean {
+  return value.startsWith('ü') && initial !== undefined && Ü_DROP_INITIALS.has(initial)
+}
+
+/**
+ * 块面串 → 拼音串。三条规则,**每条都是知识点本身**:
+ *   1. 零声母:韵母以 i 起头 → i 改 y(`ie` 写 `ye`)、独自成韵 → `yi`;
+ *      以 u 起头 → u 改 w(`uo` 写 `wo`)、独自成韵 → `wu`;以 ü 起头 → 前加 y 且去点(`üe` → `yue`)。
+ *      唯一例外是缩写韵母 `iu`(← iou)/ `ui`(← uei):照缩写改会得到 `yu` / `wi`,不是拼音,
+ *      故零声母写作 `you` / `wei`。
+ *   2. y / w 是零声母的**写法**,不是真声母:y 后面的 i 由它代劳(`{y, ie}` 写 ye,不写 yie)
+ *   3. j q x y 之后的 ü 去两点(与渲染层的「两点飞走」同一个判据)
+ */
+function writeSyllable(head: string, body: string): string {
+  if (head === '') {
+    // iu / ui 是 iou / uei 的缩写:零声母照缩写改会得到 yu / wi,不是拼音。
+    if (body === 'iu') return 'you'
+    if (body === 'ui') return 'wei'
+    if (body.startsWith('ü')) return `y${body.replace('ü', 'u')}`
+    if (body === 'i') return 'yi'
+    if (body === 'u') return 'wu'
+    if (body.startsWith('i')) return `y${body.slice(1)}`
+    if (body.startsWith('u')) return `w${body.slice(1)}`
+    return body
+  }
+  const spelled = losesDots(head, body) ? body.replace('ü', 'u') : body
+  if (head === 'y' && spelled.startsWith('i') && spelled.length > 1) return `y${spelled.slice(1)}`
+  return `${head}${spelled}`
+}
+
+/** ü 带调时两点保留(ǖ ǘ ǚ ǜ)—— 去点只由声母决定,与声调无关。 */
+const TONED: Readonly<Record<string, readonly string[]>> = {
+  a: ['ā', 'á', 'ǎ', 'à'],
+  o: ['ō', 'ó', 'ǒ', 'ò'],
+  e: ['ē', 'é', 'ě', 'è'],
+  i: ['ī', 'í', 'ǐ', 'ì'],
+  u: ['ū', 'ú', 'ǔ', 'ù'],
+  ü: ['ǖ', 'ǘ', 'ǚ', 'ǜ'],
+}
+
+/**
+ * 标调位置 —— 这条本身就是知识点:有 `a` 标 `a`;没 `a` 而有 `o`/`e` 就标它;
+ * 都没有时 `i`/`u` 并列标**后一个**(`niú`、`guī`),单个韵母标自己。
+ */
+function toneIndex(plain: string): number {
+  const a = plain.indexOf('a')
+  if (a >= 0) return a
+  const oe = plain.search(/[oe]/)
+  if (oe >= 0) return oe
+  const pair = plain.search(/[iuü][iuü]/)
+  return pair >= 0 ? pair + 1 : plain.search(/[iuü]/)
+}
+
+/** 一个音节拼出来的带调拼音串。 */
+export function spellSyllable(syl: Syllable): string {
+  const plain = writeSyllable(syl.initial ?? '', `${syl.medial ?? ''}${syl.final ?? ''}`) + (syl.nasal ?? '')
+  const at = toneIndex(plain)
+  const marked = at >= 0 ? TONED[plain[at] as string]?.[syl.tone - 1] : undefined
+  return marked === undefined ? plain : plain.slice(0, at) + marked + plain.slice(at + 1)
+}
+
+/** 一关的完整显示串:各音节空格分隔,与 `Level.pinyin` 同形。 */
+export function spell(level: Level): string {
+  return level.syl.map(spellSyllable).join(' ')
 }

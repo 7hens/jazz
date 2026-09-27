@@ -66,6 +66,12 @@ export function speakOf(type: BlockType, value: string): string | undefined {
 /** 焊死的声母:它们拼上 i 之后读音不是「声母 + 衣」,拼合时金箍焊成一体。 */
 export const WELD_INITIALS = ['zh', 'ch', 'sh', 'r', 'z', 'c', 's', 'y'] as const
 
+/**
+ * 拼上 ü 之后把两点带走的声母(去点规则)。
+ * **全仓唯一判据** —— `levels.ts` 的 `spellSyllable` 与 `BlockChip` 的两点飞走共用它。
+ */
+export const Ü_DROP_INITIALS: ReadonlySet<string> = new Set(['j', 'q', 'x', 'y'])
+
 /* ------------------------------------------------------------ 声调走势 */
 
 /** 四条走势线,就是课本上压在韵母头上的那个形状 —— 形状本身即语义,零文字。 */
