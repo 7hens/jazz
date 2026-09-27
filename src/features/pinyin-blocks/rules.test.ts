@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TONE_VALUES, type Block } from './blocks'
+import { CONFUSABLE, TONE_VALUES, type Block } from './blocks'
 import { UNITS, type Level } from './levels'
 import {
   autoTargetId,
@@ -251,6 +251,55 @@ describe('buildBlocks', () => {
       }
     }
     expect(Math.max(...counts), '没有任何复习关摊满 5 —— 上界没被真的用过').toBe(5)
+  })
+
+  // 双身份块(i/u/ü)在孩子手里是**同一块积木**:canPlace 允许介母槽与韵母槽互换,
+  // 而旧去重按「类型 + 值」算,于是 guā 的托盘里会多出一块 final:u —— 它拖进介母槽
+  // canPlace 判通过,成了「干扰块里唯一能放的」,孩子随手一拖就中(spec §3.3)。
+  it('双身份块按家族去重:托盘的干扰块里不再出现与正确块同字母的另一身份', () => {
+    const blocks = build(GUĀ, seq([0.31, 0.62, 0.17, 0.83, 0.44]))
+    const solution = solutionValues(GUĀ)
+    const extras = blocks.filter((b) => !solution.has(`${b.type}:${b.value}`) && b.type !== 'tone')
+    // guā 的正确块是 initial:g + medial:u + final:a —— final:u 是那个必须消失的冒牌货。
+    expect(extras.some((b) => b.value === 'u'), '托盘里还有第二块 u').toBe(false)
+  })
+
+  // 反过来:声母 n 与鼻尾 n 值相同、类型不同,是两个**真身份**(canPlace 判它们不通用),
+  // 同时出现是刻意设计 —— 一律按值去重会把这一对合法干扰块删掉,等于把游戏改简单。
+  it('声母 n 与鼻尾 n 是两个身份,不许被家族去重合并', () => {
+    // brief 原稿写的是 byId('u9-0')(中 zhōng),但课程数据里没有 u9-0、也没有 zhōng 这一关
+    // (见 levels.ts:u9 的关是 u9-50…u9-57)。取结构最接近的真关 —— 龙 lóng = l + o + ng,
+    // 同为「韵腹 o + 鼻尾 ng」,且所在单元 u7 的池里同时有鼻尾 n(前鼻单元 u6 教过)与声母 n。
+    const lóng = byId('u4-3')
+    const unit = unitIdxOf('u4-3')
+    for (let i = 0; i < 20; i++) {
+      const blocks = buildBlocks(lóng, unit, seq([0.05 * i, 0.37, 0.91]))
+      const ns = blocks.filter((b) => b.value === 'n')
+      // 同一次发牌里若两块都在,必须一个是 initial、一个是 nasal —— 不能是两块同类型。
+      const keys = ns.map((b) => `${b.type}:${b.value}`)
+      expect(new Set(keys).size, `同一类型出现两块 n:${keys.join(',')}`).toBe(keys.length)
+    }
+  })
+
+  // 易混伙伴优先取:把伙伴放在候选游标**尾部**(取块走 pop,取尾),于是有已教伙伴时先取它。
+  it('有已教伙伴时,干扰块优先取伙伴', () => {
+    const bà = byId('u2-0') // 爸 bà = b + a
+    const extra = build(bà, seq([0.42, 0.13, 0.87, 0.24])).filter(
+      (b) => b.type === 'initial' && b.value !== 'b',
+    )
+    expect(extra.map((b) => b.value)).toContain('p') // b 的易混伙伴
+  })
+
+  it('伙伴没教过就不取:同一道题在只教了 b 的池子里取不到任何伙伴', () => {
+    // u1 的池里一个声母都没有 —— 构造一个「池子里没有伙伴」的查法:直接看 u1 的题。
+    const first = UNITS[0]!.levels[0]!
+    const extras = buildBlocks(first, 0, seq([0.2, 0.6, 0.4])).filter((b) => b.type !== 'tone')
+    for (const b of extras) {
+      expect(seenIn(b.type, 0), `${b.type}:${b.value} 不在 u1 的池里`).toContain(b.value)
+    }
+    // u1 的韵母池里没有 CONFUSABLE.final 的任何键(a/o/e/i 都不进表)⇒ 一道题都取不到伙伴。
+    const keys = new Set(extras.filter((b) => b.type === 'final').map((b) => b.value))
+    for (const v of keys) expect(Object.keys(CONFUSABLE.final)).not.toContain(v)
   })
 })
 

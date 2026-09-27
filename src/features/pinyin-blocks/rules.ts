@@ -1,7 +1,7 @@
 // 积木玩法的纯逻辑:槽位生成 / 干扰块 / 放置判定。可注入 rng 保证测试确定性。
 // 不引 React、不引服务 —— 组件只负责画和收手势。
 
-import { DUAL_VALUES, TONE_VALUES, type Block, type BlockType } from './blocks'
+import { CONFUSABLE, DUAL_VALUES, TONE_VALUES, type Block, type BlockType } from './blocks'
 import { taughtBlocks, type Level } from './levels'
 
 /** 一个凹槽。声调槽额外带 anchor —— 它骑在哪个槽上方(韵腹 / 整体块)。 */
@@ -72,6 +72,19 @@ function shuffle<T>(arr: readonly T[], rng: Rng): T[] {
 const keyOf = (b: Block): string => `${b.type}:${b.value}`
 
 /**
+ * 家族键:i / u / ü 只按值算,其余仍按「类型 + 值」。
+ *
+ * canPlace 对双身份块明确允许介母 ↔ 韵母互换 —— 也就是说 `medial:u` 与 `final:u`
+ * 在孩子手里是**同一块积木**。按 keyOf 去重会留下两块一模一样的「u」,其中一块拖到
+ * 某个槽上是「对」、另一块拖到同一个槽上也是「对」(spec §3.3)。
+ *
+ * **不能一律按值去重**:`initial:n`(声母 n,读「讷」)与 `nasal:n`(鼻尾 n,读「恩」)
+ * 值相同但 canPlace 判它们**不通用**,是两个真身份 —— 它们同时出现在托盘里是刻意设计。
+ * **困难段是例外**:那一段按类型严格比,介母块与韵母块是两个真身份,一律走 keyOf。
+ */
+export const familyKey = (b: Block): string => (DUAL_VALUES.has(b.value) ? b.value : keyOf(b))
+
+/**
  * 每个槽各要一块 —— **含重复**。双音节词里 niú nǎi 要两块 n、huā duǒ 要两块介母 u、
  * xī guā 两个音节都是阴平要两块一声。去重会让后一个音节无块可放。
  */
@@ -108,7 +121,9 @@ export function toneBlocks(level: Level): Block[] {
 export function buildBlocks(level: Level, unit: number, rng: Rng = Math.random): Block[] {
   const required = requiredBlocks(level)
   const tones = toneBlocks(level)
-  const takenKeys = new Set([...required, ...tones].map(keyOf))
+  // 简单段与复习段按家族去重(双身份块算同一块);困难段的门禁只比类型,那两身份是真的,按 keyOf。
+  const dedupeKey = familyKey
+  const takenKeys = new Set([...required, ...tones].map(dedupeKey))
   const types = [...new Set(required.map((b) => b.type))]
   // 复习关的干扰块拉满 —— 难度的三件事之一(另两件:池天然混入前面单元的块、提示恒弱)。
   const cap = level.review ? 5 : level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
@@ -124,13 +139,15 @@ export function buildBlocks(level: Level, unit: number, rng: Rng = Math.random):
   const cursors = new Map<BlockType, string[]>()
   for (const type of types) {
     const used = new Set(required.filter((b) => b.type === type).map((b) => b.value))
-    cursors.set(
-      type,
-      shuffle(
-        (taught.get(type) ?? []).filter((v) => !used.has(v)),
-        rng,
-      ),
+    const pool = (taught.get(type) ?? []).filter((v) => !used.has(v))
+    // 易混伙伴放在游标**尾部** —— 取块走 pop()(取尾),于是伙伴先被取走(spec §3.2)。
+    // 伙伴先按 taughtBlocks 过滤过一遍:没教过的伙伴不进托盘。
+    const friends = new Set(
+      required.filter((b) => b.type === type).flatMap((b) => CONFUSABLE[type][b.value] ?? []),
     )
+    const near = pool.filter((v) => friends.has(v))
+    const far = pool.filter((v) => !friends.has(v))
+    cursors.set(type, [...shuffle(far, rng), ...shuffle(near, rng)])
   }
 
   const extra: Block[] = []
@@ -143,8 +160,8 @@ export function buildBlocks(level: Level, unit: number, rng: Rng = Math.random):
     const value = cursors.get(type)?.pop()
     if (value === undefined) continue
     const block: Block = { type, value }
-    if (takenKeys.has(keyOf(block))) continue
-    takenKeys.add(keyOf(block))
+    if (takenKeys.has(dedupeKey(block))) continue
+    takenKeys.add(dedupeKey(block))
     extra.push(block)
   }
 
