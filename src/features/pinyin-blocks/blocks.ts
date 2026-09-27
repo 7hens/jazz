@@ -58,6 +58,44 @@ export const SPEAK_OF: Readonly<Record<BlockType, Readonly<Record<string, string
   tone: {},
 }
 
+/**
+ * 易混伙伴:一块积木在托盘里优先拿谁来当干扰块。
+ * 只写「像」,不写「教没教」—— 后者由 taughtBlocks 在运行时过滤(见 rules.ts 的 buildBlocks),
+ * 于是**难度曲线是课程曲线自动派生的**:u1 一个伙伴都没教,关卡难度不变;u2 教齐 b/p/d/t/n/l/m
+ * 之后开始出对;u4 进来平翘舌整组;u5 进来复韵母对;u7 进来前后鼻尾。
+ *
+ * 三条口径:
+ * 1. 表是**不对称**的(`b: ['p']` 与 `p: ['b']` 各写一遍)—— 有些对本来就不对称
+ *    (平翘舌里孩子更常误选 zh 而不是 z),结构上留余地。
+ * 2. 表只表达「像」,不表达「教过没有」。
+ * 3. 单韵母 a/o/e/i 与 er 不进表 —— u1 面对的是刚认字母的孩子,那里不该有陷阱。
+ */
+export const CONFUSABLE: Readonly<Record<BlockType, Readonly<Record<string, readonly string[]>>>> = {
+  initial: {
+    b: ['p'], p: ['b'],
+    d: ['t'], t: ['d'],
+    g: ['k'], k: ['g'],
+    j: ['q'], q: ['j'],
+    zh: ['z', 'ch'], z: ['zh', 'c'], ch: ['c', 'zh'], c: ['ch', 'z'],
+    sh: ['s'], s: ['sh'],
+    n: ['l'], l: ['n'],
+    m: ['n'],
+    f: ['h'], h: ['f'],
+  },
+  medial: { u: ['ü'], ü: ['u'] },
+  final: {
+    u: ['ü'], ü: ['u'],
+    ai: ['ei'], ei: ['ai'],
+    ao: ['ou'], ou: ['ao'],
+    iu: ['ui'], ui: ['iu'],
+    ie: ['üe'], üe: ['ie'],
+  },
+  // 前/后鼻音只差一个鼻尾,所以「对」记在鼻尾上,而不在韵腹上 —— an / ang 的韵腹是同一个 a。
+  nasal: { n: ['ng'], ng: ['n'] },
+  // 四声恒全出(见 toneBlocks),声调不需要这张表。
+  tone: {},
+}
+
 /** 这一块念什么;查不到(声调块)返回 undefined,调用方据此静默。 */
 export function speakOf(type: BlockType, value: string): string | undefined {
   return SPEAK_OF[type]?.[value]
