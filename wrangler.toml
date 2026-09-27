@@ -3,6 +3,10 @@ main = "./worker/index.ts"
 compatibility_date = "2025-08-23"
 compatibility_flags = ["nodejs_compat"]
 
+# 关闭 wrangler 匿名遥测:每条命令收尾都会 POST sparrow.cloudflare.com,该域名在部分网络下
+# TLS 连不通(exit 35),会让 `npm run dev` 里的 db:local 一跳多花 2~5s,最坏挂到分钟级。
+send_metrics = false
+
 # Workers Assets:生产环境由 ASSETS binding 提供 dist/client/ 静态资源。
 # 注意:不要指向 ./dist——那会把 vite-plugin 的 worker 产物(含 .dev.vars 拷贝)也当静态资源上传。
 [assets]

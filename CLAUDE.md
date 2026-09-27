@@ -12,7 +12,7 @@
 
 ```bash
 npm install            # 安装依赖
-npm run dev            # 全栈本地运行(:3000):先应用本地 D1 迁移,再起 Vite dev + workerd + 本地 D1
+npm run dev            # 全栈本地运行(:3000):先应用本地 D1 迁移,再起 Vite dev + workerd + 本地 D1(--strictPort,端口被占即报错不换端口)
 npm run build          # tsc -b && vite build → 前端 dist/client(worker 部署时由 wrangler 现场打包)
 npm run lint           # oxlint
 npm test               # vitest(jsdom):关卡规则/结算/成就等纯逻辑 + 服务 + Entry 组件 + architecture 边界

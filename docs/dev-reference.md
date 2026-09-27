@@ -24,6 +24,7 @@
 
 - **环境映射**:生产 = 顶层默认 env(worker `jazz-life-tracker`);预览 = `[env.preview]`(独立 D1 `jazz-life-tracker-preview`)。**禁止新增 `[env.production]`**(wrangler env 派生独立 worker → 脱域名/数据)。
 - **命令**:`npm run deploy`(生产)/ `npm run deploy:preview`(预览)/ `npm run db:local`(本地迁移)。wrangler 一律显式 `--config wrangler.toml`,否则构建产物 `dist/jazz_life_tracker/wrangler.json` 劫持配置 → env 失效、DB 落生产库。
+- **遥测已关**:`wrangler.toml` 顶层 `send_metrics = false`。wrangler 每条命令收尾都 POST `sparrow.cloudflare.com`,该域名在部分网络下 TLS 连不通(exit 35,1.8~7s/次且带重试),实测让 `db:local` 从 2.3s 抖到 4.6~7.8s(沙箱里挂到 2m6s)。**勿删该行**:它是启动耗时的主要变量。
 - **版本语义**:bug=patch / 新能力=minor / 破坏性=1.0.0 起 major(`0.1.0` 起步)。判破坏性:删/重命名字段·表·API 路由、改字段类型不可自动转换 = major;新增表、新字段(带 `DEFAULT` 或可 `NULL`)、新增 API 路由 = 向下兼容 → minor。
 - **tag 铁律**:tag 仅在「部署成功 + 浏览器冒烟通过」后打:`npm version <level> -m "chore(release): v%s"` → `git push origin main --tags`。部署/冒烟失败**绝不 `npm version`**(孤儿 tag)。
 - **回滚**:代码/前端错 → `wrangler rollback --config wrangler.toml`(<10s,前后端同切);env/绑定错 → 随 config 或 `--var` deploy 固化,禁 Dashboard 手改(rollback 不恢复变量);D1 数据坏 → 绝不回滚迁移文件,hotfix 改代码或 SQL 修复。
@@ -37,6 +38,7 @@
 - `0001_init.sql` = **基线快照**(users + progress + user_settings 全量 `CREATE IF NOT EXISTS`,无 DROP;其中 `progress` 表已停用,见「数据模型」):新环境一条命令建齐,旧库幂等对齐。此后表结构变更一律新增 `0002_xxx.sql` …,**不改 0001**;新字段须带 `DEFAULT`/可 `NULL`,保证万一回滚旧代码不崩。
 - **顺序(不可逆,先升库后升代码)**:本地 `npm run dev` **自动先跑 `db:local` 再起 server**(`"dev": "npm run db:local && vite …"`,迁移失败即不起,不静默放行);需单独升库时 `npm run db:local`。线上 preview → 生产 apply 仅在发布时做,命令与闸门见 `/release`。
   - 有挂起迁移时 `wrangler` 会**交互确认一次**(「About to apply N migration(s) … continue?」);无挂起则直接报 `No migrations to apply!` 不打断。wrangler 无 `--yes`,确认步仅在检测到 CI/非交互时自动跳过。
+  - vite 带 `--strictPort`:端口被占**直接 `Error: Port 3000 is already in use` 并退出**,不再静默漂到 3001 —— 否则浏览器停在 `:3000` 命中的是上一个没关掉的旧 server,表现为「改了没生效」。
 - `migrations/archive/` = 旧 date 前缀迁移历史(game_state 建/拆、生活记录)已下线,不参与 apply,勿再加回。
 
 ---

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run db:local && vite --host 0.0.0.0 --port 3000",
+    "dev": "node scripts/local-db-ready.mjs && vite --host 0.0.0.0 --port 3000 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "oxlint .",
     "preview": "vite preview --host 0.0.0.0 --port 4173",

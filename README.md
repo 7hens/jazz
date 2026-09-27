@@ -46,7 +46,7 @@
 
 ```bash
 npm install            # 装依赖
-npm run dev            # 全栈本地 :3000(先自动应用本地 D1 迁移,再起 Vite + workerd + 本地 D1)
+npm run dev            # 全栈本地 :3000(先自动应用本地 D1 迁移,再起 Vite + workerd + 本地 D1;端口被占直接报错)
 npm test               # vitest 全量(jsdom;含 architecture 边界)
 npm run lint           # oxlint
 npm run build          # tsc -b && vite build → 前端 dist/client
