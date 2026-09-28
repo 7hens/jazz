@@ -335,6 +335,26 @@ describe('关卡页 · 三段相位', () => {
     expect(celebrate.play).toHaveBeenCalledWith('word')
   })
 
+  // Minor 2:`flush` 发完必须清账(`pending.current = null`)。
+  // 少了那一行,pending 就一直在那儿 —— 回地图被连点两次(头部的按钮在退出动画里仍可点)
+  // 会把同一笔结算**发两次**:星尘算两遍、撒花两遍。这里点两次、断言各一次。
+  it('复习段中途连点两次回地图:结算与撒花仍各只发一次', async () => {
+    const { onSettle, celebrate } = mountLevelEntry()
+    solveCorrectly()
+    await settle()
+    await transition()
+    solveCorrectly()
+    await settle()
+    await transition()
+    const back = screen.getByLabelText('回地图')
+    fireEvent.click(back)
+    // 树的父层只是 vi.fn(onExitToMap),组件没被卸载 —— 第二下会真的再走一次 handleExit。
+    expect(back).toBeInTheDocument()
+    fireEvent.click(back)
+    expect(onSettle).toHaveBeenCalledTimes(1)
+    expect(celebrate.play).toHaveBeenCalledTimes(1)
+  })
+
   // Review Focus #4 / F1:组件内推进下一关(levelIndex 0→1)靠 LevelEntry 的 `key={level.id}` 重挂 ——
   // 没有 key,React 复用同一个 LevelRun 实例,相位会卡在 review、错题池与发牌也一并残留。
   // 旧写法是 unmount() + mountLevelEntry():整棵树重建,key 有没有都一样,是恒真断言(给了假信心),

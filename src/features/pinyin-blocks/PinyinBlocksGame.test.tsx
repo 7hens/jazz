@@ -1044,4 +1044,26 @@ describe('一关三段', () => {
     await settle()
     expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ missCount: 0, failed: false })
   })
+
+  // 复习段**既不上报连击,也不上报答错**(`penalized = mode !== 'review'`)。
+  // 两侧都要压:只压「放错」那一侧,把正确那一支的 `if (penalized)` 摘掉照样绿 ——
+  // 而那样一来,复习段就成了刷连击圆点的通道(walkthrough W-T11 明说放对也不动圆点)。
+  it('复习段:放错与放对都不上报连击(onBlock 一次都不响)', async () => {
+    const onSectionEnd = vi.fn()
+    const onBlock = vi.fn()
+    const question = reviewQuestionFor([{ type: 'initial', value: 'p' }])
+    mountSection(SECTION_LEVEL, { review: question, onSectionEnd, onBlock })
+
+    const wrong = trayBlocks().find((el) => blockOf(el).value === 'p')
+    fireEvent.keyDown(wrong as HTMLElement, { key: 'Enter' })
+    expect(onBlock, '复习段放错不该上报答错').not.toHaveBeenCalled()
+
+    const right = trayBlocks().find((el) => blockOf(el).value === 'b')
+    fireEvent.keyDown(right as HTMLElement, { key: 'Enter' })
+    expect(onBlock, '复习段放对不该上报连击').not.toHaveBeenCalled()
+
+    // 段照常交回 —— 「不上报」不等于「没接上」。
+    await settle()
+    expect(onSectionEnd).toHaveBeenCalledTimes(1)
+  })
 })

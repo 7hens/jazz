@@ -8,6 +8,7 @@ import {
   canPlace,
   familyKey,
   HARD_RETRIES,
+  HARD_TRAY_PER_TYPE,
   isComplete,
   requiredBlocks,
   sameTypeOnly,
@@ -43,6 +44,18 @@ function unitIdxOf(id: string): number {
 
 /** `buildBlocks` 的单元下标参数一律由关卡自己的 id 推 —— 测试里不再手写「第几个单元」。 */
 const build = (level: Level, rng: Rng) => buildBlocks(level, unitIdxOf(level.id), rng)
+
+/**
+ * 与 `PinyinBlocksGame` 里那支**同源**的轮次 rng(同乘同加同位移),种子 0 ——
+ * 要的就是「生产里 round 0 发的那副牌」。两边要一起改;改了那边,这条哨子就失去依据。
+ */
+function roundZero(): Rng {
+  let s = (0 * 2654435761) >>> 0
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
 
 const GUĀ = byId('u5-0') // 🍉 guā = g + 介母 u + a
 const ZHĪ = byId('u6-0') // 🕷️ zhī = zh + i(焊死)
@@ -313,6 +326,52 @@ describe('buildBlocks', () => {
         }
         for (const t of TONE_VALUES) {
           expect(blocks.some((b) => b.type === 'tone' && b.value === t), `${level.pinyin} 少了声调 ${t}`).toBe(true)
+        }
+      }
+    }
+  })
+
+  // Minor 6:`HARD_TRAY_PER_TYPE` 的**值**必须直接钉住 —— 行为侧**压不出来**。
+  // 它只出现在 `Math.max(1, HARD_TRAY_PER_TYPE - need)` 里,而 need 恒 ≥ 1(只有要用的类型才发牌),
+  // 于是 2 与 1 得到同一个 want,把 2 改成 1 所有关卡的托盘**一模一样**。
+  // 但值 1 让「need = 2 的类型只发 2 块正解、零对手」成为**合法**,下一个多音节关会悄悄失去难度 ——
+  // 所以这里钉的是旋钮本身,不是它今天恰好产出的那几张牌。
+  it('困难段:HARD_TRAY_PER_TYPE 钉死在 2(行为侧不可观测,只能钉值)', () => {
+    expect(HARD_TRAY_PER_TYPE).toBe(2)
+    // 语义侧旁证:u7-0 的声母要 x / g 两块 ⇒ 该类型共 3 块(2 正解 + 1 对手)。
+    const hard = buildBlocks(byId('u7-0'), unitIdxOf('u7-0'), seq([0.4, 0.8]), { hard: true })
+    expect(hard.filter((b) => b.type === 'initial')).toHaveLength(3)
+  })
+
+  // 困难段的错题池按**精确身份**记账(`exactPoolKey`),简单段/复习段按**家族**记账。
+  // 这个差别只有在「某一关 round-0 的困难托盘里同时含一对同家族、不同类型的**可放错块**」
+  //(典型是 medial:u 与 final:u,或 medial:i 与 final:i)时才会在 UI 上显形 ——
+  // 那时池的条数、复习小题的条数都会不同。
+  //
+  // 今天的 91 关**一关都没有**这种托盘(rng 取的就是生产里 round 0 那支,见 roundZero):
+  //  - 反例锚 u7-0 的 round-0 困难托盘里确实有 medial:u,但那是 s1-m 的正解(恒放不错),
+  //    而 final:u 要到第 2 / 5 轮才进托盘;
+  //  - 真正出现同家族跨类型对的轮次是 u5-0 / u5-3 / u7-0 / u7-4 / u8-51 / u8-52 / u9-54 的
+  //    第 3、5 轮 —— 而唯一能看见池的路径(给了 `onSectionEnd`)会让 `round` 恒为 0
+  //    (`advance()` 那条老路被关掉,见 `PinyinBlocksGame` 的 onSolved 分支),轮次推不动。
+  // 于是针对那条差别的行为断言写不出来(写出来也是恒真)。这条哨子锁的是「不可观测」这个事实:
+  // 哪天它变红,正确的动作是**补上那条行为断言**(困难段接一对同家族跨类型错块 ⇒ 池的两条
+  // 都留下),不是删哨子 —— 删掉等于把「池键的口径已经变得可见」这件事埋掉。
+  it('没有一关的 round-0 困难托盘含同家族、不同类型的可放错块(池键差别因此不可观测)', () => {
+    for (let unit = 0; unit < UNITS.length; unit++) {
+      for (const level of UNITS[unit]!.levels) {
+        const slots = slotsFor(level)
+        const hard = buildBlocks(level, unit, roundZero(), { hard: true })
+        const wrongable = hard.filter((b) => slots.some((s) => s.type === b.type && s.value !== b.value))
+        for (let i = 0; i < wrongable.length; i++) {
+          for (let j = i + 1; j < wrongable.length; j++) {
+            const a = wrongable[i]!
+            const b = wrongable[j]!
+            expect(
+              familyKey(a) === familyKey(b) && a.type !== b.type,
+              `${level.id} 的困难托盘里 ${a.type}:${a.value} 与 ${b.type}:${b.value} 撞了家族`,
+            ).toBe(false)
+          }
         }
       }
     }
