@@ -1,11 +1,12 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { UNITS } from './levels'
-import { canPlace, slotsFor } from './rules'
+import { canPlace, slotsFor, type Slot } from './rules'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
+import { reviewQuestions, type ReviewQuestion } from './mistakes'
 import type { AnswerKind } from '@/shared/services'
 import { HAN_TEXT } from '@/shared/testing/han-text'
-import { PinyinBlocksGame } from './PinyinBlocksGame'
+import { PinyinBlocksGame, type PinyinBlocksGameProps } from './PinyinBlocksGame'
 
 /** 游戏组件只吃 props,不碰服务注册表 —— 测试直接渲染,无需 fake service。 */
 function mount(unit: number, level: number, onAdvance = vi.fn()) {
@@ -704,5 +705,198 @@ describe('拼音积木 · 游戏', () => {
     // 再放对一块
     fireEvent.keyDown(screen.getByLabelText('积木 b'), { key: 'Enter' })
     expect(onBlock.mock.calls).toEqual([['wrong'], ['first']])
+  })
+})
+
+describe('一关三段', () => {
+  const SECTION_LEVEL = 'u2-0'
+  /** 本关的数据对象 —— `at()` 交回的是下标元组,取关要用它。 */
+  const LV = UNITS[at(SECTION_LEVEL)[0]]!.levels[at(SECTION_LEVEL)[1]]!
+
+  // 本段的判定全靠推时钟(判错撤块 720ms / 正解演示 1200ms / 成功 1600ms),
+  // 而 `vi.advanceTimersByTime` 要求先开假时钟。老 describe 是**逐条**在自己体内开的,
+  // 这里段内每条都要,收在段壳上 —— 并**必须**在段末还原,否则时钟会漏给后面那些用例。
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  /** 段口径的挂载:三段入参直接喂给拼装台。 */
+  function mountSection(levelId: string, props: Partial<PinyinBlocksGameProps>) {
+    const [unit, level] = at(levelId)
+    const speak = vi.fn()
+    return render(<PinyinBlocksGame unitIndex={unit} levelIndex={level} speak={speak} {...props} />)
+  }
+
+  /**
+   * 按「门禁」把一段拼对。困难段用 `sameTypeOnly`,复习段用 `canPlace` ——
+   * 判据不同,但**正确块都满足两者**,所以这里传一个判据就够。
+   */
+  function solveStage(judge: (b: Block, s: Slot) => boolean) {
+    for (const slot of slotsFor(LV)) {
+      const fits = trayBlocks().filter((el) => judge(blockOf(el), slot))
+      const pick = fits.find((el) => blockOf(el).type === slot.type) ?? fits[0]
+      expect(pick, `${slot.type}:${slot.value} 在托盘里找不到可放块`).toBeDefined()
+      fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+    }
+  }
+
+  /** 把每个槽都填上一块**类型对、值错**的块 —— 困难段里这才会走到「填满后判错」。 */
+  function fillWrongOnce() {
+    for (const slot of slotsFor(LV)) {
+      const pick = trayBlocks().find((el) => {
+        const block = blockOf(el)
+        return block.type === slot.type && block.value !== slot.value
+      })
+      // 声调槽在困难段四声全出,韵母池里也总有别的韵母;找不到就说明托盘算法漏了(那是 Task 3 的账)。
+      expect(pick, `${slot.type} 槽找不到「类型对、值错」的块`).toBeDefined()
+      fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+    }
+  }
+
+  it('困难段:门禁只比类型 —— 值错的块放得进去,判错后撤块重试', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
+    // 往声母槽里放一块**值错但类型对**的声母(托盘里 b 之外的声母)。
+    const initialSlot = slotsFor(LV).find((s) => s.type === 'initial')!
+    const wrong = trayBlocks().find((el) => {
+      const block = blockOf(el)
+      return block.type === 'initial' && block.value !== initialSlot.value
+    })
+    expect(wrong, '困难段的托盘里必须有另一块声母').toBeDefined()
+    fireEvent.keyDown(wrong as HTMLElement, { key: 'Enter' })
+    // 落进去了(简单段会当场弹回)—— 这是「值可以错」的直接证据。
+    expect(document.querySelector(`[data-slot-id="${initialSlot.id}"] [data-value]`)).not.toBeNull()
+  })
+
+  it('困难段:填满后判错 → 指出错误槽 → 撤块重试', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
+    fillWrongOnce()
+    expect(document.querySelectorAll('.pslot--wrong').length).toBeGreaterThan(0)
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+    // 撤块:错误槽空了,又能重来 —— 段还没结束。
+    expect(document.querySelectorAll('.pslot--wrong').length).toBe(0)
+    expect(onSectionEnd).not.toHaveBeenCalled()
+  })
+
+  it('困难段:2 次重试用尽 → 演示正解 → 交回「失败」但不阻塞', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
+    fillWrongOnce()
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+    fillWrongOnce()
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+    fillWrongOnce() // 第 3 次判错 = 用尽
+    expect(document.querySelectorAll('.pslot--wrong').length).toBeGreaterThan(0)
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+    // 演示:所有槽都填上了正确块。
+    expect(document.querySelectorAll('[data-slot-id] [data-value]')).toHaveLength(slotsFor(LV).length)
+    await act(async () => {
+      vi.advanceTimersByTime(1400)
+    })
+    expect(onSectionEnd).toHaveBeenCalledTimes(1)
+    expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ failed: true })
+    expect(onSectionEnd.mock.calls[0]![0].missCount).toBeGreaterThanOrEqual(3)
+  })
+
+  // Review Focus #2:演示期间孩子继续点托盘块 —— 不许重复交账。
+  it('重试用尽后的演示期间,继续点托盘块不会重复交账', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
+    for (let i = 0; i < 3; i++) {
+      fillWrongOnce()
+      await act(async () => {
+        vi.advanceTimersByTime(800)
+      })
+    }
+    for (const el of trayBlocks()) fireEvent.keyDown(el, { key: 'Enter' })
+    await act(async () => {
+      vi.advanceTimersByTime(3000)
+    })
+    expect(onSectionEnd).toHaveBeenCalledTimes(1)
+  })
+
+  it('简单段:同一块点错 2 次才进错题池', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
+    const extra = trayBlocks().find((el) => {
+      const block = blockOf(el)
+      return block.type === 'initial' && block.value !== 'b'
+    })
+    expect(extra).toBeDefined()
+    fireEvent.keyDown(extra as HTMLElement, { key: 'Enter' })
+    solveStage(canPlace)
+    await settle()
+    expect(onSectionEnd).toHaveBeenCalledTimes(1)
+    // 只点错一次 ⇒ 不进池(阈值 N = 2)。
+    expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(0)
+  })
+
+  it('简单段:同一块点错 2 次 ⇒ 进错题池', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
+    const extra = trayBlocks().find((el) => {
+      const block = blockOf(el)
+      return block.type === 'initial' && block.value !== 'b'
+    })
+    fireEvent.keyDown(extra as HTMLElement, { key: 'Enter' })
+    fireEvent.keyDown(extra as HTMLElement, { key: 'Enter' })
+    const first = slotsFor(LV).find((s) => s.type === 'initial')!
+    fireEvent.keyDown(trayBlocks().find((el) => canPlace(blockOf(el), first)) as HTMLElement, { key: 'Enter' })
+    for (const slot of slotsFor(LV).filter((s) => s.id !== first.id)) {
+      const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot))
+      if (pick) fireEvent.keyDown(pick, { key: 'Enter' })
+    }
+    await settle()
+    expect(onSectionEnd.mock.calls[0]![0].wrongBlocks.map((block: Block) => `${block.type}:${block.value}`)).toContain(
+      'initial:p',
+    )
+  })
+
+  /**
+   * 复习段的题**一律由 `reviewQuestions` 造**。手搓一个 prefill 不全的题面(比如只填 slotIds
+   * 与 tray,prefill 留空)会得到一道**无解**的题:托盘里只有声母块,而屏幕上还有韵母槽与声调槽,
+   * `isComplete` 永远不成立 ⇒ `onSectionEnd` 一次都不发,测试却会红在断言而不是病因上。
+   */
+  const reviewQuestionFor = (pool: Block[]): ReviewQuestion =>
+    reviewQuestions(LV, at(SECTION_LEVEL)[0], pool, () => 0.5)[0]!
+
+  it('复习段:预填槽拿不回(点了也不动),托盘只剩挖空槽的正解与错解', () => {
+    const question = reviewQuestionFor([{ type: 'initial', value: 'p' }])
+    mountSection(SECTION_LEVEL, { review: question })
+    // 可见托盘 = 正解 b + 错解 p(韵母与声调都已预填,不在托盘里)。
+    expect(trayBlocks()).toHaveLength(2)
+    // 三个槽都在屏上,段标也照常画着。
+    expect(document.querySelectorAll('[data-slot-id]')).toHaveLength(3)
+    expect(document.querySelectorAll('.pstage-step')).toHaveLength(3)
+
+    const prefilled = slotsFor(LV).find((s) => s.id !== question.slotIds[0])!
+    const chip = document.querySelector(`[data-slot-id="${prefilled.id}"] [data-value]`)
+    expect(chip, `${prefilled.id} 没预填`).not.toBeNull()
+    fireEvent.click(chip as HTMLElement)
+    // 点了还在槽里 —— 简单段点一下就会弹回托盘(那里 onClick = takeBack)。
+    expect(document.querySelector(`[data-slot-id="${prefilled.id}"] [data-value]`)).not.toBeNull()
+    expect(trayBlocks()).toHaveLength(2)
+  })
+
+  it('复习段:不记 miss(放错只抖)', async () => {
+    const onSectionEnd = vi.fn()
+    const question = reviewQuestionFor([{ type: 'initial', value: 'p' }])
+    mountSection(SECTION_LEVEL, { review: question, onSectionEnd })
+    const wrong = trayBlocks().find((el) => blockOf(el).value === 'p')
+    fireEvent.keyDown(wrong as HTMLElement, { key: 'Enter' })
+    // p 放不进 b 的槽(复习段用 canPlace)⇒ 弹回,托盘里还是两块。
+    expect(trayBlocks()).toHaveLength(2)
+    const right = trayBlocks().find((el) => blockOf(el).value === 'b')
+    fireEvent.keyDown(right as HTMLElement, { key: 'Enter' })
+    await settle()
+    expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ missCount: 0, failed: false })
   })
 })
