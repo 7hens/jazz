@@ -252,7 +252,7 @@ export function wrongSlotIds(
 }
 
 /**
- * 简单段的点选路径:优先找类型完全相同的空槽,再退到双身份块的互换槽。找不到返回 null。
+ * 非困难段(简单段与复习段)的点选路径:优先找类型完全相同的空槽,再退到双身份块的互换槽。找不到返回 null。
  * 困难段不走这里 —— 那一段的点选落位是 `autoTypeTargetId`(只认同类型)。
  */
 export function autoTargetId(block: Block, slots: readonly Slot[], placement: Placement): string | null {

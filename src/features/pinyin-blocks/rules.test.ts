@@ -396,14 +396,21 @@ describe('sameTypeOnly(困难段的门禁)', () => {
 })
 
 describe('autoTypeTargetId(困难段的点选落位)', () => {
-  it('落到同类型的第一个空槽,不看值', () => {
-    const slots: Slot[] = [slot('initial', 'b'), slot('final', 'a')]
-    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, {})).toBe('x')
+  // 槽必须用**不同 id** —— 复用 slot helper(恒 id 'x')时「永远取第一个空槽」的实现也全绿,
+  // 类型过滤(`s.type === block.type`)就永远测不到。
+  const slots: Slot[] = [
+    { id: 's0-i', type: 'initial', value: 'b', sylIdx: 0 },
+    { id: 's0-f', type: 'final', value: 'a', sylIdx: 0 },
+  ]
+
+  it('落到同类型的第一个空槽,不看值(声母块进声母槽、韵母块进韵母槽)', () => {
+    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, {})).toBe('s0-i')
+    expect(autoTypeTargetId({ type: 'final', value: 'o' }, slots, {})).toBe('s0-f')
   })
 
   it('同类型的槽都占满了就没有落点(不跨类型找)', () => {
-    const slots: Slot[] = [slot('initial', 'b'), slot('final', 'a')]
-    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, { x: 'b0' })).toBe(null)
+    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, { 's0-i': 'b0' })).toBe(null)
+    expect(autoTypeTargetId({ type: 'final', value: 'o' }, slots, { 's0-f': 'b1' })).toBe(null)
   })
 })
 
