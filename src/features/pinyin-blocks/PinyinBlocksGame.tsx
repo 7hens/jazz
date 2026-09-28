@@ -189,7 +189,7 @@ function PinyinRound({
   )
 
   /** 本关此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。 */
-  const hint = hintFor(unit.id, missCount, level.review)
+  const hint = hintFor(unit.id, missCount, mode)
 
   const timer = useRef<number | null>(null)
   const clearTimer = useCallback(() => {

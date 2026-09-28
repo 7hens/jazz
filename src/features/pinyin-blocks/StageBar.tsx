@@ -1,10 +1,12 @@
 import { cn } from '@/shared/ui/utils'
+import type { Chapter } from './chapter'
 
 /**
- * 三段身份。**与课程数据里的 `Level.review`(复习**关**)是两个独立的东西** ——
- * 一个复习关里也有三段,三段里的第三段才叫复习段(spec §3.0 的命名撞车说明)。
+ * 段的身份就是章的类别 —— 台阶条有三格,一个单元三章,同一套素材同一套语义。
+ * 留着 `StageId` 这个名字是因为 `PinyinBlocksGame` 的 `stage` 入参是「段」的视角,
+ * 两处指的是同一个联合类型,不许各写一份。
  */
-export type StageId = 'easy' | 'hard' | 'review'
+export type StageId = Chapter
 
 /** 只进无障碍树,不上屏 —— 游戏区零可见文字。 */
 const LABEL: Record<StageId, string> = {

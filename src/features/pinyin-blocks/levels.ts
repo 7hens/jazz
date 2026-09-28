@@ -36,10 +36,12 @@ export type Level = {
   readonly read: string
   readonly syl: readonly Syllable[]
   /**
-   * 复习关:本单元最后一关。数据里**只记语义** —— 提示档与干扰块数由 `blocks.ts` / `rules.ts`
-   * 派生。把 `hint: 'weak'` 之类直接写进数据,产品口径一变就要逐关改 12 处。
+   * 困难章。**不写 = 简单题**。
+   *
+   * 「简单 / 困难」的划分只有这一个字段说了算:`easyLevelsOf` / `hardLevelsOf`
+   * 两个派生视图都从它取,别在别处按单元序号或题数猜。
    */
-  readonly review?: boolean
+  readonly stage?: 'hard'
 }
 
 export type Unit = {
@@ -49,6 +51,21 @@ export type Unit = {
   /** 地图格子里的名片 —— 本单元新教的块。跟 levels 一样**显式写死**,不靠反推。 */
   readonly badge: readonly Block[]
   readonly levels: readonly Level[]
+}
+
+/**
+ * 本单元的简单章 / 困难章。**只分组、不排序** —— 顺序沿用 `Unit.levels` 里已有的那个。
+ *
+ * `Unit.levels` 保持**扁平单数组**(简单题全在前、困难题全在后),而不是 `levels: { easy, hard }`:
+ * `progress-stats` / `achievements` / 后端 / 存档格式遍历的都是 `unit.levels`,
+ * 换个形状就要同时改五处,而这里只需要两个取值函数。
+ */
+export function easyLevelsOf(unit: Unit): readonly Level[] {
+  return unit.levels.filter((level) => level.stage !== 'hard')
+}
+
+export function hardLevelsOf(unit: Unit): readonly Level[] {
+  return unit.levels.filter((level) => level.stage === 'hard')
 }
 
 export const UNITS: readonly Unit[] = [
@@ -64,7 +81,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u1-50', emoji: '🪑', pinyin: 'yǐ', read: '椅', syl: [{ final: 'i', tone: 3 }] },
       { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ final: 'u', tone: 3 }] },
       // 复习关:一轮 a o e i u 走完
-      { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }], review: true },
+      { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }] },
     ],
   },
   {
@@ -80,7 +97,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u2-51', emoji: '🪓', pinyin: 'fǔ', read: '斧', syl: [{ initial: 'f', final: 'u', tone: 3 }] },
       { id: 'u2-52', emoji: '🌍', pinyin: 'dì', read: '地', syl: [{ initial: 'd', final: 'i', tone: 4 }] },
       { id: 'u2-53', emoji: '😠', pinyin: 'nù', read: '怒', syl: [{ initial: 'n', final: 'u', tone: 4 }] },
-      { id: 'u2-54', emoji: '✏️', pinyin: 'bǐ', read: '笔', syl: [{ initial: 'b', final: 'i', tone: 3 }], review: true },
+      { id: 'u2-54', emoji: '✏️', pinyin: 'bǐ', read: '笔', syl: [{ initial: 'b', final: 'i', tone: 3 }] },
     ],
   },
   {
@@ -94,7 +111,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u3-52', emoji: '🐯', pinyin: 'hǔ', read: '虎', syl: [{ initial: 'h', final: 'u', tone: 3 }] },
       { id: 'u3-53', emoji: '7️⃣', pinyin: 'qī', read: '七', syl: [{ initial: 'q', final: 'i', tone: 1 }] },
       { id: 'u3-54', emoji: '🛁', pinyin: 'xǐ', read: '洗', syl: [{ initial: 'x', final: 'i', tone: 3 }] },
-      { id: 'u3-55', emoji: '🥤', pinyin: 'hē', read: '喝', syl: [{ initial: 'h', final: 'e', tone: 1 }], review: true },
+      { id: 'u3-55', emoji: '🥤', pinyin: 'hē', read: '喝', syl: [{ initial: 'h', final: 'e', tone: 1 }] },
     ],
   },
   {
@@ -111,7 +128,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u4-55', emoji: '🎨', pinyin: 'sè', read: '色', syl: [{ initial: 's', final: 'e', tone: 4 }] },
       { id: 'u4-56', emoji: '🦆', pinyin: 'yā', read: '鸭', syl: [{ initial: 'y', final: 'a', tone: 1 }] },
       { id: 'u4-57', emoji: '🙋', pinyin: 'wǒ', read: '我', syl: [{ initial: 'w', final: 'o', tone: 3 }] },
-      { id: 'u4-58', emoji: '📄', pinyin: 'zhǐ', read: '纸', syl: [{ initial: 'zh', final: 'i', tone: 3 }], review: true },
+      { id: 'u4-58', emoji: '📄', pinyin: 'zhǐ', read: '纸', syl: [{ initial: 'zh', final: 'i', tone: 3 }] },
     ],
   },
   {
@@ -131,7 +148,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u5-50', emoji: '🐮', pinyin: 'niú', read: '牛', syl: [{ initial: 'n', final: 'iu', tone: 2 }] },
       // er 是特殊韵母:自成音节,永远不跟声母拼
       { id: 'u5-51', emoji: '👶', pinyin: 'ér', read: '儿', syl: [{ final: 'er', tone: 2 }] },
-      { id: 'u5-52', emoji: '👍', pinyin: 'hǎo', read: '好', syl: [{ initial: 'h', final: 'ao', tone: 3 }], review: true },
+      { id: 'u5-52', emoji: '👍', pinyin: 'hǎo', read: '好', syl: [{ initial: 'h', final: 'ao', tone: 3 }] },
     ],
   },
   {
@@ -143,7 +160,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u4-1', emoji: '⛰️', pinyin: 'shān', read: '山', syl: [{ initial: 'sh', final: 'a', nasal: 'n', tone: 1 }] },
       { id: 'u6-50', emoji: '✉️', pinyin: 'xìn', read: '信', syl: [{ initial: 'x', final: 'i', nasal: 'n', tone: 4 }] },
       { id: 'u6-51', emoji: '🛞', pinyin: 'lún', read: '轮', syl: [{ initial: 'l', final: 'u', nasal: 'n', tone: 2 }] },
-      { id: 'u6-52', emoji: '🍚', pinyin: 'fàn', read: '饭', syl: [{ initial: 'f', final: 'a', nasal: 'n', tone: 4 }], review: true },
+      { id: 'u6-52', emoji: '🍚', pinyin: 'fàn', read: '饭', syl: [{ initial: 'f', final: 'a', nasal: 'n', tone: 4 }] },
     ],
   },
   {
@@ -156,7 +173,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u4-4', emoji: '🌬️', pinyin: 'fēng', read: '风', syl: [{ initial: 'f', final: 'e', nasal: 'ng', tone: 1 }] },
       { id: 'u5-4', emoji: '👑', pinyin: 'wáng', read: '王', syl: [{ initial: 'w', final: 'a', nasal: 'ng', tone: 2 }] },
       { id: 'u7-50', emoji: '⭐', pinyin: 'xīng', read: '星', syl: [{ initial: 'x', final: 'i', nasal: 'ng', tone: 1 }] },
-      { id: 'u7-51', emoji: '🐑', pinyin: 'yáng', read: '羊', syl: [{ initial: 'y', final: 'a', nasal: 'ng', tone: 2 }], review: true },
+      { id: 'u7-51', emoji: '🐑', pinyin: 'yáng', read: '羊', syl: [{ initial: 'y', final: 'a', nasal: 'ng', tone: 2 }] },
     ],
   },
   {
@@ -170,7 +187,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u5-3', emoji: '🍎', pinyin: 'guǒ', read: '果', syl: [{ initial: 'g', medial: 'u', final: 'o', tone: 3 }] },
       { id: 'u8-50', emoji: '⬇️', pinyin: 'xià', read: '下', syl: [{ initial: 'x', medial: 'i', final: 'a', tone: 4 }] },
       { id: 'u8-51', emoji: '💰', pinyin: 'qián', read: '钱', syl: [{ initial: 'q', medial: 'i', final: 'a', nasal: 'n', tone: 2 }] },
-      { id: 'u8-52', emoji: '🪥', pinyin: 'shuā', read: '刷', syl: [{ initial: 'sh', medial: 'u', final: 'a', tone: 1 }], review: true },
+      { id: 'u8-52', emoji: '🪥', pinyin: 'shuā', read: '刷', syl: [{ initial: 'sh', medial: 'u', final: 'a', tone: 1 }] },
     ],
   },
   {
@@ -188,7 +205,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u9-54', emoji: '⭕', pinyin: 'quān', read: '圈', syl: [{ initial: 'q', medial: 'ü', final: 'a', nasal: 'n', tone: 1 }] },
       { id: 'u9-55', emoji: '👧', pinyin: 'nǚ', read: '女', syl: [{ initial: 'n', final: 'ü', tone: 3 }] },
       { id: 'u9-56', emoji: '🟩', pinyin: 'lǜ', read: '绿', syl: [{ initial: 'l', final: 'ü', tone: 4 }] },
-      { id: 'u9-57', emoji: '🙌', pinyin: 'jǔ', read: '举', syl: [{ initial: 'j', final: 'ü', tone: 3 }], review: true },
+      { id: 'u9-57', emoji: '🙌', pinyin: 'jǔ', read: '举', syl: [{ initial: 'j', final: 'ü', tone: 3 }] },
     ],
   },
   {
@@ -203,7 +220,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u10-50', emoji: '☀️', pinyin: 'rì', read: '日', syl: [{ initial: 'r', final: 'i', tone: 4, weld: true }] },
       { id: 'u10-51', emoji: '📝', pinyin: 'zì', read: '字', syl: [{ initial: 'z', final: 'i', tone: 4, weld: true }] },
       { id: 'u10-52', emoji: '4️⃣', pinyin: 'sì', read: '四', syl: [{ initial: 's', final: 'i', tone: 4, weld: true }] },
-      { id: 'u10-53', emoji: '🔟', pinyin: 'shí', read: '十', syl: [{ initial: 'sh', final: 'i', tone: 2, weld: true }], review: true },
+      { id: 'u10-53', emoji: '🔟', pinyin: 'shí', read: '十', syl: [{ initial: 'sh', final: 'i', tone: 2, weld: true }] },
     ],
   },
   {
@@ -221,7 +238,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u11-53', emoji: '🔵', pinyin: 'yuán', read: '圆', syl: [{ initial: 'y', medial: 'ü', final: 'a', nasal: 'n', tone: 2 }] },
       { id: 'u11-54', emoji: '🎵', pinyin: 'yīn', read: '音', syl: [{ initial: 'y', final: 'i', nasal: 'n', tone: 1, weld: true }] },
       { id: 'u11-55', emoji: '☁️', pinyin: 'yún', read: '云', syl: [{ initial: 'y', final: 'ü', nasal: 'n', tone: 2, weld: true }] },
-      { id: 'u11-56', emoji: '🌧️', pinyin: 'yǔ', read: '雨', syl: [{ initial: 'y', final: 'ü', tone: 3, weld: true }], review: true },
+      { id: 'u11-56', emoji: '🌧️', pinyin: 'yǔ', read: '雨', syl: [{ initial: 'y', final: 'ü', tone: 3, weld: true }] },
     ],
   },
   {
@@ -295,7 +312,6 @@ export const UNITS: readonly Unit[] = [
           { initial: 'd', final: 'a', tone: 4 },
           { initial: 'sh', final: 'u', tone: 4 },
         ],
-        review: true,
       },
     ],
   },

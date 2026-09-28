@@ -162,9 +162,10 @@ export function buildBlocks(
   const dedupeKey: (b: Block) => string = opts.hard ? keyOf : familyKey
   const takenKeys = new Set([...required, ...tones].map(dedupeKey))
   const types = [...new Set(required.map((b) => b.type))]
-  // 复习关的干扰块拉满 —— 难度的三件事之一(另两件:池天然混入前面单元的块、提示恒弱)。
-  // 这里的 cap 管的是**干扰块总数**(题面有多挤);「挤在里面的块有多像」由 CONFUSABLE 管。
-  const cap = level.review ? 5 : level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
+  // 干扰块总数封顶。这里的 cap 管的是**干扰块总数**(题面有多挤);
+  // 「挤在里面的块有多像」由 CONFUSABLE 管。复习章的托盘由 `ReviewQuestion.tray` 给,
+  // 压根不走这里 —— 那条路径上的上限是 `REVIEW_TRAY_CAP`。
+  const cap = level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
 
   // 干扰块只从「该单元及之前课程里出现过的块」里取 —— 池子由课程数据派生,零硬编码。
   const taught = new Map<BlockType, string[]>()

@@ -5,6 +5,8 @@
 //   - i/u/ü 是双身份块:jia 里的 i 是介母(韵头),bin 里的 i 是韵腹。
 // 声调用走势线画(SVG path),不印字符 —— ˉˊˇˋ 在 44px 圆里会糊成 - ~ ^,孩子认不出。
 
+import type { Chapter } from './chapter'
+
 export type BlockType = 'initial' | 'medial' | 'final' | 'nasal' | 'tone'
 
 /** 一块积木。value 为去调底字母;声调块的 value 是 '1'..'4'。 */
@@ -143,13 +145,12 @@ export const HINT_BY_UNIT: Readonly<Record<string, Hint>> = {
 }
 
 /**
- * 本关此刻的提示档。
+ * 本关此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。
  *
- * - 连错 2 次临时提到强档 —— 脚手架既要会撤,也要能回来。**优先于一切**,包括复习关。
- * - 复习关恒弱:难度靠「块多、池混、提示弱」三件事,不再靠新机制。
- * - 表里没有的单元 id 兜底强档(宁可多给线索,也不要让新单元变成一块灰砖)。
+ * 第三参是**章的类别**,不是「这一关是不是复习关」—— 章化后「复习」是复习章,
+ * 那一段恒弱是因为它考的是错块,不是因为题的出身。
  */
-export function hintFor(unitId: string, missCount: number, review = false): Hint {
+export function hintFor(unitId: string, missCount: number, chapter: Chapter = 'easy'): Hint {
   if (missCount >= 2) return 'strong'
-  return review ? 'weak' : (HINT_BY_UNIT[unitId] ?? 'strong')
+  return chapter === 'review' ? 'weak' : (HINT_BY_UNIT[unitId] ?? 'strong')
 }

@@ -11,7 +11,17 @@ import {
   hintFor,
   speakOf,
 } from './blocks'
-import { UNITS, losesDots, spell, spellSyllable, taughtBlocks, type Level, type Syllable } from './levels'
+import {
+  UNITS,
+  easyLevelsOf,
+  hardLevelsOf,
+  losesDots,
+  spell,
+  spellSyllable,
+  taughtBlocks,
+  type Level,
+  type Syllable,
+} from './levels'
 import { slotsFor } from './rules'
 import type { BlockType } from './blocks'
 
@@ -158,7 +168,7 @@ describe('拼音积木关卡数据', () => {
     for (const entry of allLevels) {
       const level = entry.level
       const label = where(entry)
-      expect(level.id, `${label} 缺 id`).toMatch(/^u\d+-\d+$/)
+      expect(level.id, `${label} 缺 id`).toMatch(/^u\d+-\d+h?$/)
       const owner = seen.get(level.id)
       expect(owner, `${level.id} 重复出现在 ${owner} 与 ${label}`).toBeUndefined()
       seen.set(level.id, label)
@@ -228,14 +238,13 @@ describe('拼音积木关卡数据', () => {
     expect(hintFor('', 0)).toBe('strong')
   })
 
-  // 复习关是难度的另一半:提示档不参与单元基线表,恒弱(连错 2 次的救急强档除外)。
-  // 漏改 `PinyinBlocksGame.tsx` 的第三参时 review 恒为 false,复习关会**静默**用单元基线 ——
-  // 这条就是为那一类静默失败设的。
-  it('复习关的提示恒为弱档,除非连错 2 次', () => {
+  // 复习章是难度的另一半:提示档不参与单元基线表,恒弱(连错 2 次的救急强档除外)。
+  // 漏改 `PinyinBlocksGame.tsx` 的第三参时,复习章会**静默**用单元基线 —— 这条就是为那一类静默失败设的。
+  it('复习章的提示恒为弱档,除非连错 2 次', () => {
     for (const u of UNITS) {
-      expect(hintFor(u.id, 0, true), `${u.id} 复习关该是弱档`).toBe('weak')
-      expect(hintFor(u.id, 1, true), `${u.id} 复习关错一次仍是弱档`).toBe('weak')
-      expect(hintFor(u.id, 2, true), `${u.id} 连错 2 次要回强档`).toBe('strong')
+      expect(hintFor(u.id, 0, 'review'), `${u.id} 复习章该是弱档`).toBe('weak')
+      expect(hintFor(u.id, 1, 'review'), `${u.id} 复习章错一次仍是弱档`).toBe('weak')
+      expect(hintFor(u.id, 2, 'review'), `${u.id} 连错 2 次要回强档`).toBe('strong')
     }
   })
 
@@ -352,11 +361,30 @@ describe('拼音积木关卡数据', () => {
 
   // G8 写在 `rules.test.ts`(它比的是干扰块的数量机制,那里已有 `buildBlocks` / `seenIn` / `seq`)。
 
-  it('G6:每单元最后一关是复习关,且每单元恰好一个', () => {
+  // 章化后「单元末复习关」这一关**不存在了** —— 原 12 道复习关的题并进简单章当普通题。
+  // 这条钉的是**它们的 id 一字不改**:id 是存档键,改一个就是老存档里一颗星变孤儿。
+  it('G6:原复习关的题保留成简单题,id 一字不改', () => {
+    const legacy = [
+      'u1-52', 'u2-54', 'u3-55', 'u4-58', 'u5-52', 'u6-52',
+      'u7-51', 'u8-52', 'u9-57', 'u10-53', 'u11-56', 'u12-50',
+    ]
+    const ids = new Set(UNITS.flatMap((u) => u.levels.map((level) => level.id)))
+    for (const id of legacy) expect(ids.has(id), `原复习关 ${id} 不见了`).toBe(true)
+  })
+
+  // 简单题 / 困难题的划分由 `stage` 一个字段决定,两个派生视图合起来必须正好是全表 ——
+  // 派生视图漏掉一类(比如 hardLevelsOf 忘了过滤)在 UI 上就是「有些题永远走不到」。
+  it('G6b:简单题与困难题互补,合起来等于全表', () => {
     for (const u of UNITS) {
-      const reviews = u.levels.filter((level) => level.review === true)
-      expect(reviews, `${u.id} 的复习关数`).toHaveLength(1)
-      expect(u.levels.at(-1)?.review, `${u.id} 的复习关不在最后一关`).toBe(true)
+      const easy = easyLevelsOf(u)
+      const hard = hardLevelsOf(u)
+      expect(easy.length + hard.length, `${u.id} 两章题数之和`).toBe(u.levels.length)
+      expect(easy.some((level) => level.stage === 'hard'), `${u.id} 简单章混进了困难题`).toBe(false)
+      expect(hard.every((level) => level.stage === 'hard'), `${u.id} 困难章混进了简单题`).toBe(true)
+      // 顺序:简单章全在前、困难章全在后(索引必须单调)—— 章内「逐题往下走」直接吃这个顺序。
+      const lastEasy = u.levels.findLastIndex((level) => level.stage !== 'hard')
+      const firstHard = u.levels.findIndex((level) => level.stage === 'hard')
+      if (firstHard >= 0) expect(lastEasy, `${u.id} 简单题与困难题交错了`).toBeLessThan(firstHard)
     }
   })
 
