@@ -375,3 +375,89 @@ describe('关卡页 · 三段相位', () => {
     )
   })
 })
+
+// 三段整链 —— 简单段的错题池真的接进复习段,且复习段**一道一道**走。
+// 此前这两个接头只有孤立的单元用例(LevelRun 的相位 / mistakes 的纯函数),
+// 中间那段接线(onEasyEnd 的 setPool、onReviewEnd 的步进、复习 key 的重挂)没有用例压着。
+describe('关卡页 · 复习段错题池接线(三段整链)', () => {
+  const reviewDots = () => document.querySelector<HTMLElement>('[data-review-dots]')
+  const prefilled = () => document.querySelector<HTMLElement>('[data-slot-id].pslot--filled')
+  const filledSlotIds = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-slot-id].pslot--filled')).map(
+      (el) => el.dataset.slotId!,
+    )
+  /** 空槽(要孩子自己填的那些)的 id,按 DOM 顺序。 */
+  const emptySlotIds = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-slot-id]'))
+      .filter((el) => !el.classList.contains('pslot--filled'))
+      .map((el) => el.dataset.slotId!)
+
+  /** 简单段:把选中的那块**点错两次**(阈值 N = 2)⇒ 入错题池。 */
+  function pickWrongTwice(match: (b: Block) => boolean) {
+    const host = trayBlocks().find((el) => match(blockOf(el)))
+    expect(host, '托盘中找不到要故意点错的块').toBeDefined()
+    fireEvent.keyDown(host as HTMLElement, { key: 'Enter' })
+    fireEvent.keyDown(host as HTMLElement, { key: 'Enter' })
+  }
+
+  /** 复习小题:用放得下的正解填掉唯一的空槽(点选路径 = 自动落位)。 */
+  function solveReviewStep() {
+    const emptyId = emptySlotIds()[0]
+    const slot = slotsFor(UNITS[0]!.levels[0]!).find((s) => s.id === emptyId)
+    expect(slot, `复习段找不到空槽 ${emptyId ?? '(没有空槽)'}`).toBeDefined()
+    const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot!))
+    expect(pick, `${slot!.type}:${slot!.value} 在复习托盘里没有正解`).toBeDefined()
+    fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+  }
+
+  /**
+   * 简单段点错**两类**块各两次 ⇒ 池里两个类型 ⇒ 复习段恰好两道小题(定序:最近点错的先考)。
+   * u1-0 = é(e + 二声):四声/一声块、o/u 韵母块都无处可落,点两次就入池。
+   */
+  function makeTwoTypePool() {
+    pickWrongTwice((b) => b.type === 'final' && b.value !== 'e') // 先点错:韵母类
+    pickWrongTwice((b) => b.type === 'tone' && b.value === '1') // 后点错:声调类
+  }
+
+  it('两道复习小题:进度点 1/2 → 2/2、第二题换新实例、两次交账只推进一步', async () => {
+    const { onSettle } = mountLevelEntry()
+
+    makeTwoTypePool()
+    solveCorrectly() // 简单段拼对
+    await settle() // → 过场 A
+    await transition()
+    solveCorrectly() // 困难段一次不错 ⇒ 池只来自简单段那两类
+    await settle() // → 过场 B
+    await transition()
+
+    // 第 1 道小题:进度点报 1/2,且真的画了两颗点。
+    expect(reviewDots()?.getAttribute('aria-label')).toBe('复习 1/2')
+    expect(reviewDots()?.querySelectorAll('.pstage-dot')).toHaveLength(2)
+    // 第 1 题是「声调」小题:声调槽挖空,韵母槽被正解预填。
+    expect(emptySlotIds()).toEqual(['s0-t'])
+    expect(filledSlotIds()).toEqual(['s0-f'])
+    const q0Block = prefilled()!.querySelector<HTMLElement>('[data-block-id]')!.dataset.blockId!
+
+    solveReviewStep()
+    await settle() // 成功动画 → onSectionEnd → 换下一道小题
+
+    // 第 2 道小题:进度点走到 2/2;**换了一组块**(q1-*)与**另一个槽被挖空** ——
+    // 少了 `${reviewIdx}` 这个 key 就不会重挂,placement 会黏着第 1 题的块,这里当场空掉。
+    expect(reviewDots()?.getAttribute('aria-label')).toBe('复习 2/2')
+    expect(prefilled(), '第二题没有预填槽 —— 组件没换新实例(key 少了 reviewIdx?)').not.toBeNull()
+    expect(emptySlotIds()).toEqual(['s0-f'])
+    expect(prefilled()!.dataset.slotId).toBe('s0-t')
+    const q1Block = prefilled()!.querySelector<HTMLElement>('[data-block-id]')!.dataset.blockId!
+    expect(q1Block).toMatch(/^q1-/)
+    expect(document.querySelector(`[data-block-id="${q0Block}"]`), '第一题的块还留在第二题的盘上').toBeNull()
+
+    solveReviewStep()
+    await settle() // → onDone → 交账 + 推进一关
+
+    // 两次交账**只推进一步**:onSettle 恰好一次,关卡号 1/6 → 2/6,且相位回到简单段。
+    expect(onSettle).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(`2/${UNITS[0]!.levels.length}`)).toBeInTheDocument()
+    expect(document.querySelector('[data-stage="easy"]')).not.toBeNull()
+  })
+
+})
