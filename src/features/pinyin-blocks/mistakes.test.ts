@@ -11,6 +11,7 @@ import {
   reviewQuestions,
   WRONG_PICK_THRESHOLD,
   type MistakePool,
+  type ReviewQuestion,
 } from './mistakes'
 
 /** 「灌满池子」用的候选值域:每一类都有几个与正解不同的值。 */
@@ -128,7 +129,9 @@ describe('reviewQuestions', () => {
    * 渲染层才找得到它、才画得进槽),而屏上看得见的是「没被预填走的那几块」。
    * 上限与「家族出现次数不超过正解所需」这两条都是对**可见的那几块**说的。
    */
-  const visible = (q: { prefill: Record<string, string>; tray: readonly { id: string; value: string }[] }) => {
+  // 参数就是一道复习小题本身 —— 别在这里另抄一份内联结构:漏掉 `type` 会让 :198 的 `familyCounts(shown)`
+  // 过不了类型检查(`tsc -b` 红,而 vitest / oxlint 都看不见)。
+  const visible = (q: ReviewQuestion) => {
     const placed = new Set(Object.values(q.prefill))
     return q.tray.filter((t) => !placed.has(t.id))
   }

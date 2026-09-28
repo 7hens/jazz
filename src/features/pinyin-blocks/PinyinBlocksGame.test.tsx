@@ -648,6 +648,26 @@ describe('拼音积木 · 游戏', () => {
     }
   })
 
+  // 判定后还有 1.6s 的成功动画,那段时间里托盘上还留着干扰块 —— 孩子会继续点。
+  // 已经到手的星不该被这几下改小:星级在 succeed() 调用那一刻就冻结(HEAD 的写法)。
+  it('成功动画期间点托盘块,星级不变', () => {
+    vi.useFakeTimers()
+    try {
+      const onSolved = vi.fn()
+      render(<PinyinBlocksGame unitIndex={1} levelIndex={0} speak={vi.fn()} onSolved={onSolved} />)
+      solveCorrectly(1, 0)
+      // 260ms 后进入成功动画(status 已是 solved),1600ms 的停顿还没走完
+      act(() => vi.advanceTimersByTime(300))
+      const rest = trayBlocks()
+      expect(rest.length, '解完之后托盘该还剩干扰块可点').toBeGreaterThan(0)
+      for (const el of rest) fireEvent.keyDown(el, { key: 'Enter' })
+      settle()
+      expect(onSolved).toHaveBeenCalledWith(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   // 两条推进路径只能跑一条 —— 都跑的话 advance 里那个 setRound 会把这关重挂一次
   // (表现是闪一下、发牌换一副),孩子刚拼好的题面凭空消失。
   it('给了 onSolved 就不再自走推进(关不重挂)', () => {
@@ -821,6 +841,26 @@ describe('一关三段', () => {
       vi.advanceTimersByTime(3000)
     })
     expect(onSectionEnd).toHaveBeenCalledTimes(1)
+  })
+
+  // 演示期槽已全满,点托盘块既无槽可落 —— **不受理**才是对的:
+  // 受理了就是「白记 miss + 白进池」,画面上什么都没发生,段账目却已经被改坏。
+  it('正解演示期间点托盘块:不记 miss、不进错题池', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
+    for (let i = 0; i < 3; i++) {
+      fillWrongOnce()
+      await act(async () => {
+        vi.advanceTimersByTime(800)
+      })
+    }
+    for (const el of trayBlocks()) fireEvent.keyDown(el, { key: 'Enter' })
+    await act(async () => {
+      vi.advanceTimersByTime(3000)
+    })
+    // 3 次判错 = 3 次 miss、3 块错块(池按 key 去重);演示期那几下没有添乱。
+    expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ missCount: 3, failed: true })
+    expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(3)
   })
 
   it('简单段:同一块点错 2 次才进错题池', async () => {

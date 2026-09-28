@@ -280,12 +280,15 @@ function PinyinRound({
     playSound?.('victory')
     speak(level.read)
     setBurst(true)
+    // 星级在**调用这一刻**冻结,不在超时回调里现算:成功动画还有 1.6s 才放完,那段时间里
+    // 任何一次误触都不该把**已经到手**的星改小(HEAD 就是这么冻的)。spec §3.9。
+    const stars = starsFor(missRef.current)
     timer.current = window.setTimeout(
       () => {
         setBurst(false)
         // 有三段相位就走交账那条路;没有才是今天那套「拼对即通关」。
         if (onSectionEnd) endSection(false)
-        else onSolved?.(starsFor(missRef.current))
+        else onSolved?.(stars)
       },
       welded ? 2100 : 1600,
     )
@@ -397,6 +400,10 @@ function PinyinRound({
 
   const autoPlace = useCallback(
     (blockId: string) => {
+      // 非播放态(成功动画 / 判错撤块 / 正解演示)一律不受理,与 placeBlock 同一道闸。
+      // 少了它:那些相位里槽已经全满,点什么都落进下面的 else —— 白记一次 miss(演示期能记到 8),
+      // 白把块塞进错题池,成功动画那 1.6s 里还会把星级改小。
+      if (status !== 'playing') return
       const block = tray.find((b) => b.id === blockId)
       if (!block) return
       // 困难段的落点取「同类型的第一个空槽」(值可以错);其余两段走今天的 autoTargetId。
@@ -410,7 +417,7 @@ function PinyinRound({
         noteWrongBlock(block, blockId)
       }
     },
-    [tray, slots, placement, hard, penalized, placeBlock, playSound, onBlock, flashRejectBlock, noteWrongBlock],
+    [status, tray, slots, placement, hard, penalized, placeBlock, playSound, onBlock, flashRejectBlock, noteWrongBlock],
   )
 
   /* ------------------------------------------------------------------ 拖拽
