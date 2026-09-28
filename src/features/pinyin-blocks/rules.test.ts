@@ -291,6 +291,84 @@ describe('buildBlocks', () => {
       expect(taught.has(`${block.type}:${block.value}`), `托盘里的 ${block.type}:${block.value} 不是 u1 教过的块`).toBe(true)
     }
   })
+
+  // 困难段的全部手感在托盘:干扰不够就不构成难度(spec §3.6)。
+  // 与简单段的 cap 是**两个旋钮** —— 这里拧的是「每个用到的类型都给一块对手」。
+  it('困难段:每个用到的类型都有对手(给到至少一块,除非池子实在没得给)', () => {
+    for (let unit = 0; unit < UNITS.length; unit++) {
+      for (const level of UNITS[unit]!.levels) {
+        const blocks = buildBlocks(level, unit, seq([0.23, 0.71, 0.44, 0.09]), { hard: true })
+        const types = [...new Set(requiredBlocks(level).map((b) => b.type))]
+        for (const type of types) {
+          const values = new Set(blocks.filter((b) => b.type === type).map((b) => b.value))
+          // 正确块的去重值数 + 1(至少一块对手);池子没那么多值时只能给到池子的上限。
+          // 按下限写成「至少 2 块」会在多音节关失真:那里一个类型可能已经要用两块正确块。
+          const need = new Set(requiredBlocks(level).filter((b) => b.type === type).map((b) => b.value)).size
+          expect(values.size, `${level.pinyin} 的 ${type} 只给了 ${values.size} 块`).toBeGreaterThanOrEqual(
+            Math.min(need + 1, seenIn(type, unit).length),
+          )
+        }
+        for (const t of TONE_VALUES) {
+          expect(blocks.some((b) => b.type === 'tone' && b.value === t), `${level.pinyin} 少了声调 ${t}`).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('困难段:全部正确块都在托盘里(少一块孩子就无解)', () => {
+    for (let unit = 0; unit < UNITS.length; unit++) {
+      for (const level of UNITS[unit]!.levels) {
+        const blocks = buildBlocks(level, unit, seq([0.5, 0.25]), { hard: true })
+        for (const need of requiredBlocks(level)) {
+          expect(
+            blocks.filter((b) => b.type === need.type && b.value === need.value).length,
+            `${level.pinyin} 少了正确块 ${need.type}:${need.value}`,
+          ).toBeGreaterThanOrEqual(1)
+        }
+      }
+    }
+  })
+
+  // 困难段的门禁只比类型,介母与韵母在那一段是**两个真身份**(青色进介母槽、绿色进韵母槽),
+  // 所以按 keyOf 去重 —— 同值的两块要能同时出现。
+  //
+  // 构造题面并把单元下标取 7(u8,介母只教了 i / u 两个):题面已用掉 medial:u,
+  // 游标里就只剩 i,于是 medial 的对手**恒为 i** —— 与种子无关,
+  // 与必需的 final:i 同值不同类。这正是 familyKey 去重会误杀的那一块。
+  it('困难段:双身份块不被家族合并,medial:i 与 final:i 两块都在', () => {
+    const dual: Level = {
+      id: 'test-hard-dual',
+      emoji: '🧪',
+      pinyin: 'xī guā',
+      read: '西瓜',
+      syl: [
+        { initial: 'x', final: 'i', tone: 1 },
+        { initial: 'g', medial: 'u', final: 'a', tone: 1 },
+      ],
+    }
+    const blocks = buildBlocks(dual, 7, seq([0.12, 0.34, 0.56, 0.78]), { hard: true })
+    const identifiers = blocks.filter((b) => b.value === 'i').map((b) => `${b.type}:${b.value}`)
+    expect(identifiers).toContain('final:i') // 必需的韵腹
+    expect(identifiers).toContain('medial:i') // 对手:同值,另一个身份
+  })
+
+  // u2-0(爸 bà):困难段 = b/p + a/o + 四声 = 8 块。
+  it('困难段:u2-0 是 8 块(两个类型各给一块对手)', () => {
+    const bà = byId('u2-0')
+    const unit = unitIdxOf('u2-0')
+    expect(buildBlocks(bà, unit, seq([0.4, 0.8]), { hard: true })).toHaveLength(8)
+  })
+
+  // 多音节关的困难段确实比简单段大 —— 整段设计的手感就在这个差额上(u7-0:13 > 12)。
+  it('困难段的托盘比简单段大:u7-0 困难 13 块 / 简单 12 块', () => {
+    const xigua = byId('u7-0')
+    const unit = unitIdxOf('u7-0')
+    const hard = buildBlocks(xigua, unit, seq([0.4, 0.8]), { hard: true })
+    const easy = buildBlocks(xigua, unit, seq([0.4, 0.8]))
+    expect(hard).toHaveLength(13)
+    expect(easy).toHaveLength(12)
+    expect(hard.length).toBeGreaterThan(easy.length)
+  })
 })
 
 describe('isComplete / wrongSlotIds', () => {

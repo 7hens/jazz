@@ -113,19 +113,44 @@ export function toneBlocks(level: Level): Block[] {
   )
 }
 
+/** 困难段的托盘参数:与简单段的 cap 是两个旋钮 —— 这里只拧「每个类型至少几块」。 */
+export type BuildOptions = {
+  /**
+   * 困难段:每个用到的类型都给 ≥1 块对手,并让该类型总数至少 HARD_TRAY_PER_TYPE 块;
+   * 门禁只比类型,去重按 keyOf(双身份块在那一段是两个真身份)。
+   */
+  readonly hard?: boolean
+}
+
+/**
+ * 困难段每个用到的类型至少给几块。2 = 「正确块 + 至少一个对手」——
+ * 一个类型只有一块等于没有选择,那就不是难度(spec §3.6)。
+ *
+ * 注意这是「该类型总数」的下限,不是「对手数」:正确块用了两块时(如 u7-0 的 x + g),
+ * 仍要再给至少一块对手,取块公式 `Math.max(1, HARD_TRAY_PER_TYPE - need)` 正是为此。
+ */
+export const HARD_TRAY_PER_TYPE = 2
+
 /**
  * 托盘积木 = 所需块(含重复) + 声调块 + 干扰块。
  * 干扰块总数封顶并按类型轮摊(**不是**每类各来 N 个,那样块数会炸);
  * 干扰块只从已解锁的池子里取 —— 还没教的块不该出现在题面上。
+ * `opts.hard` 走另一套取块算法(每个用到的类型都给足对手),见 HARD_TRAY_PER_TYPE。
  */
-export function buildBlocks(level: Level, unit: number, rng: Rng = Math.random): Block[] {
+export function buildBlocks(
+  level: Level,
+  unit: number,
+  rng: Rng = Math.random,
+  opts: BuildOptions = {},
+): Block[] {
   const required = requiredBlocks(level)
   const tones = toneBlocks(level)
   // 简单段与复习段按家族去重(双身份块算同一块);困难段的门禁只比类型,那两身份是真的,按 keyOf。
-  const dedupeKey = familyKey
+  const dedupeKey: (b: Block) => string = opts.hard ? keyOf : familyKey
   const takenKeys = new Set([...required, ...tones].map(dedupeKey))
   const types = [...new Set(required.map((b) => b.type))]
   // 复习关的干扰块拉满 —— 难度的三件事之一(另两件:池天然混入前面单元的块、提示恒弱)。
+  // 这里的 cap 管的是**干扰块总数**(题面有多挤);「挤在里面的块有多像」由 CONFUSABLE 管。
   const cap = level.review ? 5 : level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
 
   // 干扰块只从「该单元及之前课程里出现过的块」里取 —— 池子由课程数据派生,零硬编码。
@@ -151,18 +176,37 @@ export function buildBlocks(level: Level, unit: number, rng: Rng = Math.random):
   }
 
   const extra: Block[] = []
-  for (let placed = 0; placed < cap; placed++) {
-    // 每轮挑候选最多的那一类,避免某一类被抽空后失衡
-    const candidates = types.filter((t) => (cursors.get(t)?.length ?? 0) > 0)
-    if (candidates.length === 0) break
-    candidates.sort((a, b) => (cursors.get(b)?.length ?? 0) - (cursors.get(a)?.length ?? 0))
-    const type = candidates[0] as BlockType
-    const value = cursors.get(type)?.pop()
-    if (value === undefined) continue
-    const block: Block = { type, value }
-    if (takenKeys.has(dedupeKey(block))) continue
-    takenKeys.add(dedupeKey(block))
-    extra.push(block)
+  if (opts.hard) {
+    // 困难段:每个用到的类型都给 ≥1 块对手,并让该类型总数至少 HARD_TRAY_PER_TYPE 块。
+    // 用 while 而不是 for —— 撞上重复值时**不消耗名额**(那个 continue 白吃一格是这里最容易漏的地方)。
+    for (const type of types) {
+      const need = required.filter((b) => b.type === type).length
+      const want = Math.max(1, HARD_TRAY_PER_TYPE - need)
+      let got = 0
+      while (got < want) {
+        const value = cursors.get(type)?.pop()
+        if (value === undefined) break
+        const block: Block = { type, value }
+        if (takenKeys.has(dedupeKey(block))) continue
+        takenKeys.add(dedupeKey(block))
+        extra.push(block)
+        got += 1
+      }
+    }
+  } else {
+    for (let placed = 0; placed < cap; placed++) {
+      // 每轮挑候选最多的那一类,避免某一类被抽空后失衡
+      const candidates = types.filter((t) => (cursors.get(t)?.length ?? 0) > 0)
+      if (candidates.length === 0) break
+      candidates.sort((a, b) => (cursors.get(b)?.length ?? 0) - (cursors.get(a)?.length ?? 0))
+      const type = candidates[0] as BlockType
+      const value = cursors.get(type)?.pop()
+      if (value === undefined) continue
+      const block: Block = { type, value }
+      if (takenKeys.has(dedupeKey(block))) continue
+      takenKeys.add(dedupeKey(block))
+      extra.push(block)
+    }
   }
 
   return shuffle([...required, ...tones, ...extra], rng)
