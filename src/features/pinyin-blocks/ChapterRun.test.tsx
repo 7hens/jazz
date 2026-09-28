@@ -35,7 +35,7 @@ function mount(items: readonly ChapterItem[], onQuestionEnd = vi.fn(async (_end:
   return { view, onDone, onQuestionEnd }
 }
 
-// 下面三个辅助**照抄** `LevelEntry.test.tsx:109-151` 的同名实现(托盘取块 / 读块身份 / 点选落位),
+// 下面三个辅助沿用 `UnitEntry.test.tsx` 那套(托盘取块 / 读块身份 / 点选落位),
 // 只把写死的 `UNITS[0].levels[0]` 换成「当前这一题」。别另发明一套取法 ——
 // 那套已经踩过坑:块的身份印在里层 `[data-value]` 上,点选走的是 `keyDown Enter`(不是 click)。
 
@@ -68,8 +68,8 @@ function solveCurrent(levelIndex: number): void {
 }
 
 /**
- * 简单段:把托盘中某一块**点错 `WRONG_PICK_THRESHOLD` 次** ⇒ 恰好记同样多次 miss,且那一块入错题池。
- * 手法照抄 `LevelEntry.test.tsx` 的 `pickWrongTwice`(块身份在里层 `[data-value]`,点选走 `keyDown Enter`)——
+ * 简单章:把托盘中某一块**点错 `WRONG_PICK_THRESHOLD` 次** ⇒ 恰好记同样多次 miss,且那一块入错题池。
+ * 手法:块身份在里层 `[data-value]`,点选走 `keyDown Enter` ——
  * 每次点错都会换 key 重挂**块本体**,但外层 `[data-block-id]` wrapper 身份稳定,故握着它连点是对的。
  */
 function pickWrongToPool(match: (b: Block) => boolean): void {
@@ -99,7 +99,7 @@ describe('ChapterRun', () => {
     expect(end.wrongBlocks, '一次不错 = 没有错块交出来').toEqual([])
     expect(onDone, '还有题没走完,不该交账').not.toHaveBeenCalled()
     expect(view.container.textContent).toContain(unit.levels[1]!.emoji)
-    // 章内题与题之间是**直接换题**,不该有过场遮罩(与 LevelRun 的跨段过场相反)。
+    // 章内题与题之间是**直接换题**,不该有过场遮罩(过场只发生在章与章之间)。
     // 遮罩会蒙在下一题上 —— 屏幕有内容,上面几条断言全绿,只有这一条挡得住。
     expect(
       document.querySelector('[data-stage-transition]'),

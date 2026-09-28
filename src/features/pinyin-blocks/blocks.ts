@@ -136,7 +136,7 @@ export type Hint = 'strong' | 'mid' | 'weak'
 /**
  * 每个单元的提示基线。脚手架随课程推进撤掉(u1-u4 强 → u5-u8 中 → u9-u12 弱),
  * 跟难度曲线同步,而不是孩子一进关就面对满屏颜色。
- * **复习关不参与这张表** —— 它恒弱(见 `hintFor`)。
+ * **复习章不参与这张表** —— 它恒弱(见 `hintFor`)。
  */
 export const HINT_BY_UNIT: Readonly<Record<string, Hint>> = {
   u1: 'strong', u2: 'strong', u3: 'strong', u4: 'strong',

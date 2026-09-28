@@ -776,18 +776,18 @@ describe('拼音积木 · 游戏', () => {
   })
 })
 
-describe('一关三段', () => {
+describe('章内单题的门禁(简单 / 困难 / 复习)', () => {
   const SECTION_LEVEL = 'u2-0'
   /** 本关的数据对象 —— `at()` 交回的是下标元组,取关要用它。 */
   const LV = UNITS[at(SECTION_LEVEL)[0]]!.levels[at(SECTION_LEVEL)[1]]!
 
-  // 本段的判定全靠推时钟(判错撤块 720ms / 正解演示 1200ms / 成功 1600ms),
+  // 本 describe 的判定全靠推时钟(判错撤块 720ms / 正解演示 1200ms / 成功 1600ms),
   // 而 `vi.advanceTimersByTime` 要求先开假时钟。老 describe 是**逐条**在自己体内开的,
-  // 这里段内每条都要,收在段壳上 —— 并**必须**在段末还原,否则时钟会漏给后面那些用例。
+  // 这里每条都要,收在壳上 —— 并**必须**在本组末还原,否则时钟会漏给后面那些用例。
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  /** 段口径的挂载:三段入参直接喂给拼装台。 */
+  /** 单题口径的挂载:分章入参(stage / review)直接喂给拼装台。 */
   function mountSection(levelId: string, props: Partial<PinyinBlocksGameProps>) {
     const [unit, level] = at(levelId)
     const speak = vi.fn()
@@ -795,7 +795,7 @@ describe('一关三段', () => {
   }
 
   /**
-   * 按「门禁」把一段拼对。困难段用 `sameTypeOnly`,复习段用 `canPlace` ——
+   * 按「门禁」把一题拼对。困难章用 `sameTypeOnly`,复习章用 `canPlace` ——
    * 判据不同,但**正确块都满足两者**,所以这里传一个判据就够。
    */
   function solveStage(judge: (b: Block, s: Slot) => boolean) {
@@ -807,20 +807,20 @@ describe('一关三段', () => {
     }
   }
 
-  /** 把每个槽都填上一块**类型对、值错**的块 —— 困难段里这才会走到「填满后判错」。 */
+  /** 把每个槽都填上一块**类型对、值错**的块 —— 困难章里这才会走到「填满后判错」。 */
   function fillWrongOnce() {
     for (const slot of slotsFor(LV)) {
       const pick = trayBlocks().find((el) => {
         const block = blockOf(el)
         return block.type === slot.type && block.value !== slot.value
       })
-      // 声调槽在困难段四声全出,韵母池里也总有别的韵母;找不到就说明托盘算法漏了(那是 Task 3 的账)。
+      // 声调槽在困难章四声全出,韵母池里也总有别的韵母;找不到就说明托盘算法漏了(那是 Task 3 的账)。
       expect(pick, `${slot.type} 槽找不到「类型对、值错」的块`).toBeDefined()
       fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
     }
   }
 
-  it('困难段:门禁只比类型 —— 值错的块放得进去,判错后撤块重试', async () => {
+  it('困难章:门禁只比类型 —— 值错的块放得进去,判错后撤块重试', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
     // 往声母槽里放一块**值错但类型对**的声母(托盘里 b 之外的声母)。
@@ -829,13 +829,13 @@ describe('一关三段', () => {
       const block = blockOf(el)
       return block.type === 'initial' && block.value !== initialSlot.value
     })
-    expect(wrong, '困难段的托盘里必须有另一块声母').toBeDefined()
+    expect(wrong, '困难章的托盘里必须有另一块声母').toBeDefined()
     fireEvent.keyDown(wrong as HTMLElement, { key: 'Enter' })
-    // 落进去了(简单段会当场弹回)—— 这是「值可以错」的直接证据。
+    // 落进去了(简单章会当场弹回)—— 这是「值可以错」的直接证据。
     expect(document.querySelector(`[data-slot-id="${initialSlot.id}"] [data-value]`)).not.toBeNull()
   })
 
-  it('困难段:填满后判错 → 指出错误槽 → 撤块重试', async () => {
+  it('困难章:填满后判错 → 指出错误槽 → 撤块重试', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
     fillWrongOnce()
@@ -843,12 +843,12 @@ describe('一关三段', () => {
     await act(async () => {
       vi.advanceTimersByTime(800)
     })
-    // 撤块:错误槽空了,又能重来 —— 段还没结束。
+    // 撤块:错误槽空了,又能重来 —— 本章还没结束。
     expect(document.querySelectorAll('.pslot--wrong').length).toBe(0)
     expect(onSectionEnd).not.toHaveBeenCalled()
   })
 
-  it('困难段:2 次重试用尽 → 演示正解 → 交回「失败」但不阻塞', async () => {
+  it('困难章:2 次重试用尽 → 演示正解 → 交回「失败」但不阻塞', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
     fillWrongOnce()
@@ -892,7 +892,7 @@ describe('一关三段', () => {
   })
 
   // 演示期槽已全满,点托盘块既无槽可落 —— **不受理**才是对的:
-  // 受理了就是「白记 miss + 白进池」,画面上什么都没发生,段账目却已经被改坏。
+  // 受理了就是「白记 miss + 白进池」,画面上什么都没发生,章账目却已经被改坏。
   it('正解演示期间点托盘块:不记 miss、不进错题池', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'hard', onSectionEnd })
@@ -933,8 +933,8 @@ describe('一关三段', () => {
     expect(onSolved).toHaveBeenCalledWith(3)
   })
 
-  // 段账目同样护住这 260ms:盘面已满即视为本段判完,窗口里的点击不得推高 missCount、不得进池。
-  it('填满到判定之间的 260ms 里点托盘块:段账目不动', async () => {
+  // 章账目同样护住这 260ms:盘面已满即视为本章判完,窗口里的点击不得推高 missCount、不得进池。
+  it('填满到判定之间的 260ms 里点托盘块:章账目不动', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
     solveStage(canPlace)
@@ -952,8 +952,8 @@ describe('一关三段', () => {
     expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(0)
   })
 
-  // 同一手法的三段路径:段账目也不得被这条后门推高。
-  it('260ms 窗口里先拿回一块再点放不下的块:段账目不动', async () => {
+  // 同一手法的三条路径:章账目也不得被这条后门推高。
+  it('260ms 窗口里先拿回一块再点放不下的块:章账目不动', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
     solveStage(canPlace)
@@ -975,7 +975,7 @@ describe('一关三段', () => {
     expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(0)
   })
 
-  it('简单段:同一块点错 2 次才进错题池', async () => {
+  it('简单章:同一块点错 2 次才进错题池', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
     const extra = trayBlocks().find((el) => {
@@ -991,7 +991,7 @@ describe('一关三段', () => {
     expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(0)
   })
 
-  it('简单段:同一块点错 2 次 ⇒ 进错题池', async () => {
+  it('简单章:同一块点错 2 次 ⇒ 进错题池', async () => {
     const onSectionEnd = vi.fn()
     mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
     const extra = trayBlocks().find((el) => {
@@ -1013,7 +1013,7 @@ describe('一关三段', () => {
   })
 
   /**
-   * 复习段的题**一律由 `chapterReviewQuestions` 造**(T9 起正身;`reviewQuestions` 过渡壳已删)。
+   * 复习章的题**一律由 `chapterReviewQuestions` 造**(T9 起正身;`reviewQuestions` 过渡壳已删)。
    * 手搓一个 prefill 不全的题面(比如只填 slotIds 与 tray,prefill 留空)会得到一道**无解**的题:
    * 托盘里只有声母块,而屏幕上还有韵母槽与声调槽,`isComplete` 永远不成立 ⇒ `onSectionEnd`
    * 一次都不发,测试却会红在断言而不是病因上。
@@ -1026,12 +1026,12 @@ describe('一关三段', () => {
     return chapterReviewQuestions(UNITS[unitIndex]!, unitIndex, pool, () => 0.5)[0]!.question
   }
 
-  it('复习段:预填槽拿不回(点了也不动),托盘只剩挖空槽的正解与错解', () => {
+  it('复习章:预填槽拿不回(点了也不动),托盘只剩挖空槽的正解与错解', () => {
     const question = reviewQuestionFor([{ type: 'initial', value: 'p' }])
     mountSection(SECTION_LEVEL, { review: question })
     // 可见托盘 = 正解 b + 错解 p(韵母与声调都已预填,不在托盘里)。
     expect(trayBlocks()).toHaveLength(2)
-    // 三个槽都在屏上,段标也照常画着。
+    // 三个槽都在屏上,章标也照常画着。
     expect(document.querySelectorAll('[data-slot-id]')).toHaveLength(3)
     expect(document.querySelectorAll('.pstage-step')).toHaveLength(3)
 
@@ -1039,18 +1039,18 @@ describe('一关三段', () => {
     const chip = document.querySelector(`[data-slot-id="${prefilled.id}"] [data-value]`)
     expect(chip, `${prefilled.id} 没预填`).not.toBeNull()
     fireEvent.click(chip as HTMLElement)
-    // 点了还在槽里 —— 简单段点一下就会弹回托盘(那里 onClick = takeBack)。
+    // 点了还在槽里 —— 简单章点一下就会弹回托盘(那里 onClick = takeBack)。
     expect(document.querySelector(`[data-slot-id="${prefilled.id}"] [data-value]`)).not.toBeNull()
     expect(trayBlocks()).toHaveLength(2)
   })
 
-  it('复习段:不记 miss(放错只抖)', async () => {
+  it('复习章:不记 miss(放错只抖)', async () => {
     const onSectionEnd = vi.fn()
     const question = reviewQuestionFor([{ type: 'initial', value: 'p' }])
     mountSection(SECTION_LEVEL, { review: question, onSectionEnd })
     const wrong = trayBlocks().find((el) => blockOf(el).value === 'p')
     fireEvent.keyDown(wrong as HTMLElement, { key: 'Enter' })
-    // p 放不进 b 的槽(复习段用 canPlace)⇒ 弹回,托盘里还是两块。
+    // p 放不进 b 的槽(复习章用 canPlace)⇒ 弹回,托盘里还是两块。
     expect(trayBlocks()).toHaveLength(2)
     const right = trayBlocks().find((el) => blockOf(el).value === 'b')
     fireEvent.keyDown(right as HTMLElement, { key: 'Enter' })
@@ -1058,10 +1058,10 @@ describe('一关三段', () => {
     expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ missCount: 0, failed: false })
   })
 
-  // 复习段**既不上报连击,也不上报答错**(`penalized = mode !== 'review'`)。
+  // 复习章**既不上报连击,也不上报答错**(`penalized = mode !== 'review'`)。
   // 两侧都要压:只压「放错」那一侧,把正确那一支的 `if (penalized)` 摘掉照样绿 ——
-  // 而那样一来,复习段就成了刷连击圆点的通道(walkthrough W-T11 明说放对也不动圆点)。
-  it('复习段:放错与放对都不上报连击(onBlock 一次都不响)', async () => {
+  // 而那样一来,复习章就成了刷连击圆点的通道(walkthrough W-T11 明说放对也不动圆点)。
+  it('复习章:放错与放对都不上报连击(onBlock 一次都不响)', async () => {
     const onSectionEnd = vi.fn()
     const onBlock = vi.fn()
     const question = reviewQuestionFor([{ type: 'initial', value: 'p' }])
@@ -1069,13 +1069,13 @@ describe('一关三段', () => {
 
     const wrong = trayBlocks().find((el) => blockOf(el).value === 'p')
     fireEvent.keyDown(wrong as HTMLElement, { key: 'Enter' })
-    expect(onBlock, '复习段放错不该上报答错').not.toHaveBeenCalled()
+    expect(onBlock, '复习章放错不该上报答错').not.toHaveBeenCalled()
 
     const right = trayBlocks().find((el) => blockOf(el).value === 'b')
     fireEvent.keyDown(right as HTMLElement, { key: 'Enter' })
-    expect(onBlock, '复习段放对不该上报连击').not.toHaveBeenCalled()
+    expect(onBlock, '复习章放对不该上报连击').not.toHaveBeenCalled()
 
-    // 段照常交回 —— 「不上报」不等于「没接上」。
+    // 章照常交回 —— 「不上报」不等于「没接上」。
     await settle()
     expect(onSectionEnd).toHaveBeenCalledTimes(1)
   })

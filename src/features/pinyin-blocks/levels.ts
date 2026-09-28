@@ -81,7 +81,7 @@ export const UNITS: readonly Unit[] = [
       // i / u 不能单独作音节:零声母时写成 yi / wu。块面仍是 i / u,显示串是它们的改写。
       { id: 'u1-50', emoji: '🪑', pinyin: 'yǐ', read: '椅', syl: [{ final: 'i', tone: 3 }] },
       { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ final: 'u', tone: 3 }] },
-      // 复习关:一轮 a o e i u 走完
+      // 原单元末复习关(章化后并入简单章):一轮 a o e i u 走完
       { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }] },
       // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u1 ?? []),
