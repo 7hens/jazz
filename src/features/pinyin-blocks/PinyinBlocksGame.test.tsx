@@ -584,15 +584,22 @@ describe('拼音积木 · 游戏', () => {
     expect(stage().classList.contains('pslots--weak')).toBe(false)
   })
 
-  it('关卡数据里每一题都能被渲染出来(不炸)', () => {
-    for (let u = 0; u < UNITS.length; u++) {
-      for (let l = 0; l < (UNITS[u]?.levels.length ?? 0); l++) {
-        const { unmount } = render(<PinyinBlocksGame unitIndex={u} levelIndex={l} speak={vi.fn()} />)
-        expect(screen.getByLabelText('拼装台')).toBeInTheDocument()
-        unmount()
+  // 逐关挂载全表(182 关)是全表最重的用例:单跑约 1s,全表并发跑时受 CPU 竞争实测 5.2s,
+  // 越过默认 5000ms 预算。它是完整性守卫(一关都不能少),不降采样也不删断言,
+  // 只显式放宽预算。关数已由 chapters.test.ts 的总账锁死在 91+91,不会再涨。
+  it(
+    '关卡数据里每一题都能被渲染出来(不炸)',
+    () => {
+      for (let u = 0; u < UNITS.length; u++) {
+        for (let l = 0; l < (UNITS[u]?.levels.length ?? 0); l++) {
+          const { unmount } = render(<PinyinBlocksGame unitIndex={u} levelIndex={l} speak={vi.fn()} />)
+          expect(screen.getByLabelText('拼装台')).toBeInTheDocument()
+          unmount()
+        }
       }
-    }
-  })
+    },
+    15_000,
+  )
 
   // 「错」= 触发红圈抖动的那件事。三处都要算:放错槽、点选无槽可落、全填后判出错块。
   it('一次不错通关给三星', () => {
