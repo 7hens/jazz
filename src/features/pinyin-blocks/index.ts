@@ -4,6 +4,7 @@
 export { MapEntry } from './MapEntry'
 export { LevelEntry } from './LevelEntry'
 export { LevelRun } from './LevelRun'
+export { ChapterRun, type ChapterItem, type ChapterRunProps, type QuestionEnd } from './ChapterRun'
 export { UnitMap } from './UnitMap'
 export { PinyinBlocksGame, type PinyinBlocksGameProps, type SectionResult } from './PinyinBlocksGame'
 export { BlockChip } from './BlockChip'
