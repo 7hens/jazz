@@ -332,7 +332,8 @@ describe('buildBlocks', () => {
   // 困难段的门禁只比类型,介母与韵母在那一段是**两个真身份**(青色进介母槽、绿色进韵母槽),
   // 所以按 keyOf 去重 —— 同值的两块要能同时出现。
   //
-  // 构造题面并把单元下标取 7(u8,介母只教了 i / u 两个):题面已用掉 medial:u,
+  // 构造题面,单元下标从真实关卡 u8-50(⬇️ xià = x + i + a)派生 —— 下标写死会随
+  // 单元挪位静默指错关。u8 只教了 i / u 两个介母;题面已用掉 medial:u,
   // 游标里就只剩 i,于是 medial 的对手**恒为 i** —— 与种子无关,
   // 与必需的 final:i 同值不同类。这正是 familyKey 去重会误杀的那一块。
   it('困难段:双身份块不被家族合并,medial:i 与 final:i 两块都在', () => {
@@ -346,7 +347,7 @@ describe('buildBlocks', () => {
         { initial: 'g', medial: 'u', final: 'a', tone: 1 },
       ],
     }
-    const blocks = buildBlocks(dual, 7, seq([0.12, 0.34, 0.56, 0.78]), { hard: true })
+    const blocks = buildBlocks(dual, unitIdxOf('u8-50'), seq([0.12, 0.34, 0.56, 0.78]), { hard: true })
     const identifiers = blocks.filter((b) => b.value === 'i').map((b) => `${b.type}:${b.value}`)
     expect(identifiers).toContain('final:i') // 必需的韵腹
     expect(identifiers).toContain('medial:i') // 对手:同值,另一个身份
