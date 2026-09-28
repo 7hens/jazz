@@ -158,6 +158,8 @@ export const UNITS: readonly Unit[] = [
       // er 是特殊韵母:自成音节,永远不跟声母拼
       { id: 'u5-51', emoji: '👶', pinyin: 'ér', read: '儿', syl: [{ final: 'er', tone: 2 }] },
       { id: 'u5-52', emoji: '👍', pinyin: 'hǎo', read: '好', syl: [{ initial: 'h', final: 'ao', tone: 3 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u5 ?? []),
     ],
   },
   {
@@ -170,6 +172,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u6-50', emoji: '✉️', pinyin: 'xìn', read: '信', syl: [{ initial: 'x', final: 'i', nasal: 'n', tone: 4 }] },
       { id: 'u6-51', emoji: '🛞', pinyin: 'lún', read: '轮', syl: [{ initial: 'l', final: 'u', nasal: 'n', tone: 2 }] },
       { id: 'u6-52', emoji: '🍚', pinyin: 'fàn', read: '饭', syl: [{ initial: 'f', final: 'a', nasal: 'n', tone: 4 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u6 ?? []),
     ],
   },
   {
@@ -183,6 +187,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u5-4', emoji: '👑', pinyin: 'wáng', read: '王', syl: [{ initial: 'w', final: 'a', nasal: 'ng', tone: 2 }] },
       { id: 'u7-50', emoji: '⭐', pinyin: 'xīng', read: '星', syl: [{ initial: 'x', final: 'i', nasal: 'ng', tone: 1 }] },
       { id: 'u7-51', emoji: '🐑', pinyin: 'yáng', read: '羊', syl: [{ initial: 'y', final: 'a', nasal: 'ng', tone: 2 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u7 ?? []),
     ],
   },
   {
@@ -197,6 +203,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u8-50', emoji: '⬇️', pinyin: 'xià', read: '下', syl: [{ initial: 'x', medial: 'i', final: 'a', tone: 4 }] },
       { id: 'u8-51', emoji: '💰', pinyin: 'qián', read: '钱', syl: [{ initial: 'q', medial: 'i', final: 'a', nasal: 'n', tone: 2 }] },
       { id: 'u8-52', emoji: '🪥', pinyin: 'shuā', read: '刷', syl: [{ initial: 'sh', medial: 'u', final: 'a', tone: 1 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u8 ?? []),
     ],
   },
   {
