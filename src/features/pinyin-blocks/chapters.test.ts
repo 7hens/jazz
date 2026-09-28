@@ -28,6 +28,20 @@ function taughtUpTo(unitIndex: number): Set<string> {
 /** 已录完的单元(困难章有题的)。 */
 const recorded = UNITS.filter((unit) => (HARD_LEVELS[unit.id] ?? []).length > 0)
 
+/**
+ * 整体认读 16 个音节的形状,**硬写在这里** —— 从被测数据里反推出来的期望值会自满足,等于没测。
+ * 键 = `initial+final+nasal`(用 `+` 连接,缺位不补);拼写形式的对照见行末注释。
+ *
+ * `yuan` 在数据里带介母 ü,被下面「无介母」那条前提天然挡在扫描之外(与 `levels.ts` 里
+ * 「yuan 带介母 → **不焊**」同口径),所以它的键写成带介母的四段,永远取不到,只是把 16 个写全。
+ */
+const WELD_SHAPES: ReadonlySet<string> = new Set([
+  'zh+i', 'ch+i', 'sh+i', 'r+i', 'z+i', 'c+i', 's+i', // zhi chi shi ri zi ci si
+  'y+i', 'w+u', 'y+ü', 'y+ie', 'y+üe', // yi wu yu ye yue
+  'y+i+n', 'y+ü+n', 'y+i+ng', // yin yun ying
+  'y+ü+a+n', // yuan(带介母,永不命中)
+])
+
 describe('困难章题', () => {
   it('每单元困难题数 = 简单题数,id = 对应简单题 id + h,顺序一一对应', () => {
     for (const unit of recorded) {
@@ -71,6 +85,30 @@ describe('困难章题', () => {
         }
       }
     }
+  })
+
+  // 上面那条焊死护栏是**单向**的(带了 weld ⇒ 合法),看不见「该带而没带」——
+  // 上一批 T4/T5 录题漏标的 u4-57h / u6-5h / u6-50h 正是从这条缝里穿过去的。
+  // 这条补上反向蕴含:形状命中整体认读的困难题音节,必须带 weld。
+  it('整体认读形状的困难题音节必须带 weld(漏标即红)', () => {
+    const hits: string[] = []
+    for (const unit of recorded) {
+      for (const level of HARD_LEVELS[unit.id]!) {
+        for (const syl of level.syl) {
+          // 带介母的三拼不焊(介母槽要走过去,见 levels.ts 的 yuan);简单题不参与本口径。
+          if (syl.medial !== undefined) continue
+          // 键只由**有值**的槽拼成(缺位不补空段),故 yì 的键是 `y+i` 而不是 `y+i+`。
+          const shape = [syl.initial, syl.final, syl.nasal].filter((part) => part !== undefined).join('+')
+          if (!WELD_SHAPES.has(shape)) continue
+          hits.push(level.id)
+          expect(syl.weld, `${level.id} 是整体认读形状却漏了 weld`).toBe(true)
+        }
+      }
+    }
+    // 防空转:锚点(形状表 / 遍历口径)写错时 hits 会空,断言恒真 = 静默假绿。
+    expect(hits.length, '整体认读形状一个都没扫到 —— 形状表或遍历口径写错了').toBeGreaterThan(0)
+    // 点名钉住本次修的三个漏标。T6 录入后 hits 会变大,故只做包含断言,不做全等。
+    expect(hits).toEqual(expect.arrayContaining(['u4-57h', 'u6-5h', 'u6-50h']))
   })
 
   it('困难题不与简单题、也不与其它困难题撞 emoji', () => {

@@ -48,7 +48,7 @@ export const HARD_LEVELS: Readonly<Partial<Record<string, readonly Level[]>>> = 
     { id: 'u4-54h', emoji: '🧴', pinyin: 'cù', read: '醋', syl: [{ initial: 'c', final: 'u', tone: 4 }], stage: 'hard' },
     { id: 'u4-55h', emoji: '🚿', pinyin: 'sǎ', read: '洒', syl: [{ initial: 's', final: 'a', tone: 3 }], stage: 'hard' },
     { id: 'u4-56h', emoji: '🐸', pinyin: 'wā', read: '蛙', syl: [{ initial: 'w', final: 'a', tone: 1 }], stage: 'hard' },
-    { id: 'u4-57h', emoji: '💡', pinyin: 'yì', read: '意', syl: [{ initial: 'y', final: 'i', tone: 4 }], stage: 'hard' },
+    { id: 'u4-57h', emoji: '💡', pinyin: 'yì', read: '意', syl: [{ initial: 'y', final: 'i', tone: 4, weld: true }], stage: 'hard' },
     { id: 'u4-58h', emoji: '👴', pinyin: 'zǔ', read: '祖', syl: [{ initial: 'z', final: 'u', tone: 3 }], stage: 'hard' },
   ],
   u5: [
@@ -58,7 +58,7 @@ export const HARD_LEVELS: Readonly<Partial<Record<string, readonly Level[]>>> = 
     { id: 'u3-3h', emoji: '🕊️', pinyin: 'fēi', read: '飞', syl: [{ initial: 'f', final: 'ei', tone: 1 }], stage: 'hard' },
     { id: 'u3-4h', emoji: '🤏', pinyin: 'niē', read: '捏', syl: [{ initial: 'n', final: 'ie', tone: 1 }], stage: 'hard' },
     { id: 'u3-5h', emoji: '🍶', pinyin: 'jiǔ', read: '酒', syl: [{ initial: 'j', final: 'iu', tone: 3 }], stage: 'hard' },
-    { id: 'u6-5h', emoji: '🔒', pinyin: 'yuē', read: '约', syl: [{ initial: 'y', final: 'üe', tone: 1 }], stage: 'hard' },
+    { id: 'u6-5h', emoji: '🔒', pinyin: 'yuē', read: '约', syl: [{ initial: 'y', final: 'üe', tone: 1, weld: true }], stage: 'hard' },
     { id: 'u5-50h', emoji: '🫘', pinyin: 'dòu', read: '豆', syl: [{ initial: 'd', final: 'ou', tone: 4 }], stage: 'hard' },
     { id: 'u5-51h', emoji: '😪', pinyin: 'lèi', read: '累', syl: [{ initial: 'l', final: 'ei', tone: 4 }], stage: 'hard' },
     { id: 'u5-52h', emoji: '👭', pinyin: 'mèi', read: '妹', syl: [{ initial: 'm', final: 'ei', tone: 4 }], stage: 'hard' },
@@ -66,7 +66,7 @@ export const HARD_LEVELS: Readonly<Partial<Record<string, readonly Level[]>>> = 
   u6: [
     { id: 'u4-0h', emoji: '🌱', pinyin: 'gēn', read: '根', syl: [{ initial: 'g', final: 'e', nasal: 'n', tone: 1 }], stage: 'hard' },
     { id: 'u4-1h', emoji: '🏫', pinyin: 'bān', read: '班', syl: [{ initial: 'b', final: 'a', nasal: 'n', tone: 1 }], stage: 'hard' },
-    { id: 'u6-50h', emoji: '🥈', pinyin: 'yín', read: '银', syl: [{ initial: 'y', final: 'i', nasal: 'n', tone: 2 }], stage: 'hard' },
+    { id: 'u6-50h', emoji: '🥈', pinyin: 'yín', read: '银', syl: [{ initial: 'y', final: 'i', nasal: 'n', tone: 2, weld: true }], stage: 'hard' },
     { id: 'u6-51h', emoji: '🍽️', pinyin: 'pán', read: '盘', syl: [{ initial: 'p', final: 'a', nasal: 'n', tone: 2 }], stage: 'hard' },
     { id: 'u6-52h', emoji: '💧', pinyin: 'hàn', read: '汗', syl: [{ initial: 'h', final: 'a', nasal: 'n', tone: 4 }], stage: 'hard' },
   ],
