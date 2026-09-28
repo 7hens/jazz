@@ -189,11 +189,24 @@ export function reviewQuestions(
   pool: MistakePool,
   rng: Rng = Math.random,
 ): ReviewQuestion[] {
-  const types: BlockType[] = []
+  // 最近点错的排前面 —— 池是追加的,故倒序;同一家族只留最近那一次。
+  const recent: Block[] = []
+  const seenFamily = new Set<string>()
   for (let i = pool.length - 1; i >= 0; i--) {
     const block = pool[i] as Block
+    const key = familyKey(block)
+    if (seenFamily.has(key)) continue
+    seenFamily.add(key)
+    recent.push(block)
+  }
+  const types: BlockType[] = []
+  for (const block of recent) {
     if (!types.includes(block.type)) types.push(block.type)
   }
   if (types.length === 0) return [wholeReviewQuestion(level, unitIndex, rng)]
-  return types.slice(0, MAX_REVIEW_QUESTIONS).map((type, qi) => reviewQuestionFor(level, type, pool, qi))
+  // 交出去的是**家族去重之后**那张表(翻成入池序),不是原池:`reviewQuestionFor` 从数组末尾
+  // 往前取错块(`pool` 约定「末尾最近」),用原池会把去重剔掉的那一块(如 `medial:u` 顶掉的
+  // `final:u`)又从池里捡回来,多给一块错解。旧实现遍历的是 `recent`,这里必须一样。
+  const deduped = [...recent].reverse()
+  return types.slice(0, MAX_REVIEW_QUESTIONS).map((type, qi) => reviewQuestionFor(level, type, deduped, qi))
 }
