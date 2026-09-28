@@ -223,6 +223,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u9-55', emoji: '👧', pinyin: 'nǚ', read: '女', syl: [{ initial: 'n', final: 'ü', tone: 3 }] },
       { id: 'u9-56', emoji: '🟩', pinyin: 'lǜ', read: '绿', syl: [{ initial: 'l', final: 'ü', tone: 4 }] },
       { id: 'u9-57', emoji: '🙌', pinyin: 'jǔ', read: '举', syl: [{ initial: 'j', final: 'ü', tone: 3 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u9 ?? []),
     ],
   },
   {
@@ -238,6 +240,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u10-51', emoji: '📝', pinyin: 'zì', read: '字', syl: [{ initial: 'z', final: 'i', tone: 4, weld: true }] },
       { id: 'u10-52', emoji: '4️⃣', pinyin: 'sì', read: '四', syl: [{ initial: 's', final: 'i', tone: 4, weld: true }] },
       { id: 'u10-53', emoji: '🔟', pinyin: 'shí', read: '十', syl: [{ initial: 'sh', final: 'i', tone: 2, weld: true }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u10 ?? []),
     ],
   },
   {
@@ -256,6 +260,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u11-54', emoji: '🎵', pinyin: 'yīn', read: '音', syl: [{ initial: 'y', final: 'i', nasal: 'n', tone: 1, weld: true }] },
       { id: 'u11-55', emoji: '☁️', pinyin: 'yún', read: '云', syl: [{ initial: 'y', final: 'ü', nasal: 'n', tone: 2, weld: true }] },
       { id: 'u11-56', emoji: '🌧️', pinyin: 'yǔ', read: '雨', syl: [{ initial: 'y', final: 'ü', tone: 3, weld: true }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u11 ?? []),
     ],
   },
   {
@@ -330,6 +336,8 @@ export const UNITS: readonly Unit[] = [
           { initial: 'sh', final: 'u', tone: 4 },
         ],
       },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u12 ?? []),
     ],
   },
 ]

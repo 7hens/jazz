@@ -90,6 +90,9 @@ describe('困难章题', () => {
   // 上面那条焊死护栏是**单向**的(带了 weld ⇒ 合法),看不见「该带而没带」——
   // 上一批 T4/T5 录题漏标的 u4-57h / u6-5h / u6-50h 正是从这条缝里穿过去的。
   // 这条补上反向蕴含:形状命中整体认读的困难题音节,必须带 weld。
+  // **有意不覆盖** u1-50h(yí) / u1-51h(wù):它们是零声母写法(没有 `initial` 字段,如
+  // `{ final: 'i', tone: 2 }`),结构上没有声母块与韵母块的接缝可焊;u1 是单韵母单元,
+  // 写成裸韵母是该单元的教学约定。已录困难题里语义上属整体认读的有 5 个,本护栏管的是其中 3 个。
   it('整体认读形状的困难题音节必须带 weld(漏标即红)', () => {
     const hits: string[] = []
     for (const unit of recorded) {
@@ -122,5 +125,17 @@ describe('困难章题', () => {
         seen.set(level.emoji, level.id)
       }
     }
+  })
+
+  // 分批录入的收口。上面四条一律只走 `recorded`(已录完的单元)—— 那是为了让每批数据
+  // 加进来时护栏立刻生效、而不是等最后一批。代价是「某个单元忘了录」在上面四条里是**看不见**的,
+  // 这一条就是为那件事存在:182 = 12 个单元一个不缺。
+  it('总账:12 个单元全部录完,困难题总数 = 简单题总数', () => {
+    const missing = UNITS.filter((unit) => (HARD_LEVELS[unit.id] ?? []).length === 0).map((unit) => unit.id)
+    expect(missing, `这些单元还没录困难题:${missing.join(', ')}`).toEqual([])
+    const hard = UNITS.reduce((sum, unit) => sum + (HARD_LEVELS[unit.id] ?? []).length, 0)
+    const easy = UNITS.reduce((sum, unit) => sum + unit.levels.filter((l) => l.stage !== 'hard').length, 0)
+    expect(hard, '困难题总数').toBe(easy)
+    expect(easy, '简单题总数').toBe(91)
   })
 })
