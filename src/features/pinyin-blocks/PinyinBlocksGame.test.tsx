@@ -883,6 +883,28 @@ describe('一关三段', () => {
     expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(3)
   })
 
+  // 后门:`takeBack` 若只卡 status,盘满后点一下已填槽就能把块拿回托盘 —— 盘面不再满,
+  // `boardFull` 自己变 false,再点一块放不下的就白记 miss。两步把 3 星打成 2 星。
+  it('260ms 窗口里先拿回一块再点放不下的块:老路星级不变', async () => {
+    const onSolved = vi.fn()
+    mountSection(SECTION_LEVEL, { onSolved })
+    solveStage(canPlace)
+    await act(async () => {
+      vi.advanceTimersByTime(100)
+    })
+    // 点已填槽的块,想把它拿回托盘(有闸就该不动)
+    const chip = document.querySelector<HTMLElement>('[data-slot-id] [data-block-id]')!
+    const slotId = chip.closest<HTMLElement>('[data-slot-id]')!.dataset.slotId!
+    const slot = slotsFor(LV).find((s) => s.id === slotId)!
+    fireEvent.click(chip)
+    // 再点一块**类型就放不进那个空槽**的托盘块 —— 无闸时它走 autoPlace 的 else 记一次 miss。
+    const stray = trayBlocks().find((el) => blockOf(el).type !== slot.type)
+    expect(stray, '托盘里该剩一块放不进空槽的干扰块').toBeDefined()
+    fireEvent.keyDown(stray as HTMLElement, { key: 'Enter' })
+    settle()
+    expect(onSolved).toHaveBeenCalledWith(3)
+  })
+
   // 段账目同样护住这 260ms:盘面已满即视为本段判完,窗口里的点击不得推高 missCount、不得进池。
   it('填满到判定之间的 260ms 里点托盘块:段账目不动', async () => {
     const onSectionEnd = vi.fn()
@@ -894,6 +916,29 @@ describe('一关三段', () => {
     const rest = trayBlocks()
     expect(rest.length, '解完之后托盘该还剩干扰块可点').toBeGreaterThan(0)
     for (const el of rest) fireEvent.keyDown(el, { key: 'Enter' })
+    await act(async () => {
+      vi.advanceTimersByTime(3000)
+    })
+    expect(onSectionEnd).toHaveBeenCalledTimes(1)
+    expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ missCount: 0, failed: false })
+    expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(0)
+  })
+
+  // 同一手法的三段路径:段账目也不得被这条后门推高。
+  it('260ms 窗口里先拿回一块再点放不下的块:段账目不动', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
+    solveStage(canPlace)
+    await act(async () => {
+      vi.advanceTimersByTime(100)
+    })
+    const chip = document.querySelector<HTMLElement>('[data-slot-id] [data-block-id]')!
+    const slotId = chip.closest<HTMLElement>('[data-slot-id]')!.dataset.slotId!
+    const slot = slotsFor(LV).find((s) => s.id === slotId)!
+    fireEvent.click(chip)
+    const stray = trayBlocks().find((el) => blockOf(el).type !== slot.type)
+    expect(stray, '托盘里该剩一块放不进空槽的干扰块').toBeDefined()
+    fireEvent.keyDown(stray as HTMLElement, { key: 'Enter' })
     await act(async () => {
       vi.advanceTimersByTime(3000)
     })

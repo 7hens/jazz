@@ -395,7 +395,10 @@ function PinyinRound({
 
   const takeBack = useCallback(
     (slotId: string) => {
-      if (status !== 'playing') return
+      // 与 placeBlock / autoPlace 同一道闸。漏掉 `boardFull` 会留一条后门:盘满后的 260ms 里
+      // 点一下已填槽就把块拿回托盘,**盘面不再满 ⇒ 上面那道闸自己失效**,再点一块放不下的
+      // 就走 autoPlace 的 else 白记 miss(3 星变 2 星);`succeed()` 还会亮在一个空槽的盘面上。
+      if (status !== 'playing' || boardFull) return
       if (locked.has(slotId)) return // 预填槽不可拿回(见 locked)
       setPlacement((cur) => {
         const copy = { ...cur }
@@ -403,7 +406,7 @@ function PinyinRound({
         return copy
       })
     },
-    [status, locked],
+    [status, boardFull, locked],
   )
 
   /** 点块就出声:孩子得先听见这块读什么,才谈得上把它拼出来。声调块没有可念的音,静默。 */
