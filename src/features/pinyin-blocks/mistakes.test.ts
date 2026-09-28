@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { DUAL_VALUES, FINAL_BASIC, FINAL_COMPOUND, INITIALS_ALL, MEDIALS, NASALS, TONE_VALUES, type Block, type BlockType } from './blocks'
+import { FINAL_BASIC, FINAL_COMPOUND, INITIALS_ALL, MEDIALS, NASALS, TONE_VALUES, type Block, type BlockType } from './blocks'
 import { UNITS, type Level } from './levels'
-import { requiredBlocks, slotsFor, type Rng } from './rules'
+import { familyKey, requiredBlocks, slotsFor, type Rng } from './rules'
 import {
   addToPool,
   exactPoolKey,
@@ -90,7 +90,7 @@ describe('reviewQuestions', () => {
   /**
    * **可见托盘** —— 复习段的托盘数组同时驮着正解、错解与**预填块**(预填块必须在这个数组里,
    * 渲染层才找得到它、才画得进槽),而屏上看得见的是「没被预填走的那几块」。
-   * 上限与「不出现两块同形块」这两条都是对**可见的那几块**说的。
+   * 上限与「家族出现次数不超过正解所需」这两条都是对**可见的那几块**说的。
    */
   const visible = (q: { prefill: Record<string, string>; tray: readonly { id: string; value: string }[] }) => {
     const placed = new Set(Object.values(q.prefill))
@@ -155,9 +155,25 @@ describe('reviewQuestions', () => {
           expect(visible(q).length, `${level.pinyin} 的复习托盘挤了 ${visible(q).length} 块`).toBeLessThanOrEqual(
             REVIEW_TRAY_CAP,
           )
-          // 可见托盘里不许有两块同形块 —— 分不开的两块不是难度。
-          const seen = new Set(visible(q).map((t) => (DUAL_VALUES.has(t.value) ? t.value : `${t.type}:${t.value}`)))
-          expect(seen.size, `${level.pinyin} 的复习托盘里有同形块`).toBe(visible(q).length)
+          // 正解块本身可以同形 —— toneBlocks 对同一调按槽数补齐(u7-0 两个 tone:1 槽就要两块同形块,
+          // 少一块这关无解)。这条护栏只管「多出来的那些块」:任何家族出现的次数不得超过正解所需的次数。
+          const slotById = new Map(slotsFor(level).map((s) => [s.id, s]))
+          const need = new Map<string, number>()
+          for (const id of q.slotIds) {
+            const key = familyKey(slotById.get(id) as { type: Block['type']; value: string })
+            need.set(key, (need.get(key) ?? 0) + 1)
+          }
+          const got = new Map<string, number>()
+          for (const t of visible(q)) {
+            const key = familyKey(t)
+            got.set(key, (got.get(key) ?? 0) + 1)
+          }
+          for (const [key, n] of got) {
+            expect(
+              n,
+              `${level.pinyin} 的复习托盘里 ${key} 出现 ${n} 次,而正解只需 ${need.get(key) ?? 0} 次`,
+            ).toBeLessThanOrEqual(Math.max(1, need.get(key) ?? 0))
+          }
         }
       }
     }
