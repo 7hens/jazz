@@ -460,4 +460,22 @@ describe('关卡页 · 复习段错题池接线(三段整链)', () => {
     expect(document.querySelector('[data-stage="easy"]')).not.toBeNull()
   })
 
+  // 简单段点错的那一类块,决定了复习段挖哪个槽 —— 即 onEasyEnd 里 `addToPool(cur, result.wrongBlocks)`
+  // 真的把错块并进了池(cur ⇒ 池恒空)。
+  // 池被吞掉 ⇒ 复习退化成「本关整题重做」:两个槽**都**挖空,声调槽不再被预填。
+  it('简单段点错的韵母类块,进了复习段(只挖韵母槽,声调槽被预填)', async () => {
+    mountLevelEntry()
+
+    pickWrongTwice((b) => b.type === 'final' && b.value !== 'e')
+    solveCorrectly()
+    await settle()
+    await transition()
+    solveCorrectly() // 困难段不错 ⇒ 池不再添块
+    await settle()
+    await transition()
+
+    expect(emptySlotIds()).toEqual(['s0-f'])
+    expect(filledSlotIds()).toEqual(['s0-t'])
+    expect(prefilled()!.querySelector<HTMLElement>('[data-block-id]')!.dataset.blockId).toMatch(/^q0-/)
+  })
 })
