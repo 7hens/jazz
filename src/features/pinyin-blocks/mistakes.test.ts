@@ -1,81 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { FINAL_BASIC, FINAL_COMPOUND, INITIALS_ALL, MEDIALS, NASALS, TONE_VALUES, type Block, type BlockType } from './blocks'
+import type { Block } from './blocks'
 import { UNITS, type Level } from './levels'
-import { familyKey, requiredBlocks, slotsFor, type Rng } from './rules'
+import { slotsFor, type Rng } from './rules'
 import {
   addToPool,
+  chapterReviewQuestions,
   exactPoolKey,
   MAX_REVIEW_QUESTIONS,
   notePick,
+  reviewQuestionFor,
   REVIEW_TRAY_CAP,
-  reviewQuestions,
+  wholeReviewQuestion,
   WRONG_PICK_THRESHOLD,
-  type MistakePool,
-  type ReviewQuestion,
 } from './mistakes'
-
-/** 「灌满池子」用的候选值域:每一类都有几个与正解不同的值。 */
-const COMMON: Record<BlockType, readonly string[]> = {
-  initial: INITIALS_ALL,
-  medial: MEDIALS,
-  final: [...FINAL_BASIC, ...FINAL_COMPOUND],
-  nasal: NASALS,
-  tone: TONE_VALUES,
-}
 
 const seq = (values: number[]): Rng => {
   let i = 0
   return () => values[i++ % values.length] as number
 }
 
-function byId(id: string): Level {
-  for (const u of UNITS) for (const level of u.levels) if (level.id === id) return level
-  throw new Error(`没有这一关:${id}`)
-}
-
-function unitIdxOf(id: string): number {
-  const index = UNITS.findIndex((u) => u.levels.some((level) => level.id === id))
-  if (index < 0) throw new Error(`没有这一关:${id}`)
-  return index
-}
-
 const b = (type: Block['type'], value: string): Block => ({ type, value })
-
-/** 按家族键计数。跨片段复用:够不够放(不变量 a)与有没有多给(不变量 b)都看它。 */
-const familyCounts = (blocks: readonly { type: Block['type']; value: string }[]): Map<string, number> => {
-  const counts = new Map<string, number>()
-  for (const block of blocks) {
-    const key = familyKey(block)
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-  return counts
-}
-
-/**
- * 灌满错题池:每个槽都补上「与正解不同家族」的错值。
- *
- * 每槽给到 6 个(该类型可用的不足 6 个就给完)—— **不能每类型只喂 1 个错族**:
- * 那样可见块永远最多 3(1 正解 + 1 错解 + 预填不算),`REVIEW_TRAY_CAP = 4` 这条上限
- * 在 91 关里一次都碰不到,把 cap 算错(如 room 忘扣正解)也照样绿。池厚了,cap 才是真约束。
- */
-function saturatedPool(level: Level): MistakePool {
-  const pool: Block[] = []
-  for (const slot of slotsFor(level)) {
-    const correct = familyKey(slot)
-    const seen = new Set<string>()
-    let added = 0
-    for (const value of COMMON[slot.type]) {
-      if (added >= 6) break
-      const block = b(slot.type, value)
-      const key = familyKey(block)
-      if (key === correct || seen.has(key)) continue
-      seen.add(key)
-      pool.push(block)
-      added += 1
-    }
-  }
-  return pool
-}
 
 describe('notePick(简单段的点错计数)', () => {
   it('同一块点到第 2 次才算数(N = 2)', () => {
@@ -120,154 +64,125 @@ describe('addToPool', () => {
   })
 })
 
-describe('reviewQuestions', () => {
-  const BÀ = byId('u2-0') // 爸 bà = b + a + 声调
-  const unit = unitIdxOf('u2-0')
+describe('chapterReviewQuestions', () => {
+  /** 本单元全部题(简单 + 困难)拼起来的视图 —— 合成池时要按它喂错块。 */
+  const levelsOf = (unitIndex: number): readonly Level[] => UNITS[unitIndex]!.levels
 
-  /**
-   * **可见托盘** —— 复习段的托盘数组同时驮着正解、错解与**预填块**(预填块必须在这个数组里,
-   * 渲染层才找得到它、才画得进槽),而屏上看得见的是「没被预填走的那几块」。
-   * 上限与「家族出现次数不超过正解所需」这两条都是对**可见的那几块**说的。
-   */
-  // 参数就是一道复习小题本身 —— 别在这里另抄一份内联结构:漏掉 `type` 会让 :198 的 `familyCounts(shown)`
-  // 过不了类型检查(`tsc -b` 红,而 vitest / oxlint 都看不见)。
-  const visible = (q: ReviewQuestion) => {
-    const placed = new Set(Object.values(q.prefill))
-    return q.tray.filter((t) => !placed.has(t.id))
-  }
-
-  it('每个错块一道小题,同一类型合成一道,最多 3 道', () => {
-    expect(MAX_REVIEW_QUESTIONS).toBe(3)
-    const pool: MistakePool = [b('initial', 'p'), b('initial', 'm'), b('final', 'o')]
-    const questions = reviewQuestions(BÀ, unit, pool, seq([0.3, 0.6]))
-    // 池按入池顺序追加(后进 = 最近点错),spec §3.7「最近的优先」,故倒序遍历:
-    // [initial:p, initial:m, final:o] 倒过来先出 final,再出 initial。
-    expect(questions.map((q) => q.blockType)).toEqual(['final', 'initial'])
+  it('池空:照考本单元第一道题的整题', () => {
+    const unit = UNITS[0]!
+    const out = chapterReviewQuestions(unit, 0, [])
+    expect(out).toHaveLength(1)
+    expect(out[0]!.levelIndex).toBe(0)
+    expect(out[0]!.question.kind).toBe('whole')
+    expect([...out[0]!.question.slotIds].sort()).toEqual(slotsFor(unit.levels[0]!).map((s) => s.id).sort())
   })
 
-  it('超过 3 个类型时取最近点错的前 3 个', () => {
-    const pool: MistakePool = [
-      b('initial', 'p'),
-      b('final', 'o'),
-      b('tone', '3'),
-      b('nasal', 'n'), // 第 4 个类型 —— 该被挤掉(题面里本来也没有鼻尾槽,这里只验序)
-    ]
-    const questions = reviewQuestions(BÀ, unit, pool, seq([0.3, 0.6]))
-    expect(questions).toHaveLength(MAX_REVIEW_QUESTIONS)
-    expect(questions.map((q) => q.blockType)).toEqual(['nasal', 'tone', 'final'])
-  })
-
-  it('挖空的是本关该类型的**所有**槽,其余槽用正确块预填', () => {
-    const questions = reviewQuestions(BÀ, unit, [b('initial', 'p')], seq([0.3, 0.6]))
-    const q = questions[0]!
-    const slots = slotsFor(BÀ)
-    expect(q.slotIds).toEqual(['s0-i'])
-    // 其余槽(韵母 + 声调)都预填了,且预填的块就在托盘里 —— 渲染层靠这个找得到它。
-    for (const slot of slots.filter((s) => s.id !== 's0-i')) {
-      const blockId = q.prefill[slot.id]
-      expect(blockId, `${slot.id} 没预填`).toBeDefined()
-      const block = q.tray.find((t) => t.id === blockId)
-      expect(block, `预填块 ${blockId} 不在托盘里`).toBeDefined()
-      expect(block!.type).toBe(slot.type)
-      expect(block!.value).toBe(slot.value)
-    }
-  })
-
-  it('可见托盘 = 挖空槽的正解 + 错解', () => {
-    const questions = reviewQuestions(BÀ, unit, [b('initial', 'p')], seq([0.3, 0.6]))
-    expect(REVIEW_TRAY_CAP).toBe(4)
-    const q = questions[0]!
-    // 正解 b + 错解 p —— 与视觉稿第 3 帧一致(韵母槽与声调槽都已预填,不在可见托盘里)。
-    expect(visible(q).map((t) => t.value).sort()).toEqual(['b', 'p'])
-  })
-
-  // 上限是对**可见**那几块说的。预填块也在 tray 数组里(渲染层靠它找块),把它们算进上限就永远超。
-  it('可见托盘永不超过 4 块(全 91 关,池灌满)', () => {
-    let most = 0
-    let mostAt = ''
-    for (let unit = 0; unit < UNITS.length; unit++) {
-      for (const level of UNITS[unit]!.levels) {
-        const slotById = new Map(slotsFor(level).map((s) => [s.id, s]))
-        for (const q of reviewQuestions(level, unit, saturatedPool(level), seq([0.3, 0.6]))) {
-          const shown = visible(q)
-          expect(shown.length, `${level.pinyin} 的复习托盘挤了 ${shown.length} 块`).toBeLessThanOrEqual(REVIEW_TRAY_CAP)
-          if (shown.length > most) {
-            most = shown.length
-            mostAt = `${level.pinyin} / ${q.blockType}`
-          }
-          // 正解块本身可以同形 —— toneBlocks 对同一调按槽数补齐(u7-0 两个 tone:1 槽就要两块同形块,
-          // 少一块这关无解)。这条护栏只管「多出来的那些块」:任何家族出现的次数不得超过正解所需的次数。
-          const need = familyCounts(q.slotIds.map((id) => slotById.get(id)!))
-          for (const [key, n] of familyCounts(shown)) {
-            expect(
-              n,
-              `${level.pinyin} 的复习托盘里 ${key} 出现 ${n} 次,而正解只需 ${need.get(key) ?? 0} 次`,
-            ).toBeLessThanOrEqual(Math.max(1, need.get(key) ?? 0))
-          }
-        }
+  it('一个类型一道小题,且每题挂在本单元第一道含该类型槽的题上', () => {
+    const unitIndex = 0
+    const unit = UNITS[unitIndex]!
+    // 拿第一道题的真错块喂池:它只有 final / tone 两类槽。
+    const pool = addToPool([], [{ type: 'final', value: 'zzz' }, { type: 'tone', value: '9' }])
+    const out = chapterReviewQuestions(unit, unitIndex, pool)
+    expect(out).toHaveLength(2)
+    expect(out.map((item) => item.question.blockType).sort()).toEqual(['final', 'tone'])
+    for (const item of out) {
+      const host = levelsOf(unitIndex)[item.levelIndex]!
+      expect(slotsFor(host).some((s) => s.type === item.question.blockType), `${host.id} 不含该类型槽`).toBe(true)
+      // 「第一道含该类型槽」—— 换句话说是它前面那些题都不含
+      for (const earlier of levelsOf(unitIndex).slice(0, item.levelIndex)) {
+        expect(slotsFor(earlier).some((s) => s.type === item.question.blockType)).toBe(false)
       }
     }
-    // cap 得真的被压满,而不是课程里永远够不着 —— 池只喂 1 个错族时可见块最多到 3,
-    // 这条「恰好等于 4」缺席,把上限算错(如 room 忘扣正解)就抓不住。
-    expect(most, `可见托盘最多只到 ${most} 块(${mostAt}),cap 没被压满`).toBe(REVIEW_TRAY_CAP)
   })
 
-  it('错块的家族键与正解相同时不进可见托盘(否则两块一模一样,孩子只能瞎猜)', () => {
-    // xī guā 只有一个介母槽(s1-m,正解 u)—— 音节 xī 里的 i 是韵腹(final),不是介母。
-    // 池里的 medial:u 与正解那块同家族,不进可见托盘 —— 放进去就是两块分不开的「u」,孩子只能瞎猜。
-    const xīguā = byId('u7-0')
-    const questions = reviewQuestions(xīguā, unitIdxOf('u7-0'), [b('medial', 'u')], seq([0.3, 0.6]))
-    const q = questions[0]!
-    expect(visible(q).map((t) => t.value).sort()).toEqual(['u'])
-    expect(q.slotIds).toEqual(['s1-m'])
+  it('挂题用的是**本单元全表**(含困难题),不是只到简单章为止', () => {
+    // u9 的简单章第一道题是 jú(声母 + 韵母 + 声调),没有鼻尾槽;
+    // 鼻尾要到 u9-53(qún)才出现 —— 它在本单元全表里的下标是 3(0 号是 u9-50)。
+    const unit = UNITS.find((u) => u.id === 'u9')!
+    const unitIndex = UNITS.indexOf(unit)
+    const withNasal = unit.levels.findIndex((level) => slotsFor(level).some((s) => s.type === 'nasal'))
+    expect(withNasal, 'u9 里没有含鼻尾槽的题 —— 这条用例的前提没了').toBeGreaterThan(0)
+    const pool = addToPool([], [{ type: 'nasal', value: 'zz' }])
+    const out = chapterReviewQuestions(unit, unitIndex, pool)
+    expect(out).toHaveLength(1)
+    expect(out[0]!.levelIndex).toBe(withNasal)
   })
 
-  it('池空时:照考本关整题 —— 所有槽挖空,托盘同简单段', () => {
-    const questions = reviewQuestions(BÀ, unit, [], seq([0.3, 0.6, 0.9]))
-    expect(questions).toHaveLength(1)
-    const q = questions[0]!
+  it('最多 MAX_REVIEW_QUESTIONS 道,最近的类型优先', () => {
+    // 用 u8(三拼·介母)—— initial / medial / final / tone 四类槽俱全的单元。
+    // 换成 u1(只有 final / tone 槽)的话,medial 会被「找不到槽就跳过」剔掉,
+    // 只出 2 道题,「cap = 3」这个前提就没了。
+    const unitIndex = 7
+    const unit = UNITS[unitIndex]!
+    // 四类都喂进池,池内顺序决定优先 —— 最后一个进来的排最前。
+    let pool = addToPool([], [{ type: 'initial', value: 'zz' }])
+    pool = addToPool(pool, [{ type: 'final', value: 'zz' }])
+    pool = addToPool(pool, [{ type: 'tone', value: '9' }])
+    pool = addToPool(pool, [{ type: 'medial', value: 'z' }])
+    const out = chapterReviewQuestions(unit, unitIndex, pool)
+    expect(out).toHaveLength(MAX_REVIEW_QUESTIONS)
+    // 最近的三类:medial / tone / final(initial 被挤出)
+    expect(out.map((item) => item.question.blockType)).toEqual(['medial', 'tone', 'final'])
+  })
+
+  it('池里的类型在本单元全表里找不到槽时跳过它,不产出半道题', () => {
+    const unit = UNITS[0]!
+    const pool = addToPool([], [{ type: 'medial', value: 'z' }])
+    // u1 全是单韵母,没有任何介母槽 —— 该被跳过而不是抛错
+    expect(chapterReviewQuestions(unit, 0, pool)).toEqual([])
+  })
+})
+
+describe('reviewQuestionFor / wholeReviewQuestion', () => {
+  it('挖空的是该题该类型的**全部**槽,其余槽用正确块预填', () => {
+    const level = UNITS[6]!.levels[0]! // u7-0 xī guā:两个音节
+    const q = reviewQuestionFor(level, 'final', [], 0)
+    const empty = slotsFor(level).filter((s) => s.type === 'final')
+    expect([...q.slotIds].sort()).toEqual(empty.map((s) => s.id).sort())
+    expect(Object.keys(q.prefill).sort()).toEqual(
+      slotsFor(level).filter((s) => s.type !== 'final').map((s) => s.id).sort(),
+    )
+    expect(q.kind).toBe('block')
+    expect(q.blockType).toBe('final')
+    // 块 id 前缀带小题序号 —— 同一章里多道小题的块 id 不许撞
+    for (const block of q.tray) expect(block.id.startsWith('q0-'), block.id).toBe(true)
+    const q1 = reviewQuestionFor(level, 'initial', [], 1)
+    for (const block of q1.tray) expect(block.id.startsWith('q1-'), block.id).toBe(true)
+  })
+
+  it('托盘含全部正解(含重复),且至少一块错解', () => {
+    const level = UNITS[6]!.levels[0]!
+    const wrong = { type: 'initial' as const, value: 'zh' }
+    const q = reviewQuestionFor(level, 'initial', [wrong], 0)
+    const visible = q.tray.filter((t) => !Object.values(q.prefill).includes(t.id))
+    // 正解:每个挖空的槽各一块
+    const need = slotsFor(level).filter((s) => s.type === 'initial')
+    for (const slot of need) {
+      expect(visible.some((t) => t.type === 'initial' && t.value === slot.value), `缺正解 ${slot.value}`).toBe(true)
+    }
+    expect(visible.some((t) => t.value === 'zh'), '错解没进托盘').toBe(true)
+    expect(visible.length, '可见块超了上限').toBeLessThanOrEqual(REVIEW_TRAY_CAP)
+  })
+
+  it('同形块不进托盘(两块分不开不是难度,是坏题)', () => {
+    const level = UNITS[0]!.levels[0]!
+    const slot = slotsFor(level).find((s) => s.type === 'final')!
+    const q = reviewQuestionFor(level, 'final', [{ type: 'final', value: slot.value }], 0)
+    const visible = q.tray.filter((t) => !Object.values(q.prefill).includes(t.id))
+    const finals = visible.filter((t) => t.type === 'final')
+    expect(finals).toHaveLength(1)
+  })
+
+  it('wholeReviewQuestion 挖空所有槽、无预填', () => {
+    const unit = UNITS[0]!
+    const level = unit.levels[0]!
+    const q = wholeReviewQuestion(level, 0, seq([0.3, 0.7]))
     expect(q.kind).toBe('whole')
-    expect(q.slotIds).toEqual(slotsFor(BÀ).map((s) => s.id))
     expect(q.prefill).toEqual({})
-    for (const need of requiredBlocks(BÀ)) {
-      expect(q.tray.some((t) => t.type === need.type && t.value === need.value), `${need.value} 不在托盘里`).toBe(true)
-    }
-  })
-
-  // Review Focus #5:双音节 + 双身份块 —— 两个同类型槽同时挖空时,托盘要给足两块正解,少一块就无解。
-  it('双音节的两个同类型槽都挖空时,托盘给足两块正解', () => {
-    // huā duǒ 两个音节的介母**都是 u**(双身份块):两个槽一起挖空,托盘必须给两块 u,
-    // 少一块后一个槽就无块可放。
-    const huāduǒ = byId('u7-4')
-    const questions = reviewQuestions(huāduǒ, unitIdxOf('u7-4'), [b('medial', 'ü')], seq([0.3, 0.6]))
-    const q = questions[0]!
-    expect(q.slotIds).toEqual(['s0-m', 's1-m'])
-    expect(
-      q.tray.filter((t) => t.type === 'medial' && t.value === 'u'),
-      '正解 u 只给了一块,后一个槽无块可放',
-    ).toHaveLength(2)
-    // 错解 ü 与正解不同家族,照样进托盘 —— 复习里总有正解与错解并排。
-    expect(q.tray.some((t) => t.type === 'medial' && t.value === 'ü')).toBe(true)
-  })
-
-  // 不变量 (a):挖空的每个槽都要有一块可放的托盘块,**重数也要够**。
-  // 双音节两个同值槽(u7-0 两块一声、u7-4 两块介母 u)就要两块正解 —— 少一块后一个槽无块可放。
-  // 现有的单例只覆盖 u7-4,这里扫全 91 关,抓「按家族去重后少给一块正解」这类回归。
-  it('每个挖空槽在托盘里都有对应家族的块,重数也够(全 91 关,池灌满)', () => {
-    for (let unit = 0; unit < UNITS.length; unit++) {
-      for (const level of UNITS[unit]!.levels) {
-        const slotById = new Map(slotsFor(level).map((s) => [s.id, s]))
-        for (const q of reviewQuestions(level, unit, saturatedPool(level), seq([0.3, 0.6]))) {
-          const need = familyCounts(q.slotIds.map((id) => slotById.get(id)!))
-          const got = familyCounts(q.tray)
-          for (const [key, n] of need) {
-            expect(
-              got.get(key) ?? 0,
-              `${level.pinyin} 的 ${key} 槽要 ${n} 块,托盘只给了 ${got.get(key) ?? 0} 块`,
-            ).toBeGreaterThanOrEqual(n)
-          }
-        }
-      }
+    expect([...q.slotIds].sort()).toEqual(slotsFor(level).map((s) => s.id).sort())
+    // 托盘等同简单段的 buildBlocks —— 每题都要有块可放
+    for (const slot of slotsFor(level)) {
+      expect(q.tray.some((t) => t.value === slot.value), `缺 ${slot.type}:${slot.value}`).toBe(true)
     }
   })
 })

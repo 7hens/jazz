@@ -42,11 +42,14 @@ export {
 export type { Placement, Rng, Slot, TrayBlock } from './rules'
 export {
   addToPool,
+  chapterReviewQuestions,
   MAX_REVIEW_QUESTIONS,
   notePick,
+  reviewQuestionFor,
   REVIEW_TRAY_CAP,
-  reviewQuestions,
+  wholeReviewQuestion,
   WRONG_PICK_THRESHOLD,
+  type ChapterReviewItem,
   type MistakePool,
   type PickCounts,
   type PoolKey,
