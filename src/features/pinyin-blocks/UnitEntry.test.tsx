@@ -233,8 +233,10 @@ function placeOneFitting() {
  * 池是**跨章**活着的(简单章的错要到困难章之后的复习章才被考),两类错块 ⇒ 复习章出两道小题。
  * 返回那两块错块(顺序 = 入池顺序),调用方可以用它复算 `chapterReviewQuestions` 对齐题面。
  */
-async function reachReviewChapter(): Promise<{ wrongFinal: Block; wrongTone: Block }> {
-  mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
+async function reachReviewChapter(): Promise<
+  { wrongFinal: Block; wrongTone: Block } & ReturnType<typeof mountUnitEntry>
+> {
+  const mounted = mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
   const level0 = UNITS[0]!.levels[0]!
   // 块身份印在里层 `[data-value]` 上,外层 `[data-block-id]` wrapper 换 key 重挂时身份稳定 ⇒ 握着它连点。
   const tapTwice = (host: HTMLElement) => {
@@ -262,7 +264,7 @@ async function reachReviewChapter(): Promise<{ wrongFinal: Block; wrongTone: Blo
   await transition() // → 困难章
   await solveChapter(U1_HARD_INDEXES)
   await transition() // → 复习章
-  return { wrongFinal, wrongTone }
+  return { wrongFinal, wrongTone, ...mounted }
 }
 
 /** 屏上被挖空的槽(复习小题就是靠这个认出来的)。 */
@@ -499,5 +501,38 @@ describe('UnitEntry —— 章状态机与错题池', () => {
     expect(dots().querySelectorAll('.pstage-dot--on').length, '两颗进度点都亮').toBe(2)
     // 第二题是**新实例**:换成另一类块被挖空(第一题挖声调、第二题挖韵母)。
     expect(emptySlotIds(), '第二题该换一块槽挖空').not.toEqual(firstEmpty)
+  })
+})
+
+describe('UnitEntry · 复习章不落库', () => {
+  // spec §5 的不变量:复习章只重考、不产生任何账目 —— 不落库、不记 miss、不交账。
+  //
+  // 这条守卫值钱在于**复习小题挂在池里第一道含该类型的别的题上**:它借用 host 题的
+  // `levelIndex` 拼盘面,`endQuestion` 若在复习章被调用,写进库的会是**别人的**星级与星尘,
+  // 而且会顺带扫成就 —— 是产品可见的坏账。所以「两道小题全走完也不写」必须被钉住。
+  it('复习章:两道小题全走完也不落库、不交账', async () => {
+    const { progressService, onSettle, wrongFinal, wrongTone } = await reachReviewChapter()
+    // 走到复习章时,简单章章末与困难章章末**各交过一次账**(onSettle 已 2 次),
+    // 简单章 + 困难章共 20 道题**各落过一次库**(recordClear 已 20 次)——
+    // 不清这两笔记数,下面的 not.toHaveBeenCalled() 会被存量污染(假红)。
+    progressService.recordClear.mockClear()
+    onSettle.mockClear()
+
+    const items = chapterReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
+    expect(items, '池里两类 ⇒ 两道小题').toHaveLength(2)
+    // 两道小题都要走完:章才会走到 onDone ⇒ flush() 真的被调一次 ⇒ 「不交账」那条不是空过。
+    for (const item of items) {
+      const slots = slotsFor(UNITS[0]!.levels[item.levelIndex]!)
+      for (const id of item.question.slotIds) {
+        const slot = slots.find((s) => s.id === id)!
+        const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot))
+        expect(pick, `复习小题的槽 ${id} 在托盘里找不到可放块`).toBeDefined()
+        fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+      }
+      await settle()
+    }
+
+    expect(progressService.recordClear, '复习章不落库').not.toHaveBeenCalled()
+    expect(onSettle, '复习章不交账').not.toHaveBeenCalled()
   })
 })
