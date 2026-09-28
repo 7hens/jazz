@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ACHIEVEMENTS } from '@/features/achievements'
-import { UNITS } from '@/features/pinyin-blocks'
+import { easyLevelsOf, UNITS } from '@/features/pinyin-blocks'
 import { registry } from '@/shared/services/core'
 import { bootstrap } from './bootstrap'
 
@@ -28,11 +28,17 @@ beforeEach(() => {
 })
 
 describe('内容常量:真源口径', () => {
-  it('课程 = 12 单元 / 91 关', () => {
+  it('课程 = 12 单元 / 123 关（简单 91 + 困难 32）', () => {
     expect(UNITS, '单元数').toHaveLength(12)
     expect(
       UNITS.reduce((sum, unit) => sum + unit.levels.length, 0),
       '关数 = 各单元相加',
+    ).toBe(123)
+    // 困难章是**追加**出来的另一批题,简单题那 91 道是**移动过的老题**(原来每单元末的复习关并进了简单章),
+    // 数量一个不许变 —— 变一个就是老存档里一颗星变孤儿。此后各批只加困难题,这一条恒 91。
+    expect(
+      UNITS.reduce((sum, unit) => sum + easyLevelsOf(unit).length, 0),
+      '简单题数 = 各单元相加',
     ).toBe(91)
     // 每个单元至少一关:否则上面的「相加」可以靠一个空单元凑出来,而空单元在玩法里没有意义。
     for (const unit of UNITS) expect(unit.levels, `${unit.id} 的关卡`).not.toHaveLength(0)

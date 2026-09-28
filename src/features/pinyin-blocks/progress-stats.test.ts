@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LevelStars } from '@/shared/services'
-import { UNITS, type Level, type Unit } from './levels'
+import { UNITS, easyLevelsOf, type Level, type Unit } from './levels'
 import {
   chapterCleared,
   chapterClearedCount,
@@ -27,7 +27,7 @@ function clearUnit(unitIndex: number, stars: number, base: Record<string, number
 }
 
 describe('拼音进度统计', () => {
-  it('u1 恒解锁,后面的要前一单元全通关', () => {
+  it('u1 恒解锁,后面的要前一单元简单章全通', () => {
     expect(isUnitUnlocked(0, {})).toBe(true)
     expect(isUnitUnlocked(1, {})).toBe(false)
     expect(isUnitUnlocked(1, clearUnit(0, 3))).toBe(true)
@@ -35,10 +35,10 @@ describe('拼音进度统计', () => {
     expect(isUnitUnlocked(1, clearUnit(0, 1))).toBe(true)
   })
 
-  // 前一单元「全」通关:漏一关就不解锁。
-  it('前一单元漏一关就不解锁下一单元', () => {
+  // 单元锁的口径是「前一单元**简单章**全通」—— 困难题不参与,所以漏的必须是简单题。
+  it('前一单元简单章漏一题就不解锁下一单元', () => {
     const partial = clearUnit(0, 3)
-    delete partial[firstUnit.levels[firstUnit.levels.length - 1]!.id]
+    delete partial[easyLevelsOf(firstUnit).at(-1)!.id]
     expect(isUnitUnlocked(1, partial)).toBe(false)
   })
 

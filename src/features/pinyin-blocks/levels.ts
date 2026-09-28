@@ -8,6 +8,7 @@
 // 新关一律从 50 起(`u5-50`、…)—— 两代键永不可能相撞。挪关不改 id。
 
 import { Ü_DROP_INITIALS, type Block } from './blocks'
+import { HARD_LEVELS } from './hard-levels'
 
 /** 一个音节的结构。weld = 拼合后读音 ≠ 逐块拼读,拼对时被金箍焊成一体(整体认读音节)。 */
 export type Syllable = {
@@ -82,6 +83,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ final: 'u', tone: 3 }] },
       // 复习关:一轮 a o e i u 走完
       { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u1 ?? []),
     ],
   },
   {
@@ -98,6 +101,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u2-52', emoji: '🌍', pinyin: 'dì', read: '地', syl: [{ initial: 'd', final: 'i', tone: 4 }] },
       { id: 'u2-53', emoji: '😠', pinyin: 'nù', read: '怒', syl: [{ initial: 'n', final: 'u', tone: 4 }] },
       { id: 'u2-54', emoji: '✏️', pinyin: 'bǐ', read: '笔', syl: [{ initial: 'b', final: 'i', tone: 3 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u2 ?? []),
     ],
   },
   {
@@ -112,6 +117,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u3-53', emoji: '7️⃣', pinyin: 'qī', read: '七', syl: [{ initial: 'q', final: 'i', tone: 1 }] },
       { id: 'u3-54', emoji: '🛁', pinyin: 'xǐ', read: '洗', syl: [{ initial: 'x', final: 'i', tone: 3 }] },
       { id: 'u3-55', emoji: '🥤', pinyin: 'hē', read: '喝', syl: [{ initial: 'h', final: 'e', tone: 1 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u3 ?? []),
     ],
   },
   {
@@ -129,6 +136,8 @@ export const UNITS: readonly Unit[] = [
       { id: 'u4-56', emoji: '🦆', pinyin: 'yā', read: '鸭', syl: [{ initial: 'y', final: 'a', tone: 1 }] },
       { id: 'u4-57', emoji: '🙋', pinyin: 'wǒ', read: '我', syl: [{ initial: 'w', final: 'o', tone: 3 }] },
       { id: 'u4-58', emoji: '📄', pinyin: 'zhǐ', read: '纸', syl: [{ initial: 'zh', final: 'i', tone: 3 }] },
+      // 困难章:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      ...(HARD_LEVELS.u4 ?? []),
     ],
   },
   {
