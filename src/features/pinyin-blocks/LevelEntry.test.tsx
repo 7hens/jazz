@@ -134,6 +134,22 @@ function solveCorrectly() {
   }
 }
 
+/**
+ * 困难段:给每个槽放一块**类型对、值错**的块。
+ * 困难段的门禁只比类型(`sameTypeOnly`),这些块当场都放得进去;直到盘面填满才被判错 ——
+ * 于是**恰好记 1 次 miss**,随后 720ms 撤块重来。
+ */
+function fillWrongOnce() {
+  for (const slot of slotsFor(UNITS[0]!.levels[0]!)) {
+    const pick = trayBlocks().find((el) => {
+      const block = blockOf(el)
+      return block.type === slot.type && block.value !== slot.value
+    })
+    expect(pick, `${slot.type} 槽找不到「类型对、值错」的块`).toBeDefined()
+    fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+  }
+}
+
 /** 通关回调在成功动画**之后**才发(260ms 判定 + 1600ms 停顿)—— 推时钟并把微任务排干。 */
 async function settle() {
   await act(async () => {
@@ -319,13 +335,43 @@ describe('关卡页 · 三段相位', () => {
     expect(celebrate.play).toHaveBeenCalledWith('word')
   })
 
-  // Review Focus #4:重玩已通关的关 —— 相位从简单段重跑,不残留上一轮的池。
-  it('重挂同一关:相位回到简单段', async () => {
-    const { unmount, onSettle } = mountLevelEntry()
+  // Review Focus #4 / F1:组件内推进下一关(levelIndex 0→1)靠 LevelEntry 的 `key={level.id}` 重挂 ——
+  // 没有 key,React 复用同一个 LevelRun 实例,相位会卡在 review、错题池与发牌也一并残留。
+  // 旧写法是 unmount() + mountLevelEntry():整棵树重建,key 有没有都一样,是恒真断言(给了假信心),
+  // 故删掉,改成真正会因缺 key 而坏的那条路 —— 三段走完(`handleDone` 把 levelIndex 推到 1)后
+  // 断言相位回到简单段。
+  it('走完一关推进到下一关:相位回到简单段(靠 key 重挂,不残留上一轮)', async () => {
+    const { onSettle } = mountLevelEntry()
     await solveLevel()
-    expect(onSettle).toHaveBeenCalled()
-    unmount()
-    mountLevelEntry()
+    expect(onSettle).toHaveBeenCalledTimes(1)
+    // u1-0 → u1-1:换了关,相位必须从简单段重来(有 key ⇒ 重挂;无 key ⇒ 停在 review)。
     expect(document.querySelector('[data-stage="easy"]')).not.toBeNull()
+  })
+
+  // F2(spec §3.9 裁定 M):本关 miss = 简单段 + 困难段的错之和 —— 两段各记在自己的 missRef 里,
+  // 交账时由 LevelRun 相加。两个加数都必须真的进账,故把和推到 starsFor 的档界之外:
+  // 合 3 错 ⇒ starsFor(3) = 1;丢掉简单段(starsFor(1))或丢掉困难段(starsFor(2))都会得到 2 星。
+  // 注:派单原提案是「各错 1 次 ⇒ 2 星」,但那区分不开 —— starsFor(1) 本来就是 2,与 starsFor(2) 同档。
+  it('星级按简单段 + 困难段的错相加:两段合 3 错 ⇒ 1 星', async () => {
+    const { progressService } = mountLevelEntry()
+    // 简单段:点同一块无处可落的托盘块 2 次(u1-0 是 é = e + 二声,四声块恒无处可落)⇒ 2 错。
+    fireEvent.keyDown(screen.getByLabelText('声调块 4'), { key: 'Enter' })
+    fireEvent.keyDown(screen.getByLabelText('声调块 4'), { key: 'Enter' })
+    solveCorrectly()
+    await settle()
+    await transition()
+
+    // 困难段:填一整套「类型对、值错」的块 ⇒ 填满后判错 1 次,撤块后重来 ⇒ 1 错。
+    fillWrongOnce()
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+    solveCorrectly()
+    await settle()
+
+    // 2 + 1 = 3 ⇒ starsFor(3) = 1。
+    expect(progressService.recordClear).toHaveBeenCalledWith(
+      expect.objectContaining({ levelId: UNITS[0]!.levels[0]!.id, stars: 1 }),
+    )
   })
 })
