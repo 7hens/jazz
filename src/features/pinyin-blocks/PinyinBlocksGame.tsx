@@ -235,15 +235,21 @@ function PinyinRound({
   /** 本段的重试计数 —— 每关 2 次,用尽即失败但不阻塞(spec §3.6)。 */
   const retriesRef = useRef(0)
 
+  /** 段账目在**判定那一刻**冻结(与星级同一口径):交的数字早已定下,不取决于定时器何时跑。 */
+  const freezeResult = useCallback(
+    (failed: boolean): SectionResult => ({ missCount: missRef.current, wrongBlocks: poolRef.current, failed }),
+    [],
+  )
+
   /** 段结束:交回账目。给了 `onSectionEnd` 就归入口页管;没给就退回今天那条老路(拼对 → onSolved)。 */
   const endSection = useCallback(
-    (failed: boolean) => {
+    (result: SectionResult) => {
       if (onSectionEnd) {
-        onSectionEnd({ missCount: missRef.current, wrongBlocks: poolRef.current, failed })
+        onSectionEnd(result)
         return
       }
-      if (failed) return // 老路没有「失败」这一档;这条不该发生
-      onSolved?.(starsFor(missRef.current))
+      if (result.failed) return // 老路没有「失败」这一档;这条不该发生
+      onSolved?.(starsFor(result.missCount))
     },
     [onSectionEnd, onSolved],
   )
@@ -265,11 +271,12 @@ function PinyinRound({
     playSound?.('victory')
     speak(level.read)
     setBurst(true)
+    const result = freezeResult(true)
     timer.current = window.setTimeout(() => {
       setBurst(false)
-      endSection(true)
+      endSection(result)
     }, 1200)
-  }, [slots, tray, level, playSound, speak, endSection])
+  }, [slots, tray, level, playSound, speak, endSection, freezeResult])
 
   const placedBlockIds = useMemo(() => new Set(Object.values(placement)), [placement])
   const liveBlocks = tray.filter((b) => !placedBlockIds.has(b.id))
@@ -280,26 +287,35 @@ function PinyinRound({
     playSound?.('victory')
     speak(level.read)
     setBurst(true)
-    // 星级在**调用这一刻**冻结,不在超时回调里现算:成功动画还有 1.6s 才放完,那段时间里
-    // 任何一次误触都不该把**已经到手**的星改小(HEAD 就是这么冻的)。spec §3.9。
+    // 星级与段账目都在**调用这一刻**冻结,不在超时回调里现算:成功动画还有 1.6s 才放完,
+    // 那段时间里任何一次误触都不该把**已经到手**的星改小(HEAD 就是这么冻的)。spec §3.9。
     const stars = starsFor(missRef.current)
+    const result = freezeResult(false)
     timer.current = window.setTimeout(
       () => {
         setBurst(false)
         // 有三段相位就走交账那条路;没有才是今天那套「拼对即通关」。
-        if (onSectionEnd) endSection(false)
+        if (onSectionEnd) endSection(result)
         else onSolved?.(stars)
       },
       welded ? 2100 : 1600,
     )
-  }, [level, onSectionEnd, endSection, onSolved, playSound, speak, welded])
+  }, [level, onSectionEnd, endSection, onSolved, playSound, speak, welded, freezeResult])
 
   /** 本段的落位判据。困难段只比类型(值可以错),其余两段与今天一致。 */
   const fits = useCallback((block: Block, slot: Slot) => (hard ? sameTypeOnly(block, slot) : canPlace(block, slot)), [hard])
 
+  /**
+   * 盘面已满。从「最后一块落位」到判定/收尾真正触发之间(成功 260ms、判错撤块 720ms、
+   * 正解演示 1200ms)盘面一直是满的,而 `status` 可能还是 `playing` —— 只按 status 设闸会
+   * 漏掉成功前那 260ms:**快速连点能把到手的 3 星打成 1 星,段账目也被污染**。
+   * 盘满即视为这一段已经定了:任何落位路径(点选 / 拖拽 / 自动落位)都不得再记 miss、再进池。
+   */
+  const boardFull = isComplete(slots, placement)
+
   const placeBlock = useCallback(
     (blockId: string, slotId: string) => {
-      if (status !== 'playing') return
+      if (status !== 'playing' || boardFull) return
       const block = tray.find((b) => b.id === blockId)
       const slot = slots.find((s) => s.id === slotId)
       if (!block || !slot) return
@@ -358,6 +374,7 @@ function PinyinRound({
     },
     [
       status,
+      boardFull,
       tray,
       slots,
       placement,
@@ -403,7 +420,8 @@ function PinyinRound({
       // 非播放态(成功动画 / 判错撤块 / 正解演示)一律不受理,与 placeBlock 同一道闸。
       // 少了它:那些相位里槽已经全满,点什么都落进下面的 else —— 白记一次 miss(演示期能记到 8),
       // 白把块塞进错题池,成功动画那 1.6s 里还会把星级改小。
-      if (status !== 'playing') return
+      // 盘面已满同理(且必须单独判:`status` 还是 playing 的成功前 260ms 全靠它守住)。
+      if (status !== 'playing' || boardFull) return
       const block = tray.find((b) => b.id === blockId)
       if (!block) return
       // 困难段的落点取「同类型的第一个空槽」(值可以错);其余两段走今天的 autoTargetId。
@@ -417,7 +435,20 @@ function PinyinRound({
         noteWrongBlock(block, blockId)
       }
     },
-    [status, tray, slots, placement, hard, penalized, placeBlock, playSound, onBlock, flashRejectBlock, noteWrongBlock],
+    [
+      status,
+      boardFull,
+      tray,
+      slots,
+      placement,
+      hard,
+      penalized,
+      placeBlock,
+      playSound,
+      onBlock,
+      flashRejectBlock,
+      noteWrongBlock,
+    ],
   )
 
   /* ------------------------------------------------------------------ 拖拽

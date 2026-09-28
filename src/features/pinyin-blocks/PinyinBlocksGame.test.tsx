@@ -668,6 +668,26 @@ describe('拼音积木 · 游戏', () => {
     }
   })
 
+  // 最后一块落位到判定触发之间还有 260ms(`setTimeout(succeed, 260)`)。这段时间盘面已满,
+  // 但 status 仍是 playing —— 只按 status 设闸会漏掉它,快速连点就能把到手的 3 星打成 1 星。
+  it('最后一块落位到判定之间的 260ms 里点托盘块,星级不变', () => {
+    vi.useFakeTimers()
+    try {
+      const onSolved = vi.fn()
+      render(<PinyinBlocksGame unitIndex={1} levelIndex={0} speak={vi.fn()} onSolved={onSolved} />)
+      solveCorrectly(1, 0)
+      // 100ms < 260ms:还没进成功动画,succeed() 尚未跑过。
+      act(() => vi.advanceTimersByTime(100))
+      const rest = trayBlocks()
+      expect(rest.length, '解完之后托盘该还剩干扰块可点').toBeGreaterThan(0)
+      for (const el of rest) fireEvent.keyDown(el, { key: 'Enter' })
+      settle()
+      expect(onSolved).toHaveBeenCalledWith(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   // 两条推进路径只能跑一条 —— 都跑的话 advance 里那个 setRound 会把这关重挂一次
   // (表现是闪一下、发牌换一副),孩子刚拼好的题面凭空消失。
   it('给了 onSolved 就不再自走推进(关不重挂)', () => {
@@ -861,6 +881,25 @@ describe('一关三段', () => {
     // 3 次判错 = 3 次 miss、3 块错块(池按 key 去重);演示期那几下没有添乱。
     expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ missCount: 3, failed: true })
     expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(3)
+  })
+
+  // 段账目同样护住这 260ms:盘面已满即视为本段判完,窗口里的点击不得推高 missCount、不得进池。
+  it('填满到判定之间的 260ms 里点托盘块:段账目不动', async () => {
+    const onSectionEnd = vi.fn()
+    mountSection(SECTION_LEVEL, { stage: 'easy', onSectionEnd })
+    solveStage(canPlace)
+    await act(async () => {
+      vi.advanceTimersByTime(100)
+    })
+    const rest = trayBlocks()
+    expect(rest.length, '解完之后托盘该还剩干扰块可点').toBeGreaterThan(0)
+    for (const el of rest) fireEvent.keyDown(el, { key: 'Enter' })
+    await act(async () => {
+      vi.advanceTimersByTime(3000)
+    })
+    expect(onSectionEnd).toHaveBeenCalledTimes(1)
+    expect(onSectionEnd.mock.calls[0]![0]).toMatchObject({ missCount: 0, failed: false })
+    expect(onSectionEnd.mock.calls[0]![0].wrongBlocks).toHaveLength(0)
   })
 
   it('简单段:同一块点错 2 次才进错题池', async () => {
