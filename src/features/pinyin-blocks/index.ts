@@ -20,13 +20,31 @@ export {
 } from './progress-stats'
 export {
   autoTargetId,
+  autoTypeTargetId,
   buildBlocks,
   canPlace,
+  familyKey,
+  HARD_RETRIES,
+  HARD_TRAY_PER_TYPE,
   isComplete,
   requiredBlocks,
+  sameTypeOnly,
   slotsFor,
   starsFor,
   toneBlocks,
+  type BuildOptions,
   wrongSlotIds,
 } from './rules'
 export type { Placement, Rng, Slot, TrayBlock } from './rules'
+export {
+  addToPool,
+  MAX_REVIEW_QUESTIONS,
+  notePick,
+  REVIEW_TRAY_CAP,
+  reviewQuestions,
+  WRONG_PICK_THRESHOLD,
+  type MistakePool,
+  type PickCounts,
+  type PoolKey,
+  type ReviewQuestion,
+} from './mistakes'
