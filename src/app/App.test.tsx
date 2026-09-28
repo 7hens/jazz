@@ -176,13 +176,39 @@ function blockOf(el: HTMLElement): Block {
 }
 
 /** 按题目要求把正确块一个个点进去(点选路径 = 自动落位),一次不错:u1 第一关(é)= 韵母 + 声调两块。 */
-function solveFirstLevel() {
+function solveOnce() {
   for (const slot of slotsFor(UNITS[0]!.levels[0]!)) {
     const fits = trayBlocks().filter((el) => canPlace(blockOf(el), slot))
     const pick = fits.find((el) => blockOf(el).type === slot.type) ?? fits[0]
     expect(pick, `${slot.type}:${slot.value} 在托盘里找不到可放块`).toBeDefined()
     fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
   }
+}
+
+/** 推时钟越过成功动画(260ms 判定 + 1600ms 停顿)并把微任务排干。 */
+async function settleSection() {
+  await act(async () => { vi.advanceTimersByTime(3000) })
+}
+
+/** 推时钟越过换段过场(STAGE_TRANSITION_MS = 1200ms)。 */
+async function transition() {
+  await act(async () => { vi.advanceTimersByTime(1300) })
+}
+
+/**
+ * 走完一整关的三段:简单 → 过场 A → 困难 →(落库)→ 过场 B → 复习 → 推进。
+ * 段内一律拼对 ⇒ 错题池为空 ⇒ 复习段是「本关整题重做」,解法与简单段相同。
+ * 只对 u1 第一关成立(`solveOnce` 写死了 `UNITS[0]!.levels[0]`)。
+ */
+async function solveLevel() {
+  solveOnce() // 简单段
+  await settleSection() // 成功动画 → 过场 A
+  await transition()
+  solveOnce() // 困难段
+  await settleSection() // 成功动画 → settleLevel → 过场 B
+  await transition()
+  solveOnce() // 复习段
+  await settleSection() // → onDone → 推进
 }
 
 describe('App 路由', () => {
@@ -296,11 +322,10 @@ describe('App 庆祝态接线', () => {
     fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
     await screen.findByRole('button', { name: '回地图' })
 
-    // 通关回调在成功动画**之后**才发(260ms 判定 + 1600ms 停顿)—— 从落块起换成假时钟。
+    // 通关回调在复习段跑完、成功动画之后才发 —— 从落块起换成假时钟,走完三段。
     vi.useFakeTimers()
     try {
-      solveFirstLevel()
-      await act(async () => { vi.advanceTimersByTime(3000) })
+      await solveLevel()
 
       // 正向:确实走到了幸运弹层(🍀 只属于它;假 achievements 恒空,成就弹层不会出现)
       expect(screen.getByText('🍀')).toBeInTheDocument()

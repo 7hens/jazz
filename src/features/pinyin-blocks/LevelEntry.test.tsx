@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AchievementService,
@@ -103,7 +103,7 @@ function mountLevelEntry(opts: {
 
   const onSettle = vi.fn()
   const utils = render(<LevelEntry unitIndex={0} onExitToMap={vi.fn()} onSettle={onSettle} />)
-  return { ...utils, celebrate, comboService, comboStore, onSettle }
+  return { ...utils, celebrate, comboService, comboStore, onSettle, progressService: progress }
 }
 
 /** 托盘里还没入槽的块。 */
@@ -139,6 +139,32 @@ async function settle() {
   await act(async () => {
     vi.advanceTimersByTime(3000)
   })
+}
+
+/** 过场停 1.2s 才交回(STAGE_TRANSITION_MS)—— 推时钟越过它。 */
+async function transition() {
+  await act(async () => {
+    vi.advanceTimersByTime(1300)
+  })
+}
+
+/**
+ * 走完一整关:简单段 → 过场 A → 困难段 →(落库)→ 过场 B → 复习段 → 推进。
+ * 段内一律拼对 ⇒ 错题池为空 ⇒ 复习段是「本关整题重做」,求解方式与简单段相同。
+ *
+ * **只在 u1-0 上成立** —— `solveCorrectly()` 写死了 `UNITS[0]!.levels[0]`,而 `mountLevelEntry`
+ * 恒以 `unitIndex={0}` 挂载;推进下一关发生在复习段交账之后,solveLevel 连点三段也还在 u1-0。
+ * 要换关就得先把 `solveCorrectly` 参数化,别指望它自己跟着走。
+ */
+async function solveLevel() {
+  solveCorrectly() // 简单段
+  await settle() // 成功动画 → 过场 A
+  await transition()
+  solveCorrectly() // 困难段
+  await settle() // 成功动画 → settleLevel → 过场 B
+  await transition()
+  solveCorrectly() // 复习段(池空 = 整题)
+  await settle() // → onDone → 推进下一关
 }
 
 beforeEach(() => {
@@ -191,8 +217,7 @@ describe('关卡页 · 撒花接线', () => {
 
   it('一关拼成且没有奖励弹层接手 → word 档撒花', async () => {
     const { celebrate, onSettle } = mountLevelEntry()
-    solveCorrectly()
-    await settle()
+    await solveLevel()
     expect(onSettle).toHaveBeenCalled()
     expect(celebrate.play).toHaveBeenCalledWith('word')
   })
@@ -201,16 +226,14 @@ describe('关卡页 · 撒花接线', () => {
     const { celebrate, onSettle } = mountLevelEntry({
       earned: [{ id: 'perfect_level', name: '完美主义', description: 'x', emoji: '💎', reward: 50 }],
     })
-    solveCorrectly()
-    await settle()
+    await solveLevel()
     expect(onSettle).toHaveBeenCalled()
     expect(celebrate.play).not.toHaveBeenCalledWith('word')
   })
 
   it('有幸运奖励接手时 word 档不撒', async () => {
     const { celebrate, onSettle } = mountLevelEntry({ luckyReward: 50 })
-    solveCorrectly()
-    await settle()
+    await solveLevel()
     expect(onSettle).toHaveBeenCalled()
     expect(celebrate.play).not.toHaveBeenCalledWith('word')
   })
@@ -249,5 +272,60 @@ describe('关卡页 · 连击圆点', () => {
     expect(litCount()).toBe(4)
     act(() => comboStore.set({ combo: 0, maxCombo: 4 }))
     expect(litCount()).toBe(0)
+  })
+})
+
+describe('关卡页 · 三段相位', () => {
+  it('一关走完三段:每一步都在,最后推进到下一关', async () => {
+    const { onSettle } = mountLevelEntry()
+    solveCorrectly()
+    expect(document.querySelector('[data-stage="easy"]')).not.toBeNull()
+    await settle()
+    await transition()
+    expect(document.querySelector('[data-stage="hard"]')).not.toBeNull()
+    solveCorrectly()
+    await settle()
+    await transition()
+    expect(document.querySelector('[data-stage="review"]')).not.toBeNull()
+    solveCorrectly()
+    await settle()
+    expect(onSettle).toHaveBeenCalledTimes(1)
+  })
+
+  // Review Focus #3:复习到一半按「回地图」就走 —— 那一关的星必须**已经**记上。
+  it('进复习段之前 recordClear 已被调用(复习到一半退出不会丢星)', async () => {
+    const { progressService, onSettle } = mountLevelEntry()
+    solveCorrectly()
+    await settle()
+    await transition()
+    solveCorrectly()
+    await settle()
+    // 此刻已进复习段 —— 星必须已落库。
+    await transition()
+    expect(progressService.recordClear).toHaveBeenCalled()
+    expect(onSettle).not.toHaveBeenCalled() // 但还没发:弹层要等复习段跑完
+  })
+
+  it('复习段中途回地图:补发 onSettle + 撒花,且只发一次', async () => {
+    const { onSettle, celebrate } = mountLevelEntry()
+    solveCorrectly()
+    await settle()
+    await transition()
+    solveCorrectly()
+    await settle()
+    await transition()
+    fireEvent.click(screen.getByLabelText('回地图'))
+    expect(onSettle).toHaveBeenCalledTimes(1)
+    expect(celebrate.play).toHaveBeenCalledWith('word')
+  })
+
+  // Review Focus #4:重玩已通关的关 —— 相位从简单段重跑,不残留上一轮的池。
+  it('重挂同一关:相位回到简单段', async () => {
+    const { unmount, onSettle } = mountLevelEntry()
+    await solveLevel()
+    expect(onSettle).toHaveBeenCalled()
+    unmount()
+    mountLevelEntry()
+    expect(document.querySelector('[data-stage="easy"]')).not.toBeNull()
   })
 })

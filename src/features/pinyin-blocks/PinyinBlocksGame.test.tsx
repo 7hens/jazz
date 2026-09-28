@@ -746,6 +746,24 @@ describe('拼音积木 · 游戏', () => {
     fireEvent.keyDown(screen.getByLabelText('积木 b'), { key: 'Enter' })
     expect(onBlock.mock.calls).toEqual([['wrong'], ['first']])
   })
+
+  // 盘**未满**时点已填槽必须能把块拿回托盘。`takeBack` 的闸是 `status !== 'playing' || boardFull` ——
+  // 把 `||` 误写成 `&&`:盘未满时 boardFull=false ⇒ 整个条件恒假 ⇒ 早退,块拿不回。
+  // 既有用例断的都是「**盘满**后拿不回」(260ms 窗口那两条),那半边在 `&&` 下照样绿 ——
+  // 少了这条,`&&` 的回归全套 jsdom 静默通过。
+  it('盘未满时点已填槽:块拿回托盘', () => {
+    mount(1, 0) // 👨 bà:b + a + 四声
+    const before = trayBlocks().length
+    fireEvent.keyDown(screen.getByLabelText('积木 a'), { key: 'Enter' })
+    const slot = document.querySelector<HTMLElement>('[data-slot-id="s0-f"]')
+    expect(slot?.classList.contains('pslot--filled'), 'a 该落进韵母槽').toBe(true)
+    expect(trayBlocks(), '入槽后托盘该少一块').toHaveLength(before - 1)
+
+    // 声母槽与声调槽还空着 ⇒ 盘未满,takeBack 该放行。
+    fireEvent.click(slot?.querySelector('.pblock') as HTMLElement)
+    expect(slot?.classList.contains('pslot--filled'), '盘未满,块该能拿回').toBe(false)
+    expect(trayBlocks(), '块该真的回了托盘').toHaveLength(before)
+  })
 })
 
 describe('一关三段', () => {
