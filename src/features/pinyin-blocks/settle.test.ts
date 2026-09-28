@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Achievement, Rng, UserSettings } from '@/shared/services'
 import { UNITS } from './levels'
-import { settleLevel } from './settle'
+import { EMPTY_CHAPTER_SETTLEMENT, mergeSettlement, settleLevel } from './settle'
 
 const SETTINGS: UserSettings = {
   earnedAchievements: [],
@@ -216,5 +216,36 @@ describe('关卡结算', () => {
     expect(roll).not.toHaveBeenCalled()
     expect(result.luckyReward).toBe(0)
     expect(result.sessionCleared).toBe(2)
+  })
+})
+
+describe('章级交账', () => {
+  const ach = (id: string, reward = 50): Achievement => ({ id, name: id, description: '', emoji: '🏅', reward })
+
+  it('星尘与幸运求和,首通数取最新', () => {
+    const a = mergeSettlement(EMPTY_CHAPTER_SETTLEMENT, {
+      stars: 3, starDust: 10, luckyReward: 0, achievements: [], sessionCleared: 1,
+    })
+    const b = mergeSettlement(a, { stars: 1, starDust: 5, luckyReward: 20, achievements: [], sessionCleared: 2 })
+    expect(b.starDust).toBe(15)
+    expect(b.luckyReward).toBe(20)
+    expect(b.sessionCleared).toBe(2)
+  })
+
+  it('成就按 id 去重合并,先出现的排前面', () => {
+    const a = mergeSettlement(EMPTY_CHAPTER_SETTLEMENT, {
+      stars: 3, starDust: 0, luckyReward: 0, achievements: [ach('first'), ach('perfect')], sessionCleared: 1,
+    })
+    const b = mergeSettlement(a, {
+      stars: 3, starDust: 0, luckyReward: 0, achievements: [ach('perfect'), ach('marathon')], sessionCleared: 2,
+    })
+    expect(b.achievements.map((x) => x.id)).toEqual(['first', 'perfect', 'marathon'])
+  })
+
+  it('空账是加法的单位元', () => {
+    const empty = mergeSettlement(EMPTY_CHAPTER_SETTLEMENT, {
+      stars: 0, starDust: 0, luckyReward: 0, achievements: [], sessionCleared: 0,
+    })
+    expect(empty).toEqual(EMPTY_CHAPTER_SETTLEMENT)
   })
 })

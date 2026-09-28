@@ -12,7 +12,12 @@ export { CHAPTERS, type Chapter } from './chapter'
 export type { Level, Syllable, Unit } from './levels'
 export type { Block, BlockType, Hint } from './blocks'
 export { hintFor, HINT_BY_UNIT } from './blocks'
-export type { LevelSettlement } from './settle'
+export {
+  EMPTY_CHAPTER_SETTLEMENT,
+  mergeSettlement,
+  type ChapterSettlement,
+  type LevelSettlement,
+} from './settle'
 export { StageBar, StageDots, type StageId } from './StageBar'
 export { STAGE_TRANSITION_MS, StageTransition } from './StageTransition'
 export {

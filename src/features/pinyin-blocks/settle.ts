@@ -28,6 +28,47 @@ export type LevelSettlement = Readonly<{
   sessionCleared: number
 }>
 
+/**
+ * 交回给上层的账 —— **一章一笔**,不是一题一笔。
+ *
+ * 为什么不是 `LevelSettlement`:那个结构里的 `stars` 是「这一题拿了几星」,
+ * 累积十道题之后这个数字没有意义(求和得到 30 星?)。上层真正要的是
+ * 「这一章新出了哪些成就、多少星尘」—— 撒花与弹层就判这两个。
+ */
+export type ChapterSettlement = Readonly<{
+  /** 本章入账的星尘合计(连击加成 + 幸运 + 成就奖励)。 */
+  starDust: number
+  luckyReward: number
+  /** 本章新得的成就,**按 id 去重**(同一章里两道题各触发一次只算一条)。 */
+  achievements: readonly Achievement[]
+  /** 章末的会话首通数 —— 交回调用方存着,下一章再带进来。 */
+  sessionCleared: number
+}>
+
+/** 章开始时的那笔空账。`mergeSettlement` 拿它当加法的单位元。 */
+export const EMPTY_CHAPTER_SETTLEMENT: ChapterSettlement = {
+  starDust: 0,
+  luckyReward: 0,
+  achievements: [],
+  sessionCleared: 0,
+}
+
+/**
+ * 把一题的结算并进本章的账。**纯函数** —— 攒账本身不碰服务、不写库(写库在 `settleLevel` 里已经做了)。
+ *
+ * `sessionCleared` 是**取最新**而不是相加:它是 `settleLevel` 交回的绝对量
+ * *(「本次会话已首通的关数」),相加会把它翻倍。
+ */
+export function mergeSettlement(into: ChapterSettlement, next: LevelSettlement): ChapterSettlement {
+  const seen = new Set(into.achievements.map((achievement) => achievement.id))
+  return {
+    starDust: into.starDust + next.starDust,
+    luckyReward: into.luckyReward + next.luckyReward,
+    achievements: [...into.achievements, ...next.achievements.filter((a) => !seen.has(a.id))],
+    sessionCleared: next.sessionCleared,
+  }
+}
+
 export type SettleInput = Readonly<{
   levelId: string
   /**
