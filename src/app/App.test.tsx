@@ -305,7 +305,7 @@ describe('App 路由', () => {
 
 describe('App 庆祝态接线', () => {
   // App.tsx 那一行 `celebrate={celebrateService.play}` 是「幸运弹层响了」的**唯一**投递点:
-  // LevelEntry 只负责结算,撒花档由组合层传下去。断的是**行为**(注入的 CelebrateService.play
+  // UnitEntry 只负责结算,撒花档由组合层传下去。断的是**行为**(注入的 CelebrateService.play
   // 收到了 `'lucky'`),不是 `LuckyBonus.props.celebrate === celebrateService.play` 那种实现耦合 ——
   // 前者删掉 App 那一行必红,后者只证明「React 把 prop 传下去了」而证不了它响没响。
   it('结算出幸运奖励时,幸运弹层用组合层注入的 celebrateService.play 发出 lucky 档', async () => {

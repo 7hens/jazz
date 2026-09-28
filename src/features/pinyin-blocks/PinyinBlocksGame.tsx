@@ -788,7 +788,7 @@ export function PinyinBlocksGame({
   const unit = unitIndex ?? self.unit
   const level = levelIndex ?? self.level
 
-  /** 关内自己往下走(试玩路径)。由外层控关时不动 —— 那是 LevelEntry 的事。 */
+  /** 关内自己往下走(试玩路径)。由外层控关时不动 —— 那是 UnitEntry 的事。 */
   const advance = () => {
     const u = UNITS[unit] ?? UNITS[0]!
     const next =

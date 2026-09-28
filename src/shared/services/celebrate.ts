@@ -29,7 +29,7 @@ export const CELEBRATE_CUE: Record<CelebrateLevel, AudioCue> = {
  * 15 连走的是成就 `combo_15`(由 `achievement` 档撒花),**故意不设第三档** ——
  * 三个连击档对孩子只是噪声(设计 §3.3 的表)。
  *
- * 放在 shared 而不是 features/combo:`LevelEntry` 在 features/pinyin-blocks,
+ * 放在 shared 而不是 features/combo:`UnitEntry` 在 features/pinyin-blocks,
  * 引 features/combo 就是跨 feature 编译期互引(architecture.test.ts 守的边界)。
  */
 export function celebrationFor(combo: number): CelebrateLevel | null {

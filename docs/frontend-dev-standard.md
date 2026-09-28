@@ -57,7 +57,7 @@ src/shared/    基础:契约/纯逻辑/中性基础件/注册机制,无上层依
 | :-- | :-- | :-- |
 | 目录 | kebab-case | `pinyin-blocks/` |
 | 组件 / 类型 / 接口 | PascalCase | `PinyinBlocksGame` / `LevelSettlement` / `SettingsService` |
-| Entry | `<Name>Entry.tsx` | `LevelEntry.tsx` |
+| Entry | `<Name>Entry.tsx` | `UnitEntry.tsx` |
 | 逻辑文件 | camelCase.ts | `rules.ts` / `progress-stats.ts` |
 | 服务工厂 | `create<Name>Service` | `createSpeechService` |
 | 服务 token | 与接口同名的 `const XService`(`Symbol`) | `PinyinProgressService` |
