@@ -79,6 +79,19 @@ describe('换段过场', () => {
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
+  // 反向守卫:计时器里直接闭包捕获 onDone 也能让「调用次数 === 1」成立,
+  // 但那样交回的是挂载时的旧闭包,父组件会拿旧 state 推进/关闭。必须断调的是最新那个 spy。
+  it('中途换了 onDone,交回时走的是最新那个而不是挂载时捕获的旧闭包', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const { rerender } = render(<StageTransition stage="review" onDone={first} />)
+    act(() => vi.advanceTimersByTime(STAGE_TRANSITION_MS - 200))
+    rerender(<StageTransition stage="review" onDone={second} />)
+    act(() => vi.advanceTimersByTime(200))
+    expect(second).toHaveBeenCalledTimes(1)
+    expect(first).not.toHaveBeenCalled()
+  })
+
   it('进复习那一处遮罩里,第三格已经是灰蓝', () => {
     const { container } = render(<StageTransition stage="review" onDone={vi.fn()} />)
     expect(coolCount(container.querySelector('.pstage-bar') as HTMLElement)).toBe(1)
