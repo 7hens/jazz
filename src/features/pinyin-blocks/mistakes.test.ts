@@ -40,6 +40,42 @@ function unitIdxOf(id: string): number {
 
 const b = (type: Block['type'], value: string): Block => ({ type, value })
 
+/** 按家族键计数。跨片段复用:够不够放(不变量 a)与有没有多给(不变量 b)都看它。 */
+const familyCounts = (blocks: readonly { type: Block['type']; value: string }[]): Map<string, number> => {
+  const counts = new Map<string, number>()
+  for (const block of blocks) {
+    const key = familyKey(block)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return counts
+}
+
+/**
+ * 灌满错题池:每个槽都补上「与正解不同家族」的错值。
+ *
+ * 每槽给到 6 个(该类型可用的不足 6 个就给完)—— **不能每类型只喂 1 个错族**:
+ * 那样可见块永远最多 3(1 正解 + 1 错解 + 预填不算),`REVIEW_TRAY_CAP = 4` 这条上限
+ * 在 91 关里一次都碰不到,把 cap 算错(如 room 忘扣正解)也照样绿。池厚了,cap 才是真约束。
+ */
+function saturatedPool(level: Level): MistakePool {
+  const pool: Block[] = []
+  for (const slot of slotsFor(level)) {
+    const correct = familyKey(slot)
+    const seen = new Set<string>()
+    let added = 0
+    for (const value of COMMON[slot.type]) {
+      if (added >= 6) break
+      const block = b(slot.type, value)
+      const key = familyKey(block)
+      if (key === correct || seen.has(key)) continue
+      seen.add(key)
+      pool.push(block)
+      added += 1
+    }
+  }
+  return pool
+}
+
 describe('notePick(简单段的点错计数)', () => {
   it('同一块点到第 2 次才算数(N = 2)', () => {
     expect(WRONG_PICK_THRESHOLD).toBe(2)
@@ -144,31 +180,22 @@ describe('reviewQuestions', () => {
 
   // 上限是对**可见**那几块说的。预填块也在 tray 数组里(渲染层靠它找块),把它们算进上限就永远超。
   it('可见托盘永不超过 4 块(全 91 关,池灌满)', () => {
+    let most = 0
+    let mostAt = ''
     for (let unit = 0; unit < UNITS.length; unit++) {
       for (const level of UNITS[unit]!.levels) {
-        // 池灌满:把该关每一个槽的类型都给上几个「值不同」的错块。
-        const saturated: MistakePool = slotsFor(level).map((s) => {
-          const other = COMMON[s.type].find((v) => v !== s.value)
-          return b(s.type, other ?? s.value)
-        })
-        for (const q of reviewQuestions(level, unit, saturated, seq([0.3, 0.6]))) {
-          expect(visible(q).length, `${level.pinyin} 的复习托盘挤了 ${visible(q).length} 块`).toBeLessThanOrEqual(
-            REVIEW_TRAY_CAP,
-          )
+        const slotById = new Map(slotsFor(level).map((s) => [s.id, s]))
+        for (const q of reviewQuestions(level, unit, saturatedPool(level), seq([0.3, 0.6]))) {
+          const shown = visible(q)
+          expect(shown.length, `${level.pinyin} 的复习托盘挤了 ${shown.length} 块`).toBeLessThanOrEqual(REVIEW_TRAY_CAP)
+          if (shown.length > most) {
+            most = shown.length
+            mostAt = `${level.pinyin} / ${q.blockType}`
+          }
           // 正解块本身可以同形 —— toneBlocks 对同一调按槽数补齐(u7-0 两个 tone:1 槽就要两块同形块,
           // 少一块这关无解)。这条护栏只管「多出来的那些块」:任何家族出现的次数不得超过正解所需的次数。
-          const slotById = new Map(slotsFor(level).map((s) => [s.id, s]))
-          const need = new Map<string, number>()
-          for (const id of q.slotIds) {
-            const key = familyKey(slotById.get(id) as { type: Block['type']; value: string })
-            need.set(key, (need.get(key) ?? 0) + 1)
-          }
-          const got = new Map<string, number>()
-          for (const t of visible(q)) {
-            const key = familyKey(t)
-            got.set(key, (got.get(key) ?? 0) + 1)
-          }
-          for (const [key, n] of got) {
+          const need = familyCounts(q.slotIds.map((id) => slotById.get(id)!))
+          for (const [key, n] of familyCounts(shown)) {
             expect(
               n,
               `${level.pinyin} 的复习托盘里 ${key} 出现 ${n} 次,而正解只需 ${need.get(key) ?? 0} 次`,
@@ -177,6 +204,9 @@ describe('reviewQuestions', () => {
         }
       }
     }
+    // cap 得真的被压满,而不是课程里永远够不着 —— 池只喂 1 个错族时可见块最多到 3,
+    // 这条「恰好等于 4」缺席,把上限算错(如 room 忘扣正解)就抓不住。
+    expect(most, `可见托盘最多只到 ${most} 块(${mostAt}),cap 没被压满`).toBe(REVIEW_TRAY_CAP)
   })
 
   it('错块的家族键与正解相同时不进可见托盘(否则两块一模一样,孩子只能瞎猜)', () => {
@@ -217,20 +247,22 @@ describe('reviewQuestions', () => {
     expect(q.tray.some((t) => t.type === 'medial' && t.value === 'ü')).toBe(true)
   })
 
-  // 全 91 关的不变量:每个错块的类型在本关都必有槽(否则小题挖不出空槽,复习段当场空转)。
-  it('每一关的每一个块类型,只要它在池里就一定挖得出槽', () => {
+  // 不变量 (a):挖空的每个槽都要有一块可放的托盘块,**重数也要够**。
+  // 双音节两个同值槽(u7-0 两块一声、u7-4 两块介母 u)就要两块正解 —— 少一块后一个槽无块可放。
+  // 现有的单例只覆盖 u7-4,这里扫全 91 关,抓「按家族去重后少给一块正解」这类回归。
+  it('每个挖空槽在托盘里都有对应家族的块,重数也够(全 91 关,池灌满)', () => {
     for (let unit = 0; unit < UNITS.length; unit++) {
       for (const level of UNITS[unit]!.levels) {
-        const types = new Set(slotsFor(level).map((s) => s.type))
-        const questions = reviewQuestions(
-          level,
-          unit,
-          [...types].map((type) => b(type, slotsFor(level).find((s) => s.type === type)!.value)),
-          seq([0.2, 0.5, 0.8]),
-        )
-        for (const q of questions) {
-          expect(q.slotIds.length, `${level.pinyin} 的小题没挖空任何槽`).toBeGreaterThan(0)
-          expect(q.prefill).toBeDefined()
+        const slotById = new Map(slotsFor(level).map((s) => [s.id, s]))
+        for (const q of reviewQuestions(level, unit, saturatedPool(level), seq([0.3, 0.6]))) {
+          const need = familyCounts(q.slotIds.map((id) => slotById.get(id)!))
+          const got = familyCounts(q.tray)
+          for (const [key, n] of need) {
+            expect(
+              got.get(key) ?? 0,
+              `${level.pinyin} 的 ${key} 槽要 ${n} 块,托盘只给了 ${got.get(key) ?? 0} 块`,
+            ).toBeGreaterThanOrEqual(n)
+          }
         }
       }
     }
