@@ -323,16 +323,26 @@
   /* 类型色按 --slot-line 的比例混进中性色。0% 时整条退回中性 —— 弱档就是这样来的,
      不必再有一条 .pslot--plain 把每套规则复制一遍。 */
   --slot-base-line: color-mix(in srgb, var(--color-ink) 16%, transparent);
-  border: 3px dashed var(--slot-base-line);
+  /* 实线 = 规则,虚线 = 提示。困难段把类型色升格成硬规则的载体,靠容器覆盖这个变量(spec §3.8)。 */
+  border: 3px var(--slot-style) var(--slot-base-line);
   background-color: color-mix(in srgb, var(--color-surface) 46%, transparent);
   transition: border-color 0.18s, background-color 0.18s, transform 0.12s;
 }
 
 /* 提示强度:三档只调容器上这两个变量,块类型规则一律照读。
    强 55/12 → 中 30/6 → 弱 0/0。 */
-.pslots        { --slot-line: 55%; --slot-fill: 12%; }
+.pslots        { --slot-line: 55%; --slot-fill: 12%; --slot-style: dashed; }
 .pslots--mid   { --slot-line: 30%; --slot-fill: 6%; }
 .pslots--weak  { --slot-line: 0%;  --slot-fill: 0%; }
+
+/* 困难段:类型色**恒亮**且换实线边。这不是审美选择,是正确性要求 —— 弱档单元(u9–u12)
+   的 --slot-line 是 0%,而困难段的规则正是「同颜色的槽才能放」(spec §3.8)。
+   走容器变量覆盖,不给每种类型另写一条规则(复合选择器会让「一种类型一条规则」的护栏数出两条)。
+   选择器与 `{` 之间**只留一个空格** —— 护栏按「类名 + 一个空格 + 左花括号」这个字面量数条数
+   (照抄上面那几档的写法,别为了对齐敲成多个空格,也别把空格整个删掉)。
+   注意:上面这几句注释里**不能**再出现「类名 + 空格 + 左花括号」那种字样 —— 护栏数的是原文,
+   注释一并算数(本行初稿就踩过:注释里写了一次,条数当场变 2)。 */
+.pslots--hard { --slot-line: 100%; --slot-fill: 24%; --slot-style: solid; }
 
 /* 提示档「强」的浓淡基线:槽位染上对应块类的颜色,孩子一眼知道该拿哪种块过来 */
 .pslot--initial {
@@ -379,6 +389,16 @@
 .pslot--wrong {
   animation: pblock-shake 0.4s;
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-red) 55%, transparent);
+}
+/* 点错一块(托盘里那块无处可落 / 拖到不匹配的槽上)的即时反馈。
+   今天这里**只有声音** —— 静音环境(平板很常见)里孩子的体验是「点了它一下,什么都没发生」,
+   而 miss 已经在涨了。干扰块变成 b/p 这种高度相似的对手之后,它会直接变成挫败。 */
+.pblock--reject {
+  animation: pblock-shake 0.4s;
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.5),
+    0 7px 0 var(--pb-edge),
+    0 0 0 4px color-mix(in srgb, var(--color-red) 55%, transparent);
 }
 
 /* ---- 焊死(整体认读):竖直金色焊缝钉在接缝处,不遮字母 ----
@@ -454,4 +474,103 @@
 }
 .pstar--on {
   color: var(--color-gold);
+}
+
+/* ---- 三段:段标 / 过场 / 底盘(spec §3.8)----
+   三段的区别只能靠形状、颜色、材质 —— 游戏区零可见文字。 */
+
+/* 台阶条:三格并排、越右越高,亮到第几格就是第几段。位置钉在题面图上方,不占新位置。
+   读法与连击点同源(一排东西、亮/暗两态),孩子在这个游戏里已经学过,不用重新教。 */
+.pstage-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+.pstage-step {
+  width: 11px;
+  border-radius: 3px;
+  background-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
+}
+.pstage-step:nth-child(1) { height: 11px; }
+.pstage-step:nth-child(2) { height: 19px; }
+.pstage-step:nth-child(3) { height: 27px; }
+.pstage-step--on {
+  background-color: var(--color-accent);
+}
+/* 复习段的第三格换灰蓝:台阶「越右越高」说的是难度,而复习不是第三级难度,是回炉 ——
+   颜色断掉,就不会被读成「三级台阶的顶」。这一支灰蓝同时是小题目进度点的颜色,不是新色号。 */
+.pstage-step--cool {
+  background-color: var(--color-ink-2);
+}
+.pstage-step--pop {
+  animation: pstep-pop 0.34s ease-out backwards;
+}
+@keyframes pstep-pop {
+  0% { transform: scaleY(0.35); opacity: 0.3; }
+  60% { transform: scaleY(1.18); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+/* 过场里那一条放大版:同一个组件,只是尺寸不同(逐格点亮由 --pop 的 animation-delay 排)。 */
+.pstage-bar--big {
+  gap: 7px;
+}
+.pstage-bar--big .pstage-step {
+  width: 18px;
+}
+.pstage-bar--big .pstage-step:nth-child(1) { height: 18px; }
+.pstage-bar--big .pstage-step:nth-child(2) { height: 30px; }
+.pstage-bar--big .pstage-step:nth-child(3) { height: 42px; }
+
+/* 复习段的小题进度点:最多 3 个,做完几道亮几颗,位置钉在台阶条正下方。放错只抖,不动它。 */
+.pstage-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 8px;
+}
+.pstage-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
+}
+.pstage-dot--on {
+  background-color: var(--color-ink-2);
+}
+
+/* 换段过场:压一层暗遮罩,台阶条放大到屏幕中央。A(进困难)与 B(进复习)共用这一个面 ——
+   B 的「画法不同」全在台阶条的颜色语言里(前两格橙 + 第三格灰蓝),不另做一个遮罩。
+   减动效下动画被压成 0.01ms,而停留时长由组件的 JS 计时器保证 ⇒ 退化成同一个静态帧。 */
+.pstage-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background-color: color-mix(in srgb, var(--color-ink) 62%, transparent);
+  backdrop-filter: blur(6px);
+  animation: pveil-in 0.28s ease-out;
+}
+@keyframes pveil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 困难段的积木盘:底色压暗一档 + 橙实线环 + 内阴影。
+   盘是屏幕下半部最大的一块面,底色是最不占位置的段信号;压暗之后五类块面反而更跳。 */
+.ptray--hard {
+  background-color: color-mix(in srgb, var(--color-ink) 22%, transparent);
+  border: 2px solid var(--color-accent);
+  box-shadow:
+    inset 0 6px 16px -8px color-mix(in srgb, var(--color-shadow) 60%, transparent),
+    var(--shadow-card);
+}
+
+/* 复习段的积木盘:去饱和灰 + 中性虚线环。虚线在这套语言里一贯表示「提示 / 非规则」。 */
+.ptray--review {
+  background-color: color-mix(in srgb, var(--color-ink) 14%, var(--color-surface));
+  border: 2px dashed color-mix(in srgb, var(--color-ink) 30%, transparent);
+  box-shadow: var(--shadow-card);
 }

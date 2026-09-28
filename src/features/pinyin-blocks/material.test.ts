@@ -344,4 +344,60 @@ describe('index.css 拼音积木材质段', () => {
     expect(css.indexOf('.pblock--nasal {'), '.pblock--nasal { 不存在,下面那句就空转').toBeGreaterThan(-1)
     expect(start, 'welded 排在类型类之前,金墨会真的输掉').toBeGreaterThan(css.indexOf('.pblock--nasal {'))
   })
+
+  // 困难段的槽:**类型色从提示升格成硬规则的载体**。u9–u12 全是弱档(--slot-line: 0%),
+  // 在那里「同颜色的槽才能放」这条规则在屏幕上是不可见的 —— 孩子只能靠猜。
+  // 做法必须走「容器上覆盖变量」,不能给每种类型再写一条 .pslots--hard .pslot--initial:
+  // 那样上面那条「每种类型只该有一条规则」的护栏会数出两条(复合选择器里含同一个字面量)。
+  it('困难段的槽:恒亮 100% + 实线边,走容器变量而不是复合选择器', () => {
+    expect(css.split('.pslots--hard {').length - 1, '.pslots--hard { 只该有一条规则').toBe(1)
+    const start = css.indexOf('.pslots--hard {')
+    const rule = css.slice(start, css.indexOf('}', start))
+    expect(rule, '困难段的槽没恒亮').toContain('--slot-line: 100%')
+    expect(rule, '实线 / 虚线的区别没落在变量上').toContain('--slot-style: solid')
+
+    // 虚线是默认值,且真的被 .pslot 读走 —— 只声明不消费等于没写。
+    const base = css.indexOf('.pslot {')
+    const baseRule = css.slice(base, css.indexOf('}', base))
+    expect(baseRule, '.pslot 没读 --slot-style,困难段的实线边不会生效').toContain('var(--slot-style)')
+    expect(css.split('.pslot {').length - 1, '.pslot { 仍只该有一条规则').toBe(1)
+
+    // 全文件 `--slot-style:` 恰好两处:.pslots 的默认值 + .pslots--hard 的 solid。
+    // 多出来的声明点是**元素自身**上的,会压过从 .pslots--hard 继承来的值 ⇒ 困难段的实线边失效,
+    // 而上面那条「字面存在」的断言照样全绿(实测 `.pslot { --slot-style: dashed }` 就是这种)。
+    expect(
+      css.split('--slot-style:').length - 1,
+      '多出来的声明点会压过继承,困难段的实线边会失效',
+    ).toBe(2)
+
+    for (const name of ['initial', 'medial', 'final', 'nasal', 'tone']) {
+      expect(css.split(`.pslot--${name} {`).length - 1, `${name} 被拆成两条了`).toBe(1)
+    }
+  })
+
+  it('三段各有自己的底盘与段标', () => {
+    for (const cls of ['.ptray--hard {', '.ptray--review {', '.pblock--reject {', '.pstage-veil {']) {
+      expect(css.split(cls).length - 1, `${cls} 只该有一条规则`).toBe(1)
+    }
+    // 困难段的盘压暗 + 橙环;复习段的盘去饱和 + 虚线环。
+    const hard = css.indexOf('.ptray--hard {')
+    expect(css.slice(hard, css.indexOf('}', hard))).toContain('var(--color-accent)')
+    const review = css.indexOf('.ptray--review {')
+    expect(css.slice(review, css.indexOf('}', review))).toContain('dashed')
+  })
+
+  it('段标是「三格、越右越高」,亮态用 accent、复习段第三格用灰蓝', () => {
+    // 行首锚定,不用 split —— 过场里的 `.pstage-bar--big .pstage-step {` 里含 `.pstage-step {` 这个
+    // 子串,split 会把它一起数进来(同一类坑:复合选择器让「一条规则」的护栏数出两条)。
+    const rules = (sel: string) => css.match(new RegExp(`^${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{`, 'gm'))?.length ?? 0
+    expect(rules('.pstage-bar'), '.pstage-bar 只该有一条规则').toBe(1)
+    expect(rules('.pstage-step'), '.pstage-step 只该有一条规则').toBe(1)
+    expect(rules('.pstage-step--on'), '.pstage-step--on 只该有一条规则').toBe(1)
+    expect(rules('.pstage-step--cool'), '.pstage-step--cool 只该有一条规则').toBe(1)
+    expect(rules('.pstage-dot'), '.pstage-dot 只该有一条规则').toBe(1)
+    const on = css.indexOf('\n.pstage-step--on {')
+    expect(css.slice(on, css.indexOf('}', on))).toContain('var(--color-accent)')
+    const cool = css.indexOf('\n.pstage-step--cool {')
+    expect(css.slice(cool, css.indexOf('}', cool))).toContain('var(--color-ink-2)')
+  })
 })
