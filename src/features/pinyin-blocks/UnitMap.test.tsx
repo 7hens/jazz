@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { ACHIEVEMENTS } from '@/features/achievements'
 import { cn } from '@/shared/ui/utils'
 import { HAN_TEXT } from '@/shared/testing/han-text'
-import { UNITS } from './levels'
+import { easyLevelsOf, hardLevelsOf, UNITS, type Unit } from './levels'
 import { UnitMap } from './UnitMap'
 
 // 零文本扫描用的正则与它拦什么,统一在 @/shared/testing/han-text(全仓唯一一份)。
@@ -43,31 +43,58 @@ describe('拼音单元地图', () => {
     const cellOf = (id: string) => document.querySelector<HTMLElement>(`[data-unit-id="${id}"]`)
     expect(cellOf('u1')?.dataset.locked).toBe('false')
     expect(cellOf('u2')?.dataset.locked).toBe('true')
-    fireEvent.click(cellOf('u2') as HTMLElement)
+    // 点击目标必须写死成**章按钮**:容器 `<div>` 上没有 onClick —— 点容器既不触发 onPick,
+    // 「锁着点不动」就会因为**没点着按钮**而通过,而不是因为锁着(空过)。
+    fireEvent.click(cellOf('u2')!.querySelector('[data-chapter="easy"]')!)
     expect(onPick).not.toHaveBeenCalled()
-    fireEvent.click(cellOf('u1') as HTMLElement)
-    expect(onPick).toHaveBeenCalledWith(0)
+    fireEvent.click(cellOf('u1')!.querySelector('[data-chapter="easy"]')!)
+    expect(onPick).toHaveBeenCalledWith(0, 'easy')
   })
 
-  // 一格里的星位 = 该单元的关卡数;亮几颗 = 通了几关。
-  // 不画「本关几星」—— 格子放不下 3-7 组三星,而且地图该答的是「这格过了多少」。
-  it('通关的格子亮起对应颗数,没通的留着暗星位', () => {
+  // 一格三行章,每行一个 `n/总数` —— 这是格子里**唯一**的进度读数(章名不进地图)。
+  // 不画「本关几星」—— 格子放不下 3-7 组三星,而且地图该答的是「这章过了几道」。
+  // 期望值用 easyLevelsOf / hardLevelsOf 现算、不写死数字:课程增删题时断言跟着走,而不是变假绿。
+  it('章那行显示本章通过数 / 本章题数(与星级同源)', () => {
     const unit = UNITS[0]!
-    const stars = { [unit.levels[0]!.id]: 2, [unit.levels[1]!.id]: 1 }
+    const easy = easyLevelsOf(unit)
+    const hard = hardLevelsOf(unit)
+    const stars = { [easy[0]!.id]: 2, [easy[1]!.id]: 1 }
     render(<UnitMap {...base} stars={stars} totalStars={20} />)
     const cell = document.querySelector<HTMLElement>('[data-unit-id="u1"]')
-    expect(cell?.querySelectorAll('.pstar')).toHaveLength(unit.levels.length)
-    expect(cell?.querySelectorAll('.pstar--on')).toHaveLength(2)
-    // 进度数字与亮星数一致
-    expect(cell?.textContent).toContain(`2/${unit.levels.length}`)
+    expect(cell, '取不到 u1 格子,下面的断言会静默空转').not.toBeNull()
+    // 前两道各给一颗以上 → 简单章那行读 `2/简单题数`(星级与章计数同源)。
+    expect(cell!.querySelector('[data-chapter="easy"]')?.textContent).toContain(`2/${easy.length}`)
+    // 困难章一颗没给 → `0/困难题数`;「零星的章归零」这半也在此覆盖。
+    expect(cell!.querySelector('[data-chapter="hard"]')?.textContent).toContain(`0/${hard.length}`)
+    // 复习章不显示题数:它的题由错题池当场定,地图上没有可数的东西。
+    expect(cell!.querySelector('[data-chapter="review"]')?.textContent).not.toMatch(/\d+\/\d+/)
   })
 
-  it('零星的关:一颗都不亮,进度数字归零', () => {
-    const unit = UNITS[0]!
-    render(<UnitMap {...base} stars={{ [unit.levels[0]!.id]: 0 }} />)
-    const cell = document.querySelector<HTMLElement>('[data-unit-id="u1"]')
-    expect(cell?.querySelectorAll('.pstar--on')).toHaveLength(0)
-    expect(cell?.textContent).toContain(`0/${unit.levels.length}`)
+  // 按钮不能套按钮 —— 嵌套的 <button> 是非法 HTML,浏览器会把 DOM 拆散,
+  // 孩子点到的可能是半截元素(而且是静默的:jsdom 里查询照样找得到)。
+  it('单元格是容器,章按钮在它里面,没有嵌套 button', () => {
+    const { container } = render(<UnitMap {...base} />)
+    for (const unit of UNITS) {
+      const cell = container.querySelector(`[data-unit-id="${unit.id}"]`)!
+      expect(cell.tagName).not.toBe('BUTTON')
+      const chapters = cell.querySelectorAll('[data-chapter]')
+      expect(chapters.length, `${unit.id} 的章按钮数`).toBe(3)
+      for (const button of chapters) {
+        expect(button.tagName).toBe('BUTTON')
+        expect(button.querySelector('button'), '章按钮里套了 button').toBeNull()
+      }
+    }
+  })
+
+  // 空章不进 —— 用合成单元测,不依赖真实数据恰好有空章。
+  it('空困难章的单元:困难那一行锁着,复习那一行仍可点', () => {
+    const synthLevels = UNITS[0]!.levels.slice(0, 3)
+    const synth: Unit = { id: 'ux', name: '合成', badge: [], levels: synthLevels }
+    const allEasyStar = Object.fromEntries(synthLevels.map((level) => [level.id, 1]))
+    const { container } = render(<UnitMap {...base} units={[synth]} stars={allEasyStar} />)
+    const cell = container.querySelector('[data-unit-id="ux"]')!
+    expect(cell.querySelector('[data-chapter="hard"]')!.getAttribute('data-locked')).toBe('true')
+    expect(cell.querySelector('[data-chapter="review"]')!.getAttribute('data-locked')).toBe('false')
   })
 
   it('星尘计数带可读标签(星尘 340)', () => {
@@ -144,8 +171,8 @@ describe('拼音单元地图', () => {
     // 乘数也是输入:上面那句「5×w-8 + 4×gap-1」里的 5 从没被断言过。钉上界而非钉死 ——
     // u7 是最宽的名片(其余单元 1/2/1/2/3/2 块),6 块需 6×32+5×4 = 212 > 177.33,单行设计即失效。
     // 数的是**渲染出来的块**(与 `CONTRACT` 表同源,不从 `UNITS` 反查以免同义反复);
-    // `.pblock` 只由 BlockChip 产出、u7 格子里只有名片行用它(星位是 `.pstar`,锁是 emoji),
-    // 所以这个数就是名片块数 —— 若星位也换成块,这里会直接翻倍报红。
+    // `.pblock` 只由 BlockChip 产出、u7 格子里只有名片行用它(章按钮里是 `.pstage-*`,锁是 emoji),
+    // 所以这个数就是名片块数 —— 若章行也换成块,这里会直接翻倍报红。
     const blocks = cell!.querySelectorAll('.pblock')
     expect(blocks.length, '名片块数超过预算:6 块要 212px,超出 177.33 的可用宽,单行设计失效').toBeLessThanOrEqual(5)
 
@@ -155,45 +182,6 @@ describe('拼音单元地图', () => {
     const rem = Number(size!.match(/text-\[([\d.]+)rem\]/)![1])
     expect(rem, `${size} 不是正的 rem 值:0rem 会把块面值缩成看不见`).toBeGreaterThan(0)
     expect(rem, `${size} 塞进 32px 定宽盒会顶格/糊`).toBeLessThanOrEqual(1)
-  })
-
-  /**
-   * 星排的布局预算:与上面 u7 那条同款 —— **钉输入类(含类名 token),不验证布局**。
-   * 星位数 = 该单元的关卡数,本课程最多 10 关(u4 / u5)。`.pstar` 是 `0.9rem`:
-   * `★`(U+2605)在 CJK 上下文按全角渲染 → 单颗约 14.4px,10 颗 + 9 个 `gap-0.5`(2px)= **162px**,
-   * 而 375px 手机(`grid-cols-2`)下格子内宽 =(375−32−16)/2 − `p-4`(32) − `border-2`(4)= **127.5px**
-   * (640px 那档 156px 同样不够)。`.pstar` 是文本节点(`min-width: auto`)缩不动,而 `flex` 默认 `nowrap`
-   * → 没有 `flex-wrap` 时星排不是被压扁,是**真的画到格子外**压到邻格(格子无 `overflow` 裁剪)。
-   * 折行是唯一安全网;`justify-center` 让折成两行时两行都居中,与名片行一致。
-   */
-  it('星排的布局预算:最多 10 关也靠 flex-wrap 折行,不越出格子', () => {
-    render(<UnitMap stars={{}} totalStars={0} badges={[]} earned={null} onPick={vi.fn()} onOpenParent={vi.fn()} />)
-    const cell = document.querySelector('[data-unit-id="u4"]')
-    expect(cell, '取不到 u4 格子,下面的断言会静默空转').not.toBeNull()
-    // 星位是文本,取它的父元素才是星排容器(与上面从 `.pblock` 取名片行的手法同源)。
-    const star = cell!.querySelector('.pstar')
-    expect(star, '取不到星位,下面的断言会静默空转').not.toBeNull()
-    const row = star!.parentElement
-    expect(row, '星位没有父元素,取不到星排容器').not.toBeNull()
-
-    const token = (t: string) => new RegExp(`(?:^| )${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: |$)`)
-    const CONTRACT: readonly (readonly [string, string, string, string])[] = [
-      [
-        '星排换行',
-        row!.className,
-        'flex-wrap',
-        '星位数 = 该单元的关卡数,最多 10;10 × 14.4 + 9 × 2 = 162 > 127.5(375px 格内宽)—— 靠它折行,而不是越界压到邻格',
-      ],
-      [
-        '星排折行时居中',
-        row!.className,
-        'justify-center',
-        '折成两行时两行都居中,而不是左对齐(与名片行同款)',
-      ],
-    ]
-    for (const [what, cls, t, why] of CONTRACT) {
-      expect(cls, `${what}:丢了 ${t} —— ${why}`).toMatch(token(t))
-    }
   })
 
   // `!` 不是为了当前的参数顺序(twMerge 自己就会删掉输家),而是为了**顺序变了也成立**。

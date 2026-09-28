@@ -89,8 +89,7 @@ export default function App() {
     content = (
       <MapEntry
         badges={ACHIEVEMENTS}
-        // T10 会把 MapEntry.onPick 改成两参;在那之前这一层壳补齐 chapter(点地图 = 进该单元的简单章)。
-        onPick={(unitIndex) => actions.enterUnit(unitIndex, 'easy')}
+        onPick={actions.enterUnit}
         onOpenParent={actions.openParent}
       />
     )

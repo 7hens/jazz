@@ -49,8 +49,8 @@ describe('index.css 拼音积木材质段', () => {
   // 双色是「介母这个位置」的语义,不是装饰 —— 别的块类有渐变就说明有人又按「值」着色了。
   it('介母块面是斜切的「声母 → 韵母」双色,且只有介母有双色面', () => {
     // 「取第一处」读一条规则之前,先钉住它**唯一** —— 0-1-0 的规则里后写的赢:追加一条
-    // 同选择器规则就能让下面几句继续读着旧规则、而块面实际换了样(本文件另一条用例的注释
-    // 实测记过这个坏法:`.pstar` 末尾追加一条即全绿而事实为假)。
+    // 同选择器规则就能让下面几句继续读着旧规则、而块面实际换了样
+    // (实测记过这个坏法:给某条规则末尾追加一条同选择器规则即全绿而事实为假)。
     expect(css.split('.pblock--medial {').length - 1, '.pblock--medial { 只该有一条规则').toBe(1)
     const start = css.indexOf('.pblock--medial {')
     expect(start).toBeGreaterThan(-1)
@@ -228,36 +228,6 @@ describe('index.css 拼音积木材质段', () => {
     const rule = css.slice(start, css.indexOf('}', start))
     expect(rule).toContain('left: -2px')
     expect(rule).toContain('position: absolute')
-  })
-
-  // 地图格子上「亮几颗 = 通了几关」是这张地图唯一的信息出口:格子不写汉字,也没有别处说进度。
-  // 把 --on 改成中性色、或把暗星调实,格子就再也看不出「过了多少」,而一切都还是绿的。
-  it('地图星位:暗星是 --color-ink 的淡版,亮星独占 --color-gold', () => {
-    const ruleOf = (sel: string) => {
-      const start = css.indexOf(sel)
-      expect(start, sel).toBeGreaterThan(-1)
-      return css.slice(start, css.indexOf('}', start))
-    }
-    const off = ruleOf('.pstar {')
-    expect(off, '暗星的色必须由 --color-ink 淡出来:换成别的 token 就换了它跟底色的关系').toContain(
-      'color-mix(in srgb, var(--color-ink)',
-    )
-    // 抓浓度上限:暗星调实了就和亮星分不出来,「亮了几颗」这层信息随之消失。
-    const dim = Number(off.match(/var\(--color-ink\)\s*(\d+)%/)?.[1])
-    expect(dim, '暗星得是淡版,不是把 ink 原色铺上去').toBeGreaterThan(0)
-    expect(dim, '暗星太实就压过了亮星').toBeLessThan(50)
-
-    expect(ruleOf('.pstar--on {'), '亮星丢了金色,格子只剩那串数字在说进度').toContain(
-      'color: var(--color-gold)',
-    )
-
-    // 一条规则只能有一条:拆成两条时,上面那句「取第一条」就成了假绿(self-asserting)。
-    // 实测过的坏法 —— 末尾再追加一条 `.pstar { color: var(--color-gold) }`,构建产物里
-    // `.pstar--on,.pstar{color:var(--color-gold)}` 排在最后、特异性同为 0-1-0 → 胜出,
-    // 连未通关的暗星一起变金,「这格过了几关」这层唯一信息彻底消失,而上面两句依然全绿。
-    for (const sel of ['.pstar {', '.pstar--on {']) {
-      expect(css.split(sel).length - 1, `${sel} 只该有一条规则`).toBe(1)
-    }
   })
 
   it('材质段不写颜色字面量:hex 与 rgb()/hsl() 一并拦(白色高光除外)', () => {

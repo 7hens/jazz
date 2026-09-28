@@ -246,7 +246,7 @@ describe('App 路由', () => {
     const { container } = mountApp()
 
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元 第 1 章' }))
 
     expect(await screen.findByRole('button', { name: '回地图' })).toBeInTheDocument()
     expect(container.querySelector('[data-unit-map]')).toBeNull()
@@ -272,7 +272,7 @@ describe('App 路由', () => {
     const { container } = mountApp({ settingsPublishes: false })
 
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元 第 1 章' }))
 
     // 关键区分断在正向断言之前,失败信息才指得准「悄悄进了哪儿」:
     // `data-unit-map` 只有地图有(条件并进上层 if 会落到地图分支 → 红在这),
@@ -312,7 +312,7 @@ describe('App 庆祝态接线', () => {
     const { svc, container } = mountApp({ luckyReward: 50 })
 
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元 第 1 章' }))
     await screen.findByRole('button', { name: '回地图' })
 
     // 交账在一章走完时发生 —— 从落块起换成假时钟,走完 u1 简单章(6 道题)。

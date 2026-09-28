@@ -2,8 +2,16 @@ import { Settings, Star } from 'lucide-react'
 import type { Achievement, LevelStars } from '@/shared/services'
 import { cn } from '@/shared/ui/utils'
 import { BlockChip } from './BlockChip'
-import { UNITS } from './levels'
-import { cleared, isUnitUnlocked } from './progress-stats'
+import { CHAPTERS, type Chapter } from './chapter'
+import { UNITS, type Unit } from './levels'
+import {
+  chapterClearedCount,
+  chapterEnterable,
+  chapterTotal,
+  isChapterUnlocked,
+  isUnitUnlocked,
+} from './progress-stats'
+import { StageBar } from './StageBar'
 
 export type UnitMapProps = {
   stars: LevelStars
@@ -17,8 +25,13 @@ export type UnitMapProps = {
    * 用 `[]` 冒充的话,徽章栏会先显示成「一个都没拿到」再跳变 —— 那是屏幕上出现的一句假话。
    */
   earned: readonly string[] | null
-  onPick(unitIndex: number): void
+  onPick(unitIndex: number, chapter: Chapter): void
   onOpenParent(): void
+  /**
+   * 地图上的单元。默认就是课程(`UNITS`)—— 留成入参只为测试能喂合成单元
+   * (例如「困难章一道题都没有」的边界),生产路径永远不传它。
+   */
+  units?: readonly Unit[]
 }
 
 /**
@@ -44,7 +57,7 @@ const BADGE_BOX = 'h-8 w-8 text-[0.85rem]!'
  * 单元地图。**零文本** —— 格子靠名片积木自表意,不写「单韵母」这类字:
  * 4-8 岁的孩子读不出它们,而积木是他刚在游戏里摸过的东西。
  */
-export function UnitMap({ stars, totalStars, badges, earned, onPick, onOpenParent }: UnitMapProps) {
+export function UnitMap({ stars, totalStars, badges, earned, onPick, onOpenParent, units = UNITS }: UnitMapProps) {
   return (
     <div data-unit-map className="min-h-screen px-4 pb-10 pt-4">
       <div className="mx-auto flex max-w-2xl items-center justify-between">
@@ -108,24 +121,19 @@ export function UnitMap({ stars, totalStars, badges, earned, onPick, onOpenParen
       )}
 
       <div className="mx-auto mt-6 grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-3">
-        {UNITS.map((unit, index) => {
-          const locked = !isUnitUnlocked(index, stars)
-          const gained = unit.levels.filter((level) => cleared(stars, level.id)).length
+        {units.map((unit, index) => {
+          const locked = !isUnitUnlocked(index, stars, units)
           return (
-            <button
+            // 容器**不是按钮** —— 一个格子里有三章,三个按钮不能套在一个按钮里。
+            // data-unit-id / data-locked 留在容器上:地图测试与走查条目都靠它们定位。
+            <div
               key={unit.id}
-              type="button"
               data-unit-id={unit.id}
               data-locked={locked ? 'true' : 'false'}
               aria-label={`第 ${index + 1} 单元`}
-              aria-disabled={locked}
-              onClick={() => {
-                if (locked) return
-                onPick(index)
-              }}
               className={cn(
-                'flex flex-col items-center gap-2 rounded-4xl border-2 border-hairline bg-surface p-4 shadow-card transition-transform',
-                locked ? 'opacity-45' : 'hover:border-accent/60 active:scale-[0.98]',
+                'flex flex-col items-center gap-2 rounded-4xl border-2 border-hairline bg-surface p-4 shadow-card',
+                locked ? 'opacity-45' : undefined,
               )}
             >
               <span className="flex min-h-9 flex-wrap items-center justify-center gap-1">
@@ -138,23 +146,40 @@ export function UnitMap({ stars, totalStars, badges, earned, onPick, onOpenParen
                   />
                 ))}
               </span>
-              {/* 星排:每一关各占一个星位(星位数 = 该单元的关卡数),通关的那几个才填色 ——
-                  颜色由 .pstar / .pstar--on 给,不走块面那套 --pb 一族 */}
-              <span className="flex min-h-4 flex-wrap items-center justify-center gap-0.5" aria-hidden>
-                {unit.levels.map((level) => (
-                  <span
-                    key={level.id}
-                    className={cn('pstar', cleared(stars, level.id) && 'pstar--on')}
+              {/* 一行一章。**章名不进地图**(地图在零可见文字的铁律下)——
+                  章的类别由台阶条的亮格数表达,与进章之后题面正上方那根是同一套素材、同一套语义。
+                  复习章那一行**不显示题数**:它的题由错题池当场决定,地图上没有可数的东西。 */}
+              {CHAPTERS.map((chapter) => {
+                const enterable = chapterEnterable(unit, chapter)
+                const ok = isChapterUnlocked(index, chapter, stars, units) && enterable
+                return (
+                  <button
+                    key={chapter}
+                    type="button"
+                    data-chapter={chapter}
+                    data-locked={ok ? 'false' : 'true'}
+                    aria-disabled={!ok}
+                    aria-label={`第 ${index + 1} 单元 第 ${CHAPTERS.indexOf(chapter) + 1} 章`}
+                    onClick={() => {
+                      if (!ok) return
+                      onPick(index, chapter)
+                    }}
+                    className={cn(
+                      'flex w-full items-center justify-center gap-1.5 rounded-2xl px-2 py-1 transition-transform',
+                      ok ? 'hover:bg-accent/10 active:scale-[0.98]' : 'opacity-45',
+                    )}
                   >
-                    ★
-                  </span>
-                ))}
-              </span>
-              <span className="text-xs font-bold text-ink-3 tabular-nums">
-                {gained}/{unit.levels.length}
-              </span>
-              {locked ? <span aria-hidden className="text-lg">🔒</span> : null}
-            </button>
+                    <StageBar stage={chapter} />
+                    {chapter === 'review' ? null : (
+                      <span className="text-xs font-bold text-ink-3 tabular-nums">
+                        {chapterClearedCount(stars, unit, chapter)}/{chapterTotal(unit, chapter)}
+                      </span>
+                    )}
+                    {ok ? null : <span aria-hidden className="text-sm">🔒</span>}
+                  </button>
+                )
+              })}
+            </div>
           )
         })}
       </div>
