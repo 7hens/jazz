@@ -21,16 +21,26 @@ it('boot → map:exitToMap 是登录成功后的落点', () => {
 it('map → level:enterUnit 记下单元并进关卡', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.enterUnit(2))
+  act(() => result.current.actions.enterUnit(2, 'easy'))
 
   expect(result.current.phase).toBe('level')
   expect(result.current.currentUnitIndex).toBe(2)
 })
 
+it('map → level:enterUnit 记下单元与章', () => {
+  const { result } = renderHook(() => useAppState())
+  act(() => result.current.actions.enterUnit(2, 'hard'))
+  expect(result.current.phase).toBe('level')
+  expect(result.current.currentUnitIndex).toBe(2)
+  expect(result.current.currentChapter).toBe('hard')
+  act(() => result.current.actions.exitToMap())
+  expect(result.current.currentChapter).toBeNull()
+})
+
 it('level → map:exitToMap 回地图并把 currentUnitIndex 清干净', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.enterUnit(4))
+  act(() => result.current.actions.enterUnit(4, 'easy'))
   expect(result.current.currentUnitIndex).toBe(4)
 
   act(() => result.current.actions.exitToMap())
@@ -54,7 +64,7 @@ it('map → parent → map:家长面板开得开、合得上', () => {
 it('level → parent → map:关卡里开家长面板,关掉落回地图(不是关卡)', () => {
   const { result } = renderHook(() => useAppState())
 
-  act(() => result.current.actions.enterUnit(1))
+  act(() => result.current.actions.enterUnit(1, 'easy'))
   act(() => result.current.actions.openParent())
   expect(result.current.phase).toBe('parent')
 

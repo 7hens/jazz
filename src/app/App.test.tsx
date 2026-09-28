@@ -23,7 +23,7 @@ import type {
 } from '@/shared/services'
 import { HAN_TEXT } from '@/shared/testing/han-text'
 import { ACHIEVEMENTS } from '@/features/achievements'
-import { UNITS, canPlace, slotsFor, type Block, type BlockType } from '@/features/pinyin-blocks'
+import { UNITS, canPlace, easyLevelsOf, slotsFor, type Block, type BlockType, type Level } from '@/features/pinyin-blocks'
 import App from './App'
 
 const user: User = { id: 'u', email: '', name: '' }
@@ -175,9 +175,9 @@ function blockOf(el: HTMLElement): Block {
   return { type, value }
 }
 
-/** 按题目要求把正确块一个个点进去(点选路径 = 自动落位),一次不错:u1 第一关(é)= 韵母 + 声调两块。 */
-function solveOnce() {
-  for (const slot of slotsFor(UNITS[0]!.levels[0]!)) {
+/** 把**某一道题**按托盘里能放的正确块一个个点进去(点选路径 = 自动落位),一次不错。 */
+function solveOnce(level: Level) {
+  for (const slot of slotsFor(level)) {
     const fits = trayBlocks().filter((el) => canPlace(blockOf(el), slot))
     const pick = fits.find((el) => blockOf(el).type === slot.type) ?? fits[0]
     expect(pick, `${slot.type}:${slot.value} 在托盘里找不到可放块`).toBeDefined()
@@ -185,30 +185,23 @@ function solveOnce() {
   }
 }
 
-/** 推时钟越过成功动画(260ms 判定 + 1600ms 停顿)并把微任务排干。 */
+/** 推时钟越过一道题的判定与成功动画(260ms 判定 + 1600ms 停顿)并把微任务排干。 */
 async function settleSection() {
   await act(async () => { vi.advanceTimersByTime(3000) })
 }
 
-/** 推时钟越过换段过场(STAGE_TRANSITION_MS = 1200ms)。 */
-async function transition() {
-  await act(async () => { vi.advanceTimersByTime(1300) })
-}
-
 /**
- * 走完一整关的三段:简单 → 过场 A → 困难 →(落库)→ 过场 B → 复习 → 推进。
- * 段内一律拼对 ⇒ 错题池为空 ⇒ 复习段是「本关整题重做」,解法与简单段相同。
- * 只对 u1 第一关成立(`solveOnce` 写死了 `UNITS[0]!.levels[0]`)。
+ * 走完 u1 的**简单章**(一整章,6 道题)。
+ *
+ * T9 把「一关三段」换成「一个单元三章」:进单元即进简单章,章内一道接一道**不再有换段过场**
+ * (过场只留给章与章之间),所以这里逐题解、逐题推时钟,走完最后一题 `onDone` 才发。
+ * 题内一律拼对 ⇒ 错题池为空;章末 `handleChapterDone` 先 `flush`(交账 + 撒花/弹层)再进下一章。
  */
-async function solveLevel() {
-  solveOnce() // 简单段
-  await settleSection() // 成功动画 → 过场 A
-  await transition()
-  solveOnce() // 困难段
-  await settleSection() // 成功动画 → settleLevel → 过场 B
-  await transition()
-  solveOnce() // 复习段
-  await settleSection() // → onDone → 推进
+async function solveEasyChapter() {
+  for (const level of easyLevelsOf(UNITS[0]!)) {
+    solveOnce(level)
+    await settleSection()
+  }
 }
 
 describe('App 路由', () => {
@@ -257,8 +250,8 @@ describe('App 路由', () => {
 
     expect(await screen.findByRole('button', { name: '回地图' })).toBeInTheDocument()
     expect(container.querySelector('[data-unit-map]')).toBeNull()
-    // u1 的关数由课程数据给 —— 关卡增减不该让这条断言静默钉在旧数字上
-    expect(screen.getByText(`1/${UNITS[0]!.levels.length}`)).toBeInTheDocument() // 从第一关进
+    // 从地图点单元 = 进该单元的**简单章**,题数由课程数据给 —— 关卡增减不该让这条断言静默钉在旧数字上
+    expect(screen.getByText(`0/${easyLevelsOf(UNITS[0]!).length}`)).toBeInTheDocument()
   })
 
   it('map → parent → map:家长面板开合', async () => {
@@ -322,15 +315,15 @@ describe('App 庆祝态接线', () => {
     fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
     await screen.findByRole('button', { name: '回地图' })
 
-    // 通关回调在复习段跑完、成功动画之后才发 —— 从落块起换成假时钟,走完三段。
+    // 交账在一章走完时发生 —— 从落块起换成假时钟,走完 u1 简单章(6 道题)。
     vi.useFakeTimers()
     try {
-      await solveLevel()
+      await solveEasyChapter()
 
       // 正向:确实走到了幸运弹层(🍀 只属于它;假 achievements 恒空,成就弹层不会出现)
       expect(screen.getByText('🍀')).toBeInTheDocument()
       // 落块期间 combo 恒返 0 ⇒ 没有任何连击档;luckyReward > 0 ⇒ 让掉的 word 档也不发。
-      // 所以这一关**唯一**该响的就是 lucky 档,逐值比对即可
+      // 所以这一章**唯一**该响的就是 lucky 档,逐值比对即可
       expect(svc.celebratePlay.mock.calls.map(([level]) => level)).toEqual(['lucky'])
     } finally {
       vi.useRealTimers()

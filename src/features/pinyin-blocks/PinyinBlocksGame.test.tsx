@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { UNITS } from './levels'
 import { canPlace, slotsFor, type Slot } from './rules'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
-import { reviewQuestions, type ReviewQuestion } from './mistakes'
+import { chapterReviewQuestions, type ReviewQuestion } from './mistakes'
 import type { AnswerKind } from '@/shared/services'
 import { HAN_TEXT } from '@/shared/testing/han-text'
 import { PinyinBlocksGame, type PinyinBlocksGameProps } from './PinyinBlocksGame'
@@ -1013,12 +1013,18 @@ describe('一关三段', () => {
   })
 
   /**
-   * 复习段的题**一律由 `reviewQuestions` 造**。手搓一个 prefill 不全的题面(比如只填 slotIds
-   * 与 tray,prefill 留空)会得到一道**无解**的题:托盘里只有声母块,而屏幕上还有韵母槽与声调槽,
-   * `isComplete` 永远不成立 ⇒ `onSectionEnd` 一次都不发,测试却会红在断言而不是病因上。
+   * 复习段的题**一律由 `chapterReviewQuestions` 造**(T9 起正身;`reviewQuestions` 过渡壳已删)。
+   * 手搓一个 prefill 不全的题面(比如只填 slotIds 与 tray,prefill 留空)会得到一道**无解**的题:
+   * 托盘里只有声母块,而屏幕上还有韵母槽与声调槽,`isComplete` 永远不成立 ⇒ `onSectionEnd`
+   * 一次都不发,测试却会红在断言而不是病因上。
+   *
+   * 题面挂在本单元**第一道含该类型槽的题**上。SECTION_LEVEL = u2-0 正是 u2 的第一道题,
+   * 也是该单元第一道带声母槽的题 ⇒ 挂题结果与旧的「拿 LV 直接造」逐字一致。
    */
-  const reviewQuestionFor = (pool: Block[]): ReviewQuestion =>
-    reviewQuestions(LV, at(SECTION_LEVEL)[0], pool, () => 0.5)[0]!
+  const reviewQuestionFor = (pool: Block[]): ReviewQuestion => {
+    const unitIndex = at(SECTION_LEVEL)[0]
+    return chapterReviewQuestions(UNITS[unitIndex]!, unitIndex, pool, () => 0.5)[0]!.question
+  }
 
   it('复习段:预填槽拿不回(点了也不动),托盘只剩挖空槽的正解与错解', () => {
     const question = reviewQuestionFor([{ type: 'initial', value: 'p' }])

@@ -9,7 +9,6 @@ import {
   MAX_REVIEW_QUESTIONS,
   notePick,
   reviewQuestionFor,
-  reviewQuestions,
   REVIEW_TRAY_CAP,
   wholeReviewQuestion,
   WRONG_PICK_THRESHOLD,
@@ -185,30 +184,5 @@ describe('reviewQuestionFor / wholeReviewQuestion', () => {
     for (const slot of slotsFor(level)) {
       expect(q.tray.some((t) => t.value === slot.value), `缺 ${slot.type}:${slot.value}`).toBe(true)
     }
-  })
-})
-
-// 过渡态兼容壳:`LevelRun.tsx` 到 T8 才被替换,在那之前它是线上路径。
-// 下面两条钉的是壳与旧实现**仅有的两处**分歧,根子都在双身份块(i/u/ü)于 familyKey 下同族 ——
-// 池里同时有 `medial:u` 与 `final:u` 时,家族去重会**整个消掉一个类型**,而
-// `reviewQuestionFor` 是拿池现取错块的,稍不留神就把去重剔掉的块又捡回来。别删到 T8 一起删。
-describe('reviewQuestions(过渡态兼容壳)', () => {
-  it('兼容壳:池里同族的双身份块只算一道小题', () => {
-    const wǔ = UNITS[0]!.levels.find((level) => level.id === 'u1-51')! // 五 wǔ:final u + tone 3
-    const qs = reviewQuestions(wǔ, 0, [b('medial', 'u'), b('final', 'u')], seq([0.3, 0.6]))
-    expect(qs).toHaveLength(1)
-    // 家族去重留下的是**后进池**的 final:u,故只剩 final 这一道(medial 整个类型被消掉)。
-    expect(qs[0]!.blockType).toBe('final')
-  })
-
-  it('兼容壳:被家族去重剔掉的块不会又从池里被捡回来', () => {
-    // 鹅 é:final e + tone 2 —— 正解韵母不是 u,所以「final:u 出不出现在托盘」与同形块无关。
-    const é = UNITS[0]!.levels[0]!
-    const qs = reviewQuestions(é, 0, [b('final', 'x'), b('final', 'u'), b('medial', 'u')], seq([0.3, 0.6]))
-    const finalQ = qs.find((q) => q.blockType === 'final')!
-    const values = finalQ.tray.map((t) => t.value)
-    expect(values, 'final:x 该在托盘里').toContain('x')
-    // 旧实现遍历的是家族去重后的 recent,`final:u` 已被 `medial:u` 顶掉 —— 它不该回来。
-    expect(values, '被 medial:u 顶掉的 final:u 不该回来').not.toContain('u')
   })
 })

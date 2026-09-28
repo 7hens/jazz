@@ -58,6 +58,9 @@ export const EMPTY_CHAPTER_SETTLEMENT: ChapterSettlement = {
  *
  * `sessionCleared` 是**取最新**而不是相加:它是 `settleLevel` 交回的绝对量
  * *(「本次会话已首通的关数」),相加会把它翻倍。
+ *
+ * **调用顺序约束:`next` 必须比 `into` 更晚(按题目顺序合并)。** 乱序合并会让
+ * `sessionCleared` 回退 —— 后并进来的旧账会把新账的会话首通数盖回去。
  */
 export function mergeSettlement(into: ChapterSettlement, next: LevelSettlement): ChapterSettlement {
   const seen = new Set(into.achievements.map((achievement) => achievement.id))
