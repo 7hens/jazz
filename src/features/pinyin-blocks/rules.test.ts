@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { TONE_VALUES, type Block } from './blocks'
-import { UNITS, type Level } from './levels'
+import { CONFUSABLE, TONE_VALUES, type Block } from './blocks'
+import { UNITS, taughtBlocks, type Level } from './levels'
 import {
   autoTargetId,
+  autoTypeTargetId,
   buildBlocks,
   canPlace,
+  familyKey,
+  HARD_RETRIES,
+  HARD_TRAY_PER_TYPE,
   isComplete,
   requiredBlocks,
+  sameTypeOnly,
   slotsFor,
   solutionValues,
   starsFor,
@@ -39,6 +44,19 @@ function unitIdxOf(id: string): number {
 
 /** `buildBlocks` 的单元下标参数一律由关卡自己的 id 推 —— 测试里不再手写「第几个单元」。 */
 const build = (level: Level, rng: Rng) => buildBlocks(level, unitIdxOf(level.id), rng)
+
+/**
+ * 与 `PinyinBlocksGame` 里那支**同源**的轮次 rng(同乘同加同位移),种子 0 ——
+ * 要的就是「生产里 round 0 发的那副牌」。两边要一起改;改了那边,这条哨子就失去依据。
+ */
+function roundZero(): Rng {
+  // 种子 0:`(0 * 2654435761) >>> 0` 就是 0,故直接写 0(写成乘法 oxlint 会抓「恒零运算」)。
+  let s = 0
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
 
 const GUĀ = byId('u5-0') // 🍉 guā = g + 介母 u + a
 const ZHĪ = byId('u6-0') // 🕷️ zhī = zh + i(焊死)
@@ -163,6 +181,21 @@ describe('requiredBlocks(含重复)', () => {
   })
 })
 
+describe('familyKey', () => {
+  // 双身份块(i/u/ü)在介母槽和韵母槽都放得下,入槽后颜色跟着槽位走 —— 所以「同一块」的
+  // 判据是值本身,而不是 类型:值。否则简单段的托盘会同时出现 medial:u 与 final:u 两块一样的 u。
+  it('双身份块按值成族,与它挂在哪个类型下无关', () => {
+    expect(familyKey({ type: 'medial', value: 'u' })).toBe(familyKey({ type: 'final', value: 'u' }))
+    expect(familyKey({ type: 'medial', value: 'ü' })).toBe(familyKey({ type: 'final', value: 'ü' }))
+    expect(familyKey({ type: 'medial', value: 'i' })).toBe(familyKey({ type: 'final', value: 'i' }))
+  })
+
+  // 声母 n 与鼻尾 n 是两个不同的块(块 id 不同、颜色不同),不是同一个身份。
+  it('其余块按 类型:值 成族 —— initial:n 与 nasal:n 是两个身份', () => {
+    expect(familyKey({ type: 'initial', value: 'n' })).not.toBe(familyKey({ type: 'nasal', value: 'n' }))
+  })
+})
+
 describe('buildBlocks', () => {
   it('所需块与声调块一块不少', () => {
     const blocks = build(GUĀ, seq([0.1, 0.7, 0.3, 0.9]))
@@ -252,6 +285,199 @@ describe('buildBlocks', () => {
     }
     expect(Math.max(...counts), '没有任何复习关摊满 5 —— 上界没被真的用过').toBe(5)
   })
+
+  // 易混伙伴优先取:把伙伴放在候选游标**尾部**(取块走 pop,取尾),于是有已教伙伴时先取它。
+  it('有已教伙伴时,干扰块优先取伙伴', () => {
+    const bà = byId('u2-0') // 爸 bà = b + a
+    const extra = build(bà, seq([0.42, 0.13, 0.87, 0.24])).filter(
+      (b) => b.type === 'initial' && b.value !== 'b',
+    )
+    expect(extra.map((b) => b.value)).toContain('p') // b 的易混伙伴
+  })
+
+  it('没教过的伙伴不会进托盘 —— u1 的题面块一个伙伴都没有,且托盘里只有教过的块', () => {
+    const level = byId('u1-0')
+    const unit = unitIdxOf('u1-0')
+    const required = requiredBlocks(level)
+    const friends = new Set(required.flatMap((b) => CONFUSABLE[b.type][b.value] ?? []))
+    expect(friends.size, 'u1 的题面块不该有易混伙伴 —— 刚认字母的孩子那里不设陷阱').toBe(0)
+
+    const taught = new Set(taughtBlocks(unit).map((b) => `${b.type}:${b.value}`))
+    for (const block of buildBlocks(level, unit, seq([0.2, 0.6, 0.4]))) {
+      if (block.type === 'tone') continue // 声调四调恒全出,不经课程池(见 toneBlocks)
+      expect(taught.has(`${block.type}:${block.value}`), `托盘里的 ${block.type}:${block.value} 不是 u1 教过的块`).toBe(true)
+    }
+  })
+
+  // 困难段的全部手感在托盘:干扰不够就不构成难度(spec §3.6)。
+  // 与简单段的 cap 是**两个旋钮** —— 这里拧的是「每个用到的类型都给一块对手」。
+  it('困难段:每个用到的类型都有对手(给到至少一块,除非池子实在没得给)', () => {
+    for (let unit = 0; unit < UNITS.length; unit++) {
+      for (const level of UNITS[unit]!.levels) {
+        const blocks = buildBlocks(level, unit, seq([0.23, 0.71, 0.44, 0.09]), { hard: true })
+        const types = [...new Set(requiredBlocks(level).map((b) => b.type))]
+        for (const type of types) {
+          const values = new Set(blocks.filter((b) => b.type === type).map((b) => b.value))
+          // 正确块的去重值数 + 1(至少一块对手);池子没那么多值时只能给到池子的上限。
+          // 按下限写成「至少 2 块」会在多音节关失真:那里一个类型可能已经要用两块正确块。
+          const need = new Set(requiredBlocks(level).filter((b) => b.type === type).map((b) => b.value)).size
+          expect(values.size, `${level.pinyin} 的 ${type} 只给了 ${values.size} 块`).toBeGreaterThanOrEqual(
+            Math.min(need + 1, seenIn(type, unit).length),
+          )
+        }
+        for (const t of TONE_VALUES) {
+          expect(blocks.some((b) => b.type === 'tone' && b.value === t), `${level.pinyin} 少了声调 ${t}`).toBe(true)
+        }
+      }
+    }
+  })
+
+  // Minor 6:`HARD_TRAY_PER_TYPE` 的**值**必须直接钉住 —— 行为侧**压不出来**。
+  // 它只出现在 `Math.max(1, HARD_TRAY_PER_TYPE - need)` 里,而 need 恒 ≥ 1(只有要用的类型才发牌),
+  // 于是 2 与 1 得到同一个 want,把 2 改成 1 所有关卡的托盘**一模一样**。
+  // 但值 1 让「need = 2 的类型只发 2 块正解、零对手」成为**合法**,下一个多音节关会悄悄失去难度 ——
+  // 所以这里钉的是旋钮本身,不是它今天恰好产出的那几张牌。
+  it('困难段:HARD_TRAY_PER_TYPE 钉死在 2(行为侧不可观测,只能钉值)', () => {
+    expect(HARD_TRAY_PER_TYPE).toBe(2)
+    // 语义侧旁证:u7-0 的声母要 x / g 两块 ⇒ 该类型共 3 块(2 正解 + 1 对手)。
+    const hard = buildBlocks(byId('u7-0'), unitIdxOf('u7-0'), seq([0.4, 0.8]), { hard: true })
+    expect(hard.filter((b) => b.type === 'initial')).toHaveLength(3)
+  })
+
+  // 困难段的错题池按**精确身份**记账(`exactPoolKey`),简单段/复习段按**家族**记账。
+  // 这个差别只有在「某一关 round-0 的困难托盘里同时含一对同家族、不同类型的**可放错块**」
+  //(典型是 medial:u 与 final:u,或 medial:i 与 final:i)时才会在 UI 上显形 ——
+  // 那时池的条数、复习小题的条数都会不同。
+  //
+  // 今天的 91 关**一关都没有**这种托盘(rng 取的就是生产里 round 0 那支,见 roundZero):
+  //  - 反例锚 u7-0 的 round-0 困难托盘里确实有 medial:u,但那是 s1-m 的正解(恒放不错),
+  //    而 final:u 要到第 2 / 5 轮才进托盘;
+  //  - 真正出现同家族跨类型对的轮次是 u5-0 / u5-3 / u7-0 / u7-4 / u8-51 / u8-52 / u9-54 的
+  //    第 3、5 轮 —— 而唯一能看见池的路径(给了 `onSectionEnd`)会让 `round` 恒为 0
+  //    (`advance()` 那条老路被关掉,见 `PinyinBlocksGame` 的 onSolved 分支),轮次推不动。
+  // 于是针对那条差别的行为断言写不出来(写出来也是恒真)。这条哨子锁的是「不可观测」这个事实:
+  // 哪天它变红,正确的动作是**补上那条行为断言**(困难段接一对同家族跨类型错块 ⇒ 池的两条
+  // 都留下),不是删哨子 —— 删掉等于把「池键的口径已经变得可见」这件事埋掉。
+  it('没有一关的 round-0 困难托盘含同家族、不同类型的可放错块(池键差别因此不可观测)', () => {
+    for (let unit = 0; unit < UNITS.length; unit++) {
+      for (const level of UNITS[unit]!.levels) {
+        const slots = slotsFor(level)
+        const hard = buildBlocks(level, unit, roundZero(), { hard: true })
+        const wrongable = hard.filter((b) => slots.some((s) => s.type === b.type && s.value !== b.value))
+        for (let i = 0; i < wrongable.length; i++) {
+          for (let j = i + 1; j < wrongable.length; j++) {
+            const a = wrongable[i]!
+            const b = wrongable[j]!
+            expect(
+              familyKey(a) === familyKey(b) && a.type !== b.type,
+              `${level.id} 的困难托盘里 ${a.type}:${a.value} 与 ${b.type}:${b.value} 撞了家族`,
+            ).toBe(false)
+          }
+        }
+      }
+    }
+  })
+
+  it('困难段:全部正确块都在托盘里(少一块孩子就无解)', () => {
+    for (let unit = 0; unit < UNITS.length; unit++) {
+      for (const level of UNITS[unit]!.levels) {
+        const blocks = buildBlocks(level, unit, seq([0.5, 0.25]), { hard: true })
+        for (const need of requiredBlocks(level)) {
+          expect(
+            blocks.filter((b) => b.type === need.type && b.value === need.value).length,
+            `${level.pinyin} 少了正确块 ${need.type}:${need.value}`,
+          ).toBeGreaterThanOrEqual(1)
+        }
+      }
+    }
+  })
+
+  // 困难段的门禁只比类型,介母与韵母在那一段是**两个真身份**(青色进介母槽、绿色进韵母槽),
+  // 所以按 keyOf 去重 —— 同值的两块要能同时出现。
+  //
+  // 构造题面,单元下标从真实关卡 u8-50(⬇️ xià = x + i + a)派生 —— 下标写死会随
+  // 单元挪位静默指错关。u8 只教了 i / u 两个介母;题面已用掉 medial:u,
+  // 游标里就只剩 i,于是 medial 的对手**恒为 i** —— 与种子无关,
+  // 与必需的 final:i 同值不同类。这正是 familyKey 去重会误杀的那一块。
+  it('困难段:双身份块不被家族合并,medial:i 与 final:i 两块都在', () => {
+    const dual: Level = {
+      id: 'test-hard-dual',
+      emoji: '🧪',
+      pinyin: 'xī guā',
+      read: '西瓜',
+      syl: [
+        { initial: 'x', final: 'i', tone: 1 },
+        { initial: 'g', medial: 'u', final: 'a', tone: 1 },
+      ],
+    }
+    const blocks = buildBlocks(dual, unitIdxOf('u8-50'), seq([0.12, 0.34, 0.56, 0.78]), { hard: true })
+    const identifiers = blocks.filter((b) => b.value === 'i').map((b) => `${b.type}:${b.value}`)
+    expect(identifiers).toContain('final:i') // 必需的韵腹
+    expect(identifiers).toContain('medial:i') // 对手:同值,另一个身份
+  })
+
+  // u2-0(爸 bà):困难段 = b/p + a/o + 四声 = 8 块。
+  it('困难段:u2-0 是 8 块(两个类型各给一块对手)', () => {
+    const bà = byId('u2-0')
+    const unit = unitIdxOf('u2-0')
+    expect(buildBlocks(bà, unit, seq([0.4, 0.8]), { hard: true })).toHaveLength(8)
+  })
+
+  // 多音节关的困难段确实比简单段大 —— 整段设计的手感就在这个差额上(u7-0:13 > 12)。
+  it('困难段的托盘比简单段大:u7-0 困难 13 块 / 简单 12 块', () => {
+    const xigua = byId('u7-0')
+    const unit = unitIdxOf('u7-0')
+    const hard = buildBlocks(xigua, unit, seq([0.4, 0.8]), { hard: true })
+    const easy = buildBlocks(xigua, unit, seq([0.4, 0.8]))
+    expect(hard).toHaveLength(13)
+    expect(easy).toHaveLength(12)
+    expect(hard.length).toBeGreaterThan(easy.length)
+  })
+})
+
+describe('sameTypeOnly(困难段的门禁)', () => {
+  it('值错但类型对:放得进去 —— 这正是困难段的全部考点', () => {
+    expect(sameTypeOnly({ type: 'initial', value: 'p' }, slot('initial', 'b'))).toBe(true)
+    expect(sameTypeOnly({ type: 'final', value: 'o' }, slot('final', 'a'))).toBe(true)
+    expect(sameTypeOnly({ type: 'tone', value: '3' }, slot('tone', '1'))).toBe(true)
+  })
+
+  it('类型不对就放不进去 —— 声母进不了韵母槽', () => {
+    expect(sameTypeOnly({ type: 'initial', value: 'a' }, slot('final', 'a'))).toBe(false)
+    expect(sameTypeOnly({ type: 'nasal', value: 'n' }, slot('initial', 'n'))).toBe(false)
+  })
+
+  // 与 canPlace 的分水岭:双身份块在困难段**不通用**(介母块青、韵母块绿,颜色上分得开)。
+  it('介母与韵母在困难段不通用,尽管 canPlace 允许互换', () => {
+    expect(canPlace({ type: 'medial', value: 'u' }, slot('final', 'u'))).toBe(true)
+    expect(sameTypeOnly({ type: 'medial', value: 'u' }, slot('final', 'u'))).toBe(false)
+    expect(sameTypeOnly({ type: 'final', value: 'u' }, slot('medial', 'u'))).toBe(false)
+  })
+})
+
+describe('autoTypeTargetId(困难段的点选落位)', () => {
+  // 槽必须用**不同 id** —— 复用 slot helper(恒 id 'x')时「永远取第一个空槽」的实现也全绿,
+  // 类型过滤(`s.type === block.type`)就永远测不到。
+  const slots: Slot[] = [
+    { id: 's0-i', type: 'initial', value: 'b', sylIdx: 0 },
+    { id: 's0-f', type: 'final', value: 'a', sylIdx: 0 },
+  ]
+
+  it('落到同类型的第一个空槽,不看值(声母块进声母槽、韵母块进韵母槽)', () => {
+    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, {})).toBe('s0-i')
+    expect(autoTypeTargetId({ type: 'final', value: 'o' }, slots, {})).toBe('s0-f')
+  })
+
+  it('同类型的槽都占满了就没有落点(不跨类型找)', () => {
+    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, { 's0-i': 'b0' })).toBe(null)
+    expect(autoTypeTargetId({ type: 'final', value: 'o' }, slots, { 's0-f': 'b1' })).toBe(null)
+  })
+})
+
+describe('困难段的重试上限', () => {
+  it('每关 2 次(用尽即本段失败,不阻塞)', () => {
+    expect(HARD_RETRIES).toBe(2)
+  })
 })
 
 describe('isComplete / wrongSlotIds', () => {
@@ -289,6 +515,13 @@ describe('isComplete / wrongSlotIds', () => {
   it('块塞进非双身份的错类型槽会被点出来', () => {
     const bad = wrongSlotIds(slots, { 's0-i': 'b4', 's0-m': 'b1', 's0-f': 'b2', 's0-t': 'b3' }, tray)
     expect(bad).toEqual(['s0-i'])
+  })
+
+  it('wrongSlotIds 的判据可注入:困难段传 sameTypeOnly,值错不算错', () => {
+    const hard: TrayBlock[] = [withId({ type: 'initial', value: 'p' }, 'b0'), withId({ type: 'final', value: 'a' }, 'b1')]
+    const placements: Placement = { x: 'b0' }
+    expect(wrongSlotIds([slot('initial', 'b')], placements, hard)).toHaveLength(1) // canPlace:值错 ⇒ 错
+    expect(wrongSlotIds([slot('initial', 'b')], placements, hard, sameTypeOnly)).toHaveLength(0)
   })
 })
 

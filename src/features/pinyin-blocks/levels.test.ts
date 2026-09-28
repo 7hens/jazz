@@ -12,6 +12,8 @@ import {
   speakOf,
 } from './blocks'
 import { UNITS, losesDots, spell, spellSyllable, taughtBlocks, type Level, type Syllable } from './levels'
+import { slotsFor } from './rules'
+import type { BlockType } from './blocks'
 
 /** 摊平成「所属单元下标 + 关卡」,断言里好定位到具体是哪一题。 */
 const allLevels: { unit: number; unitId: string; index: number; level: Level }[] = UNITS.flatMap((u, unit) =>
@@ -355,6 +357,25 @@ describe('拼音积木关卡数据', () => {
       const reviews = u.levels.filter((level) => level.review === true)
       expect(reviews, `${u.id} 的复习关数`).toHaveLength(1)
       expect(u.levels.at(-1)?.review, `${u.id} 的复习关不在最后一关`).toBe(true)
+    }
+  })
+
+  // spec §3.7「总数上限 4」优先:某一类的槽 ≥ 4 时,那道小题只留正解、不加错块
+  //(`room = max(0, REVIEW_TRAY_CAP - 空槽数)` 归零)。课程数据保证这句话今天打不到 ——
+  // 每关同一类型最多 3 个槽 ⇒ room ≥ 1 恒成立(今天实际的最大值是 2:多音节关的两个韵母槽/两个声调槽)。
+  // 这里的 3 是 spec 那条「room ≥ 1」的边界,不是今天的数据快照 —— 故意不收紧到 2:
+  // 三音节词(某类型 3 个槽 ⇒ room = 1)仍然合法。
+  // 锁的是「打不到」这个事实,让那个兜底保持**防御**而不是悄悄变成常规路径;
+  // 扩课程(比如加四音节词)时它会先红,提醒回去把 §3.7 那句话重读一遍。
+  it('每关同一类型的槽最多 3 个(复习小题恒有 ≥1 个错解名额)', () => {
+    for (const entry of allLevels) {
+      const counts = new Map<BlockType, number>()
+      for (const slot of slotsFor(entry.level)) {
+        counts.set(slot.type, (counts.get(slot.type) ?? 0) + 1)
+      }
+      for (const [type, n] of counts) {
+        expect(n, `${where(entry)} 有 ${n} 个 ${type} 槽(上限 3)`).toBeLessThanOrEqual(3)
+      }
     }
   })
 
