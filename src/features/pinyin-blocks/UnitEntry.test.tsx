@@ -13,18 +13,24 @@ import {
   type Achievement,
 } from '@/shared/services'
 import { registry } from '@/shared/services/core'
-import { UNITS } from './levels'
+import { easyLevelsOf, hardLevelsOf, UNITS, type Level } from './levels'
 import { canPlace, slotsFor } from './rules'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
+import { chapterReviewQuestions } from './mistakes'
 import type { Chapter } from './chapter'
 import { UnitEntry } from './UnitEntry'
 
-/** u1 简单 / 困难题在 `unit.levels` 里的绝对下标。 */
-const U1_EASY_INDEXES = Array.from(
-  { length: UNITS[0]!.levels.filter((level) => level.stage !== 'hard').length },
-  (_, index) => index,
-)
-const U1_HARD_START = UNITS[0]!.levels.findIndex((level) => level.stage === 'hard')
+/**
+ * u1 的简单题 / 困难题,以及它们在 `unit.levels` 里的绝对下标。
+ * **一律从 `easyLevelsOf` / `hardLevelsOf` 派生** —— 题数增删时这里跟着走,
+ * 不写死题数(写死的话加一题这条文件会以「题面找不到」的误导性方式红)。
+ */
+const U1_EASY_LEVELS = easyLevelsOf(UNITS[0]!)
+const U1_HARD_LEVELS = hardLevelsOf(UNITS[0]!)
+const u1IndexesOf = (levels: readonly Level[]) => levels.map((level) => UNITS[0]!.levels.indexOf(level))
+const U1_EASY_INDEXES = u1IndexesOf(U1_EASY_LEVELS)
+const U1_HARD_INDEXES = u1IndexesOf(U1_HARD_LEVELS)
+const U1_HARD_START = U1_HARD_INDEXES[0]!
 
 /** 稳定引用的可发布快照 —— useSyncExternalStore 要求 getSnapshot 返回稳定引用。 */
 function makeStore<T>(initial: T) {
@@ -52,11 +58,13 @@ function mountUnitEntry(opts: {
   luckyReward?: number
   unitIndex?: number
   chapter?: Chapter
+  /** 预置在库的星级表(存档键 → 星数)—— 用来造「这一章早就全通了」的进章起点。 */
+  stars?: Record<string, number>
 } = {}) {
-  const { unitIndex = 0, chapter = 'easy' } = opts
+  const { unitIndex = 0, chapter = 'easy', stars = {} } = opts
   registry.clear()
 
-  const progressStore = makeStore({ status: 'ready' as const, data: { stars: {}, totalStars: 0 } })
+  const progressStore = makeStore({ status: 'ready' as const, data: { stars, totalStars: 0 } })
   const progress = {
     getSnapshot: progressStore.get,
     subscribe: progressStore.subscribe,
@@ -171,6 +179,13 @@ function fillWrongOnce(levelIndex = 0) {
   }
 }
 
+/** 推一段虚拟时间并把微任务排干 —— 需要精确卡在某个中间时刻时用它。 */
+async function advance(ms: number) {
+  await act(async () => {
+    vi.advanceTimersByTime(ms)
+  })
+}
+
 /** 通关回调在成功动画**之后**才发(260ms 判定 + 1600ms 停顿)—— 推时钟并把微任务排干。 */
 async function settle() {
   await act(async () => {
@@ -209,6 +224,52 @@ function placeOneFitting() {
     }
   }
   throw new Error('托盘里没有放得下的块,落块用例无法推进')
+}
+
+/**
+ * 走到复习章的完整路径:简单章第一题上把**韵母**与**声调**两类各点错到阈值(⇒ 两类都入池),
+ * 走完简单章 → 章末过场 → 困难章 → 章末过场 → 复习章。
+ *
+ * 池是**跨章**活着的(简单章的错要到困难章之后的复习章才被考),两类错块 ⇒ 复习章出两道小题。
+ * 返回那两块错块(顺序 = 入池顺序),调用方可以用它复算 `chapterReviewQuestions` 对齐题面。
+ */
+async function reachReviewChapter(): Promise<{ wrongFinal: Block; wrongTone: Block }> {
+  mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
+  const level0 = UNITS[0]!.levels[0]!
+  // 块身份印在里层 `[data-value]` 上,外层 `[data-block-id]` wrapper 换 key 重挂时身份稳定 ⇒ 握着它连点。
+  const tapTwice = (host: HTMLElement) => {
+    fireEvent.keyDown(host, { key: 'Enter' })
+    fireEvent.keyDown(host, { key: 'Enter' })
+  }
+
+  const finalHost = trayBlocks().find((el) => {
+    const block = blockOf(el)
+    return block.type === 'final' && block.value !== level0.syl[0]!.final
+  })
+  expect(finalHost, '托盘中找不到要故意点错的韵母块').toBeDefined()
+  const wrongFinal = blockOf(finalHost as HTMLElement)
+  tapTwice(finalHost as HTMLElement)
+
+  const toneHost = trayBlocks().find((el) => {
+    const block = blockOf(el)
+    return block.type === 'tone' && block.value !== String(level0.syl[0]!.tone)
+  })
+  expect(toneHost, '托盘中找不到要故意点错的声调块').toBeDefined()
+  const wrongTone = blockOf(toneHost as HTMLElement)
+  tapTwice(toneHost as HTMLElement)
+
+  await solveChapter(U1_EASY_INDEXES)
+  await transition() // → 困难章
+  await solveChapter(U1_HARD_INDEXES)
+  await transition() // → 复习章
+  return { wrongFinal, wrongTone }
+}
+
+/** 屏上被挖空的槽(复习小题就是靠这个认出来的)。 */
+function emptySlotIds(): string[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-slot-id]'))
+    .filter((el) => el.querySelector('[data-value]') === null)
+    .map((el) => el.dataset.slotId as string)
 }
 
 describe('UnitEntry · 撒花接线', () => {
@@ -336,15 +397,39 @@ describe('UnitEntry · 章推进与交账', () => {
 })
 
 describe('UnitEntry —— 章状态机与错题池', () => {
-  const u1Easy = UNITS[0]!.levels.filter((l) => l.stage !== 'hard').length
-  const u1HardStart = UNITS[0]!.levels.findIndex((l) => l.stage === 'hard')
-
-  it('简单章走完自动进困难章(章末过场 1.2s)', async () => {
+  // ⚠ 章末过场是真停 1.2s 的,而它**在最后一题结束之后才挂**。所以这条用例必须分两段推:
+  // 一次推过 1.2s 只会看到「遮罩已散」,那只覆盖「过场之后」这一半 ——
+  // 把 setTransitionTo(next) 删成直接 setChapter(next)(过场整个消失)它照样全绿(假绿)。
+  it('简单章走完挂章末过场(1.2s),过场散去才进困难章', async () => {
     mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
-    await solveChapter(Array.from({ length: u1Easy }, (_, i) => i))
-    await transition() // 只有章末才有过场
-    // 困难章第一道题上屏:它的 emoji 与简单章第一道不同
-    expect(document.body.textContent).toContain(UNITS[0]!.levels[u1HardStart]!.emoji)
+    // 最后一题单独解决:它的结束时刻是后面那两段的原点。
+    await solveChapter(U1_EASY_INDEXES.slice(0, -1))
+    solveCorrectly(U1_EASY_INDEXES[U1_EASY_INDEXES.length - 1]!)
+
+    // 第一段:推 2.4s —— 越过「落块 260ms 判定 + 1.6s 成功动画」(过场已在场),
+    // 又**不到**遮罩挂上后的 1.2s(过场还没散)。
+    await advance(2400)
+    const veil = document.querySelector<HTMLElement>('[data-stage-transition]')
+    expect(veil, '章末该挂换章过场').not.toBeNull()
+    expect(veil!.dataset.stageTransition, '过场指向下一章').toBe('hard')
+    expect(document.body.textContent, '过场还在场时不该已经上困难章题面').not.toContain(
+      U1_HARD_LEVELS[0]!.emoji,
+    )
+
+    // 第二段:推过 1.2s —— 遮罩散去,困难章第一道题上屏。
+    await transition()
+    expect(document.querySelector('[data-stage-transition]'), '过场该散去').toBeNull()
+    expect(document.body.textContent).toContain(U1_HARD_LEVELS[0]!.emoji)
+  })
+
+  // `Math.max(0, …)`(UnitEntry.tsx:104)的守卫:该章的题**全部已通**时 `findIndex` 返回 -1,
+  // 少了那层 Math.max,`ChapterRun` 收到 startIndex = -1 ⇒ `items[-1]` 是 undefined ⇒ 直接白屏。
+  it('该章题目全部已通时进这一章:不白屏,从第一题开始走', () => {
+    const stars = Object.fromEntries(U1_EASY_LEVELS.map((level) => [level.id, 3]))
+    mountUnitEntry({ unitIndex: 0, chapter: 'easy', stars })
+    expect(document.body.textContent, '第一题该上屏(不是白屏)').toContain(U1_EASY_LEVELS[0]!.emoji)
+    // 光有图不算数:盘面上得真有槽 —— 「图在、盘面空」是另一种坏形态。
+    expect(document.querySelectorAll('[data-slot-id]').length, '盘面上该有槽').toBeGreaterThan(0)
   })
 
   it('章内两道题之间没有过场(拼完直接换题)', async () => {
@@ -357,7 +442,7 @@ describe('UnitEntry —— 章状态机与错题池', () => {
 
   it('从地图带困难章进来,就直接落在困难章', async () => {
     mountUnitEntry({ unitIndex: 0, chapter: 'hard' })
-    expect(document.body.textContent).toContain(UNITS[0]!.levels[u1HardStart]!.emoji)
+    expect(document.body.textContent).toContain(UNITS[0]!.levels[U1_HARD_START]!.emoji)
   })
 
   // Review Focus #1:章走到一半退出,欠着的账必须**当场**交出去 —— 不是等章末。
@@ -371,7 +456,7 @@ describe('UnitEntry —— 章状态机与错题池', () => {
 
   it('章末交账一次;章末之后按回地图不再重复交', async () => {
     const { onSettle } = mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
-    await solveChapter(Array.from({ length: u1Easy }, (_, i) => i))
+    await solveChapter(U1_EASY_INDEXES)
     await transition()
     expect(onSettle, '章末交账').toHaveBeenCalledTimes(1)
     fireEvent.click(document.querySelector<HTMLElement>('[aria-label="回地图"]')!)
@@ -379,30 +464,40 @@ describe('UnitEntry —— 章状态机与错题池', () => {
   })
 
   // Review Focus #2:池跨章活着 —— 简单章点错的块,要到**困难章之后的复习章**才被考到。
-  it('简单章的错块跨章活着:进复习章时池里有它们', async () => {
-    mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
-    // 简单章第一题上故意把**韵母**与**声调**两类各点错两次(阈值 N = 2)⇒ 两类都入池。
-    // 池里只喂一类的话,复习章只会出 1 道小题 ⇒ 进度点只有 1 颗,判据立不住。
-    const finalHost = trayBlocks().find((el) => {
-      const block = blockOf(el)
-      return block.type === 'final' && block.value !== UNITS[0]!.levels[0]!.syl[0]!.final
-    })
-    expect(finalHost, '托盘中找不到要故意点错的韵母块').toBeDefined()
-    fireEvent.keyDown(finalHost as HTMLElement, { key: 'Enter' })
-    fireEvent.keyDown(finalHost as HTMLElement, { key: 'Enter' })
-    const toneHost = trayBlocks().find((el) => {
-      const block = blockOf(el)
-      return block.type === 'tone' && block.value !== String(UNITS[0]!.levels[0]!.syl[0]!.tone)
-    })
-    expect(toneHost, '托盘中找不到要故意点错的声调块').toBeDefined()
-    fireEvent.keyDown(toneHost as HTMLElement, { key: 'Enter' })
-    fireEvent.keyDown(toneHost as HTMLElement, { key: 'Enter' })
-    await solveChapter(Array.from({ length: u1Easy }, (_, i) => i))
-    await transition() // → 困难章
-    await solveChapter(Array.from({ length: 6 }, (_, i) => u1HardStart + i))
-    await transition() // → 复习章
+  it('简单章的错块跨章活着:复习章按「一类型一道题」出两道小题', async () => {
+    await reachReviewChapter()
     const dots = document.querySelector<HTMLElement>('[data-review-dots]')
     expect(dots, '复习章没上屏').not.toBeNull()
-    expect(dots!.querySelectorAll('.pstage-dot').length, '池空就该只有 1 颗兜底点').toBeGreaterThan(1)
+    // 池里两类错块 ⇒ 两道小题(池空只会出 1 道兜底题)。
+    expect(dots!.querySelectorAll('.pstage-dot').length, '两类错块 ⇒ 两颗进度点').toBe(2)
+  })
+
+  // 复习章是**多题**章:两道小题要依次走完、进度点 1/2 → 2/2,且第二题换一块槽挖空(= 换了新实例)。
+  it('复习章两道小题依次走完:进度点 1/2 → 2/2,第二题换新盘面', async () => {
+    const { wrongFinal, wrongTone } = await reachReviewChapter()
+    // 池内容与入池顺序都是确定的 ⇒ 宿主算出来的小题可以在这里复算对齐,别靠猜。
+    const items = chapterReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
+    expect(items, '池里两类 ⇒ 两道小题').toHaveLength(2)
+
+    const dots = () => document.querySelector<HTMLElement>('[data-review-dots]')!
+    expect(dots().dataset.reviewDone, '第一道小题:进度 1/2').toBe('1')
+    // 屏上的盘面必须就是复算出来的第一道小题 —— 顺序对不上,下面解的就不是这一题。
+    expect(emptySlotIds(), '屏上是复算的第一道小题').toEqual([...items[0]!.question.slotIds])
+    const firstEmpty = emptySlotIds()
+
+    // 解第一道小题:只填它挖空的槽(预填槽在复习章拿不回来,也不该动)。
+    const slots = slotsFor(UNITS[0]!.levels[items[0]!.levelIndex]!)
+    for (const id of items[0]!.question.slotIds) {
+      const slot = slots.find((s) => s.id === id)!
+      const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot))
+      expect(pick, `复习小题的槽 ${id} 在托盘里找不到可放块`).toBeDefined()
+      fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+    }
+    await settle()
+
+    expect(dots().dataset.reviewDone, '第二道小题:进度推到 2/2').toBe('2')
+    expect(dots().querySelectorAll('.pstage-dot--on').length, '两颗进度点都亮').toBe(2)
+    // 第二题是**新实例**:换成另一类块被挖空(第一题挖声调、第二题挖韵母)。
+    expect(emptySlotIds(), '第二题该换一块槽挖空').not.toEqual(firstEmpty)
   })
 })
