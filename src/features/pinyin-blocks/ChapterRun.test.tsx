@@ -2,7 +2,8 @@ import { act, fireEvent, render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
 import { UNITS } from './levels'
-import { canPlace, slotsFor } from './rules'
+import { canPlace, slotsFor, starsFor } from './rules'
+import { WRONG_PICK_THRESHOLD } from './mistakes'
 import { ChapterRun, type ChapterItem, type QuestionEnd } from './ChapterRun'
 
 const unit = UNITS[0]!
@@ -66,6 +67,19 @@ function solveCurrent(levelIndex: number): void {
   }
 }
 
+/**
+ * 简单段:把托盘中某一块**点错 `WRONG_PICK_THRESHOLD` 次** ⇒ 恰好记同样多次 miss,且那一块入错题池。
+ * 手法照抄 `LevelEntry.test.tsx` 的 `pickWrongTwice`(块身份在里层 `[data-value]`,点选走 `keyDown Enter`)——
+ * 每次点错都会换 key 重挂**块本体**,但外层 `[data-block-id]` wrapper 身份稳定,故握着它连点是对的。
+ */
+function pickWrongToPool(match: (b: Block) => boolean): void {
+  const host = trayBlocks().find((el) => match(blockOf(el)))
+  expect(host, '托盘中找不到要故意点错的块').toBeDefined()
+  for (let i = 0; i < WRONG_PICK_THRESHOLD; i++) {
+    fireEvent.keyDown(host as HTMLElement, { key: 'Enter' })
+  }
+}
+
 describe('ChapterRun', () => {
   it('章内一道接一道:第一题结束后自动换到第二题', async () => {
     vi.useFakeTimers()
@@ -80,8 +94,71 @@ describe('ChapterRun', () => {
     const end = onQuestionEnd.mock.calls[0]![0] as QuestionEnd
     expect(end.levelId).toBe(unit.levels[0]!.id)
     expect(end.exact, '简单章的错块按家族记账').toBe(false)
+    // 一次不错 ⇒ 满星、错块为空。这两条是 Task 9 落库 / 喂错题池的输入,必须钉住零错这一端。
+    expect(end.stars, '一次不错 = 满星').toBe(starsFor(0))
+    expect(end.wrongBlocks, '一次不错 = 没有错块交出来').toEqual([])
     expect(onDone, '还有题没走完,不该交账').not.toHaveBeenCalled()
     expect(view.container.textContent).toContain(unit.levels[1]!.emoji)
+    // 章内题与题之间是**直接换题**,不该有过场遮罩(与 LevelRun 的跨段过场相反)。
+    // 遮罩会蒙在下一题上 —— 屏幕有内容,上面几条断言全绿,只有这一条挡得住。
+    expect(
+      document.querySelector('[data-stage-transition]'),
+      '章内题与题之间不该挂过场',
+    ).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('错到阈值:错块交出来、星数按 starsFor 递减', async () => {
+    vi.useFakeTimers()
+    // 一道题就够 —— 只看这一题结束时交出的账目。
+    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const { onQuestionEnd } = mount(items)
+
+    // u1-0 是 é(e + 二声),四声块恒无处可落 —— 点错 WRONG_PICK_THRESHOLD 次:既记同样多次 miss,
+    // 也把那一块送进错题池(poolRef)。
+    pickWrongToPool((b) => b.type === 'tone' && b.value === '4')
+    solveCurrent(0)
+    await advance(2000)
+
+    expect(onQuestionEnd).toHaveBeenCalledTimes(1)
+    const end = onQuestionEnd.mock.calls[0]![0] as QuestionEnd
+    // 星数不写死:按 starsFor 现算(点错 WRONG_PICK_THRESHOLD 次 ⇒ 就是这个档),星规改了这条跟着走。
+    expect(end.stars, '星数按 starsFor(missCount) 算').toBe(starsFor(WRONG_PICK_THRESHOLD))
+    // 错块必须**原样交出来** —— 只断长度会漏掉「交错了块」,故比到 type + value。
+    expect(end.wrongBlocks, '错块要交出来').toHaveLength(1)
+    expect(end.wrongBlocks[0], '交出来的正是那块点错的四声块').toMatchObject({ type: 'tone', value: '4' })
+    vi.useRealTimers()
+  })
+
+  it('startIndex = 1:接着上次从第二题走,不回第一题', async () => {
+    vi.useFakeTimers()
+    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
+    const onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})
+    const onDone = vi.fn()
+    const view = render(
+      <ChapterRun
+        unit={unit}
+        unitIndex={0}
+        chapter="easy"
+        items={items}
+        // Task 9 的宿主靠它把「本章第一道未通的题」传进来 —— 被吞掉则功能全废且无声。
+        startIndex={1}
+        speak={speak}
+        onQuestionEnd={onQuestionEnd}
+        onDone={onDone}
+      />,
+    )
+
+    // 上屏的是第二题(不是第一题)—— 两道题图不同,两向都断死。
+    expect(view.container.textContent, '上屏的是第二题').toContain(unit.levels[1]!.emoji)
+    expect(view.container.textContent, '第一题不该出现').not.toContain(unit.levels[0]!.emoji)
+
+    solveCurrent(1)
+    await advance(2000)
+
+    expect(onQuestionEnd).toHaveBeenCalledTimes(1)
+    expect((onQuestionEnd.mock.calls[0]![0] as QuestionEnd).levelId, '交的是第二题的账').toBe(unit.levels[1]!.id)
+    expect(onDone, 'startIndex=1 已经是最后一题').toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
 
