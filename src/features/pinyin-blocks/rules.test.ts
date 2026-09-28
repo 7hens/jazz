@@ -3,11 +3,14 @@ import { CONFUSABLE, TONE_VALUES, type Block } from './blocks'
 import { UNITS, taughtBlocks, type Level } from './levels'
 import {
   autoTargetId,
+  autoTypeTargetId,
   buildBlocks,
   canPlace,
   familyKey,
+  HARD_RETRIES,
   isComplete,
   requiredBlocks,
+  sameTypeOnly,
   slotsFor,
   solutionValues,
   starsFor,
@@ -372,6 +375,44 @@ describe('buildBlocks', () => {
   })
 })
 
+describe('sameTypeOnly(困难段的门禁)', () => {
+  it('值错但类型对:放得进去 —— 这正是困难段的全部考点', () => {
+    expect(sameTypeOnly({ type: 'initial', value: 'p' }, slot('initial', 'b'))).toBe(true)
+    expect(sameTypeOnly({ type: 'final', value: 'o' }, slot('final', 'a'))).toBe(true)
+    expect(sameTypeOnly({ type: 'tone', value: '3' }, slot('tone', '1'))).toBe(true)
+  })
+
+  it('类型不对就放不进去 —— 声母进不了韵母槽', () => {
+    expect(sameTypeOnly({ type: 'initial', value: 'a' }, slot('final', 'a'))).toBe(false)
+    expect(sameTypeOnly({ type: 'nasal', value: 'n' }, slot('initial', 'n'))).toBe(false)
+  })
+
+  // 与 canPlace 的分水岭:双身份块在困难段**不通用**(介母块青、韵母块绿,颜色上分得开)。
+  it('介母与韵母在困难段不通用,尽管 canPlace 允许互换', () => {
+    expect(canPlace({ type: 'medial', value: 'u' }, slot('final', 'u'))).toBe(true)
+    expect(sameTypeOnly({ type: 'medial', value: 'u' }, slot('final', 'u'))).toBe(false)
+    expect(sameTypeOnly({ type: 'final', value: 'u' }, slot('medial', 'u'))).toBe(false)
+  })
+})
+
+describe('autoTypeTargetId(困难段的点选落位)', () => {
+  it('落到同类型的第一个空槽,不看值', () => {
+    const slots: Slot[] = [slot('initial', 'b'), slot('final', 'a')]
+    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, {})).toBe('x')
+  })
+
+  it('同类型的槽都占满了就没有落点(不跨类型找)', () => {
+    const slots: Slot[] = [slot('initial', 'b'), slot('final', 'a')]
+    expect(autoTypeTargetId({ type: 'initial', value: 'p' }, slots, { x: 'b0' })).toBe(null)
+  })
+})
+
+describe('困难段的重试上限', () => {
+  it('每关 2 次(用尽即本段失败,不阻塞)', () => {
+    expect(HARD_RETRIES).toBe(2)
+  })
+})
+
 describe('isComplete / wrongSlotIds', () => {
   const slots = slotsFor(GUĀ)
   const tray: TrayBlock[] = [
@@ -407,6 +448,13 @@ describe('isComplete / wrongSlotIds', () => {
   it('块塞进非双身份的错类型槽会被点出来', () => {
     const bad = wrongSlotIds(slots, { 's0-i': 'b4', 's0-m': 'b1', 's0-f': 'b2', 's0-t': 'b3' }, tray)
     expect(bad).toEqual(['s0-i'])
+  })
+
+  it('wrongSlotIds 的判据可注入:困难段传 sameTypeOnly,值错不算错', () => {
+    const hard: TrayBlock[] = [withId({ type: 'initial', value: 'p' }, 'b0'), withId({ type: 'final', value: 'a' }, 'b1')]
+    const placements: Placement = { x: 'b0' }
+    expect(wrongSlotIds([slot('initial', 'b')], placements, hard)).toHaveLength(1) // canPlace:值错 ⇒ 错
+    expect(wrongSlotIds([slot('initial', 'b')], placements, hard, sameTypeOnly)).toHaveLength(0)
   })
 })
 

@@ -58,6 +58,19 @@ export function canPlace(block: Block, slot: Slot): boolean {
   )
 }
 
+/**
+ * 困难段的门禁:只比类型。值错了也放得进去 —— 这正是那一段的全部考点(spec §3.6)。
+ *
+ * 这是**第三个**判定函数,不是修改 canPlace(canPlace 一个字不动)。
+ * 双身份块在这里**不通用**:介母槽只收介母块(青),韵母槽只收韵母块(绿),颜色上分得开。
+ */
+export function sameTypeOnly(block: Block, slot: Slot): boolean {
+  return block.type === slot.type
+}
+
+/** 困难段每关允许的判错重试次数。用尽即本段失败 —— 但**不阻塞**,继续往下走(spec §3.6)。 */
+export const HARD_RETRIES = 2
+
 function shuffle<T>(arr: readonly T[], rng: Rng): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -217,25 +230,44 @@ export function isComplete(slots: readonly Slot[], placement: Placement): boolea
   return slots.every((s) => placement[s.id] !== undefined)
 }
 
-/** 放错(值或类型不匹配)的槽 id。全空返回 []。 */
-export function wrongSlotIds(slots: readonly Slot[], placement: Placement, tray: readonly TrayBlock[]): string[] {
+/**
+ * 放错(值或类型不匹配)的槽 id。全空返回 []。
+ * `judge` 默认 `canPlace`(简单段与复习段);困难段传 `sameTypeOnly` —— 那一段值错不算错。
+ */
+export function wrongSlotIds(
+  slots: readonly Slot[],
+  placement: Placement,
+  tray: readonly TrayBlock[],
+  judge: (block: Block, slot: Slot) => boolean = canPlace,
+): string[] {
   const byId = new Map(tray.map((b) => [b.id, b]))
   const bad: string[] = []
   for (const slot of slots) {
     const blockId = placement[slot.id]
     if (blockId === undefined) continue
     const block = byId.get(blockId)
-    if (!block || !canPlace(block, slot)) bad.push(slot.id)
+    if (!block || !judge(block, slot)) bad.push(slot.id)
   }
   return bad
 }
 
-/** 点选路径:优先找类型完全相同的空槽,再退到双身份块的互换槽。找不到返回 null。 */
+/**
+ * 简单段的点选路径:优先找类型完全相同的空槽,再退到双身份块的互换槽。找不到返回 null。
+ * 困难段不走这里 —— 那一段的点选落位是 `autoTypeTargetId`(只认同类型)。
+ */
 export function autoTargetId(block: Block, slots: readonly Slot[], placement: Placement): string | null {
   const empty = slots.filter((s) => placement[s.id] === undefined)
   const exact = empty.find((s) => s.type === block.type && canPlace(block, s))
   if (exact) return exact.id
   return empty.find((s) => canPlace(block, s))?.id ?? null
+}
+
+/**
+ * 困难段的点选落位:同类型的第一个空槽。产品保留一键落位,它在困难段退化成
+ * 「把块放进它那一类的槽里」—— 选哪一块、选得对不对仍由孩子负责,考点没有被绕过去。
+ */
+export function autoTypeTargetId(block: Block, slots: readonly Slot[], placement: Placement): string | null {
+  return slots.find((s) => placement[s.id] === undefined && s.type === block.type)?.id ?? null
 }
 
 /**
