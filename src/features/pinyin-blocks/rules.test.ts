@@ -50,7 +50,8 @@ const build = (level: Level, rng: Rng) => buildBlocks(level, unitIdxOf(level.id)
  * 要的就是「生产里 round 0 发的那副牌」。两边要一起改;改了那边,这条哨子就失去依据。
  */
 function roundZero(): Rng {
-  let s = (0 * 2654435761) >>> 0
+  // 种子 0:`(0 * 2654435761) >>> 0` 就是 0,故直接写 0(写成乘法 oxlint 会抓「恒零运算」)。
+  let s = 0
   return () => {
     s = (s * 1664525 + 1013904223) >>> 0
     return s / 4294967296

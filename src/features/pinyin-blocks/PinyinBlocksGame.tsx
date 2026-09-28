@@ -310,6 +310,11 @@ function PinyinRound({
    * 正解演示 1200ms)盘面一直是满的,而 `status` 可能还是 `playing` —— 只按 status 设闸会
    * 漏掉成功前那 260ms:**快速连点能把到手的 3 星打成 1 星,段账目也被污染**。
    * 盘满即视为这一段已经定了:任何落位路径(点选 / 拖拽 / 自动落位)都不得再记 miss、再进池。
+   *
+   * **已接受的盲区**:这道闸也把 `takeBack` 一并冻住(两者共用 `boardFull`)—— 最后一块落位后的
+   * 那 260ms 里,孩子若发现自己放错了,自己拿不回来,只能等判错撤块(720ms)或成功动画走完。
+   * 拿掉它换来的是「自己拿回」,代价是把上面那条闸拆了(见 `takeBack` 的注释):盘面不再满,
+   * `boardFull` 自己失效,白记 miss 的后门重新打开。两害相权,这里选**不可自救**。
    */
   const boardFull = isComplete(slots, placement)
 
@@ -399,7 +404,10 @@ function PinyinRound({
       // 点一下已填槽就把块拿回托盘,**盘面不再满 ⇒ 上面那道闸自己失效**,再点一块放不下的
       // 就走 autoPlace 的 else 白记 miss(3 星变 2 星);`succeed()` 还会亮在一个空槽的盘面上。
       if (status !== 'playing' || boardFull) return
-      if (locked.has(slotId)) return // 预填槽不可拿回(见 locked)
+      // **纵深防御**(今天到不了):预填槽在渲染层就不绑 onClick(`renderSlot` 里
+      // `locked.has(slot.id) ? undefined : …`),所以 UI 上没有任何一条路能把预填槽 id 送进来。
+      // 留着是防「将来给预填槽接上手势 / 键盘」——那时这条是唯一挡得住把预填块掏走的闸。
+      if (locked.has(slotId)) return
       setPlacement((cur) => {
         const copy = { ...cur }
         delete copy[slotId]

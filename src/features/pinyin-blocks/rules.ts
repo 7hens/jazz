@@ -232,7 +232,10 @@ export function isComplete(slots: readonly Slot[], placement: Placement): boolea
 
 /**
  * 放错(值或类型不匹配)的槽 id。全空返回 []。
- * `judge` 默认 `canPlace`(简单段与复习段);困难段传 `sameTypeOnly` —— 那一段值错不算错。
+ * `judge` 默认 `canPlace`(= 生产口径)。**这是为测试开的面**:生产里唯一的调用点
+ * (`PinyinBlocksGame` 的全填判错)一律走默认值 —— 困难段落位时门禁只比类型,但盘满后的判错
+ * **仍然按值与类型**(拿 `sameTypeOnly` 当这里的判据,困难段就永远判不出错)。
+ * 只有单测会传 `sameTypeOnly` 来验「那一段只比值」这条边界。
  */
 export function wrongSlotIds(
   slots: readonly Slot[],
