@@ -44,6 +44,24 @@ export type Level = {
    * (复习部分不从课程数据取题 —— 它由错题池当场决定,见 `partLevels`。)
    */
   readonly stage?: 'hard'
+  /**
+   * 题面自动念一遍(= 听音拼块)。**只给「图给不出这个词」的关卡**,2026-09-29 加。
+   *
+   * 默认玩法是**看图猜音再拼**,声音刻意压暗在角落当兜底(`PinyinBlocksGame` 里 🔊 的注释),
+   * 因为自动念会把拼读练成听写。但有一批题的图**根本命名不出目标词**:
+   *   - u1 的 a / o / e 零声母音节几乎全是语气词(啊/哦/噢),图只能画一张脸,连调都画不出来;
+   *   - 抽象词没有画法:意 / 志 / 序 / 引 / 军 / 运 / 野 / 院 / 迟 / 词 / 班 / 入 / 取 / 句 …
+   *   - 图会指向**另一个词**:🦶(孩子说「脚」)要 zú 足、🔭(「望远镜」)要 yuǎn 远、🐯(「老虎」)要 hǔ 虎。
+   * 这些题不念就是纯猜(两三次重试用尽才演示正解,星已经丢了),故单独放行。**其余关卡一律不念。**
+   *
+   * 三条纪律:
+   *   1. **`read` 必须是该音的 TTS 单字默认读音** —— 自动念时声音就是题面,念成别的调等于题出错了。
+   *      u1-2 原来是「啊 à」,TTS 只会念 ā;u1-52h 原来是「哦 ò」,TTS 只会念 ó —— 孩子听到的和
+   *      要拼的对不上,必错。守卫见 `levels.test.ts` 的「朗读汉字的默认读音 = 目标音」。
+   *   2. **能靠换图/换词救活的不要加它**(快→筷 kuài 🥢、翅 chì→船 chuán 🚢 就是换词救的)。
+   *   3. 加了它不等于图可以乱选:图仍是语境线索,不能指向另一个词(那会让孩子怀疑自己听到的音)。
+   */
+  readonly listen?: true
 }
 
 export type Unit = {
@@ -76,14 +94,18 @@ export const UNITS: readonly Unit[] = [
     name: '单韵母',
     badge: [{ type: 'final', value: 'a' }],
     levels: [
-      { id: 'u1-0', emoji: '🪿', pinyin: 'é', read: '鹅', syl: [{ final: 'e', tone: 2 }] },
-      { id: 'u1-1', emoji: '😮', pinyin: 'ó', read: '哦', syl: [{ final: 'o', tone: 2 }] },
-      { id: 'u1-2', emoji: '🗣️', pinyin: 'à', read: '啊', syl: [{ final: 'a', tone: 4 }] },
+      // 本单元只出零声母单韵母(块池 = a o e i u,见 `hard-levels.test.ts` 的池子那条),
+      // 而汉语里能被 6 岁孩子一眼命名的零声母单韵母**只有 8 个**:鹅é 饿è 衣yī 椅yǐ 姨yí 五wǔ 屋wū 雾wù。
+      // a / o / e 剩下的全是语气词与抽象字(啊 哦 噢 恶 意 无),**没有图**。所以 u1 的 a/o 题靠
+      // `listen`(自动念)出题,而不是靠图;`read` 一律取 TTS 单字默认调,否则听到的和答案对不上。
+      { id: 'u1-0', emoji: '🦢', pinyin: 'é', read: '鹅', syl: [{ final: 'e', tone: 2 }] },
+      { id: 'u1-1', emoji: '😮', pinyin: 'ó', read: '哦', syl: [{ final: 'o', tone: 2 }], listen: true },
+      { id: 'u1-2', emoji: '🗣️', pinyin: 'ā', read: '啊', syl: [{ final: 'a', tone: 1 }], listen: true },
       // i / u 不能单独作音节:零声母时写成 yi / wu。块面仍是 i / u,显示串是它们的改写。
       { id: 'u1-50', emoji: '🪑', pinyin: 'yǐ', read: '椅', syl: [{ final: 'i', tone: 3 }] },
       { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ final: 'u', tone: 3 }] },
       // 原单元末复习关(部分化后并入简单部分):一轮 a o e i u 走完
-      { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }] },
+      { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }], listen: true },
       // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u1 ?? []),
     ],
@@ -97,10 +119,10 @@ export const UNITS: readonly Unit[] = [
       { id: 'u2-1', emoji: '🐴', pinyin: 'mǎ', read: '马', syl: [{ initial: 'm', final: 'a', tone: 3 }] },
       { id: 'u2-2', emoji: '🐰', pinyin: 'tù', read: '兔', syl: [{ initial: 't', final: 'u', tone: 4 }] },
       { id: 'u2-3', emoji: '🍐', pinyin: 'lí', read: '梨', syl: [{ initial: 'l', final: 'i', tone: 2 }] },
-      { id: 'u2-50', emoji: '👵', pinyin: 'pó', read: '婆', syl: [{ initial: 'p', final: 'o', tone: 2 }] },
+      { id: 'u2-50', emoji: '👵', pinyin: 'pó', read: '婆', syl: [{ initial: 'p', final: 'o', tone: 2 }], listen: true },
       { id: 'u2-51', emoji: '🪓', pinyin: 'fǔ', read: '斧', syl: [{ initial: 'f', final: 'u', tone: 3 }] },
       { id: 'u2-52', emoji: '🌍', pinyin: 'dì', read: '地', syl: [{ initial: 'd', final: 'i', tone: 4 }] },
-      { id: 'u2-53', emoji: '😠', pinyin: 'nù', read: '怒', syl: [{ initial: 'n', final: 'u', tone: 4 }] },
+      { id: 'u2-53', emoji: '😠', pinyin: 'nù', read: '怒', syl: [{ initial: 'n', final: 'u', tone: 4 }], listen: true },
       { id: 'u2-54', emoji: '✏️', pinyin: 'bǐ', read: '笔', syl: [{ initial: 'b', final: 'i', tone: 3 }] },
       // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u2 ?? []),
@@ -114,7 +136,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u2-4', emoji: '🐔', pinyin: 'jī', read: '鸡', syl: [{ initial: 'j', final: 'i', tone: 1 }] },
       { id: 'u3-50', emoji: '🥁', pinyin: 'gǔ', read: '鼓', syl: [{ initial: 'g', final: 'u', tone: 3 }] },
       { id: 'u3-51', emoji: '😭', pinyin: 'kū', read: '哭', syl: [{ initial: 'k', final: 'u', tone: 1 }] },
-      { id: 'u3-52', emoji: '🐯', pinyin: 'hǔ', read: '虎', syl: [{ initial: 'h', final: 'u', tone: 3 }] },
+      { id: 'u3-52', emoji: '🐯', pinyin: 'hǔ', read: '虎', syl: [{ initial: 'h', final: 'u', tone: 3 }], listen: true },
       { id: 'u3-53', emoji: '7️⃣', pinyin: 'qī', read: '七', syl: [{ initial: 'q', final: 'i', tone: 1 }] },
       { id: 'u3-54', emoji: '🛁', pinyin: 'xǐ', read: '洗', syl: [{ initial: 'x', final: 'i', tone: 3 }] },
       { id: 'u3-55', emoji: '🥤', pinyin: 'hē', read: '喝', syl: [{ initial: 'h', final: 'e', tone: 1 }] },
@@ -127,13 +149,13 @@ export const UNITS: readonly Unit[] = [
     name: '声母 · 翘舌平舌',
     badge: [{ type: 'initial', value: 'zh' }, { type: 'final', value: 'a' }],
     levels: [
-      { id: 'u2-5', emoji: '🦶', pinyin: 'zú', read: '足', syl: [{ initial: 'z', final: 'u', tone: 2 }] },
+      { id: 'u2-5', emoji: '🦶', pinyin: 'zú', read: '足', syl: [{ initial: 'z', final: 'u', tone: 2 }], listen: true },
       { id: 'u4-50', emoji: '🐷', pinyin: 'zhū', read: '猪', syl: [{ initial: 'zh', final: 'u', tone: 1 }] },
       { id: 'u4-51', emoji: '🚗', pinyin: 'chē', read: '车', syl: [{ initial: 'ch', final: 'e', tone: 1 }] },
       { id: 'u4-52', emoji: '📕', pinyin: 'shū', read: '书', syl: [{ initial: 'sh', final: 'u', tone: 1 }] },
       { id: 'u4-53', emoji: '🔥', pinyin: 'rè', read: '热', syl: [{ initial: 'r', final: 'e', tone: 4 }] },
       { id: 'u4-54', emoji: '🧽', pinyin: 'cā', read: '擦', syl: [{ initial: 'c', final: 'a', tone: 1 }] },
-      { id: 'u4-55', emoji: '🎨', pinyin: 'sè', read: '色', syl: [{ initial: 's', final: 'e', tone: 4 }] },
+      { id: 'u4-55', emoji: '🎨', pinyin: 'sè', read: '色', syl: [{ initial: 's', final: 'e', tone: 4 }], listen: true },
       { id: 'u4-56', emoji: '🦆', pinyin: 'yā', read: '鸭', syl: [{ initial: 'y', final: 'a', tone: 1 }] },
       { id: 'u4-57', emoji: '🙋', pinyin: 'wǒ', read: '我', syl: [{ initial: 'w', final: 'o', tone: 3 }] },
       { id: 'u4-58', emoji: '📄', pinyin: 'zhǐ', read: '纸', syl: [{ initial: 'zh', final: 'i', tone: 3 }] },
@@ -252,7 +274,7 @@ export const UNITS: readonly Unit[] = [
     levels: [
       { id: 'u6-4', emoji: '🐟', pinyin: 'yú', read: '鱼', syl: [{ initial: 'y', final: 'ü', tone: 2, weld: true }] },
       { id: 'u6-6', emoji: '🦅', pinyin: 'yīng', read: '鹰', syl: [{ initial: 'y', final: 'i', nasal: 'ng', tone: 1, weld: true }] },
-      { id: 'u11-50', emoji: '🧥', pinyin: 'yī', read: '衣', syl: [{ initial: 'y', final: 'i', tone: 1, weld: true }] },
+      { id: 'u11-50', emoji: '💡', pinyin: 'dēng', read: '灯', syl: [{ initial: 'd', final: 'e', nasal: 'ng', tone: 1 }] },
       { id: 'u11-51', emoji: '🏠', pinyin: 'wū', read: '屋', syl: [{ initial: 'w', final: 'u', tone: 1, weld: true }] },
       // y + ie 写成 ye:i 由 y 代劳,不写 yie
       { id: 'u11-52', emoji: '🍃', pinyin: 'yè', read: '叶', syl: [{ initial: 'y', final: 'ie', tone: 4, weld: true }] },

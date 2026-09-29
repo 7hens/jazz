@@ -167,6 +167,31 @@ describe('拼音积木关卡数据', () => {
     }
   })
 
+  // 🔊 读的是**汉字**,而 TTS 对一个多音字**只有一个默认读音** —— `read` 的默认读法必须就是这道题
+  // 要拼的那个音。听音关(`listen`)里声音就是题面,念成别的调等于题目本身错了。
+  // 2026-09-29 之前 u1-2 是「啊 à」、u1-52h 是「哦 ò」:TTS 只会念 ā 与 ó,孩子听到的和要拼的
+  // 对不上,**必错**。表**手写**(不从数据反推),只列今天数据里真出现过的多音字。
+  it('朗读汉字的默认读音 = 目标音(TTS 不会按我们的题目变调)', () => {
+    const TTS_DEFAULT: Readonly<Record<string, string>> = {
+      啊: 'ā', 哦: 'ó', 噢: 'ō', 恶: 'è', 好: 'hǎo', 佛: 'fó',
+      地: 'dì', 炸: 'zhà', 圈: 'quān', 累: 'lèi', 龟: 'guī', 泥: 'ní',
+    }
+    const checked: string[] = []
+    for (const entry of allLevels) {
+      // 表按单字写;多音节词的调型由词组决定,不在这张表的射程里。
+      if (entry.level.syl.length !== 1) continue
+      const expected = TTS_DEFAULT[entry.level.read]
+      if (expected === undefined) continue
+      checked.push(entry.level.id)
+      expect(
+        entry.level.pinyin,
+        `${where(entry)} 朗读「${entry.level.read}」TTS 默认只会念 ${expected},题目却要 ${entry.level.pinyin} —— 孩子听到的和答案对不上`,
+      ).toBe(expected)
+    }
+    // 防空转:表写错、或口径变了会让 checked 空掉,断言恒真 = 静默假绿。
+    expect(checked.length, '多音字一个都没扫到 —— 表或遍历口径写错了').toBeGreaterThan(0)
+  })
+
   it('双音节关恒为两个音节(分组渲染的前提)', () => {
     for (const u of UNITS) {
       const sizes = u.levels.map((l) => l.syl.length)

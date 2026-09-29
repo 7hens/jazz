@@ -213,6 +213,16 @@ describe('拼音积木 · 游戏', () => {
     fireEvent.pointerUp(window, { clientX: 10, clientY: 10 })
   })
 
+  // 「图给不出这个词」的关卡(见 `Level.listen`)进题就念一遍 —— 那几关**声音才是题面**。
+  // 默认关卡照旧看图猜音:自动念会把拼读练成听写,所以只在标了 `listen` 的关卡上发生。
+  it('听音关进题自动念一遍,能看图的关卡不念', () => {
+    const listened = mount(...at('u1-2')) // 🗣️ ā 啊:零声母语气词,画不出图
+    expect(listened.speak).toHaveBeenCalledWith('啊')
+
+    const pictured = mount(...at('u1-0')) // 🦢 é 鹅:图能命名,靠图出题
+    expect(pictured.speak).not.toHaveBeenCalled()
+  })
+
   // 声调不是一个能念的音。硬找一个字来念(「妈麻马骂」之类)会跟题面的读音打架。
   it('声调块不发字母音', () => {
     const { speak } = mount(1, 0)

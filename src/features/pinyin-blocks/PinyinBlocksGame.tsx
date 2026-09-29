@@ -200,6 +200,19 @@ function PinyinRound({
   }, [])
   useEffect(() => clearTimer, [clearTimer])
 
+  /**
+   * 听音关(见 `Level.listen`):进题自动念一遍 —— 这些题的图给不出那个词,声音才是题面。
+   *
+   * 一道题只念一次(ref 挡着):`speak` 由宿主注入,身份变了也不该把同一道题重念一遍。
+   * **其余关卡一律不念** —— 自动念会把「看图猜音再拼」变成听写(见下面 🔊 按钮那条注释)。
+   */
+  const listenedRef = useRef(false)
+  useEffect(() => {
+    if (listenedRef.current || !level.listen) return
+    listenedRef.current = true
+    speak(level.read)
+  }, [level, speak])
+
   /** 拖错槽时的即时反馈。带自增序号是为了让同一个槽连续被拒时也能重放动画
    *  —— 只切 class 的话第二次挂上去的类和第一次一样,CSS 动画不会重播。 */
   const [reject, setReject] = useState<{ id: string; n: number } | null>(null)
@@ -651,7 +664,8 @@ function PinyinRound({
       className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 pb-5"
     >
       {/* 重听塞在角落、压暗 —— 玩法是**看图猜音再拼**,声音是兜底不是入口;
-          摆在题面正下方,孩子会一路点着听过去,拼读就不发生了。 */}
+          摆在题面正下方,孩子会一路点着听过去,拼读就不发生了。
+          (图给不出那个词的关卡例外:那几关进题就自动念一遍,见 `Level.listen`。) */}
       <button
         type="button"
         onClick={() => speak(level.read)}
