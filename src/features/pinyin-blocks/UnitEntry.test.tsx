@@ -16,8 +16,7 @@ import { registry } from '@/shared/services/core'
 import { easyLevelsOf, hardLevelsOf, UNITS, type Level } from './levels'
 import { canPlace, slotsFor } from './rules'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
-import { chapterReviewQuestions } from './mistakes'
-import type { Chapter } from './chapter'
+import { partReviewQuestions } from './mistakes'
 import { UnitEntry } from './UnitEntry'
 
 /**
@@ -31,6 +30,15 @@ const u1IndexesOf = (levels: readonly Level[]) => levels.map((level) => UNITS[0]
 const U1_EASY_INDEXES = u1IndexesOf(U1_EASY_LEVELS)
 const U1_HARD_INDEXES = u1IndexesOf(U1_HARD_LEVELS)
 const U1_HARD_START = U1_HARD_INDEXES[0]!
+
+/**
+ * 「简单部分已全通」的星级表 —— 用它把起点推到困难部分。
+ *
+ * 地图上一个单元只有一个入口,起点由 `firstIncompletePart` 按星级表算,**不由孩子选**;
+ * 所以「从困难部分进」这件事今天只能用预置星级表来造。
+ */
+const easySolved = (): Record<string, number> =>
+  Object.fromEntries(U1_EASY_LEVELS.map((level) => [level.id, 1]))
 
 /** 稳定引用的可发布快照 —— useSyncExternalStore 要求 getSnapshot 返回稳定引用。 */
 function makeStore<T>(initial: T) {
@@ -57,11 +65,10 @@ function mountUnitEntry(opts: {
   earned?: readonly Achievement[]
   luckyReward?: number
   unitIndex?: number
-  chapter?: Chapter
-  /** 预置在库的星级表(存档键 → 星数)—— 用来造「这一章早就全通了」的进章起点。 */
+  /** 预置在库的星级表(存档键 → 星数)—— 起点由 `firstIncompletePart` 按它算。 */
   stars?: Record<string, number>
 } = {}) {
-  const { unitIndex = 0, chapter = 'easy', stars = {} } = opts
+  const { unitIndex = 0, stars = {} } = opts
   registry.clear()
 
   const progressStore = makeStore({ status: 'ready' as const, data: { stars, totalStars: 0 } })
@@ -121,9 +128,7 @@ function mountUnitEntry(opts: {
   } as never)
 
   const onSettle = vi.fn()
-  const utils = render(
-    <UnitEntry unitIndex={unitIndex} initialChapter={chapter} onExitToMap={vi.fn()} onSettle={onSettle} />,
-  )
+  const utils = render(<UnitEntry unitIndex={unitIndex} onExitToMap={vi.fn()} onSettle={onSettle} />)
   return { ...utils, celebrate, comboService, comboStore, onSettle, progressService: progress }
 }
 
@@ -155,8 +160,8 @@ function solveCorrectly(levelIndex = 0) {
   }
 }
 
-/** 把一整个章的题全部拼对(逐题:拼 → 等落地动画 → 下一题自动上屏)。 */
-async function solveChapter(levelIndexes: readonly number[]) {
+/** 把一整个部分的题全部拼对(逐题:拼 → 等落地动画 → 下一题自动上屏)。 */
+async function solvePart(levelIndexes: readonly number[]) {
   for (const index of levelIndexes) {
     solveCorrectly(index)
     await settle()
@@ -164,8 +169,8 @@ async function solveChapter(levelIndexes: readonly number[]) {
 }
 
 /**
- * 困难章:给每个槽放一块**类型对、值错**的块。
- * 困难章的门禁只比类型(`sameTypeOnly`),这些块当场都放得进去;直到盘面填满才被判错 ——
+ * 困难部分:给每个槽放一块**类型对、值错**的块。
+ * 困难部分的门禁只比类型(`sameTypeOnly`),这些块当场都放得进去;直到盘面填满才被判错 ——
  * 于是**恰好记 1 次 miss**,随后 720ms 撤块重来。
  */
 function fillWrongOnce(levelIndex = 0) {
@@ -193,7 +198,7 @@ async function settle() {
   })
 }
 
-/** 章间过场停 1.2s 才交回(STAGE_TRANSITION_MS)—— 推时钟越过它。 */
+/** 部分间过场停 1.2s 才交回(STAGE_TRANSITION_MS)—— 推时钟越过它。 */
 async function transition() {
   await act(async () => {
     vi.advanceTimersByTime(1300)
@@ -227,16 +232,16 @@ function placeOneFitting() {
 }
 
 /**
- * 走到复习章的完整路径:简单章第一题上把**韵母**与**声调**两类各点错到阈值(⇒ 两类都入池),
- * 走完简单章 → 章末过场 → 困难章 → 章末过场 → 复习章。
+ * 走到复习部分的完整路径:简单部分第一题上把**韵母**与**声调**两类各点错到阈值(⇒ 两类都入池),
+ * 走完简单部分 → 部分末过场 → 困难部分 → 部分末过场 → 复习部分。
  *
- * 池是**跨章**活着的(简单章的错要到困难章之后的复习章才被考),两类错块 ⇒ 复习章出两道小题。
- * 返回那两块错块(顺序 = 入池顺序),调用方可以用它复算 `chapterReviewQuestions` 对齐题面。
+ * 池是**跨部分**活着的(简单部分的错要到困难部分之后的复习部分才被考),两类错块 ⇒ 复习部分出两道小题。
+ * 返回那两块错块(顺序 = 入池顺序),调用方可以用它复算 `partReviewQuestions` 对齐题面。
  */
-async function reachReviewChapter(): Promise<
+async function reachReviewPart(): Promise<
   { wrongFinal: Block; wrongTone: Block } & ReturnType<typeof mountUnitEntry>
 > {
-  const mounted = mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
+  const mounted = mountUnitEntry({ unitIndex: 0 })
   const level0 = UNITS[0]!.levels[0]!
   // 块身份印在里层 `[data-value]` 上,外层 `[data-block-id]` wrapper 换 key 重挂时身份稳定 ⇒ 握着它连点。
   const tapTwice = (host: HTMLElement) => {
@@ -260,10 +265,10 @@ async function reachReviewChapter(): Promise<
   const wrongTone = blockOf(toneHost as HTMLElement)
   tapTwice(toneHost as HTMLElement)
 
-  await solveChapter(U1_EASY_INDEXES)
-  await transition() // → 困难章
-  await solveChapter(U1_HARD_INDEXES)
-  await transition() // → 复习章
+  await solvePart(U1_EASY_INDEXES)
+  await transition() // → 困难部分
+  await solvePart(U1_HARD_INDEXES)
+  await transition() // → 复习部分
   return { wrongFinal, wrongTone, ...mounted }
 }
 
@@ -296,9 +301,9 @@ describe('UnitEntry · 撒花接线', () => {
     expect(celebrate.play).not.toHaveBeenCalled()
   })
 
-  it('一章拼成且没有奖励弹层接手 → word 档撒花', async () => {
+  it('一部分拼成且没有奖励弹层接手 → word 档撒花', async () => {
     const { celebrate, onSettle } = mountUnitEntry()
-    await solveChapter(U1_EASY_INDEXES)
+    await solvePart(U1_EASY_INDEXES)
     expect(onSettle).toHaveBeenCalled()
     expect(celebrate.play).toHaveBeenCalledWith('word')
   })
@@ -307,14 +312,14 @@ describe('UnitEntry · 撒花接线', () => {
     const { celebrate, onSettle } = mountUnitEntry({
       earned: [{ id: 'perfect_level', name: '完美主义', description: 'x', emoji: '💎', reward: 50 }],
     })
-    await solveChapter(U1_EASY_INDEXES)
+    await solvePart(U1_EASY_INDEXES)
     expect(onSettle).toHaveBeenCalled()
     expect(celebrate.play).not.toHaveBeenCalledWith('word')
   })
 
   it('有幸运奖励接手时 word 档不撒', async () => {
     const { celebrate, onSettle } = mountUnitEntry({ luckyReward: 50 })
-    await solveChapter(U1_EASY_INDEXES)
+    await solvePart(U1_EASY_INDEXES)
     expect(onSettle).toHaveBeenCalled()
     expect(celebrate.play).not.toHaveBeenCalledWith('word')
   })
@@ -356,9 +361,9 @@ describe('UnitEntry · 连击圆点', () => {
   })
 })
 
-describe('UnitEntry · 章推进与交账', () => {
-  // 题内错数由 `ChapterRun` 交给 `starsFor` 折算成星级 —— 3 次点错足够跨出 2 星的档界。
-  it('简单章:一题错 3 次 ⇒ 该题按 starsFor(3) = 1 星落库', async () => {
+describe('UnitEntry · 部分推进与交账', () => {
+  // 题内错数由 `PartRun` 交给 `starsFor` 折算成星级 —— 3 次点错足够跨出 2 星的档界。
+  it('简单部分:一题错 3 次 ⇒ 该题按 starsFor(3) = 1 星落库', async () => {
     const { progressService } = mountUnitEntry()
     for (let i = 0; i < 3; i++) {
       fireEvent.keyDown(screen.getByLabelText('声调块 4'), { key: 'Enter' })
@@ -370,8 +375,8 @@ describe('UnitEntry · 章推进与交账', () => {
     )
   })
 
-  it('困难章:填满一套值错的块 ⇒ 判错撤块后重来,照样推进下一题', async () => {
-    mountUnitEntry({ chapter: 'hard' })
+  it('困难部分:填满一套值错的块 ⇒ 判错撤块后重来,照样推进下一题', async () => {
+    mountUnitEntry({ stars: easySolved() })
     fillWrongOnce(U1_HARD_START)
     await act(async () => {
       vi.advanceTimersByTime(800)
@@ -384,7 +389,7 @@ describe('UnitEntry · 章推进与交账', () => {
   // `flush` 发完必须清账(`pending.current = null`)。
   // 少了那一行,pending 就一直在那儿 —— 回地图被连点两次(头部的按钮在退出动画里仍可点)
   // 会把同一笔结算**发两次**:星尘算两遍、撒花两遍。这里点两次、断言各一次。
-  it('章内中途连点两次回地图:结算与撒花仍各只发一次', async () => {
+  it('部分内中途连点两次回地图:结算与撒花仍各只发一次', async () => {
     const { onSettle, celebrate } = mountUnitEntry()
     solveCorrectly(0)
     await settle()
@@ -398,87 +403,90 @@ describe('UnitEntry · 章推进与交账', () => {
   })
 })
 
-describe('UnitEntry —— 章状态机与错题池', () => {
-  // ⚠ 章末过场是真停 1.2s 的,而它**在最后一题结束之后才挂**。所以这条用例必须分两段推:
+describe('UnitEntry —— 部分状态机与错题池', () => {
+  // ⚠ 部分末过场是真停 1.2s 的,而它**在最后一题结束之后才挂**。所以这条用例必须分两段推:
   // 一次推过 1.2s 只会看到「遮罩已散」,那只覆盖「过场之后」这一半 ——
-  // 把 setTransitionTo(next) 删成直接 setChapter(next)(过场整个消失)它照样全绿(假绿)。
-  it('简单章走完挂章末过场(1.2s),过场散去才进困难章', async () => {
-    mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
+  // 把 setTransitionTo(next) 删成直接 setPart(next)(过场整个消失)它照样全绿(假绿)。
+  it('简单部分走完挂部分末过场(1.2s),过场散去才进困难部分', async () => {
+    mountUnitEntry({ unitIndex: 0 })
     // 最后一题单独解决:它的结束时刻是后面那两段的原点。
-    await solveChapter(U1_EASY_INDEXES.slice(0, -1))
+    await solvePart(U1_EASY_INDEXES.slice(0, -1))
     solveCorrectly(U1_EASY_INDEXES[U1_EASY_INDEXES.length - 1]!)
 
     // 第一段:推 2.4s —— 越过「落块 260ms 判定 + 1.6s 成功动画」(过场已在场),
     // 又**不到**遮罩挂上后的 1.2s(过场还没散)。
     await advance(2400)
     const veil = document.querySelector<HTMLElement>('[data-stage-transition]')
-    expect(veil, '章末该挂换章过场').not.toBeNull()
-    expect(veil!.dataset.stageTransition, '过场指向下一章').toBe('hard')
-    expect(document.body.textContent, '过场还在场时不该已经上困难章题面').not.toContain(
+    expect(veil, '部分末该挂换部分过场').not.toBeNull()
+    expect(veil!.dataset.stageTransition, '过场指向下一部分').toBe('hard')
+    expect(document.body.textContent, '过场还在场时不该已经上困难部分题面').not.toContain(
       U1_HARD_LEVELS[0]!.emoji,
     )
 
-    // 第二段:推过 1.2s —— 遮罩散去,困难章第一道题上屏。
+    // 第二段:推过 1.2s —— 遮罩散去,困难部分第一道题上屏。
     await transition()
     expect(document.querySelector('[data-stage-transition]'), '过场该散去').toBeNull()
     expect(document.body.textContent).toContain(U1_HARD_LEVELS[0]!.emoji)
   })
 
-  // `Math.max(0, …)`(UnitEntry.tsx:104)的守卫:该章的题**全部已通**时 `findIndex` 返回 -1,
-  // 少了那层 Math.max,`ChapterRun` 收到 startIndex = -1 ⇒ `items[-1]` 是 undefined ⇒ 直接白屏。
-  it('该章题目全部已通时进这一章:不白屏,从第一题开始走', () => {
-    const stars = Object.fromEntries(U1_EASY_LEVELS.map((level) => [level.id, 3]))
-    mountUnitEntry({ unitIndex: 0, chapter: 'easy', stars })
+  // `Math.max(0, …)`(UnitEntry.tsx)的守卫:本部分的题**全部已通**时 `findIndex` 返回 -1,
+  // 少了那层 Math.max,`PartRun` 收到 startIndex = -1 ⇒ `items[-1]` 是 undefined ⇒ 直接白屏。
+  // 单元全通 ⇒ 起点回到简单部分(整单元重玩),正好走到这条路径上。
+  it('单元全部已通时进来:不白屏,从第一题开始走', () => {
+    const stars = Object.fromEntries(
+      [...U1_EASY_LEVELS, ...U1_HARD_LEVELS].map((level) => [level.id, 3]),
+    )
+    mountUnitEntry({ unitIndex: 0, stars })
     expect(document.body.textContent, '第一题该上屏(不是白屏)').toContain(U1_EASY_LEVELS[0]!.emoji)
     // 光有图不算数:盘面上得真有槽 —— 「图在、盘面空」是另一种坏形态。
     expect(document.querySelectorAll('[data-slot-id]').length, '盘面上该有槽').toBeGreaterThan(0)
   })
 
-  it('章内两道题之间没有过场(拼完直接换题)', async () => {
-    mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
+  it('部分内两道题之间没有过场(拼完直接换题)', async () => {
+    mountUnitEntry({ unitIndex: 0 })
     solveCorrectly(0)
     await settle()
-    expect(document.querySelector('[data-stage-transition]'), '章内不该出过场').toBeNull()
+    expect(document.querySelector('[data-stage-transition]'), '部分内不该出过场').toBeNull()
     expect(document.body.textContent).toContain(UNITS[0]!.levels[1]!.emoji)
   })
 
-  it('从地图带困难章进来,就直接落在困难章', async () => {
-    mountUnitEntry({ unitIndex: 0, chapter: 'hard' })
+  it('简单部分全通时进来,直接落在困难部分', () => {
+    mountUnitEntry({ unitIndex: 0, stars: easySolved() })
     expect(document.body.textContent).toContain(UNITS[0]!.levels[U1_HARD_START]!.emoji)
   })
 
-  // Review Focus #1:章走到一半退出,欠着的账必须**当场**交出去 —— 不是等章末。
+  // Review Focus #1:部分走到一半退出,欠着的账必须**当场**交出去 —— 不是等部分末。
   it('中途退出到地图:先把已落库的那笔账交出去,且只交一次', async () => {
-    const { onSettle } = mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
+    const { onSettle } = mountUnitEntry({ unitIndex: 0 })
     solveCorrectly(0)
     await settle()
     fireEvent.click(document.querySelector<HTMLElement>('[aria-label="回地图"]')!)
     expect(onSettle, '退出时把这一笔交出去').toHaveBeenCalledTimes(1)
   })
 
-  it('章末交账一次;章末之后按回地图不再重复交', async () => {
-    const { onSettle } = mountUnitEntry({ unitIndex: 0, chapter: 'easy' })
-    await solveChapter(U1_EASY_INDEXES)
+  it('部分末交账一次;部分末之后按回地图不再重复交', async () => {
+    const { onSettle } = mountUnitEntry({ unitIndex: 0 })
+    await solvePart(U1_EASY_INDEXES)
     await transition()
-    expect(onSettle, '章末交账').toHaveBeenCalledTimes(1)
+    expect(onSettle, '部分末交账').toHaveBeenCalledTimes(1)
     fireEvent.click(document.querySelector<HTMLElement>('[aria-label="回地图"]')!)
     expect(onSettle, '已经交过的账不许再交一次(弹层会重放)').toHaveBeenCalledTimes(1)
   })
 
-  // Review Focus #2:池跨章活着 —— 简单章点错的块,要到**困难章之后的复习章**才被考到。
-  it('简单章的错块跨章活着:复习章按「一类型一道题」出两道小题', async () => {
-    await reachReviewChapter()
+  // Review Focus #2:池跨部分活着 —— 简单部分点错的块,要到**困难部分之后的复习部分**才被考到。
+  it('简单部分的错块跨部分活着:复习部分按「一类型一道题」出两道小题', async () => {
+    await reachReviewPart()
     const dots = document.querySelector<HTMLElement>('[data-review-dots]')
-    expect(dots, '复习章没上屏').not.toBeNull()
+    expect(dots, '复习部分没上屏').not.toBeNull()
     // 池里两类错块 ⇒ 两道小题(池空只会出 1 道兜底题)。
     expect(dots!.querySelectorAll('.pstage-dot').length, '两类错块 ⇒ 两颗进度点').toBe(2)
   })
 
-  // 复习章是**多题**章:两道小题要依次走完、进度点 1/2 → 2/2,且第二题换一块槽挖空(= 换了新实例)。
-  it('复习章两道小题依次走完:进度点 1/2 → 2/2,第二题换新盘面', async () => {
-    const { wrongFinal, wrongTone } = await reachReviewChapter()
+  // 复习部分是**多题**部分:两道小题要依次走完、进度点 1/2 → 2/2,且第二题换一块槽挖空(= 换了新实例)。
+  it('复习部分两道小题依次走完:进度点 1/2 → 2/2,第二题换新盘面', async () => {
+    const { wrongFinal, wrongTone } = await reachReviewPart()
     // 池内容与入池顺序都是确定的 ⇒ 宿主算出来的小题可以在这里复算对齐,别靠猜。
-    const items = chapterReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
+    const items = partReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
     expect(items, '池里两类 ⇒ 两道小题').toHaveLength(2)
 
     const dots = () => document.querySelector<HTMLElement>('[data-review-dots]')!
@@ -487,7 +495,7 @@ describe('UnitEntry —— 章状态机与错题池', () => {
     expect(emptySlotIds(), '屏上是复算的第一道小题').toEqual([...items[0]!.question.slotIds])
     const firstEmpty = emptySlotIds()
 
-    // 解第一道小题:只填它挖空的槽(预填槽在复习章拿不回来,也不该动)。
+    // 解第一道小题:只填它挖空的槽(预填槽在复习部分拿不回来,也不该动)。
     const slots = slotsFor(UNITS[0]!.levels[items[0]!.levelIndex]!)
     for (const id of items[0]!.question.slotIds) {
       const slot = slots.find((s) => s.id === id)!
@@ -504,23 +512,23 @@ describe('UnitEntry —— 章状态机与错题池', () => {
   })
 })
 
-describe('UnitEntry · 复习章不落库', () => {
-  // spec §5 的不变量:复习章只重考、不产生任何账目 —— 不落库、不记 miss、不交账。
+describe('UnitEntry · 复习部分不落库', () => {
+  // spec §5 的不变量:复习部分只重考、不产生任何账目 —— 不落库、不记 miss、不交账。
   //
   // 这条守卫值钱在于**复习小题挂在池里第一道含该类型的别的题上**:它借用 host 题的
-  // `levelIndex` 拼盘面,`endQuestion` 若在复习章被调用,写进库的会是**别人的**星级与星尘,
+  // `levelIndex` 拼盘面,`endQuestion` 若在复习部分被调用,写进库的会是**别人的**星级与星尘,
   // 而且会顺带扫成就 —— 是产品可见的坏账。所以「两道小题全走完也不写」必须被钉住。
-  it('复习章:两道小题全走完也不落库、不交账', async () => {
-    const { progressService, onSettle, wrongFinal, wrongTone } = await reachReviewChapter()
-    // 走到复习章时,简单章章末与困难章章末**各交过一次账**(onSettle 已 2 次),
-    // 简单章 + 困难章共 20 道题**各落过一次库**(recordClear 已 20 次)——
+  it('复习部分:两道小题全走完也不落库、不交账', async () => {
+    const { progressService, onSettle, wrongFinal, wrongTone } = await reachReviewPart()
+    // 走到复习部分时,简单部分末与困难部分末**各交过一次账**(onSettle 已 2 次),
+    // 简单部分 + 困难部分共 20 道题**各落过一次库**(recordClear 已 20 次)——
     // 不清这两笔记数,下面的 not.toHaveBeenCalled() 会被存量污染(假红)。
     progressService.recordClear.mockClear()
     onSettle.mockClear()
 
-    const items = chapterReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
+    const items = partReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
     expect(items, '池里两类 ⇒ 两道小题').toHaveLength(2)
-    // 两道小题都要走完:章才会走到 onDone ⇒ flush() 真的被调一次 ⇒ 「不交账」那条不是空过。
+    // 两道小题都要走完:部分才会走到 onDone ⇒ flush() 真的被调一次 ⇒ 「不交账」那条不是空过。
     for (const item of items) {
       const slots = slotsFor(UNITS[0]!.levels[item.levelIndex]!)
       for (const id of item.question.slotIds) {
@@ -532,7 +540,7 @@ describe('UnitEntry · 复习章不落库', () => {
       await settle()
     }
 
-    expect(progressService.recordClear, '复习章不落库').not.toHaveBeenCalled()
-    expect(onSettle, '复习章不交账').not.toHaveBeenCalled()
+    expect(progressService.recordClear, '复习部分不落库').not.toHaveBeenCalled()
+    expect(onSettle, '复习部分不交账').not.toHaveBeenCalled()
   })
 })

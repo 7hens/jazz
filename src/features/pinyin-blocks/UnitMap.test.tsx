@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { ACHIEVEMENTS } from '@/features/achievements'
 import { cn } from '@/shared/ui/utils'
 import { HAN_TEXT } from '@/shared/testing/han-text'
-import { easyLevelsOf, hardLevelsOf, UNITS, type Unit } from './levels'
+import { easyLevelsOf, UNITS } from './levels'
 import { UnitMap } from './UnitMap'
 
 // 零文本扫描用的正则与它拦什么,统一在 @/shared/testing/han-text(全仓唯一一份)。
@@ -43,58 +43,77 @@ describe('拼音单元地图', () => {
     const cellOf = (id: string) => document.querySelector<HTMLElement>(`[data-unit-id="${id}"]`)
     expect(cellOf('u1')?.dataset.locked).toBe('false')
     expect(cellOf('u2')?.dataset.locked).toBe('true')
-    // 点击目标必须写死成**章按钮**:容器 `<div>` 上没有 onClick —— 点容器既不触发 onPick,
-    // 「锁着点不动」就会因为**没点着按钮**而通过,而不是因为锁着(空过)。
-    fireEvent.click(cellOf('u2')!.querySelector('[data-chapter="easy"]')!)
+    // 点击目标就是**格子本身**(整格是一个 `<button>`)—— 先断言它真的有 onClick 该有的形状,
+    // 否则「锁着点不动」会因为**点了个不响应的 `<div>`** 而通过,而不是因为锁着(空过)。
+    expect(cellOf('u2')!.tagName, '格子不是按钮:下面的点击是空过').toBe('BUTTON')
+    expect(cellOf('u2')!.hasAttribute('data-unit-start'), '格子不是入口').toBe(true)
+    fireEvent.click(cellOf('u2')!)
     expect(onPick).not.toHaveBeenCalled()
-    fireEvent.click(cellOf('u1')!.querySelector('[data-chapter="easy"]')!)
-    expect(onPick).toHaveBeenCalledWith(0, 'easy')
+    fireEvent.click(cellOf('u1')!)
+    // 一个单元只有一个入口 ⇒ 只带单元号,不带「第几部分」—— 起点由 UnitEntry 自己算。
+    expect(onPick).toHaveBeenCalledWith(0)
   })
 
-  // 一格三行章,每行一个 `n/总数` —— 这是格子里**唯一**的进度读数(章名不进地图)。
-  // 不画「本关几星」—— 格子放不下 3-7 组三星,而且地图该答的是「这章过了几道」。
-  // 期望值用 easyLevelsOf / hardLevelsOf 现算、不写死数字:课程增删题时断言跟着走,而不是变假绿。
-  it('章那行显示本章通过数 / 本章题数(与星级同源)', () => {
+  // 用户口径(2026-09-29):「整个卡片可以点击,而不是只有下面一小块」。
+  // 与上一条不同:这里按的是**名片积木**那一带 —— 整格可点之前,这一按什么都不发生。
+  it('整格都是点击目标:按在名片积木上也进单元(锁着的那格同样不响应)', () => {
+    const onPick = vi.fn()
+    const { container } = render(<UnitMap {...base} onPick={onPick} />)
+    const badgeOf = (id: string) => container.querySelector(`[data-unit-id="${id}"] .pblock`)
+    expect(badgeOf('u1'), '取不到 u1 的名片块,下面的点击会静默空转').not.toBeNull()
+    expect(badgeOf('u2'), '取不到 u2 的名片块,下面的点击会静默空转').not.toBeNull()
+
+    fireEvent.click(badgeOf('u2')!)
+    expect(onPick, '锁着的单元按名片也该不响应').not.toHaveBeenCalled()
+
+    fireEvent.click(badgeOf('u1')!)
+    expect(onPick, '按在名片上没进单元:命中区又缩回底下那一小块了').toHaveBeenCalledWith(0)
+  })
+
+  // 一格一个入口,进度只给**整个单元**的一个 `n/总数` —— 这是格子里**唯一**的进度读数。
+  // (单元内的三部分是一个整体,地图上不再各占一行;部分名不进地图。)
+  // 不画「本关几星」—— 格子放不下 3-7 组三星,而且地图该答的是「这个单元过了几道」。
+  // 期望值用 `unit.levels` 现算、不写死数字:课程增删题时断言跟着走,而不是变假绿。
+  it('入口显示本单元通过数 / 本单元题数(与星级同源)', () => {
     const unit = UNITS[0]!
     const easy = easyLevelsOf(unit)
-    const hard = hardLevelsOf(unit)
     const stars = { [easy[0]!.id]: 2, [easy[1]!.id]: 1 }
     render(<UnitMap {...base} stars={stars} totalStars={20} />)
     const cell = document.querySelector<HTMLElement>('[data-unit-id="u1"]')
     expect(cell, '取不到 u1 格子,下面的断言会静默空转').not.toBeNull()
-    // 前两道各给一颗以上 → 简单章那行读 `2/简单题数`(星级与章计数同源)。
-    expect(cell!.querySelector('[data-chapter="easy"]')?.textContent).toContain(`2/${easy.length}`)
-    // 困难章一颗没给 → `0/困难题数`;「零星的章归零」这半也在此覆盖。
-    expect(cell!.querySelector('[data-chapter="hard"]')?.textContent).toContain(`0/${hard.length}`)
-    // 复习章不显示题数:它的题由错题池当场定,地图上没有可数的东西。
-    expect(cell!.querySelector('[data-chapter="review"]')?.textContent).not.toMatch(/\d+\/\d+/)
+    // 格子 === 入口(整格一个按钮),读数就在它自己的 textContent 里。
+    // 前两道各给一颗以上 → 入口读 `2/单元题数`(星级与计数同源;困难题一颗没给,不进分子)。
+    expect(cell!.textContent).toContain(`2/${unit.levels.length}`)
+    // 反向守卫:分部分的那几行**必须不在了** —— 留着的话这条用例的上半照样绿(多一行不影响读数)。
+    expect(cell!.querySelector('[data-chapter]'), '地图上不该再按部分分行').toBeNull()
   })
 
-  // 按钮不能套按钮 —— 嵌套的 <button> 是非法 HTML,浏览器会把 DOM 拆散,
-  // 孩子点到的可能是半截元素(而且是静默的:jsdom 里查询照样找得到)。
-  it('单元格是容器,章按钮在它里面,没有嵌套 button', () => {
+  // 整格是一个按钮,**而按钮里不能再套按钮** —— 嵌套的 <button> 是非法 HTML,
+  // 浏览器会把 DOM 拆散,孩子点到的可能是半截元素(而且是静默的:jsdom 里查询照样找得到)。
+  // 反过来说也不能是「容器 + 里面一小块」:那样命中区就只剩那一小块(见上面那条整格可点的用例)。
+  it('一格一个按钮:格子自己就是入口,里面不再套 button', () => {
     const { container } = render(<UnitMap {...base} />)
     for (const unit of UNITS) {
-      const cell = container.querySelector(`[data-unit-id="${unit.id}"]`)!
-      expect(cell.tagName).not.toBe('BUTTON')
-      const chapters = cell.querySelectorAll('[data-chapter]')
-      expect(chapters.length, `${unit.id} 的章按钮数`).toBe(3)
-      for (const button of chapters) {
-        expect(button.tagName).toBe('BUTTON')
-        expect(button.querySelector('button'), '章按钮里套了 button').toBeNull()
-      }
+      const cell = container.querySelector<HTMLElement>(`[data-unit-id="${unit.id}"]`)!
+      expect(cell.tagName, `${unit.id} 的格子不是按钮`).toBe('BUTTON')
+      expect(cell.hasAttribute('data-unit-start'), `${unit.id} 的格子不是入口`).toBe(true)
+      const starts = container.querySelectorAll(`[data-unit-id="${unit.id}"] [data-unit-start]`)
+      expect(starts.length, `${unit.id} 的格子里还有个「入口」:命中区被拆成两层了`).toBe(0)
+      expect(cell.querySelector('button'), '入口里套了 button').toBeNull()
     }
   })
 
-  // 空章不进 —— 用合成单元测,不依赖真实数据恰好有空章。
-  it('空困难章的单元:困难那一行锁着,复习那一行仍可点', () => {
-    const synthLevels = UNITS[0]!.levels.slice(0, 3)
-    const synth: Unit = { id: 'ux', name: '合成', badge: [], levels: synthLevels }
-    const allEasyStar = Object.fromEntries(synthLevels.map((level) => [level.id, 1]))
-    const { container } = render(<UnitMap {...base} units={[synth]} stars={allEasyStar} />)
-    const cell = container.querySelector('[data-unit-id="ux"]')!
-    expect(cell.querySelector('[data-chapter="hard"]')!.getAttribute('data-locked')).toBe('true')
-    expect(cell.querySelector('[data-chapter="review"]')!.getAttribute('data-locked')).toBe('false')
+  // 锁定态与可玩态必须在屏幕上分得开 —— 孩子读不出「锁定」二字,这一格全靠那枚图标。
+  // 锁是 lucide 的 lock / play:`lucide-*` 类由 lucide-react 自己贴,不是我们写的。
+  it('入口:解锁的单元给播放图标,锁着的给锁图标', () => {
+    const { container } = render(<UnitMap {...base} />)
+    const iconOf = (id: string) => container.querySelector(`[data-unit-id="${id}"] svg`)
+    const unlocked = iconOf('u1')
+    const locked = iconOf('u2')
+    expect(unlocked, '解锁单元的入口没有图标,两态就分不开了').not.toBeNull()
+    expect(locked, '锁定单元的入口没有图标,两态就分不开了').not.toBeNull()
+    expect(unlocked!.classList.contains('lucide-play'), '解锁单元该是播放图标').toBe(true)
+    expect(locked!.classList.contains('lucide-lock'), '锁定单元该是锁图标').toBe(true)
   })
 
   it('星尘计数带可读标签(星尘 340)', () => {
@@ -115,7 +134,9 @@ describe('拼音单元地图', () => {
    * 1) **覆盖什么**:那句算术的**输入**,含块数(乘数)。逐项 = 下面 `CONTRACT` 表 11 行 + 块数上界,
    *    每行注明它在那句算术里管什么(算术本体在 `UnitMap.tsx` 顶部那段注释里):
    *      可用宽 = max-w-2xl(672) − gap-4×2(32) → /列数(grid-cols-2 或 sm:grid-cols-3)
-   *              − p-4(32) − border-2(4) = 177.33;
+   *              − p-4(32) = 181.33;
+   *      (2026-09-29 M3 改造删掉了卡片自带的那条 `border-2`,4px 还回可用宽 —— 177.33 → 181.33。
+   *       再给卡片加回描边或任何消耗宽的类,这一段与 `UnitMap.tsx` 顶部那段都要重算。)
    *      需求宽 = 5×w-8(32) + 4×gap-1(4) = 176 ≤ 177.33(**宽度**是约束轴;h-8 只管盒高)。
    *    改这里任何一条 → 必须回去重算那段注释里的算术。
    *
@@ -157,7 +178,6 @@ describe('拼音单元地图', () => {
       ['网格列数(≥sm)', grid!.className, 'sm:grid-cols-3', '那个 /3'],
       ['网格列间距', grid!.className, 'gap-4', '可用宽里减 2×16=32'],
       ['格子内边距', cell!.className, 'p-4', '可用宽里再减 32'],
-      ['格子描边', cell!.className, 'border-2', 'border-box 下再减 4(R1 就是漏了它)'],
       ['块的宽', badge!.className, 'w-8', '约束轴:5×32 + 4×4 = 176'],
       ['块的高', badge!.className, 'h-8', '盒高 32(非约束轴)'],
       ['块的字号覆盖', badge!.className, size!, '缩盒不缩字 = 28px 字塞进 32px 盒'],
@@ -171,8 +191,8 @@ describe('拼音单元地图', () => {
     // 乘数也是输入:上面那句「5×w-8 + 4×gap-1」里的 5 从没被断言过。钉上界而非钉死 ——
     // u7 是最宽的名片(其余单元 1/2/1/2/3/2 块),6 块需 6×32+5×4 = 212 > 177.33,单行设计即失效。
     // 数的是**渲染出来的块**(与 `CONTRACT` 表同源,不从 `UNITS` 反查以免同义反复);
-    // `.pblock` 只由 BlockChip 产出、u7 格子里只有名片行用它(章按钮里是 `.pstage-*`,锁是 emoji),
-    // 所以这个数就是名片块数 —— 若章行也换成块,这里会直接翻倍报红。
+    // `.pblock` 只由 BlockChip 产出、u7 格子里只有名片行用它(进度条那行里是 lucide 图标,不是块),
+    // 所以这个数就是名片块数 —— 若入口那行也换成块,这里会直接翻倍报红。
     const blocks = cell!.querySelectorAll('.pblock')
     expect(blocks.length, '名片块数超过预算:6 块要 212px,超出 177.33 的可用宽,单行设计失效').toBeLessThanOrEqual(5)
 
@@ -206,6 +226,85 @@ describe('拼音单元地图', () => {
     ).toContain(size)
   })
 
+  /**
+   * Material 3 视觉契约(2026-09-29 改版)。jsdom 判不出「好不好看」(无 CSS、无布局),
+   * 但判得出**这四件还在不在** —— M3 elevated 卡片的定义就是这四条,丢任何一条都只表现为
+   * 观感回退、没有任何非视觉信号:`npm test` 全绿而卡片悄悄退回「描边 + 大圆角」。
+   * 像素侧(影够不够、色阶分不分得开)仍归走查 W-M2 / W-M3。
+   */
+  it('单元卡片走 M3 elevated:16dp 圆角 + 色阶填充 + elevation 影 + 状态层', () => {
+    const { container } = render(<UnitMap {...base} />)
+    const card = container.querySelector<HTMLElement>('[data-unit-id="u1"]')!
+    expect(card, '取不到 u1 格子,下面的断言会静默空转').not.toBeNull()
+    expect(card.className, '圆角不是 M3 那档(规范 16dp),回了老的大圆角').toContain('rounded-m3-lg')
+    expect(card.className, '没走 surface-container 色阶,卡片退回「白底卡片」').toContain(
+      'bg-surface-container-low',
+    )
+    expect(card.className, 'M3 的容器不画描边:有 border 就是又回老路了').not.toMatch(/(?:^| )border(?: |$|-)/)
+    expect(card.className, '没有 elevation-1 的影,卡片就浮不起来').toContain('shadow-m3-1')
+    expect(card.className, '悬停没抬到 elevation-2,M3 的「按得下去」就没了').toContain('hover:shadow-m3-2')
+    expect(card.className, '没有状态层:悬停只剩影在动,底色不动').toContain('m3-state')
+  })
+
+  // 锁定态不是「整格压 opacity」—— 那会把名片一起糊掉,而名片是这一格唯一的身份。
+  // M3 的 disabled 是**内容**降级、容器不动:撤影 + 图标数字退色,名片只压到 40%。
+  it('锁定态撤影、退色,不是整格压 opacity', () => {
+    const { container } = render(<UnitMap {...base} />)
+    const locked = container.querySelector<HTMLElement>('[data-unit-id="u2"]')!
+    const open = container.querySelector<HTMLElement>('[data-unit-id="u1"]')!
+    expect(locked.className, '锁着的那格还带影:一眼看不出「不能点」').toContain('shadow-none')
+    expect(locked.className, '锁着的那格还叠着状态层:按下去会有反馈,但它不该有反应').not.toContain('m3-state')
+    expect(open.className).toContain('m3-state')
+    // 名片行的压暗(40%)挂在**名片行**上,不是整格 —— 压整格会连图标数字一起糊掉。
+    const badgeRowOf = (id: string) => {
+      const block = container.querySelector<HTMLElement>(`[data-unit-id="${id}"] .pblock`)
+      expect(block, `${id} 的名片取不到,下面的断言会静默空转`).not.toBeNull()
+      return block!.parentElement!
+    }
+    expect(badgeRowOf('u1').className, '可玩那格的名片被压暗了:它是这一格唯一的身份').not.toContain('opacity-40')
+    expect(badgeRowOf('u2').className, '锁定那格的名片没压暗,两态就只差一个图标').toContain('opacity-40')
+  })
+
+  // 进度行**没有胶囊底**(2026-09-29 第三次口径:「整个卡片都可以点击,就不需要胶囊来表示点击范围了」)。
+  // 那一圈底在整格可点之后只会读成「只有这一小条能点」,正好跟事实相反 —— 它回来 = 产品口径被推翻。
+  it('进度行没有胶囊:整格可点,就不再画一个「点击范围」出来', () => {
+    const { container } = render(<UnitMap {...base} />)
+    const row = (id: string) => {
+      // 进度行 = 那枚图标的父元素(不按「第几个孩子」取:名片行数一改就取错人)。
+      const icon = container.querySelector<SVGElement>(`[data-unit-id="${id}"] svg`)
+      expect(icon, `${id} 的进度图标取不到,下面的断言会静默空转`).not.toBeNull()
+      const el = icon!.parentElement
+      expect(el, `${id} 的进度行取不到,下面的断言会静默空转`).not.toBeNull()
+      return el!
+    }
+    for (const id of ['u1', 'u2']) {
+      const cls = row(id).className
+      expect(cls, `${id} 的进度行又画上圆角胶囊了`).not.toContain('rounded-full')
+      expect(cls, `${id} 的进度行又有了底色`).not.toMatch(/bg-(?:primary|surface|accent|transparent)/)
+      expect(cls, `${id} 的进度行又有了描边`).not.toMatch(/(?:^| )border(?: |$|-)/)
+    }
+  })
+
+  // 两态的**颜色**分岔:可玩 = 深橙 ▶ + 深字;锁定 = 灰蓝 🔒(这条形状线索必须读得出)+ 更浅的数字。
+  it('两态靠颜色分岔:可玩橙 ▶ + 深字,锁定灰 🔒 + 浅字', () => {
+    const { container } = render(<UnitMap {...base} />)
+    const iconOf = (id: string) => container.querySelector<SVGElement>(`[data-unit-id="${id}"] svg`)!
+    const numOf = (id: string) =>
+      container.querySelector<HTMLElement>(`[data-unit-id="${id}"] .tabular-nums`)!
+    expect(numOf('u1'), '取不到进度数字,下面的断言会静默空转').not.toBeNull()
+    // 可玩的橙不能是 --color-accent:它压浅底只有 2.2:1,连图形对象那条 3:1 都不到。
+    expect(iconOf('u1').classList.contains('text-accent-ink'), '可玩的 ▶ 不是那个读得出的橙').toBe(true)
+    expect(iconOf('u1').classList.contains('text-accent'), '▶ 退回了压浅底读不出的 --color-accent').toBe(false)
+    expect(iconOf('u2').classList.contains('text-ink-2'), '锁形图标退不到可读的灰,「不能点」就没线索了').toBe(
+      true,
+    )
+    // 两句都要:「含 text-ink」与「不含 text-ink-3」—— 只断前半句的话,把可玩那格改成 text-ink-3
+    // (两格同色)照样绿,而那正是这条用例要拦的那件事(`'text-ink-3'.includes('text-ink')` 为真)。
+    expect(numOf('u1').className, '可玩那格的数字不是最深的一档').toContain('text-ink')
+    expect(numOf('u1').className, '两格的数字同色了,锁定的那格读起来跟能点的一样').not.toContain('text-ink-3')
+    expect(numOf('u2').className, '锁定那格的数字没退浅').toContain('text-ink-3')
+  })
+
   // 「不知道」和「知道且为空」必须在屏幕上给出不同结果 —— 否则 settings 没到位时
   // 徽章栏会先显示成「一个都没拿到」再跳变,那是屏幕上的一句假话。
   it('earned 为 null(还不知道)时整条徽章栏不渲染', () => {
@@ -221,6 +320,12 @@ describe('拼音单元地图', () => {
     // 未得格**不画字形**(空圈)。这一句与下面那条用例的第二句合起来,才锁住「两态在孩子眼里分得开」——
     // 只断 data-* 的话,把 emoji 改成无条件渲染(= 两态长得一样)照样全绿,而那正是 brief 的原始形态。
     expect(badges.map((badge) => badge.textContent)).toEqual(ACHIEVEMENTS.map(() => ''))
+    // 空位的**底色**:M3 改造给它补了一档色阶填充(原来是半透明白、直接落在天空上)。
+    // 这一条同时是上面 `UnitMap.tsx` 那段对比度注释的前提 —— 描边的分母从天空换成了色阶,
+    // 那里的数按 `--color-surface-container-high` 重算过;这条填充没了,那些数就又不对了。
+    expect(badges[0]!.className, '徽章空位没有色阶填充,描边的分母又变回天空了').toContain(
+      'bg-surface-container-high',
+    )
   })
 
   it('已得的格亮起,且只有它亮', () => {

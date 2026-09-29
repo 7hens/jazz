@@ -1,6 +1,5 @@
 import { PinyinProgressService, SettingsService, type Achievement } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
-import type { Chapter } from './chapter'
 import { UnitMap } from './UnitMap'
 
 /**
@@ -18,7 +17,7 @@ export function MapEntry({
   onOpenParent,
 }: {
   badges: readonly Achievement[]
-  onPick(unitIndex: number, chapter: Chapter): void
+  onPick(unitIndex: number): void
   onOpenParent(): void
 }) {
   const progress = useService(PinyinProgressService)

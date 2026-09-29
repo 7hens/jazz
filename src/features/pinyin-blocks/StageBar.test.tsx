@@ -10,8 +10,8 @@ const coolCount = (el: HTMLElement) => el.querySelectorAll('.pstage-step--cool')
 
 afterEach(cleanup)
 
-describe('段标(台阶条)', () => {
-  it('三段各自的亮法:简单 1 格 / 困难 2 格 / 复习 2 格橙 + 1 格灰蓝', () => {
+describe('台阶条(部分标)', () => {
+  it('三部分各自的亮法:简单 1 格 / 困难 2 格 / 复习 2 格橙 + 1 格灰蓝', () => {
     const easy = render(<StageBar stage="easy" />).container.firstElementChild as HTMLElement
     expect(litCount(easy)).toBe(1)
     expect(coolCount(easy)).toBe(0)
@@ -34,7 +34,7 @@ describe('段标(台阶条)', () => {
   })
 })
 
-describe('复习段的小题进度点', () => {
+describe('复习部分的小题进度点', () => {
   const dotCount = () => document.querySelectorAll('.pstage-dot').length
   const onCount = () => document.querySelectorAll('.pstage-dot--on').length
 
@@ -53,11 +53,11 @@ describe('复习段的小题进度点', () => {
   })
 })
 
-describe('换段过场', () => {
+describe('换部分过场', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('停 1.2s 后才交回,且期间台阶条已经是目标段的样子', () => {
+  it('停 1.2s 后才交回,且期间台阶条已经是目标部分的样子', () => {
     const onDone = vi.fn()
     const { container } = render(<StageTransition stage="hard" onDone={onDone} />)
     expect(container.querySelector('[data-stage-transition="hard"]')).not.toBeNull()

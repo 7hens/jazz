@@ -4,7 +4,7 @@ import { SPEAK_OF, type Block, type BlockType } from './blocks'
 import { UNITS } from './levels'
 import { canPlace, slotsFor, starsFor } from './rules'
 import { WRONG_PICK_THRESHOLD } from './mistakes'
-import { ChapterRun, type ChapterItem, type QuestionEnd } from './ChapterRun'
+import { PartRun, type PartItem, type QuestionEnd } from './PartRun'
 
 const unit = UNITS[0]!
 const speak = vi.fn()
@@ -19,13 +19,13 @@ const advance = async (ms: number) => {
 // 显式给回调形参 `_end` 标型:vitest 4 的 `vi.fn` 按「实现」的函数签名推 `mock.calls` 的元素类型。
 // 用 `vi.fn(async () => {})`(零参)会推成 `[]`,`calls[0]![0]` 就是 TS2493。
 // 这里仍**不用** vitest 1 的元组泛型 `vi.fn<[], Promise<void>>`(vitest 4 下非法)。
-function mount(items: readonly ChapterItem[], onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})) {
+function mount(items: readonly PartItem[], onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})) {
   const onDone = vi.fn()
   const view = render(
-    <ChapterRun
+    <PartRun
       unit={unit}
       unitIndex={0}
-      chapter="easy"
+      part="easy"
       items={items}
       speak={speak}
       onQuestionEnd={onQuestionEnd}
@@ -68,7 +68,7 @@ function solveCurrent(levelIndex: number): void {
 }
 
 /**
- * 简单章:把托盘中某一块**点错 `WRONG_PICK_THRESHOLD` 次** ⇒ 恰好记同样多次 miss,且那一块入错题池。
+ * 简单部分:把托盘中某一块**点错 `WRONG_PICK_THRESHOLD` 次** ⇒ 恰好记同样多次 miss,且那一块入错题池。
  * 手法:块身份在里层 `[data-value]`,点选走 `keyDown Enter` ——
  * 每次点错都会换 key 重挂**块本体**,但外层 `[data-block-id]` wrapper 身份稳定,故握着它连点是对的。
  */
@@ -80,10 +80,10 @@ function pickWrongToPool(match: (b: Block) => boolean): void {
   }
 }
 
-describe('ChapterRun', () => {
-  it('章内一道接一道:第一题结束后自动换到第二题', async () => {
+describe('PartRun', () => {
+  it('部分内一道接一道:第一题结束后自动换到第二题', async () => {
     vi.useFakeTimers()
-    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
+    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
     const { view, onDone, onQuestionEnd } = mount(items)
     expect(view.container.textContent).toContain(unit.levels[0]!.emoji)
 
@@ -93,17 +93,17 @@ describe('ChapterRun', () => {
     expect(onQuestionEnd, '每题结束都该交一次账').toHaveBeenCalledTimes(1)
     const end = onQuestionEnd.mock.calls[0]![0] as QuestionEnd
     expect(end.levelId).toBe(unit.levels[0]!.id)
-    expect(end.exact, '简单章的错块按家族记账').toBe(false)
+    expect(end.exact, '简单部分的错块按家族记账').toBe(false)
     // 一次不错 ⇒ 满星、错块为空。这两条是 Task 9 落库 / 喂错题池的输入,必须钉住零错这一端。
     expect(end.stars, '一次不错 = 满星').toBe(starsFor(0))
     expect(end.wrongBlocks, '一次不错 = 没有错块交出来').toEqual([])
     expect(onDone, '还有题没走完,不该交账').not.toHaveBeenCalled()
     expect(view.container.textContent).toContain(unit.levels[1]!.emoji)
-    // 章内题与题之间是**直接换题**,不该有过场遮罩(过场只发生在章与章之间)。
+    // 部分内题与题之间是**直接换题**,不该有过场遮罩(过场只发生在部分与部分之间)。
     // 遮罩会蒙在下一题上 —— 屏幕有内容,上面几条断言全绿,只有这一条挡得住。
     expect(
       document.querySelector('[data-stage-transition]'),
-      '章内题与题之间不该挂过场',
+      '部分内题与题之间不该挂过场',
     ).toBeNull()
     vi.useRealTimers()
   })
@@ -111,7 +111,7 @@ describe('ChapterRun', () => {
   it('错到阈值:错块交出来、星数按 starsFor 递减', async () => {
     vi.useFakeTimers()
     // 一道题就够 —— 只看这一题结束时交出的账目。
-    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
     const { onQuestionEnd } = mount(items)
 
     // u1-0 是 é(e + 二声),四声块恒无处可落 —— 点错 WRONG_PICK_THRESHOLD 次:既记同样多次 miss,
@@ -132,16 +132,16 @@ describe('ChapterRun', () => {
 
   it('startIndex = 1:接着上次从第二题走,不回第一题', async () => {
     vi.useFakeTimers()
-    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
+    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
     const onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})
     const onDone = vi.fn()
     const view = render(
-      <ChapterRun
+      <PartRun
         unit={unit}
         unitIndex={0}
-        chapter="easy"
+        part="easy"
         items={items}
-        // Task 9 的宿主靠它把「本章第一道未通的题」传进来 —— 被吞掉则功能全废且无声。
+        // Task 9 的宿主靠它把「本部分第一道未通的题」传进来 —— 被吞掉则功能全废且无声。
         startIndex={1}
         speak={speak}
         onQuestionEnd={onQuestionEnd}
@@ -164,7 +164,7 @@ describe('ChapterRun', () => {
 
   it('最后一题走完交 onDone,不再往下走', async () => {
     vi.useFakeTimers()
-    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
     const { onDone } = mount(items)
     solveCurrent(0)
     await advance(2000)
@@ -172,16 +172,16 @@ describe('ChapterRun', () => {
     vi.useRealTimers()
   })
 
-  it('困难章的错块按精确身份记账', async () => {
+  it('困难部分的错块按精确身份记账', async () => {
     vi.useFakeTimers()
-    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
     const onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})
     const onDone = vi.fn()
     const view = render(
-      <ChapterRun
+      <PartRun
         unit={unit}
         unitIndex={0}
-        chapter="hard"
+        part="hard"
         items={items}
         speak={speak}
         onQuestionEnd={onQuestionEnd}
@@ -196,17 +196,17 @@ describe('ChapterRun', () => {
     vi.useRealTimers()
   })
 
-  it('不传 onQuestionEnd 时(复习章)照走,只是不交账', async () => {
+  it('不传 onQuestionEnd 时(复习部分)照走,只是不交账', async () => {
     vi.useFakeTimers()
-    const items: ChapterItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
     const onDone = vi.fn()
     const view = render(
-      <ChapterRun unit={unit} unitIndex={0} chapter="review" items={items} speak={speak} onDone={onDone} />,
+      <PartRun unit={unit} unitIndex={0} part="review" items={items} speak={speak} onDone={onDone} />,
     )
     expect(view.container.textContent).toContain(unit.levels[0]!.emoji)
     solveCurrent(0)
     await advance(2000)
-    expect(onDone, '复习章也不许卡住').toHaveBeenCalledTimes(1)
+    expect(onDone, '复习部分也不许卡住').toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
 })

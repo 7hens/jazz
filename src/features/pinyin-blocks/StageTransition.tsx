@@ -8,7 +8,7 @@ import { StageBar, type StageId } from './StageBar'
 export const STAGE_TRANSITION_MS = 1200
 
 /**
- * 换段过场:压一层暗遮罩,台阶条放大到屏幕中央。
+ * 换部分过场:压一层暗遮罩,台阶条放大到屏幕中央。
  * 两处共用一个组件,画法由 `stage` 决定 —— 进困难是「两格逐格点亮」,
  * 进复习是「前两格保持 + 第三格点亮成灰蓝」,颜色语言告诉孩子这不是升级。
  */

@@ -4,7 +4,7 @@ import { UNITS, type Level } from './levels'
 import { slotsFor, type Rng } from './rules'
 import {
   addToPool,
-  chapterReviewQuestions,
+  partReviewQuestions,
   exactPoolKey,
   MAX_REVIEW_QUESTIONS,
   notePick,
@@ -21,7 +21,7 @@ const seq = (values: number[]): Rng => {
 
 const b = (type: Block['type'], value: string): Block => ({ type, value })
 
-describe('notePick(简单段的点错计数)', () => {
+describe('notePick(简单部分的点错计数)', () => {
   it('同一块点到第 2 次才算数(N = 2)', () => {
     expect(WRONG_PICK_THRESHOLD).toBe(2)
     const first = notePick({}, 'b3')
@@ -46,13 +46,13 @@ describe('addToPool', () => {
     expect(addToPool(pool, [b('initial', 'p')])).toHaveLength(1)
   })
 
-  // 双身份块按家族算同一块(简单段与复习段的门禁是 canPlace,它们真能混用)。
+  // 双身份块按家族算同一块(简单部分与复习部分的门禁是 canPlace,它们真能混用)。
   it('默认按家族去重:final:u 与 medial:u 算同一块', () => {
     const pool = addToPool([], [b('medial', 'u')])
     expect(addToPool(pool, [b('final', 'u')])).toHaveLength(1)
   })
 
-  // 困难段的门禁只比类型,那两个身份是真的 —— 那里按 keyOf 记账。
+  // 困难部分的门禁只比类型,那两个身份是真的 —— 那里按 keyOf 记账。
   it('传 exactPoolKey 时按精确身份去重:两块都留下', () => {
     const pool = addToPool([], [b('medial', 'u')], exactPoolKey)
     expect(addToPool(pool, [b('final', 'u')], exactPoolKey)).toHaveLength(2)
@@ -64,13 +64,13 @@ describe('addToPool', () => {
   })
 })
 
-describe('chapterReviewQuestions', () => {
+describe('partReviewQuestions', () => {
   /** 本单元全部题(简单 + 困难)拼起来的视图 —— 合成池时要按它喂错块。 */
   const levelsOf = (unitIndex: number): readonly Level[] => UNITS[unitIndex]!.levels
 
   it('池空:照考本单元第一道题的整题', () => {
     const unit = UNITS[0]!
-    const out = chapterReviewQuestions(unit, 0, [])
+    const out = partReviewQuestions(unit, 0, [])
     expect(out).toHaveLength(1)
     expect(out[0]!.levelIndex).toBe(0)
     expect(out[0]!.question.kind).toBe('whole')
@@ -82,7 +82,7 @@ describe('chapterReviewQuestions', () => {
     const unit = UNITS[unitIndex]!
     // 拿第一道题的真错块喂池:它只有 final / tone 两类槽。
     const pool = addToPool([], [{ type: 'final', value: 'zzz' }, { type: 'tone', value: '9' }])
-    const out = chapterReviewQuestions(unit, unitIndex, pool)
+    const out = partReviewQuestions(unit, unitIndex, pool)
     expect(out).toHaveLength(2)
     expect(out.map((item) => item.question.blockType).sort()).toEqual(['final', 'tone'])
     for (const item of out) {
@@ -95,15 +95,15 @@ describe('chapterReviewQuestions', () => {
     }
   })
 
-  it('挂题用的是**本单元全表**(含困难题),不是只到简单章为止', () => {
-    // u9 的简单章第一道题是 jú(声母 + 韵母 + 声调),没有鼻尾槽;
+  it('挂题用的是**本单元全表**(含困难题),不是只到简单部分为止', () => {
+    // u9 的简单部分第一道题是 jú(声母 + 韵母 + 声调),没有鼻尾槽;
     // 鼻尾要到 u9-53(qún)才出现 —— 它在本单元全表里的下标是 3(0 号是 u9-50)。
     const unit = UNITS.find((u) => u.id === 'u9')!
     const unitIndex = UNITS.indexOf(unit)
     const withNasal = unit.levels.findIndex((level) => slotsFor(level).some((s) => s.type === 'nasal'))
     expect(withNasal, 'u9 里没有含鼻尾槽的题 —— 这条用例的前提没了').toBeGreaterThan(0)
     const pool = addToPool([], [{ type: 'nasal', value: 'zz' }])
-    const out = chapterReviewQuestions(unit, unitIndex, pool)
+    const out = partReviewQuestions(unit, unitIndex, pool)
     expect(out).toHaveLength(1)
     expect(out[0]!.levelIndex).toBe(withNasal)
   })
@@ -119,7 +119,7 @@ describe('chapterReviewQuestions', () => {
     pool = addToPool(pool, [{ type: 'final', value: 'zz' }])
     pool = addToPool(pool, [{ type: 'tone', value: '9' }])
     pool = addToPool(pool, [{ type: 'medial', value: 'z' }])
-    const out = chapterReviewQuestions(unit, unitIndex, pool)
+    const out = partReviewQuestions(unit, unitIndex, pool)
     expect(out).toHaveLength(MAX_REVIEW_QUESTIONS)
     // 最近的三类:medial / tone / final(initial 被挤出)
     expect(out.map((item) => item.question.blockType)).toEqual(['medial', 'tone', 'final'])
@@ -129,7 +129,7 @@ describe('chapterReviewQuestions', () => {
     const unit = UNITS[0]!
     const pool = addToPool([], [{ type: 'medial', value: 'z' }])
     // u1 全是单韵母,没有任何介母槽 —— 该被跳过而不是抛错
-    expect(chapterReviewQuestions(unit, 0, pool)).toEqual([])
+    expect(partReviewQuestions(unit, 0, pool)).toEqual([])
   })
 })
 
@@ -144,7 +144,7 @@ describe('reviewQuestionFor / wholeReviewQuestion', () => {
     )
     expect(q.kind).toBe('block')
     expect(q.blockType).toBe('final')
-    // 块 id 前缀带小题序号 —— 同一章里多道小题的块 id 不许撞
+    // 块 id 前缀带小题序号 —— 同一部分里多道小题的块 id 不许撞
     for (const block of q.tray) expect(block.id.startsWith('q0-'), block.id).toBe(true)
     const q1 = reviewQuestionFor(level, 'initial', [], 1)
     for (const block of q1.tray) expect(block.id.startsWith('q1-'), block.id).toBe(true)
@@ -180,7 +180,7 @@ describe('reviewQuestionFor / wholeReviewQuestion', () => {
     expect(q.kind).toBe('whole')
     expect(q.prefill).toEqual({})
     expect([...q.slotIds].sort()).toEqual(slotsFor(level).map((s) => s.id).sort())
-    // 托盘等同简单段的 buildBlocks —— 每题都要有块可放
+    // 托盘等同简单部分的 buildBlocks —— 每题都要有块可放
     for (const slot of slotsFor(level)) {
       expect(q.tray.some((t) => t.value === slot.value), `缺 ${slot.type}:${slot.value}`).toBe(true)
     }

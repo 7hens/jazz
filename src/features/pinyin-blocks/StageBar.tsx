@@ -1,23 +1,23 @@
 import { cn } from '@/shared/ui/utils'
-import type { Chapter } from './chapter'
+import type { Part } from './part'
 
 /**
- * 段的身份就是章的类别 —— 台阶条有三格,一个单元三章,同一套素材同一套语义。
- * 留着 `StageId` 这个名字是因为 `PinyinBlocksGame` 的 `stage` 入参是「段」的视角,
+ * 台阶条的身份就是部分的类别 —— 台阶条有三格,一个单元三部分,同一套素材同一套语义。
+ * 留着 `StageId` 这个名字是因为 `PinyinBlocksGame` 的 `stage` 入参是「部分」的视角,
  * 两处指的是同一个联合类型,不许各写一份。
  */
-export type StageId = Chapter
+export type StageId = Part
 
 /** 只进无障碍树,不上屏 —— 游戏区零可见文字。 */
 const LABEL: Record<StageId, string> = {
-  easy: '第一段 简单',
-  hard: '第二段 困难',
-  review: '第三段 复习',
+  easy: '第一部分 简单',
+  hard: '第二部分 困难',
+  review: '第三部分 复习',
 }
 
 /**
- * 段标(台阶条):三格并排、越右越高,亮到第几格就是第几段。
- * 复习段的第三格是灰蓝而不是橙 —— 复习不是第三级难度,是回炉(spec §3.8)。
+ * 台阶条(部分标):三格并排、越右越高,亮到第几格就是第几部分。
+ * 复习部分的第三格是灰蓝而不是橙 —— 复习不是第三级难度,是回炉(spec §3.8)。
  */
 export function StageBar({ stage, big = false, pop = false }: { stage: StageId; big?: boolean; pop?: boolean }) {
   const cells: ('on' | 'off' | 'cool')[] = ['on', stage === 'easy' ? 'off' : 'on', stage === 'review' ? 'cool' : 'off']
@@ -42,7 +42,7 @@ export function StageBar({ stage, big = false, pop = false }: { stage: StageId; 
 }
 
 /**
- * 复习段的小题进度点:最多 3 个,当前第几道就亮几颗(`done` 从 1 起)。
+ * 复习部分的小题进度点:最多 3 个,当前第几道就亮几颗(`done` 从 1 起)。
  * 颜色与台阶条第三格同源(同一支灰蓝),放错只抖不动它。
  */
 export function StageDots({ total, done }: { total: number; done: number }) {

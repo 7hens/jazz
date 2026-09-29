@@ -30,8 +30,11 @@ export function localProgressStorage(): Storage | null {
  * 这条**必须**一起严格:副本里多留一个服务端会拒的键,之后每一次 PUT(通关、通关失败后的
  * 重试、载入自愈)都会被 400 打回来 —— 副本自己变成了毒药,而且坏在很远的地方。
  * 星级上界 3 同理,是玩法事实(见 rules.ts);口径变了就换键版本。
+ *
+ * 末尾 `h?` = 困难部分的题(91 道,id = 简单题 id + 'h');漏了它这一条会**静默**把副本判废
+ * (整个 parseLocalProgress 返 null),兜底副本就再也不写了 —— 与 worker 那次 400 是同一个根因。
  */
-const LEVEL_ID = /^u\d+-\d+$/
+const LEVEL_ID = /^u\d+-\d+h?$/
 
 /** 同 worker `MAX_TOTAL_STARS`(纯防呆)。漏掉这条,副本里的天文数字会把每一次 PUT 打成 400。 */
 const MAX_TOTAL_STARS = 1_000_000

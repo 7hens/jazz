@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+// 三处存档侧 `LEVEL_ID` 按**文本**取(见「存档侧三处 LEVEL_ID」那条)。
+import workerPinyinSource from '../../../worker/pinyin-progress.ts?raw'
+import apiSource from '../api/api.ts?raw'
+import localStoreSource from '../pinyin-progress/local-store.ts?raw'
 import {
   FINAL_BASIC,
   FINAL_COMPOUND,
@@ -31,6 +35,15 @@ const allLevels: { unit: number; unitId: string; index: number; level: Level }[]
 )
 
 const where = (l: { unitId: string; index: number }): string => `${l.unitId}#${l.index + 1}`
+
+/** 源码里的 `const LEVEL_ID = /.../` 字面量(含斜杠与 flags),供下面那条守卫取用。 */
+const STORAGE_LEVEL_ID = /const LEVEL_ID = (\/[^/\n]+\/[a-z]*)/
+
+/** `/^u\d+-\d+h?$/i` 这样的字面量 → 真正则。取自源码,不在测试里再抄一份规则。 */
+function regexOf(literal: string): RegExp {
+  const end = literal.lastIndexOf('/')
+  return new RegExp(literal.slice(1, end), literal.slice(end + 1))
+}
 
 /** 全课程的音节摊平 —— 覆盖矩阵那几条守卫共用。 */
 const allSyls = allLevels.flatMap((entry) => entry.level.syl.map((syl) => ({ ...entry, syl })))
@@ -176,6 +189,36 @@ describe('拼音积木关卡数据', () => {
     expect(seen.size, 'id 总数该等于关卡总数').toBe(allLevels.length)
   })
 
+  // **存档侧必须认下这里定下的每一种 id。** 上面那条只管「数据侧允许什么形状」,存档侧另有三处
+  // 独立字面量(worker 不跨端 import,`api.ts` / `local-store.ts` 各留一份),谁也没校过它们。
+  //
+  // 这就是 2026-09-29 那个 bug 的缝:困难部分的 id 全带 `h` 后缀(91 道),而三处 `LEVEL_ID` 只到
+  // `u\d+-\d+` —— 孩子在困难部分拿的星一落库就 400(「星级数据不合法」),**每题弹一次红条**,
+  // 星当场回滚、一颗也存不下(本地库里 0 个 `h` 键就是实证)。旧锚点 `api.test.ts` 只试了
+  // `u1-0` 一个**简单部分**的 id(它的注释还写着「91 个」,却只抽了一个样本),于是两张网各钉一半。
+  // 这一条改成**遍历每一道真实关卡 id** 去试三处正则:以后 id 再多一种后缀,这里先红。
+  //
+  // 三处源码按**文本**读(不 import)—— features 之间不许编译期互引,`api.test.ts` 读 worker 同法。
+  it('存档侧三处 LEVEL_ID 认下每一道真实关卡 id(含困难部分)', () => {
+    const sources: Record<string, string> = {
+      'worker/pinyin-progress.ts': workerPinyinSource,
+      'src/features/api/api.ts': apiSource,
+      'src/features/pinyin-progress/local-store.ts': localStoreSource,
+    }
+
+    for (const [file, source] of Object.entries(sources)) {
+      const literal = STORAGE_LEVEL_ID.exec(source)?.[1]
+      expect(literal, `${file}: 没搜到 \`const LEVEL_ID = /.../\` 字面量 —— 搜法失效或字面量被改名,请让本测试与它同步`).toBeDefined()
+
+      const re = regexOf(literal as string)
+      const rejected = allLevels.filter((entry) => !re.test(entry.level.id))
+      expect(
+        rejected.map((entry) => `${where(entry)}=${entry.level.id}`).slice(0, 5),
+        `${file} 的 LEVEL_ID(${literal})拒了 ${rejected.length}/${allLevels.length} 个真实关卡 id —— 孩子在那些部分拿的星会被 400 挡在库外`,
+      ).toEqual([])
+    }
+  })
+
   // 地图格子靠名片表意 —— 名片空了,那一格对 4-8 岁的孩子就是一块灰砖。
   it('每个单元都有非空名片,且名片里的块都在块目录定义域内', () => {
     const pool: Record<string, readonly string[]> = {
@@ -214,7 +257,7 @@ describe('拼音积木关卡数据', () => {
   // 到最后一关还全染色,颜色就成了拐杖;这也是唯一挡得住「整张表被改成全 strong」的东西。
   // 每个档位钉住**两格**(首格 + 末格):留一个能自由改的格子,档位边界就会被静默挪走
   // (中档缩成只剩 u5 一关也算「中档」)。末行钉格数,防止偷偷多一格少一格。
-  it('脚手架逐段撤走:强档到 u4,中档到 u8,末四关不许再有颜色', () => {
+  it('脚手架逐部分撤走:强档到 u4,中档到 u8,末四关不许再有颜色', () => {
     for (const id of ['u1', 'u2', 'u3', 'u4']) expect(HINT_BY_UNIT[id], `${id} 该是强档`).toBe('strong')
     for (const id of ['u5', 'u6', 'u7', 'u8']) expect(HINT_BY_UNIT[id], `${id} 该是中档`).toBe('mid')
     for (const id of ['u9', 'u10', 'u11', 'u12']) expect(HINT_BY_UNIT[id], `${id} 该是弱档`).toBe('weak')
@@ -238,12 +281,12 @@ describe('拼音积木关卡数据', () => {
     expect(hintFor('', 0)).toBe('strong')
   })
 
-  // 复习章是难度的另一半:提示档不参与单元基线表,恒弱(连错 2 次的救急强档除外)。
-  // 漏改 `PinyinBlocksGame.tsx` 的第三参时,复习章会**静默**用单元基线 —— 这条就是为那一类静默失败设的。
-  it('复习章的提示恒为弱档,除非连错 2 次', () => {
+  // 复习部分是难度的另一半:提示档不参与单元基线表,恒弱(连错 2 次的救急强档除外)。
+  // 漏改 `PinyinBlocksGame.tsx` 的第三参时,复习部分会**静默**用单元基线 —— 这条就是为那一类静默失败设的。
+  it('复习部分的提示恒为弱档,除非连错 2 次', () => {
     for (const u of UNITS) {
-      expect(hintFor(u.id, 0, 'review'), `${u.id} 复习章该是弱档`).toBe('weak')
-      expect(hintFor(u.id, 1, 'review'), `${u.id} 复习章错一次仍是弱档`).toBe('weak')
+      expect(hintFor(u.id, 0, 'review'), `${u.id} 复习部分该是弱档`).toBe('weak')
+      expect(hintFor(u.id, 1, 'review'), `${u.id} 复习部分错一次仍是弱档`).toBe('weak')
       expect(hintFor(u.id, 2, 'review'), `${u.id} 连错 2 次要回强档`).toBe('strong')
     }
   })
@@ -361,7 +404,7 @@ describe('拼音积木关卡数据', () => {
 
   // G8 写在 `rules.test.ts`(它比的是干扰块的数量机制,那里已有 `buildBlocks` / `seenIn` / `seq`)。
 
-  // 章化后「单元末复习关」这一关**不存在了** —— 原 12 道复习关的题并进简单章当普通题。
+  // 部分化后「单元末复习关」这一关**不存在了** —— 原 12 道复习关的题并进简单部分当普通题。
   // 这条钉的是**它们的 id 一字不改**:id 是存档键,改一个就是老存档里一颗星变孤儿。
   it('G6:原复习关的题保留成简单题,id 一字不改', () => {
     const legacy = [
@@ -372,16 +415,16 @@ describe('拼音积木关卡数据', () => {
     for (const id of legacy) expect(ids.has(id), `原复习关 ${id} 不见了`).toBe(true)
   })
 
-  // 简单题 / 困难题的划分由 `stage` 一个字段决定,两个派生视图合起来必须正好是全表 ——
+  // 简单题 / 困难题的划分由 `stage` 一个字部分决定,两个派生视图合起来必须正好是全表 ——
   // 派生视图漏掉一类(比如 hardLevelsOf 忘了过滤)在 UI 上就是「有些题永远走不到」。
   it('G6b:简单题与困难题互补,合起来等于全表', () => {
     for (const u of UNITS) {
       const easy = easyLevelsOf(u)
       const hard = hardLevelsOf(u)
-      expect(easy.length + hard.length, `${u.id} 两章题数之和`).toBe(u.levels.length)
-      expect(easy.some((level) => level.stage === 'hard'), `${u.id} 简单章混进了困难题`).toBe(false)
-      expect(hard.every((level) => level.stage === 'hard'), `${u.id} 困难章混进了简单题`).toBe(true)
-      // 顺序:简单章全在前、困难章全在后(索引必须单调)—— 章内「逐题往下走」直接吃这个顺序。
+      expect(easy.length + hard.length, `${u.id} 两部分题数之和`).toBe(u.levels.length)
+      expect(easy.some((level) => level.stage === 'hard'), `${u.id} 简单部分混进了困难题`).toBe(false)
+      expect(hard.every((level) => level.stage === 'hard'), `${u.id} 困难部分混进了简单题`).toBe(true)
+      // 顺序:简单部分全在前、困难部分全在后(索引必须单调)—— 部分内「逐题往下走」直接吃这个顺序。
       const lastEasy = u.levels.findLastIndex((level) => level.stage !== 'hard')
       const firstHard = u.levels.findIndex((level) => level.stage === 'hard')
       if (firstHard >= 0) expect(lastEasy, `${u.id} 简单题与困难题交错了`).toBeLessThan(firstHard)

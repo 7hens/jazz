@@ -183,7 +183,7 @@ describe('requiredBlocks(含重复)', () => {
 
 describe('familyKey', () => {
   // 双身份块(i/u/ü)在介母槽和韵母槽都放得下,入槽后颜色跟着槽位走 —— 所以「同一块」的
-  // 判据是值本身,而不是 类型:值。否则简单段的托盘会同时出现 medial:u 与 final:u 两块一样的 u。
+  // 判据是值本身,而不是 类型:值。否则简单部分的托盘会同时出现 medial:u 与 final:u 两块一样的 u。
   it('双身份块按值成族,与它挂在哪个类型下无关', () => {
     expect(familyKey({ type: 'medial', value: 'u' })).toBe(familyKey({ type: 'final', value: 'u' }))
     expect(familyKey({ type: 'medial', value: 'ü' })).toBe(familyKey({ type: 'final', value: 'ü' }))
@@ -266,9 +266,9 @@ describe('buildBlocks', () => {
     }
   })
 
-  // 困难段的全部手感在托盘:干扰不够就不构成难度(spec §3.6)。
-  // 与简单段的 cap 是**两个旋钮** —— 这里拧的是「每个用到的类型都给一块对手」。
-  it('困难段:每个用到的类型都有对手(给到至少一块,除非池子实在没得给)', () => {
+  // 困难部分的全部手感在托盘:干扰不够就不构成难度(spec §3.6)。
+  // 与简单部分的 cap 是**两个旋钮** —— 这里拧的是「每个用到的类型都给一块对手」。
+  it('困难部分:每个用到的类型都有对手(给到至少一块,除非池子实在没得给)', () => {
     for (let unit = 0; unit < UNITS.length; unit++) {
       for (const level of UNITS[unit]!.levels) {
         const blocks = buildBlocks(level, unit, seq([0.23, 0.71, 0.44, 0.09]), { hard: true })
@@ -294,14 +294,14 @@ describe('buildBlocks', () => {
   // 于是 2 与 1 得到同一个 want,把 2 改成 1 所有关卡的托盘**一模一样**。
   // 但值 1 让「need = 2 的类型只发 2 块正解、零对手」成为**合法**,下一个多音节关会悄悄失去难度 ——
   // 所以这里钉的是旋钮本身,不是它今天恰好产出的那几张牌。
-  it('困难段:HARD_TRAY_PER_TYPE 钉死在 2(行为侧不可观测,只能钉值)', () => {
+  it('困难部分:HARD_TRAY_PER_TYPE 钉死在 2(行为侧不可观测,只能钉值)', () => {
     expect(HARD_TRAY_PER_TYPE).toBe(2)
     // 语义侧旁证:u7-0 的声母要 x / g 两块 ⇒ 该类型共 3 块(2 正解 + 1 对手)。
     const hard = buildBlocks(byId('u7-0'), unitIdxOf('u7-0'), seq([0.4, 0.8]), { hard: true })
     expect(hard.filter((b) => b.type === 'initial')).toHaveLength(3)
   })
 
-  // 困难段的错题池按**精确身份**记账(`exactPoolKey`),简单段/复习段按**家族**记账。
+  // 困难部分的错题池按**精确身份**记账(`exactPoolKey`),简单部分/复习部分按**家族**记账。
   // 这个差别只有在「某一关 round-0 的困难托盘里同时含一对同家族、不同类型的**可放错块**」
   //(典型是 medial:u 与 final:u,或 medial:i 与 final:i)时才会在 UI 上显形 ——
   // 那时池的条数、复习小题的条数都会不同。
@@ -310,10 +310,10 @@ describe('buildBlocks', () => {
   //  - 反例锚 u7-0 的 round-0 困难托盘里确实有 medial:u,但那是 s1-m 的正解(恒放不错),
   //    而 final:u 要到第 2 / 5 轮才进托盘;
   //  - 真正出现同家族跨类型对的轮次是 u5-0 / u5-3 / u7-0 / u7-4 / u8-51 / u8-52 / u9-54 的
-  //    第 3、5 轮 —— 而唯一能看见池的路径(给了 `onSectionEnd`)会让 `round` 恒为 0
+  //    第 3、5 轮 —— 而唯一能看见池的路径(给了 `onPartEnd`)会让 `round` 恒为 0
   //    (`advance()` 那条老路被关掉,见 `PinyinBlocksGame` 的 onSolved 分支),轮次推不动。
   // 于是针对那条差别的行为断言写不出来(写出来也是恒真)。这条哨子锁的是「不可观测」这个事实:
-  // 哪天它变红,正确的动作是**补上那条行为断言**(困难段接一对同家族跨类型错块 ⇒ 池的两条
+  // 哪天它变红,正确的动作是**补上那条行为断言**(困难部分接一对同家族跨类型错块 ⇒ 池的两条
   // 都留下),不是删哨子 —— 删掉等于把「池键的口径已经变得可见」这件事埋掉。
   it('没有一关的 round-0 困难托盘含同家族、不同类型的可放错块(池键差别因此不可观测)', () => {
     for (let unit = 0; unit < UNITS.length; unit++) {
@@ -335,7 +335,7 @@ describe('buildBlocks', () => {
     }
   })
 
-  it('困难段:全部正确块都在托盘里(少一块孩子就无解)', () => {
+  it('困难部分:全部正确块都在托盘里(少一块孩子就无解)', () => {
     for (let unit = 0; unit < UNITS.length; unit++) {
       for (const level of UNITS[unit]!.levels) {
         const blocks = buildBlocks(level, unit, seq([0.5, 0.25]), { hard: true })
@@ -349,14 +349,14 @@ describe('buildBlocks', () => {
     }
   })
 
-  // 困难段的门禁只比类型,介母与韵母在那一段是**两个真身份**(青色进介母槽、绿色进韵母槽),
+  // 困难部分的门禁只比类型,介母与韵母在那一部分是**两个真身份**(青色进介母槽、绿色进韵母槽),
   // 所以按 keyOf 去重 —— 同值的两块要能同时出现。
   //
   // 构造题面,单元下标从真实关卡 u8-50(⬇️ xià = x + i + a)派生 —— 下标写死会随
   // 单元挪位静默指错关。u8 只教了 i / u 两个介母;题面已用掉 medial:u,
   // 游标里就只剩 i,于是 medial 的对手**恒为 i** —— 与种子无关,
   // 与必需的 final:i 同值不同类。这正是 familyKey 去重会误杀的那一块。
-  it('困难段:双身份块不被家族合并,medial:i 与 final:i 两块都在', () => {
+  it('困难部分:双身份块不被家族合并,medial:i 与 final:i 两块都在', () => {
     const dual: Level = {
       id: 'test-hard-dual',
       emoji: '🧪',
@@ -373,15 +373,15 @@ describe('buildBlocks', () => {
     expect(identifiers).toContain('medial:i') // 对手:同值,另一个身份
   })
 
-  // u2-0(爸 bà):困难段 = b/p + a/o + 四声 = 8 块。
-  it('困难段:u2-0 是 8 块(两个类型各给一块对手)', () => {
+  // u2-0(爸 bà):困难部分 = b/p + a/o + 四声 = 8 块。
+  it('困难部分:u2-0 是 8 块(两个类型各给一块对手)', () => {
     const bà = byId('u2-0')
     const unit = unitIdxOf('u2-0')
     expect(buildBlocks(bà, unit, seq([0.4, 0.8]), { hard: true })).toHaveLength(8)
   })
 
-  // 多音节关的困难段确实比简单段大 —— 整段设计的手感就在这个差额上(u7-0:13 > 12)。
-  it('困难段的托盘比简单段大:u7-0 困难 13 块 / 简单 12 块', () => {
+  // 多音节关的困难部分确实比简单部分大 —— 整部分设计的手感就在这个差额上(u7-0:13 > 12)。
+  it('困难部分的托盘比简单部分大:u7-0 困难 13 块 / 简单 12 块', () => {
     const xigua = byId('u7-0')
     const unit = unitIdxOf('u7-0')
     const hard = buildBlocks(xigua, unit, seq([0.4, 0.8]), { hard: true })
@@ -392,8 +392,8 @@ describe('buildBlocks', () => {
   })
 })
 
-describe('sameTypeOnly(困难段的门禁)', () => {
-  it('值错但类型对:放得进去 —— 这正是困难段的全部考点', () => {
+describe('sameTypeOnly(困难部分的门禁)', () => {
+  it('值错但类型对:放得进去 —— 这正是困难部分的全部考点', () => {
     expect(sameTypeOnly({ type: 'initial', value: 'p' }, slot('initial', 'b'))).toBe(true)
     expect(sameTypeOnly({ type: 'final', value: 'o' }, slot('final', 'a'))).toBe(true)
     expect(sameTypeOnly({ type: 'tone', value: '3' }, slot('tone', '1'))).toBe(true)
@@ -404,15 +404,15 @@ describe('sameTypeOnly(困难段的门禁)', () => {
     expect(sameTypeOnly({ type: 'nasal', value: 'n' }, slot('initial', 'n'))).toBe(false)
   })
 
-  // 与 canPlace 的分水岭:双身份块在困难段**不通用**(介母块青、韵母块绿,颜色上分得开)。
-  it('介母与韵母在困难段不通用,尽管 canPlace 允许互换', () => {
+  // 与 canPlace 的分水岭:双身份块在困难部分**不通用**(介母块青、韵母块绿,颜色上分得开)。
+  it('介母与韵母在困难部分不通用,尽管 canPlace 允许互换', () => {
     expect(canPlace({ type: 'medial', value: 'u' }, slot('final', 'u'))).toBe(true)
     expect(sameTypeOnly({ type: 'medial', value: 'u' }, slot('final', 'u'))).toBe(false)
     expect(sameTypeOnly({ type: 'final', value: 'u' }, slot('medial', 'u'))).toBe(false)
   })
 })
 
-describe('autoTypeTargetId(困难段的点选落位)', () => {
+describe('autoTypeTargetId(困难部分的点选落位)', () => {
   // 槽必须用**不同 id** —— 复用 slot helper(恒 id 'x')时「永远取第一个空槽」的实现也全绿,
   // 类型过滤(`s.type === block.type`)就永远测不到。
   const slots: Slot[] = [
@@ -431,8 +431,8 @@ describe('autoTypeTargetId(困难段的点选落位)', () => {
   })
 })
 
-describe('困难段的重试上限', () => {
-  it('每关 2 次(用尽即本段失败,不阻塞)', () => {
+describe('困难部分的重试上限', () => {
+  it('每关 2 次(用尽即本部分失败,不阻塞)', () => {
     expect(HARD_RETRIES).toBe(2)
   })
 })
@@ -474,7 +474,7 @@ describe('isComplete / wrongSlotIds', () => {
     expect(bad).toEqual(['s0-i'])
   })
 
-  it('wrongSlotIds 的判据可注入:困难段传 sameTypeOnly,值错不算错', () => {
+  it('wrongSlotIds 的判据可注入:困难部分传 sameTypeOnly,值错不算错', () => {
     const hard: TrayBlock[] = [withId({ type: 'initial', value: 'p' }, 'b0'), withId({ type: 'final', value: 'a' }, 'b1')]
     const placements: Placement = { x: 'b0' }
     expect(wrongSlotIds([slot('initial', 'b')], placements, hard)).toHaveLength(1) // canPlace:值错 ⇒ 错

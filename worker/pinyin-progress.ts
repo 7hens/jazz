@@ -10,8 +10,17 @@ import { getAuthenticatedUser } from './_lib/auth'
 import { jsonResponse } from './_lib/http'
 import type { Env } from './index'
 
-/** 与前端 `levels.ts` 的 id 格式对齐。worker 侧独立保留字面量,不跨端 import。 */
-const LEVEL_ID = /^u\d+-\d+$/
+/**
+ * 与前端 `levels.ts` 的 id 格式对齐。worker 侧独立保留字面量,不跨端 import。
+ *
+ * **末尾的 `h?` 不是可选的:困难部分的 91 道题 id = 对应简单题 id + 'h'**(见 `hard-levels.ts`)。
+ * 2026-09-29 前这里只到 `u\d+-\d+`,于是困难部分每一题落库都 400 —— 孩子答完一题弹一次
+ * 「星级数据不合法」,那题的星当场回滚,一颗也进不了库。数据侧一直是允许 `h` 的
+ * (`levels.test.ts` 那条 id 格式守卫),是**这里**没跟上。
+ * 三处字面量(此处 / `api.ts` / `local-store.ts`)与真实关卡 id 的对齐由
+ * `levels.test.ts`「存档侧三处 LEVEL_ID 认下每一道真实关卡 id」遍历全部 182 关钉住。
+ */
+const LEVEL_ID = /^u\d+-\d+h?$/
 /** 星尘上限:纯防呆,挡住溢出与手改。 */
 const MAX_TOTAL_STARS = 1_000_000
 

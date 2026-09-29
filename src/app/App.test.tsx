@@ -186,21 +186,21 @@ function solveOnce(level: Level) {
 }
 
 /** 推时钟越过一道题的判定与成功动画(260ms 判定 + 1600ms 停顿)并把微任务排干。 */
-async function settleSection() {
+async function settlePart() {
   await act(async () => { vi.advanceTimersByTime(3000) })
 }
 
 /**
- * 走完 u1 的**简单章**(一整章,6 道题)。
+ * 走完 u1 的**简单部分**(一整部分,6 道题)。
  *
- * T9 把「一关三段」换成「一个单元三章」:进单元即进简单章,章内一道接一道**不再有换段过场**
- * (过场只留给章与章之间),所以这里逐题解、逐题推时钟,走完最后一题 `onDone` 才发。
- * 题内一律拼对 ⇒ 错题池为空;章末 `handleChapterDone` 先 `flush`(交账 + 撒花/弹层)再进下一章。
+ * T9 把「一关三段」换成「一个单元三部分」:进单元即进简单部分,部分内一道接一道**不再有换段过场**
+ * (过场只留给部分与部分之间),所以这里逐题解、逐题推时钟,走完最后一题 `onDone` 才发。
+ * 题内一律拼对 ⇒ 错题池为空;部分末 `handlePartDone` 先 `flush`(交账 + 撒花/弹层)再进下一部分。
  */
-async function solveEasyChapter() {
+async function solveEasyPart() {
   for (const level of easyLevelsOf(UNITS[0]!)) {
     solveOnce(level)
-    await settleSection()
+    await settlePart()
   }
 }
 
@@ -246,11 +246,11 @@ describe('App 路由', () => {
     const { container } = mountApp()
 
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: '第 1 单元 第 1 章' }))
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
 
     expect(await screen.findByRole('button', { name: '回地图' })).toBeInTheDocument()
     expect(container.querySelector('[data-unit-map]')).toBeNull()
-    // 从地图点单元 = 进该单元的**简单章**,题数由课程数据给 —— 关卡增减不该让这条断言静默钉在旧数字上
+    // 从地图点单元 = 进该单元的**简单部分**,页头读的是**这一部分**的通关数/题数(由课程数据给) —— 关卡增减不该让这条断言静默钉在旧数字上
     expect(screen.getByText(`0/${easyLevelsOf(UNITS[0]!).length}`)).toBeInTheDocument()
   })
 
@@ -272,7 +272,7 @@ describe('App 路由', () => {
     const { container } = mountApp({ settingsPublishes: false })
 
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: '第 1 单元 第 1 章' }))
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
 
     // 关键区分断在正向断言之前,失败信息才指得准「悄悄进了哪儿」:
     // `data-unit-map` 只有地图有(条件并进上层 if 会落到地图分支 → 红在这),
@@ -312,18 +312,18 @@ describe('App 庆祝态接线', () => {
     const { svc, container } = mountApp({ luckyReward: 50 })
 
     await waitFor(() => expect(container.querySelector('[data-unit-map]')).not.toBeNull())
-    fireEvent.click(screen.getByRole('button', { name: '第 1 单元 第 1 章' }))
+    fireEvent.click(screen.getByRole('button', { name: '第 1 单元' }))
     await screen.findByRole('button', { name: '回地图' })
 
-    // 交账在一章走完时发生 —— 从落块起换成假时钟,走完 u1 简单章(6 道题)。
+    // 交账在一部分走完时发生 —— 从落块起换成假时钟,走完 u1 简单部分(6 道题)。
     vi.useFakeTimers()
     try {
-      await solveEasyChapter()
+      await solveEasyPart()
 
       // 正向:确实走到了幸运弹层(🍀 只属于它;假 achievements 恒空,成就弹层不会出现)
       expect(screen.getByText('🍀')).toBeInTheDocument()
       // 落块期间 combo 恒返 0 ⇒ 没有任何连击档;luckyReward > 0 ⇒ 让掉的 word 档也不发。
-      // 所以这一章**唯一**该响的就是 lucky 档,逐值比对即可
+      // 所以这一部分**唯一**该响的就是 lucky 档,逐值比对即可
       expect(svc.celebratePlay.mock.calls.map(([level]) => level)).toEqual(['lucky'])
     } finally {
       vi.useRealTimers()

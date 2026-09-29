@@ -44,8 +44,14 @@ function isSettingsResponse(value: unknown): value is SettingsResponse {
   return isObject(value) && isSettings(value.settings)
 }
 
-/** 星数上限与前端星级判定(1..3)、worker 的 LEVEL_ID/上限三处对齐,有锚定测试防漂移。 */
-export const LEVEL_ID = /^u\d+-\d+$/
+/**
+ * 星数上限与前端星级判定(1..3)、worker 的 LEVEL_ID/上限三处对齐,有锚定测试防漂移。
+ *
+ * `h?` = 困难部分的题(`hard-levels.ts`,id = 简单题 id + 'h')。漏了它,提交困难部分的星
+ * 会被 worker 判 400(「星级数据不合法」)、被 `isLevelStars` 判成 Invalid API response。
+ * 与真实关卡 id 的逐关对齐由 `levels.test.ts` 那条遍历 182 关的守卫钉住。
+ */
+export const LEVEL_ID = /^u\d+-\d+h?$/
 
 function isLevelStars(value: unknown): value is Record<string, number> {
   if (!isObject(value)) return false

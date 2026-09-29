@@ -3,19 +3,19 @@
 // 块按类型着色:声母蓝 / 介母青 / 韵母绿 / 鼻音紫 / 声调金。
 export { MapEntry } from './MapEntry'
 export { UnitEntry } from './UnitEntry'
-export { ChapterRun, type ChapterItem, type ChapterRunProps, type QuestionEnd } from './ChapterRun'
+export { PartRun, type PartItem, type PartRunProps, type QuestionEnd } from './PartRun'
 export { UnitMap } from './UnitMap'
-export { PinyinBlocksGame, type PinyinBlocksGameProps, type SectionResult } from './PinyinBlocksGame'
+export { PinyinBlocksGame, type PinyinBlocksGameProps, type PartResult } from './PinyinBlocksGame'
 export { BlockChip } from './BlockChip'
 export { UNITS, easyLevelsOf, hardLevelsOf } from './levels'
-export { CHAPTERS, type Chapter } from './chapter'
+export { PARTS, type Part } from './part'
 export type { Level, Syllable, Unit } from './levels'
 export type { Block, BlockType, Hint } from './blocks'
 export { hintFor, HINT_BY_UNIT } from './blocks'
 export {
-  EMPTY_CHAPTER_SETTLEMENT,
+  EMPTY_PART_SETTLEMENT,
   mergeSettlement,
-  type ChapterSettlement,
+  type PartSettlement,
   type LevelSettlement,
 } from './settle'
 export { StageBar, StageDots, type StageId } from './StageBar'
@@ -47,14 +47,14 @@ export {
 export type { Placement, Rng, Slot, TrayBlock } from './rules'
 export {
   addToPool,
-  chapterReviewQuestions,
+  partReviewQuestions,
   MAX_REVIEW_QUESTIONS,
   notePick,
   reviewQuestionFor,
   REVIEW_TRAY_CAP,
   wholeReviewQuestion,
   WRONG_PICK_THRESHOLD,
-  type ChapterReviewItem,
+  type PartReviewItem,
   type MistakePool,
   type PickCounts,
   type PoolKey,

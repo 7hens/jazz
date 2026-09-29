@@ -24,7 +24,7 @@
   /* 王国/糖果强调 */
   --color-accent: #ff8a2a; /* 通用主强调(橙,大按钮) */
   --color-accent-tint: rgb(255 138 42 / 0.16);
-  --color-accent-ink: #c2410c; /* accent-tint 上的文字(深橙,保证可读) */
+  --color-accent-ink: #c2410c; /* 「要读得出的橙」—— accent-tint 上的文字、浅底上的橙图标都走它(压 #f4f9ff 实测 4.9:1;原来的 --color-accent 压浅底只有 2.2:1) */
   --color-pinyin: #f59e0b; /* 拼音=橙 */
   --color-hanzi: #ef4444; /* 汉字=红 */
   --color-english: #3b82f6; /* 英语=蓝 */
@@ -71,6 +71,28 @@
   --radius-2xl: 1.25rem;
   --radius-3xl: 1.5rem;
   --radius-4xl: 2rem;
+
+  /* ===== Material 3 表面层级(单元地图)
+   * M3 的「高度」主要不靠投影表达,而靠**色阶**:同一个 surface 家族往上分档,越高越亮。
+   * 本页只用到其中两档(卡片面 / 徽章空位),所以**只定义这两档** —— 定义用不到的档
+   * 只会变成没人核对的死 token。
+   *
+   * 与既有的 --color-surface-2 / -3 **同族但不合并**:那两个是历史 token,只服务
+   * button / input / ParentPanel 三个消费方,值域是为它们挑的;这里的值按 M3 的
+   * 「比背景亮一档、彼此能排成梯子」重挑,合并会把两边都锁死。
+   *
+   * 下面每个数字都是**合成推得**,不是像素裁定:改天空 / --color-ink-2 / 这几档之后都要重算,
+   * 像素侧归走查 W-M2 / W-V4。 */
+  --color-surface-container-low: #f4f9ff; /* 卡片面。压天空 #bfe3ff 只有 1.27:1 —— 分得开靠的是 M3 elevation-1 的影,不是色差 */
+  --color-surface-container-high: #dbe9f7; /* 徽章「空位」的填充。--color-ink-2 描边压它:亮色 3.6:1、暗色 5.7:1 */
+
+  /* M3 shape scale,只列本页用到的两档(12dp 中 / 16dp 大)。full 走 Tailwind 的 rounded-full。 */
+  --radius-m3-md: 0.75rem;
+  --radius-m3-lg: 1rem;
+
+  /* M3 elevation 1 / 2 —— 规范给的两层,不是自拟的柔和影。 */
+  --shadow-m3-1: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --shadow-m3-2: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
 }
 
 @layer base {
@@ -127,6 +149,38 @@
   backdrop-filter: blur(28px) saturate(180%);
 }
 
+/* M3 的**状态层**(state layer):悬停 / 按下**不改底色**,而是叠一层半透明的 on 色。
+ * 这是 M3 与「hover 换一个背景色」的分界 —— 底色始终是那个语义色,状态只是叠上去的一层,
+ * 所以同一个容器在任意色阶上都能用同一套状态表达,不必为每一档挑一个 hover 色。
+ *
+ * `--m3-state-color` 让调用方指认「叠谁的颜色」:默认取 --color-ink(= M3 的 on-surface),
+ * 里面装的是自己那个色时(例如图标按钮)就指认成那一个。
+ *
+ * ::after 而不是伪元素外的另一层:框选、点击穿透、圆角继承都由 `inset: 0` + `border-radius: inherit`
+ * 一并解决,不会多出一个要塞进布局的盒子。 */
+@utility m3-state {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: var(--m3-state-color, var(--color-ink));
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+    pointer-events: none;
+  }
+
+  &:hover::after {
+    opacity: 0.08;
+  }
+
+  &:active::after {
+    opacity: 0.12;
+  }
+}
+
 /* 暗色模式：token 覆盖即可，无需逐组件 dark: 类 */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -144,7 +198,7 @@
 
     --color-accent: #ff9a45;
     --color-accent-tint: rgb(255 138 42 / 0.22);
-    --color-accent-ink: #ffc58a; /* 深色 accent-tint 上的浅橙文字 */
+    --color-accent-ink: #ffc58a; /* 深色底上的浅橙文字(压深色卡片面实测 7.6:1) */
     --color-pinyin: #fbbf24;
     --color-hanzi: #f87171;
     --color-english: #60a5fa;
@@ -158,6 +212,12 @@
 
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-pop: 0 8px 24px -8px rgb(0 0 0 / 0.5);
+
+    /* M3 表面层级:亮色那组的「越亮越高」在暗色下翻成「越浅越高」。
+       M3 暗色主题里色阶是主承重、影几乎看不见,所以下面两条影**不覆写** —— 照规范,
+       暗色靠 container 色阶分辨高度,影留在亮色值(黑影压在深蓝上本来就接近不可见)。 */
+    --color-surface-container-low: #16253f;
+    --color-surface-container-high: #27395a;
   }
 }
 

@@ -64,6 +64,12 @@ describe('进度兜底副本', () => {
       stars: { 'u10-12': 3 },
       totalStars: 1,
     })
+    // 困难部分的 id(简单题 id + 'h')同样照收:漏了它副本**整份**判废(返 null),
+    // 兜底副本就再不写了 —— 静默,而且与 worker 那次 400 是同一个根因。
+    expect(parseLocalProgress(JSON.stringify({ stars: { 'u1-0h': 3 }, totalStars: 1 }))).toEqual({
+      stars: { 'u1-0h': 3 },
+      totalStars: 1,
+    })
     expect(parseLocalProgress(JSON.stringify({ stars: {}, totalStars: -1 }))).toBeNull()
     expect(parseLocalProgress(JSON.stringify({ stars: {}, totalStars: '120' }))).toBeNull()
     // 上限与 worker 的 MAX_TOTAL_STARS 对齐,同「服务端会拒的关 id」一个道理。

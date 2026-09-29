@@ -1,6 +1,6 @@
-// 章结构护栏。**这一份的两条前提别搞混**:
+// 部分结构护栏。**这一份的两条前提别搞混**:
 // ① 「题长在本单元里 ⇒ 块必然在已教池里」是同一句话说两遍(`taughtBlocks(本单元)` 覆盖本单元全部题),
-//    所以「块在已教范围内」要**重新定义** = 「前面各单元的全部题 + 本单元**简单章**」;
+//    所以「块在已教范围内」要**重新定义** = 「前面各单元的全部题 + 本单元**简单部分**」;
 // ② 困难题分批录入,所以下面的遍历一律取「HARD_LEVELS 里已有条目的单元」——
 //    最后一批(T6)再补一条总账,保证 12 个单元一个不缺。
 import { describe, expect, it } from 'vitest'
@@ -9,7 +9,7 @@ import { HARD_LEVELS } from './hard-levels'
 import { UNITS, type Level } from './levels'
 import { slotsFor } from './rules'
 
-/** 到 unitIndex 为止**已经录完**的单元(含本单元简单章)里出现过的块。 */
+/** 到 unitIndex 为止**已经录完**的单元(含本单元简单部分)里出现过的块。 */
 function taughtUpTo(unitIndex: number): Set<string> {
   const out = new Set<string>()
   const add = (levels: readonly Level[]) => {
@@ -25,7 +25,7 @@ function taughtUpTo(unitIndex: number): Set<string> {
   return out
 }
 
-/** 已录完的单元(困难章有题的)。 */
+/** 已录完的单元(困难部分有题的)。 */
 const recorded = UNITS.filter((unit) => (HARD_LEVELS[unit.id] ?? []).length > 0)
 
 /**
@@ -33,7 +33,7 @@ const recorded = UNITS.filter((unit) => (HARD_LEVELS[unit.id] ?? []).length > 0)
  * 键 = `initial+final+nasal`(用 `+` 连接,缺位不补);拼写形式的对照见行末注释。
  *
  * `yuan` 在数据里带介母 ü,被下面「无介母」那条前提天然挡在扫描之外(与 `levels.ts` 里
- * 「yuan 带介母 → **不焊**」同口径),所以它的键写成带介母的四段,永远取不到,只是把 16 个写全。
+ * 「yuan 带介母 → **不焊**」同口径),所以它的键写成带介母的四部分,永远取不到,只是把 16 个写全。
  */
 const WELD_SHAPES: ReadonlySet<string> = new Set([
   'zh+i', 'ch+i', 'sh+i', 'r+i', 'z+i', 'c+i', 's+i', // zhi chi shi ri zi ci si
@@ -42,7 +42,7 @@ const WELD_SHAPES: ReadonlySet<string> = new Set([
   'y+ü+a+n', // yuan(带介母,永不命中)
 ])
 
-describe('困难章题', () => {
+describe('困难部分题', () => {
   it('每单元困难题数 = 简单题数,id = 对应简单题 id + h,顺序一一对应', () => {
     for (const unit of recorded) {
       const hard = HARD_LEVELS[unit.id]!
@@ -54,7 +54,7 @@ describe('困难章题', () => {
   })
 
   // 这才是 spec §9.1 规则 1 的口径。`taughtBlocks(本单元)` 那条既有护栏在这里问不出任何东西。
-  it('困难题的块全部落在「前面各单元 + 本单元简单章」的池子里', () => {
+  it('困难题的块全部落在「前面各单元 + 本单元简单部分」的池子里', () => {
     for (const [index, unit] of UNITS.entries()) {
       const hard = HARD_LEVELS[unit.id]
       if (!hard) continue
@@ -90,7 +90,7 @@ describe('困难章题', () => {
   // 上面那条焊死护栏是**单向**的(带了 weld ⇒ 合法),看不见「该带而没带」——
   // 上一批 T4/T5 录题漏标的 u4-57h / u6-5h / u6-50h 正是从这条缝里穿过去的。
   // 这条补上反向蕴含:形状命中整体认读的困难题音节,必须带 weld。
-  // **有意不覆盖** u1-50h(yí) / u1-51h(wù):它们是零声母写法(没有 `initial` 字段,如
+  // **有意不覆盖** u1-50h(yí) / u1-51h(wù):它们是零声母写法(没有 `initial` 字部分,如
   // `{ final: 'i', tone: 2 }`),结构上没有声母块与韵母块的接缝可焊;u1 是单韵母单元,
   // 写成裸韵母是该单元的教学约定。这类零声母音节本护栏天然扫不到,是口径不是漏标。
   it('整体认读形状的困难题音节必须带 weld(漏标即红)', () => {
@@ -100,7 +100,7 @@ describe('困难章题', () => {
         for (const syl of level.syl) {
           // 带介母的三拼不焊(介母槽要走过去,见 levels.ts 的 yuan);简单题不参与本口径。
           if (syl.medial !== undefined) continue
-          // 键只由**有值**的槽拼成(缺位不补空段),故 yì 的键是 `y+i` 而不是 `y+i+`。
+          // 键只由**有值**的槽拼成(缺位不补空部分),故 yì 的键是 `y+i` 而不是 `y+i+`。
           const shape = [syl.initial, syl.final, syl.nasal].filter((part) => part !== undefined).join('+')
           if (!WELD_SHAPES.has(shape)) continue
           hits.push(level.id)

@@ -59,7 +59,7 @@ export function canPlace(block: Block, slot: Slot): boolean {
 }
 
 /**
- * 困难段的门禁:只比类型。值错了也放得进去 —— 这正是那一段的全部考点(spec §3.6)。
+ * 困难部分的门禁:只比类型。值错了也放得进去 —— 这正是那一部分的全部考点(spec §3.6)。
  *
  * 这是**第三个**判定函数,不是修改 canPlace(canPlace 一个字不动)。
  * 双身份块在这里**不通用**:介母槽只收介母块(青),韵母槽只收韵母块(绿),颜色上分得开。
@@ -68,7 +68,7 @@ export function sameTypeOnly(block: Block, slot: Slot): boolean {
   return block.type === slot.type
 }
 
-/** 困难段每关允许的判错重试次数。用尽即本段失败 —— 但**不阻塞**,继续往下走(spec §3.6)。 */
+/** 困难部分每关允许的判错重试次数。用尽即本部分失败 —— 但**不阻塞**,继续往下走(spec §3.6)。 */
 export const HARD_RETRIES = 2
 
 function shuffle<T>(arr: readonly T[], rng: Rng): T[] {
@@ -93,7 +93,7 @@ const keyOf = (b: Block): string => `${b.type}:${b.value}`
  *
  * **不能一律按值去重**:`initial:n`(声母 n,读「讷」)与 `nasal:n`(鼻尾 n,读「恩」)
  * 值相同但 canPlace 判它们**不通用**,是两个真身份 —— 它们同时出现在托盘里是刻意设计。
- * **困难段是例外**:那一段按类型严格比,介母块与韵母块是两个真身份,一律走 keyOf。
+ * **困难部分是例外**:那一部分按类型严格比,介母块与韵母块是两个真身份,一律走 keyOf。
  */
 export const familyKey = (b: Block): string => (DUAL_VALUES.has(b.value) ? b.value : keyOf(b))
 
@@ -126,17 +126,17 @@ export function toneBlocks(level: Level): Block[] {
   )
 }
 
-/** 困难段的托盘参数:与简单段的 cap 是两个旋钮 —— 这里只拧「每个类型至少几块」。 */
+/** 困难部分的托盘参数:与简单部分的 cap 是两个旋钮 —— 这里只拧「每个类型至少几块」。 */
 export type BuildOptions = {
   /**
-   * 困难段:每个用到的类型都给 ≥1 块对手,并让该类型总数至少 HARD_TRAY_PER_TYPE 块;
-   * 门禁只比类型,去重按 keyOf(双身份块在那一段是两个真身份)。
+   * 困难部分:每个用到的类型都给 ≥1 块对手,并让该类型总数至少 HARD_TRAY_PER_TYPE 块;
+   * 门禁只比类型,去重按 keyOf(双身份块在那一部分是两个真身份)。
    */
   readonly hard?: boolean
 }
 
 /**
- * 困难段每个用到的类型至少给几块。2 = 「正确块 + 至少一个对手」——
+ * 困难部分每个用到的类型至少给几块。2 = 「正确块 + 至少一个对手」——
  * 一个类型只有一块等于没有选择,那就不是难度(spec §3.6)。
  *
  * 注意这是「该类型总数」的下限,不是「对手数」:正确块用了两块时(如 u7-0 的 x + g),
@@ -158,12 +158,12 @@ export function buildBlocks(
 ): Block[] {
   const required = requiredBlocks(level)
   const tones = toneBlocks(level)
-  // 简单段与复习段按家族去重(双身份块算同一块);困难段的门禁只比类型,那两身份是真的,按 keyOf。
+  // 简单部分与复习部分按家族去重(双身份块算同一块);困难部分的门禁只比类型,那两身份是真的,按 keyOf。
   const dedupeKey: (b: Block) => string = opts.hard ? keyOf : familyKey
   const takenKeys = new Set([...required, ...tones].map(dedupeKey))
   const types = [...new Set(required.map((b) => b.type))]
   // 干扰块总数封顶。这里的 cap 管的是**干扰块总数**(题面有多挤);
-  // 「挤在里面的块有多像」由 CONFUSABLE 管。复习章的托盘由 `ReviewQuestion.tray` 给,
+  // 「挤在里面的块有多像」由 CONFUSABLE 管。复习部分的托盘由 `ReviewQuestion.tray` 给,
   // 压根不走这里 —— 那条路径上的上限是 `REVIEW_TRAY_CAP`。
   const cap = level.syl.length > 1 ? 2 : unit <= 1 ? 2 : 3
 
@@ -191,7 +191,7 @@ export function buildBlocks(
 
   const extra: Block[] = []
   if (opts.hard) {
-    // 困难段:每个用到的类型都给 ≥1 块对手,并让该类型总数至少 HARD_TRAY_PER_TYPE 块。
+    // 困难部分:每个用到的类型都给 ≥1 块对手,并让该类型总数至少 HARD_TRAY_PER_TYPE 块。
     // 用 while 而不是 for —— 撞上重复值时**不消耗名额**(那个 continue 白吃一格是这里最容易漏的地方)。
     for (const type of types) {
       const need = required.filter((b) => b.type === type).length
@@ -234,9 +234,9 @@ export function isComplete(slots: readonly Slot[], placement: Placement): boolea
 /**
  * 放错(值或类型不匹配)的槽 id。全空返回 []。
  * `judge` 默认 `canPlace`(= 生产口径)。**这是为测试开的面**:生产里唯一的调用点
- * (`PinyinBlocksGame` 的全填判错)一律走默认值 —— 困难段落位时门禁只比类型,但盘满后的判错
- * **仍然按值与类型**(拿 `sameTypeOnly` 当这里的判据,困难段就永远判不出错)。
- * 只有单测会传 `sameTypeOnly` 来验「那一段只比值」这条边界。
+ * (`PinyinBlocksGame` 的全填判错)一律走默认值 —— 困难部分落位时门禁只比类型,但盘满后的判错
+ * **仍然按值与类型**(拿 `sameTypeOnly` 当这里的判据,困难部分就永远判不出错)。
+ * 只有单测会传 `sameTypeOnly` 来验「那一部分只比值」这条边界。
  */
 export function wrongSlotIds(
   slots: readonly Slot[],
@@ -256,8 +256,8 @@ export function wrongSlotIds(
 }
 
 /**
- * 非困难段(简单段与复习段)的点选路径:优先找类型完全相同的空槽,再退到双身份块的互换槽。找不到返回 null。
- * 困难段不走这里 —— 那一段的点选落位是 `autoTypeTargetId`(只认同类型)。
+ * 非困难部分(简单部分与复习部分)的点选路径:优先找类型完全相同的空槽,再退到双身份块的互换槽。找不到返回 null。
+ * 困难部分不走这里 —— 那一部分的点选落位是 `autoTypeTargetId`(只认同类型)。
  */
 export function autoTargetId(block: Block, slots: readonly Slot[], placement: Placement): string | null {
   const empty = slots.filter((s) => placement[s.id] === undefined)
@@ -267,7 +267,7 @@ export function autoTargetId(block: Block, slots: readonly Slot[], placement: Pl
 }
 
 /**
- * 困难段的点选落位:同类型的第一个空槽。产品保留一键落位,它在困难段退化成
+ * 困难部分的点选落位:同类型的第一个空槽。产品保留一键落位,它在困难部分退化成
  * 「把块放进它那一类的槽里」—— 选哪一块、选得对不对仍由孩子负责,考点没有被绕过去。
  */
 export function autoTypeTargetId(block: Block, slots: readonly Slot[], placement: Placement): string | null {

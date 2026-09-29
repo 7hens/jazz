@@ -10,8 +10,10 @@ describe('拼音进度 · worker 纯助手', () => {
   })
 
   // 存量里的脏数据不该被带出去:id 不合格式、星数越界的项一律丢弃。
+  // **`u1-0h`(困难部分的题)是合法 key**,不是脏数据 —— 它一度被这条筛子静默丢掉,见下一条。
   it('逐项过筛:非法 id 与非法星数都丢掉', () => {
-    expect(parseStars('{"u1-0":3,"不是id":2,"u1-1":9,"u1-2":0,"u2-0":2}')).toEqual({ 'u1-0': 3, 'u2-0': 2 })
+    expect(parseStars('{"u1-0":3,"u1-0h":2,"不是id":2,"u1-1":9,"u1-2":0,"u2-0":2}'))
+      .toEqual({ 'u1-0': 3, 'u1-0h': 2, 'u2-0': 2 })
   })
 
   it('readStars 对入参校验:非对象返回 null,非法项整体 400', () => {
@@ -24,6 +26,10 @@ describe('拼音进度 · worker 纯助手', () => {
     expect(readStars({ 'u1-0': 4 })).toBeNull()
     expect(readStars({ 'bad': 1 })).toBeNull()
     expect(readStars({ 'u1-0': 3, 'u2-1': 1 })).toEqual({ 'u1-0': 3, 'u2-1': 1 })
+    // 困难部分的 key(简单题 id + 'h')必须放行:2026-09-29 前这里返 null,
+    // 于是孩子在困难部分**每答完一题**就吃一次 400「星级数据不合法」,那题的星一颗也存不下。
+    expect(readStars({ 'u1-0': 3, 'u1-0h': 2 })).toEqual({ 'u1-0': 3, 'u1-0h': 2 })
+    expect(readStars({ 'u7-4h': 1 })).toEqual({ 'u7-4h': 1 })
   })
 
   // 只升不降:重玩拿了一星不该把三星冲掉。

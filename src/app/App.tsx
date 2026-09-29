@@ -4,13 +4,13 @@ import { Loader2 } from 'lucide-react'
 import { ACHIEVEMENTS, AchievementPopup } from '@/features/achievements'
 import { AuthEntry } from '@/features/auth'
 import { LuckyBonus } from '@/features/lucky-bonus'
-import { UnitEntry, MapEntry, type ChapterSettlement } from '@/features/pinyin-blocks'
+import { UnitEntry, MapEntry, type PartSettlement } from '@/features/pinyin-blocks'
 import { AuthService, CelebrateService, PinyinProgressService, SettingsService } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { ParentPanel } from './ParentPanel'
 import { useAppState } from './useAppState'
 
-type Celebration = Readonly<{ achievements: ChapterSettlement['achievements']; luckyReward: number }>
+type Celebration = Readonly<{ achievements: PartSettlement['achievements']; luckyReward: number }>
 
 function BootScreen() {
   return (
@@ -30,7 +30,7 @@ export default function App() {
   const authSnap = useServiceSnapshot(auth)
   const progressSnap = useServiceSnapshot(progress)
   const settingsSnap = useServiceSnapshot(settingsService)
-  const { phase, currentUnitIndex, currentChapter, actions } = useAppState()
+  const { phase, currentUnitIndex, actions } = useAppState()
   const [celebration, setCelebration] = useState<Celebration | null>(null)
   const previousAuthStatus = useRef(authSnap.status)
 
@@ -60,7 +60,7 @@ export default function App() {
     })
   }
 
-  function handleSettle(result: ChapterSettlement) {
+  function handleSettle(result: PartSettlement) {
     if (result.achievements.length === 0 && result.luckyReward <= 0) return
     setCelebration({ achievements: result.achievements, luckyReward: result.luckyReward })
   }
@@ -69,15 +69,14 @@ export default function App() {
   if (authSnap.status === 'checking') content = <BootScreen />
   else if (authSnap.status !== 'authenticated') content = <AuthEntry />
   else if (phase === 'parent') content = <ParentPanel onClose={actions.closeParent} />
-  else if (phase === 'level' && currentUnitIndex !== null && currentChapter !== null) {
+  else if (phase === 'level' && currentUnitIndex !== null) {
     // 设置没就绪就进不去 —— 宁可进不去,也不能拿默认值覆盖服务端。
     // 显式三元而非把条件并进上层 if:并进去会落到下面的地图分支(静默进地图)。
     content = settingsSnap.status === 'ready'
       ? <UnitEntry
-          // key 里必须带章 —— 回地图再点同一单元的另一章时,不带章会复用同一实例、忽略 initialChapter。
-          key={`unit-${currentUnitIndex}-${currentChapter}`}
+          // key 带单元号 —— 从一个单元回地图再进另一个单元时强制重挂,别复用上一单元的实例。
+          key={`unit-${currentUnitIndex}`}
           unitIndex={currentUnitIndex}
-          initialChapter={currentChapter}
           onExitToMap={actions.exitToMap}
           onSettle={handleSettle}
         />
