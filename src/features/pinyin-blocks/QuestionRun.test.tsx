@@ -35,7 +35,7 @@ function mount(items: readonly QuestionItem[], onQuestionEnd = vi.fn(async (_end
   return { view, onDone, onQuestionEnd }
 }
 
-// 下面三个辅助沿用 `UnitEntry.test.tsx` 那套(托盘取块 / 读块身份 / 点选落位),
+// 下面三个辅助沿用本目录 Entry 测试那套(托盘取块 / 读块身份 / 点选落位),
 // 只把写死的 `UNITS[0].levels[0]` 换成「当前这一题」。别另发明一套取法 ——
 // 那套已经踩过坑:块的身份印在里层 `[data-value]` 上,点选走的是 `keyDown Enter`(不是 click)。
 

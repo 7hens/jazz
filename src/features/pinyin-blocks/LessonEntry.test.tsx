@@ -16,7 +16,7 @@ import { registry } from '@/shared/services/core'
 import { UNITS, pathLessons, type Level } from './levels'
 import { LessonEntry } from './LessonEntry'
 
-/** 按存档键找关卡 —— 题面靠它的 emoji 定位(与 UnitEntry.test.tsx 同一手法)。 */
+/** 按存档键找关卡 —— 题面靠它的 emoji 定位(与同目录 Entry 测试同一手法)。 */
 function levelById(id: string): Level {
   for (const unit of UNITS) {
     const found = unit.levels.find((level) => level.id === id)

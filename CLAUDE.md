@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-「魔法语言岛」v2 — 拼音积木岛 — 面向儿童的拼音拼读游戏(自托管单机全栈,仓库里**只有这一套玩法**)。孩子扮演「语言小魔法师」,在地图上按单元解锁 **12 个单元 / 182 关**(单韵母 → 声母三组 → 复韵母 → 前/后鼻韵母 → 三拼介母 → ü 行韵母 → 整体认读两组 → 双音节词):**一个单元 = 三部分(简单 / 困难 / 复习),三部分是一个整体** —— 地图上每个单元只有**一个入口**,进去从**第一个还没全通的部分**接着往下走,部分间自动过场,**不需要回地图再点**。**部分是一个连续题池**:简单部分 = 本单元全部基础题、困难部分 = 另一批音节且门禁只比**类型**(值可以错,填满才判,每题 2 次重试,用尽则演示正解、**不阻塞**)、复习部分 = 把本单元点错过的块挖空重考(不落库)。部分内逐题自动推进(无过场),部分间 1.2s 过场;一题一颗星:0 次错 = 3 星、≤2 次 = 2 星、其余 = 1 星(1 星即通关,不会「失败」);星级输入 = 简单部分点错 + 困难部分判错,**每题结束时即落库**(复习部分不落库),复习部分做得再差也不掉星。通关产出星级 + 星尘(连击加成 / 幸运奖励 / 成就奖励),8 条隐藏成就按关卡口径扫描。MVP 闭环:登录后单档案进度**每 user 一行**(每题星级 JSON + 星尘累计,两条线单调升)存服务端。技术栈:React 19 + TS + Vite(:3000)+ Tailwind 4 + motion 前端;Cloudflare Workers(`worker/`)后端,`@cloudflare/vite-plugin` dev 内嵌 workerd;D1(binding `DB`,本地 `.wrangler/state`);单一访问令牌(env `ADMIN_TOKEN`)登录后存 HttpOnly `jazz_token` cookie 永不过期;发音走浏览器 `SpeechSynthesis`(读的是**同音汉字**,不是拼音串)。
+「魔法语言岛」v2 — 拼音积木岛 — 面向儿童的拼音拼读游戏(自托管单机全栈,仓库里**只有这一套玩法**)。孩子扮演「语言小魔法师」,在地图上按单元解锁 **12 个单元 / 182 关**(单韵母 → 声母三组 → 复韵母 → 前/后鼻韵母 → 三拼介母 → ü 行韵母 → 整体认读两组 → 双音节词):学习路径按 **Section(7 段)/ Unit(12 个)/ Lesson(每单元 3~5 题一节,共 46 节)** 组织:**只有第一个未全通的节可进**,它前面已通的节点可重玩,后面全是锁;一节内逐题自动推进,**走完回路径**(没有换节过场);每单元另挂一个**独立练习入口**(本单元 <3 星的题,封顶 5 道,不落库、不掉星;无题可练时不亮)。简单节 = 本单元基础题、困难节 = 另一批音节且门禁只比**类型**(值可以错,填满才判,每题 2 次重试,用尽则演示正解、**不阻塞**)。一题一颗星:0 次错 = 3 星、≤2 次 = 2 星、其余 = 1 星(1 星即通关,不会「失败」);星级输入 = 简单节点错 + 困难节判错,**每题结束时即落库**(练习不落库),练习做得再差也不掉星。通关产出星级 + 星尘(连击加成 / 幸运奖励 / 成就奖励),8 条隐藏成就按关卡口径扫描。MVP 闭环:登录后单档案进度**每 user 一行**(每题星级 JSON + 星尘累计,两条线单调升)存服务端。技术栈:React 19 + TS + Vite(:3000)+ Tailwind 4 + motion 前端;Cloudflare Workers(`worker/`)后端,`@cloudflare/vite-plugin` dev 内嵌 workerd;D1(binding `DB`,本地 `.wrangler/state`);单一访问令牌(env `ADMIN_TOKEN`)登录后存 HttpOnly `jazz_token` cookie 永不过期;发音走浏览器 `SpeechSynthesis`(读的是**同音汉字**,不是拼音串)。
 
 **需求/任务管理**:统一收口 `docs/PLAN.md`(当前迭代 P0 / 想法池 P1·P2 / 坚决不做),单一事实源,防漂移。
 
@@ -21,7 +21,7 @@ npm run deploy         # build && wrangler deploy(生产 = 默认 env)
 npm run deploy:preview # build && wrangler deploy --env preview(独立 D1,冒烟用)
 ```
 
-`npm test` 覆盖关卡数据完整性(12 单元 / 36 部分 / 182 关 / 块显式写死)、积木规则(槽位 / 干扰块 / 星级)、结算与成就、各 feature 服务与组件、`architecture.test.ts`(shared/features/app 3 层边界与注册纪律,违反即红)。
+`npm test` 覆盖关卡数据完整性(12 单元 / 46 节 / 182 关 / 块显式写死)、积木规则(槽位 / 干扰块 / 星级)、结算与成就、各 feature 服务与组件、`architecture.test.ts`(shared/features/app 3 层边界与注册纪律,违反即红)。
 
 **发布**:执行流水线(步骤/闸门/坑)走 `/release`(项目 skill);发布行为改动时 skill 与本仓库事实**两处同步**。版本规范/部署红线事实见 `docs/dev-reference.md`「部署与版本发布」。
 
@@ -46,7 +46,7 @@ npm run deploy:preview # build && wrangler deploy --env preview(独立 D1,冒烟
 
 前端 3 层(`src/architecture.test.ts` 守边界,**改完跑 `npm test` 须绿**):
 - `src/shared/` — 无上层依赖的契约/纯逻辑/中性 UI(`services/*` 契约 + 同名一体 token + `core.ts` 访问机制;`ui/` 基础件:button / card / input / label / reward-card / utils)
-- `src/features/<f>/` — 自包含,公共面 = 目录 `index.ts`,feature 间**禁编译期互引**。玩法 `pinyin-blocks`(地图 / 关卡 / 积木与规则);服务型 feature 11 个:`achievements` / `api` / `audio` / `auth` / `celebrate` / `combo` / `lucky-bonus` / `pinyin-progress` / `settings-state` / `speech` / `toast`
+- `src/features/<f>/` — 自包含,公共面 = 目录 `index.ts`,feature 间**禁编译期互引**。玩法 `pinyin-blocks`(学习路径 / 一节 / 积木与规则);服务型 feature 11 个:`achievements` / `api` / `audio` / `auth` / `celebrate` / `combo` / `lucky-bonus` / `pinyin-progress` / `settings-state` / `speech` / `toast`
 - `src/app/` — composition root(`bootstrap.ts` 唯一 register 点、App/useAppState 组装;`ParentPanel.tsx` 家长面板)
 
 **取用纪律**:`useService()` 仅在 page feature `<Name>Entry.tsx` 与 `app/` hooks 内;注册只在 `bootstrap.ts`。

@@ -41,7 +41,7 @@ export type PartSettlement = Readonly<{
   luckyReward: number
   /** 本部分新得的成就,**按 id 去重**(同一部分里两道题各触发一次只算一条)。 */
   achievements: readonly Achievement[]
-  /** 部分末的会话首通数 —— 交回调用方存着,下一部分再带进来。 */
+  /** 节末的会话首通数 —— 交回调用方存着,下一节再带进来。 */
   sessionCleared: number
 }>
 
