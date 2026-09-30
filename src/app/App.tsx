@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { ACHIEVEMENTS, AchievementPopup } from '@/features/achievements'
 import { AuthEntry } from '@/features/auth'
 import { LuckyBonus } from '@/features/lucky-bonus'
-import { UnitEntry, MapEntry, type PartSettlement } from '@/features/pinyin-blocks'
+import { LessonEntry, PracticeEntry, MapEntry, type PartSettlement } from '@/features/pinyin-blocks'
 import { AuthService, CelebrateService, PinyinProgressService, SettingsService } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { ParentPanel } from './ParentPanel'
@@ -30,7 +30,7 @@ export default function App() {
   const authSnap = useServiceSnapshot(auth)
   const progressSnap = useServiceSnapshot(progress)
   const settingsSnap = useServiceSnapshot(settingsService)
-  const { phase, currentUnitIndex, actions } = useAppState()
+  const { phase, lessonId, practiceUnitId, actions } = useAppState()
   const [celebration, setCelebration] = useState<Celebration | null>(null)
   const previousAuthStatus = useRef(authSnap.status)
 
@@ -42,7 +42,7 @@ export default function App() {
     const previous = previousAuthStatus.current
     previousAuthStatus.current = authSnap.status
     if (authSnap.status !== 'authenticated' || previous === 'authenticated') return
-    actions.exitToMap()
+    actions.exitToPath()
     void progress.load()
     // 设置也必须拉:**关卡页拿 settingsSnap.data 原样去结算**,
     // 没 load 过时那是个 defaultSettings() —— 存回去就把服务端的连续天数与
@@ -69,26 +69,32 @@ export default function App() {
   if (authSnap.status === 'checking') content = <BootScreen />
   else if (authSnap.status !== 'authenticated') content = <AuthEntry />
   else if (phase === 'parent') content = <ParentPanel onClose={actions.closeParent} />
-  else if (phase === 'level' && currentUnitIndex !== null) {
+  else if (phase === 'lesson' && lessonId) {
     // 设置没就绪就进不去 —— 宁可进不去,也不能拿默认值覆盖服务端。
-    // 显式三元而非把条件并进上层 if:并进去会落到下面的地图分支(静默进地图)。
+    // 显式三元而非把条件并进上层 if:并进去会落到下面的路径分支(静默回路径)。
     content = settingsSnap.status === 'ready'
-      ? <UnitEntry
-          // key 带单元号 —— 从一个单元回地图再进另一个单元时强制重挂,别复用上一单元的实例。
-          key={`unit-${currentUnitIndex}`}
-          unitIndex={currentUnitIndex}
-          onExitToMap={actions.exitToMap}
+      ? <LessonEntry
+          // key 带节 id —— 从一节回路径再进另一节时强制重挂,别复用上一节的实例。
+          key={lessonId}
+          lessonId={lessonId}
+          onExitToPath={actions.exitToPath}
           onSettle={handleSettle}
         />
       : <BootScreen />
-  // 地图要拿它渲染星星与星尘 —— 进度没到位就先停 boot,别闪一下空地图再跳
+  } else if (phase === 'practice' && practiceUnitId) {
+    // 练习也守 settings:走题仍会读 combo 快照,与 LessonEntry 同一条纪律。
+    content = settingsSnap.status === 'ready'
+      ? <PracticeEntry key={practiceUnitId} unitId={practiceUnitId} onExitToPath={actions.exitToPath} />
+      : <BootScreen />
+  // 路径要拿它渲染星星与星尘 —— 进度没到位就先停 boot,别闪一下空路径再跳
   } else if (progressSnap.status !== 'ready') {
     content = <BootScreen />
   } else {
     content = (
       <MapEntry
         badges={ACHIEVEMENTS}
-        onPick={actions.enterUnit}
+        onPickLesson={actions.enterLesson}
+        onPickPractice={actions.enterPractice}
         onOpenParent={actions.openParent}
       />
     )

@@ -1,46 +1,59 @@
 import { useState } from 'react'
 
-export type AppPhase = 'boot' | 'login' | 'map' | 'level' | 'parent'
+export type AppPhase = 'boot' | 'login' | 'path' | 'lesson' | 'practice' | 'parent'
 
 export interface AppState {
   phase: AppPhase
-  currentUnitIndex: number | null
+  /** 正在走的节。只在 `phase === 'lesson'` 时非空。 */
+  lessonId: string | null
+  /** 正在练的单元。只在 `phase === 'practice'` 时非空。 */
+  practiceUnitId: string | null
   actions: {
-    enterUnit(unitIndex: number): void
-    exitToMap(): void
+    enterLesson(lessonId: string): void
+    enterPractice(unitId: string): void
+    exitToPath(): void
     openParent(): void
     closeParent(): void
   }
 }
 
 /**
- * 五个相位:登录 → 单元地图 → 单元,外加一个家长面板。地图是唯一的「家」。
+ * 六个相位:登录 → 学习路径 → 一节 / 一次练习,外加一个家长面板。**路径是唯一的「家」**。
  *
- * **单元页没有「第几部分」这个相位** —— 一个单元三部分是一个整体,起点由 `UnitEntry`
- * 自己按「第一个还没全通的部分」定,部分间的推进也在它内部,bootstrap 之外无人需要知道。
+ * 两个查看相位**只存 id**,不存整个对象 —— 课程数据一变(加题、挪节),存下来的对象就是旧世界的一份
+ * 快照,而 id 永远指向当前真实那份。`LessonEntry` / `PracticeEntry` 各自按 id 去课表里取。
  */
 export function useAppState(): AppState {
   const [phase, setPhase] = useState<AppPhase>('boot')
-  const [currentUnitIndex, setCurrentUnitIndex] = useState<number | null>(null)
+  const [lessonId, setLessonId] = useState<string | null>(null)
+  const [practiceUnitId, setPracticeUnitId] = useState<string | null>(null)
+
+  const toPath = () => {
+    setLessonId(null)
+    setPracticeUnitId(null)
+    setPhase('path')
+  }
 
   return {
     phase,
-    currentUnitIndex,
+    lessonId,
+    practiceUnitId,
     actions: {
-      enterUnit(unitIndex) {
-        setCurrentUnitIndex(unitIndex)
-        setPhase('level')
+      enterLesson(id) {
+        setLessonId(id)
+        setPracticeUnitId(null)
+        setPhase('lesson')
       },
-      exitToMap() {
-        setCurrentUnitIndex(null)
-        setPhase('map')
+      enterPractice(unitId) {
+        setPracticeUnitId(unitId)
+        setLessonId(null)
+        setPhase('practice')
       },
+      exitToPath: toPath,
       openParent() {
         setPhase('parent')
       },
-      closeParent() {
-        setPhase('map')
-      },
+      closeParent: toPath,
     },
   }
 }
