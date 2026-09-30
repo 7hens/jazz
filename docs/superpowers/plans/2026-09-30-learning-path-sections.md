@@ -316,11 +316,12 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```ts
 import { describe, expect, it } from 'vitest'
 import type { LevelStars } from '@/shared/services'
-import { SECTIONS, lessonsOf, lessonsOfSection, pathLessons, type Level, type Unit } from './levels'
+import { SECTIONS, lessonsOf, pathLessons, type Level, type Unit } from './levels'
 import {
   PRACTICE_MAX,
   lessonCleared,
   lessonState,
+  lessonsOfSection,
   nextLessonOf,
   practiceLevelsOf,
   sectionCleared,
@@ -605,6 +606,7 @@ export {
   lessonClearedCount,
   lessonIndex,
   lessonState,
+  lessonsOfSection,
   nextLessonOf,
   perfectLevelCount,
   perfectUnitCount,
@@ -2568,6 +2570,7 @@ export {
   lessonClearedCount,
   lessonIndex,
   lessonState,
+  lessonsOfSection,
   nextLessonOf,
   perfectLevelCount,
   perfectUnitCount,
