@@ -2,6 +2,8 @@
 // 玩法:看图 → 从积木盘挑块 → 拼进凹槽 → 声调块盖在韵腹上方。
 // 块按类型着色:声母蓝 / 介母青 / 韵母绿 / 鼻音紫 / 声调金。
 export { MapEntry } from './MapEntry'
+export { LessonEntry } from './LessonEntry'
+export { PracticeEntry } from './PracticeEntry'
 export { UnitEntry } from './UnitEntry'
 export { QuestionRun, type QuestionEnd, type QuestionItem, type QuestionRunProps } from './QuestionRun'
 export { UnitMap } from './UnitMap'
