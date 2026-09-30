@@ -3,9 +3,9 @@
 // 块按类型着色:声母蓝 / 介母青 / 韵母绿 / 鼻音紫 / 声调金。
 export { MapEntry } from './MapEntry'
 export { UnitEntry } from './UnitEntry'
-export { PartRun, type PartItem, type PartRunProps, type QuestionEnd } from './PartRun'
+export { QuestionRun, type QuestionEnd, type QuestionItem, type QuestionRunProps } from './QuestionRun'
 export { UnitMap } from './UnitMap'
-export { PinyinBlocksGame, type PinyinBlocksGameProps, type PartResult } from './PinyinBlocksGame'
+export { PinyinBlocksGame, type PinyinBlocksGameProps, type QuestionResult } from './PinyinBlocksGame'
 export { BlockChip } from './BlockChip'
 export { UNITS, easyLevelsOf, hardLevelsOf, LESSON_MAX, lessonsOf, pathLessons, SECTIONS } from './levels'
 export { PARTS, type Part } from './part'

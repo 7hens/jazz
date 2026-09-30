@@ -5,8 +5,6 @@
 //   - i/u/ü 是双身份块:jia 里的 i 是介母(韵头),bin 里的 i 是韵腹。
 // 声调用走势线画(SVG path),不印字符 —— ˉˊˇˋ 在 44px 圆里会糊成 - ~ ^,孩子认不出。
 
-import type { Part } from './part'
-
 export type BlockType = 'initial' | 'medial' | 'final' | 'nasal' | 'tone'
 
 /** 一块积木。value 为去调底字母;声调块的 value 是 '1'..'4'。 */
@@ -136,7 +134,7 @@ export type Hint = 'strong' | 'mid' | 'weak'
 /**
  * 每个单元的提示基线。脚手架随课程推进撤掉(u1-u4 强 → u5-u8 中 → u9-u12 弱),
  * 跟难度曲线同步,而不是孩子一进关就面对满屏颜色。
- * **复习部分不参与这张表** —— 它恒弱(见 `hintFor`)。
+ * **练习不参与这张表** —— 它恒弱(见 `hintFor`)。
  */
 export const HINT_BY_UNIT: Readonly<Record<string, Hint>> = {
   u1: 'strong', u2: 'strong', u3: 'strong', u4: 'strong',
@@ -145,12 +143,13 @@ export const HINT_BY_UNIT: Readonly<Record<string, Hint>> = {
 }
 
 /**
- * 本关此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。
+ * 本题此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。
  *
- * 第三参是**部分的类别**,不是「这一关是不是复习关」—— 部分化后「复习」是复习部分,
- * 那一部分恒弱是因为它考的是错块,不是因为题的出身。
+ * 第三参是**题面口径**,不是「这一关是不是复习关」—— 练习恒弱是因为它考的是还没打好的题,
+ * 不是因为题的出身。
  */
-export function hintFor(unitId: string, missCount: number, part: Part = 'easy'): Hint {
+export function hintFor(unitId: string, missCount: number, mode: 'easy' | 'hard' | 'practice' = 'easy'): Hint {
   if (missCount >= 2) return 'strong'
-  return part === 'review' ? 'weak' : (HINT_BY_UNIT[unitId] ?? 'strong')
+  // 练习恒弱:它考的是「还没打好的题」,不该把脚手架再搭回去。
+  return mode === 'practice' ? 'weak' : (HINT_BY_UNIT[unitId] ?? 'strong')
 }

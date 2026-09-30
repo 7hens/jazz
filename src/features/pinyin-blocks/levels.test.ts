@@ -306,13 +306,13 @@ describe('拼音积木关卡数据', () => {
     expect(hintFor('', 0)).toBe('strong')
   })
 
-  // 复习部分是难度的另一半:提示档不参与单元基线表,恒弱(连错 2 次的救急强档除外)。
-  // 漏改 `PinyinBlocksGame.tsx` 的第三参时,复习部分会**静默**用单元基线 —— 这条就是为那一类静默失败设的。
-  it('复习部分的提示恒为弱档,除非连错 2 次', () => {
+  // 练习是难度的另一半:提示档不参与单元基线表,恒弱(连错 2 次的救急强档除外)。
+  // 漏改 `PinyinBlocksGame.tsx` 的第三参时,练习会**静默**用单元基线 —— 这条就是为那一类静默失败设的。
+  it('练习的提示恒为弱档,除非连错 2 次', () => {
     for (const u of UNITS) {
-      expect(hintFor(u.id, 0, 'review'), `${u.id} 复习部分该是弱档`).toBe('weak')
-      expect(hintFor(u.id, 1, 'review'), `${u.id} 复习部分错一次仍是弱档`).toBe('weak')
-      expect(hintFor(u.id, 2, 'review'), `${u.id} 连错 2 次要回强档`).toBe('strong')
+      expect(hintFor(u.id, 0, 'practice'), `${u.id} 练习该是弱档`).toBe('weak')
+      expect(hintFor(u.id, 1, 'practice'), `${u.id} 练习错一次仍是弱档`).toBe('weak')
+      expect(hintFor(u.id, 2, 'practice'), `${u.id} 连错 2 次要回强档`).toBe('strong')
     }
   })
 

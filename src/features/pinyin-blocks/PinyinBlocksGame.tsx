@@ -16,7 +16,7 @@ import {
   type Slot,
   type TrayBlock,
 } from './rules'
-import { addToPool, exactPoolKey, notePick, type MistakePool, type PickCounts, type ReviewQuestion } from './mistakes'
+import type { PracticeQuestion } from './practice'
 import { BlockChip } from './BlockChip'
 import { StageBar, StageDots } from './StageBar'
 import { cn } from '@/shared/ui/utils'
@@ -33,13 +33,11 @@ const PLACED_TONE = 'p-2.5'
 
 type Status = 'playing' | 'wrong' | 'solved'
 
-/** 部分结束交回的账目。入口页据此决定下一部分。 */
-export type PartResult = Readonly<{
-  /** 本部分累计的错误次数。复习部分恒为 0 —— 星在进复习部分之前就落库了(spec §3.9)。 */
+/** 一道题结束交回的账目。宿主据此落库与推进。 */
+export type QuestionResult = Readonly<{
+  /** 本题累计的错误次数。练习恒为 0 —— 星在进练习之前就落库了(spec §8)。 */
   missCount: number
-  /** 本部分新进错题池的块。 */
-  wrongBlocks: readonly Block[]
-  /** 困难部分重试用尽 —— 本部分失败,但**不阻塞**,继续往下走。其余情形恒 false。 */
+  /** 困难题重试用尽 —— **不阻塞**,继续往下走。其余情形恒 false。 */
   failed: boolean
 }>
 
@@ -51,14 +49,14 @@ export type PinyinBlocksGameProps = {
   onBlock?: (kind: AnswerKind) => void
   unitIndex?: number
   levelIndex?: number
-  /** 本部分身份。默认 'easy' = 今天的玩法(门禁 canPlace、托盘同 buildBlocks 现状)。 */
+  /** 本题面身份。默认 'easy' = 今天的玩法(门禁 canPlace、托盘同 buildBlocks 现状)。 */
   stage?: 'easy' | 'hard'
-  /** 复习部分的小题。给了它就走复习口径:canPlace 门禁 + 预填槽 + 限定托盘 + 不记 miss。 */
-  review?: ReviewQuestion | null
+  /** 练习的一道题。给了它就走练习口径:预填无、限定托盘、不记 miss、不落库。 */
+  practice?: PracticeQuestion | null
   /** 本题在第几道 / 本串共几道。只影响画题位条与练习进度点。 */
   position?: { done: number; total: number }
-  /** 部分结束交回账目。给了它就不再走 onSolved / 自走那条路 —— 由入口页决定下一部分。 */
-  onPartEnd?: (result: PartResult) => void
+  /** 一道题结束交回账目。给了它就不再走 onSolved / 自走那条路 —— 由宿主决定下一步。 */
+  onQuestionEnd?: (result: QuestionResult) => void
   /** 通关:交出本关星级(1..3),由入口页负责落库与推进。 */
   onSolved?: (stars: number) => void
   onAdvance?: (unit: number, level: number) => void
@@ -98,10 +96,10 @@ type RoundProps = {
   onBlock?: (kind: AnswerKind) => void
   onSolved?: (stars: number) => void
   stage: 'easy' | 'hard'
-  review: ReviewQuestion | null
+  practice: PracticeQuestion | null
   /** 本题在第几道 / 本串共几道。只影响画题位条与练习进度点。 */
   position?: { done: number; total: number }
-  onPartEnd?: (result: PartResult) => void
+  onQuestionEnd?: (result: QuestionResult) => void
 }
 
 /**
@@ -118,34 +116,31 @@ function PinyinRound({
   onBlock,
   onSolved,
   stage,
-  review,
+  practice,
   position,
-  onPartEnd,
+  onQuestionEnd,
 }: RoundProps) {
   const unit = UNITS[unitIdx] ?? UNITS[0]!
   const level: Level = unit.levels[lvlIdx] ?? unit.levels[0]!
 
-  /** 三种口径。练习压过 stage —— 它自己就是一整串题。 */
-  const mode: 'easy' | 'hard' | 'review' = review ? 'review' : stage
+  /** 三种口径。练习压过 stage —— 它自己就是一整串题(spec §7)。 */
+  const mode: 'easy' | 'hard' | 'practice' = practice ? 'practice' : stage
   const hard = mode === 'hard'
-  /** 复习部分不记 miss、不上报连击 —— 星在进这一部分之前就落库了(spec §3.9)。 */
-  const penalized = mode !== 'review'
+  /** 练习不记 miss、不上报连击 —— 星在进练习之前就落库了,练习做得再差也不掉星(spec §8)。 */
+  const penalized = mode !== 'practice'
 
   const slots = useMemo(() => slotsFor(level), [level])
-  // readonly:复习部分的托盘直接来自 `ReviewQuestion.tray`(契约就是只读的),这里不复制它。
+  // readonly:练习的托盘直接来自 `PracticeQuestion.tray`(契约就是只读的),这里不复制它。
   const tray: readonly TrayBlock[] = useMemo(
     () =>
-      review
-        ? review.tray
+      practice
+        ? practice.tray
         : buildBlocks(level, unitIdx, makeRng(round), { hard }).map((b, i) => ({ ...b, id: `b${i}` })),
-    [level, unitIdx, round, review, hard],
+    [level, unitIdx, round, practice, hard],
   )
 
-  /** 预填的槽不能拿回 —— 复习部分的考点就是挖空的那几个槽(spec §3.7)。 */
-  const locked = useMemo(() => new Set(Object.keys(review?.prefill ?? {})), [review])
-
-  // 复习部分带预填:其余槽用正确块填好,孩子只动挖空的那几个。
-  const [placement, setPlacement] = useState<Record<string, string>>(() => ({ ...(review?.prefill ?? {}) }))
+  // 练习是**整题重考**:没有预填,盘面一律从空开始(spec §8.1)。
+  const [placement, setPlacement] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<Status>('playing')
   const [wrongIds, setWrongIds] = useState<readonly string[]>([])
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -156,38 +151,12 @@ function PinyinRound({
   const [missCount, setMissCount] = useState(0)
   const missRef = useRef(0)
   /** 同步计数:placeBlock 的闭包里读到的是旧 state,而判定发生在同一次调用里。
-      复习部分恒不计数 —— 星在进这一部分之前就落库了(spec §3.9)。 */
+      练习恒不计数 —— 星在进练习之前就落库了(spec §8)。 */
   function noteMiss() {
     if (!penalized) return
     missRef.current += 1
     setMissCount(missRef.current)
   }
-
-  /**
-   * 错题池 —— **关内状态**,不持久化、不跨关(产品裁定「复习部分只考本关」)。
-   * 只在部分末交回入口页,不需要触发重渲染,故用 ref。
-   */
-  const poolRef = useRef<MistakePool>([])
-  /** 简单部分的点错计数:按块 id(见 notePick)。 */
-  const picksRef = useRef<PickCounts>({})
-
-  /**
-   * 记一次「选中了错块」。简单部分攒够 WRONG_PICK_THRESHOLD 才进池;困难部分当场进池
-   * (那一部分每一次判错都是真错,没有「手滑」与「不会」的分别)。复习部分不记。
-   */
-  const noteWrongBlock = useCallback(
-    (block: Block, blockId: string) => {
-      if (!penalized) return
-      if (hard) {
-        poolRef.current = addToPool(poolRef.current, [block], exactPoolKey)
-        return
-      }
-      const { counts, reached } = notePick(picksRef.current, blockId)
-      picksRef.current = counts
-      if (reached) poolRef.current = addToPool(poolRef.current, [block])
-    },
-    [hard, penalized],
-  )
 
   /** 本关此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。 */
   const hint = hintFor(unit.id, missCount, mode)
@@ -246,26 +215,26 @@ function PinyinRound({
     rejectBlockTimer.current = window.setTimeout(() => setRejectBlock(null), 520)
   }, [])
 
-  /** 本部分的重试计数 —— 每关 2 次,用尽即失败但不阻塞(spec §3.6)。 */
+  /** 本题的重试计数 —— 每关 2 次,用尽即失败但不阻塞(spec §3.6)。 */
   const retriesRef = useRef(0)
 
-  /** 部分账目在**判定那一刻**冻结(与星级同一口径):交的数字早已定下,不取决于定时器何时跑。 */
+  /** 账目在**判定那一刻**冻结(与星级同一口径):交的数字早已定下,不取决于定时器何时跑。 */
   const freezeResult = useCallback(
-    (failed: boolean): PartResult => ({ missCount: missRef.current, wrongBlocks: poolRef.current, failed }),
+    (failed: boolean): QuestionResult => ({ missCount: missRef.current, failed }),
     [],
   )
 
-  /** 部分结束:交回账目。给了 `onPartEnd` 就归入口页管;没给就退回今天那条老路(拼对 → onSolved)。 */
-  const endPart = useCallback(
-    (result: PartResult) => {
-      if (onPartEnd) {
-        onPartEnd(result)
+  /** 本题结束:交回账目。给了 `onQuestionEnd` 就归宿主管;没给就退回今天那条老路(拼对 → onSolved)。 */
+  const endQuestion = useCallback(
+    (result: QuestionResult) => {
+      if (onQuestionEnd) {
+        onQuestionEnd(result)
         return
       }
       if (result.failed) return // 老路没有「失败」这一档;这条不该发生
       onSolved?.(starsFor(result.missCount))
     },
-    [onPartEnd, onSolved],
+    [onQuestionEnd, onSolved],
   )
 
   /** 重试用尽:把正解一块块落进各自的槽,**演示一遍**再收尾。
@@ -288,9 +257,9 @@ function PinyinRound({
     const result = freezeResult(true)
     timer.current = window.setTimeout(() => {
       setBurst(false)
-      endPart(result)
+      endQuestion(result)
     }, 1200)
-  }, [slots, tray, level, playSound, speak, endPart, freezeResult])
+  }, [slots, tray, level, playSound, speak, endQuestion, freezeResult])
 
   const placedBlockIds = useMemo(() => new Set(Object.values(placement)), [placement])
   const liveBlocks = tray.filter((b) => !placedBlockIds.has(b.id))
@@ -301,20 +270,18 @@ function PinyinRound({
     playSound?.('victory')
     speak(level.read)
     setBurst(true)
-    // 星级与部分账目都在**调用这一刻**冻结,不在超时回调里现算:成功动画还有 1.6s 才放完,
+    // 账目(与由它折算的星级)在**调用这一刻**冻结,不在超时回调里现算:成功动画还有 1.6s 才放完,
     // 那部分时间里任何一次误触都不该把**已经到手**的星改小(HEAD 就是这么冻的)。spec §3.9。
-    const stars = starsFor(missRef.current)
     const result = freezeResult(false)
     timer.current = window.setTimeout(
       () => {
         setBurst(false)
-        // 有三部分相位就走交账那条路;没有才是今天那套「拼对即通关」。
-        if (onPartEnd) endPart(result)
-        else onSolved?.(stars)
+        // 有宿主就走交账那条路;没有才是今天那套「拼对即通关」(endQuestion 里那支兜底)。
+        endQuestion(result)
       },
       welded ? 2100 : 1600,
     )
-  }, [level, onPartEnd, endPart, onSolved, playSound, speak, welded, freezeResult])
+  }, [level, endQuestion, playSound, speak, welded, freezeResult])
 
   /** 本部分的落位判据。困难部分只比类型(值可以错),其余两部分与今天一致。 */
   const fits = useCallback((block: Block, slot: Slot) => (hard ? sameTypeOnly(block, slot) : canPlace(block, slot)), [hard])
@@ -338,14 +305,12 @@ function PinyinRound({
       const block = tray.find((b) => b.id === blockId)
       const slot = slots.find((s) => s.id === slotId)
       if (!block || !slot) return
-      if (locked.has(slotId)) return // 复习部分的预填槽:不进不出
       if (!fits(block, slot)) {
         noteMiss()
         if (penalized) onBlock?.('wrong')
         playSound?.('wrong')
         flashReject(slotId)
         flashRejectBlock(blockId)
-        noteWrongBlock(block, blockId)
         return
       }
       playSound?.('tap')
@@ -364,14 +329,10 @@ function PinyinRound({
         timer.current = window.setTimeout(succeed, 260)
         return
       }
-      // 全填后判错 —— **困难部分是这部分代码的入口**。简单部分与复习部分的门禁在落位前就挡住了错的,
-      // 所以那两部分里这条分支不可达(它的存在是给困难部分用的,不是死代码)。
+      // 全填后判错 —— **困难部分是这部分代码的入口**。简单部分与练习的门禁在落位前就挡住了错的,
+      // 所以那两种口径里这条分支不可达(它的存在是给困难部分用的,不是死代码)。
       noteMiss()
       if (penalized) onBlock?.('wrong')
-      for (const id of wrong) {
-        const bad = tray.find((b) => b.id === next[id])
-        if (bad) noteWrongBlock(bad, bad.id)
-      }
       playSound?.('wrong')
       setStatus('wrong')
       setWrongIds(wrong)
@@ -397,7 +358,6 @@ function PinyinRound({
       tray,
       slots,
       placement,
-      locked,
       fits,
       hard,
       penalized,
@@ -408,7 +368,6 @@ function PinyinRound({
       clearTimer,
       flashReject,
       flashRejectBlock,
-      noteWrongBlock,
     ],
   )
 
@@ -418,17 +377,13 @@ function PinyinRound({
       // 点一下已填槽就把块拿回托盘,**盘面不再满 ⇒ 上面那道闸自己失效**,再点一块放不下的
       // 就走 autoPlace 的 else 白记 miss(3 星变 2 星);`succeed()` 还会亮在一个空槽的盘面上。
       if (status !== 'playing' || boardFull) return
-      // **纵深防御**(今天到不了):预填槽在渲染层就不绑 onClick(`renderSlot` 里
-      // `locked.has(slot.id) ? undefined : …`),所以 UI 上没有任何一条路能把预填槽 id 送进来。
-      // 留着是防「将来给预填槽接上手势 / 键盘」——那时这条是唯一挡得住把预填块掏走的闸。
-      if (locked.has(slotId)) return
       setPlacement((cur) => {
         const copy = { ...cur }
         delete copy[slotId]
         return copy
       })
     },
-    [status, boardFull, locked],
+    [status, boardFull],
   )
 
   /** 点块就出声:孩子得先听见这块读什么,才谈得上把它拼出来。声调块没有可念的音,静默。 */
@@ -444,12 +399,12 @@ function PinyinRound({
     (blockId: string) => {
       // 非播放态(成功动画 / 判错撤块 / 正解演示)一律不受理,与 placeBlock 同一道闸。
       // 少了它:那些相位里槽已经全满,点什么都落进下面的 else —— 白记一次 miss(演示期能记到 8),
-      // 白把块塞进错题池,成功动画那 1.6s 里还会把星级改小。
+      // 成功动画那 1.6s 里还会把星级改小。
       // 盘面已满同理(且必须单独判:`status` 还是 playing 的成功前 260ms 全靠它守住)。
       if (status !== 'playing' || boardFull) return
       const block = tray.find((b) => b.id === blockId)
       if (!block) return
-      // 困难部分的落点取「同类型的第一个空槽」(值可以错);其余两部分走今天的 autoTargetId。
+      // 困难部分的落点取「同类型的第一个空槽」(值可以错);其余两种口径走今天的 autoTargetId。
       const target = hard ? autoTypeTargetId(block, slots, placement) : autoTargetId(block, slots, placement)
       if (target) placeBlock(blockId, target)
       else {
@@ -457,7 +412,6 @@ function PinyinRound({
         if (penalized) onBlock?.('wrong')
         playSound?.('wrong')
         flashRejectBlock(blockId)
-        noteWrongBlock(block, blockId)
       }
     },
     [
@@ -472,7 +426,6 @@ function PinyinRound({
       playSound,
       onBlock,
       flashRejectBlock,
-      noteWrongBlock,
     ],
   )
 
@@ -617,8 +570,7 @@ function PinyinRound({
             welded={welded && status === 'solved' && Boolean(level.syl[slot.sylIdx]?.weld)}
             // 触发判据与答案行的拼写同源:同一个 losesDots,渲染层不重算结构。
             dotsAway={losesDots(level.syl[slot.sylIdx]?.initial, block.value)}
-            // 复习部分的预填槽不绑 onClick —— 孩子能操作的是挖空的那几个槽(spec §3.7)。
-            onClick={locked.has(slot.id) ? undefined : () => takeBack(slot.id)}
+            onClick={() => takeBack(slot.id)}
             className={cn(boxFor(slot), isTone && PLACED_TONE)}
             data-block-id={block.id}
           />
@@ -679,7 +631,7 @@ function PinyinRound({
       {/* 题位条:一节有几道题就几格,亮到第几格就是做到第几题。
           练习改用小一号的进度点 —— 练习不是一节课(它的题数还会随星级变)。 */}
       <div className="flex flex-col items-center gap-1.5">
-        {mode === 'review' ? (
+        {mode === 'practice' ? (
           position ? <StageDots total={position.total} done={position.done} /> : null
         ) : (
           <StageBar total={position?.total ?? 1} done={position?.done ?? 0} />
@@ -706,7 +658,7 @@ function PinyinRound({
           // 困难部分:类型色恒亮 + 实线边,不吃提示档 —— 那一部分的规则就是「同颜色才能放」,
           // 在弱档单元(u9–u12,--slot-line: 0%)不恒亮的话这条规则在屏幕上不可见。
           hard && 'pslots--hard',
-          !hard && (mode === 'review' ? true : hint === 'mid') && 'pslots--mid',
+          !hard && (mode === 'practice' ? true : hint === 'mid') && 'pslots--mid',
           !hard && mode === 'easy' && hint === 'weak' && 'pslots--weak',
         )}
       >
@@ -763,13 +715,13 @@ function PinyinRound({
         className={cn(
           'glass-strong flex w-full max-w-3xl flex-col items-center gap-3 rounded-4xl px-4 py-4 shadow-[var(--shadow-card)]',
           hard && 'ptray--hard',
-          mode === 'review' && 'ptray--practice',
+          mode === 'practice' && 'ptray--practice',
         )}
       >
         <div className="flex flex-wrap items-center justify-center gap-3">
           {liveBlocks.filter((b) => b.type !== 'tone').map(trayBlock)}
         </div>
-        {/* 声调行按需出现:复习部分的托盘常常一块声调都没有,那时不该留一条空的虚线分隔。 */}
+        {/* 声调行按需出现:托盘里一块声调都没有时,不该留一条空的虚线分隔。 */}
         {liveBlocks.some((b) => b.type === 'tone') ? (
           <div className="flex items-center justify-center gap-4 border-t-2 border-dotted border-hairline-strong pt-3">
             {liveBlocks.filter((b) => b.type === 'tone').map(trayBlock)}
@@ -793,9 +745,9 @@ export function PinyinBlocksGame({
   unitIndex,
   levelIndex,
   stage = 'easy',
-  review = null,
+  practice = null,
   position,
-  onPartEnd,
+  onQuestionEnd,
   onSolved,
   onAdvance,
 }: PinyinBlocksGameProps) {
@@ -824,12 +776,12 @@ export function PinyinBlocksGame({
       playSound={playSound}
       onBlock={onBlock}
       stage={stage}
-      review={review}
+      practice={practice}
       position={position}
-      onPartEnd={onPartEnd}
-      // 有 onPartEnd 就不给这条老路:部分结束由入口页决定下一部分。
+      onQuestionEnd={onQuestionEnd}
+      // 有 onQuestionEnd 就不给这条老路:一道题结束后去哪由宿主决定。
       onSolved={
-        onPartEnd
+        onQuestionEnd
           ? undefined
           : (stars) => {
               if (onSolved) onSolved(stars)

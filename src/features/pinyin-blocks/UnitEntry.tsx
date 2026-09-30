@@ -13,11 +13,18 @@ import {
 } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { cn } from '@/shared/ui/utils'
-import { PartRun, type PartItem, type QuestionEnd } from './PartRun'
+import { QuestionRun, type QuestionEnd, type QuestionItem } from './QuestionRun'
 import type { Part } from './part'
 import { UNITS } from './levels'
-import { addToPool, partReviewQuestions, exactPoolKey, type MistakePool } from './mistakes'
-import { firstIncompletePart, nextPartOf, partClearedCount, partLevels, partTotal } from './progress-stats'
+import { practiceQuestions } from './practice'
+import {
+  firstIncompletePart,
+  nextPartOf,
+  partClearedCount,
+  partLevels,
+  partTotal,
+  practiceLevelsOf,
+} from './progress-stats'
 import { EMPTY_PART_SETTLEMENT, mergeSettlement, settleLevel, type PartSettlement } from './settle'
 
 /** 连击圆点:5 颗封顶 —— 再多也读不出来,而 5 正好对上第一个撒花档。 */
@@ -61,8 +68,6 @@ export function UnitEntry({
   const [sessionCleared, setSessionCleared] = useState(0)
   /** 起点在挂载时**冻结一次** —— 走题过程中星级一直在变,现算会把进度往回拽。 */
   const [part, setPart] = useState<Part>(() => firstIncompletePart(unit, stars))
-  /** 错题池:**跨部分**活着(简单部分 + 困难部分的错合并成一个池)。退出到地图即随组件卸载丢弃。 */
-  const [pool, setPool] = useState<MistakePool>([])
   /** 已落库、还没交出去的账。**必须是 ref** —— 它跨整部分活着。 */
   const pending = useRef<PartSettlement | null>(null)
 
@@ -70,15 +75,16 @@ export function UnitEntry({
   const speak = useCallback((text: string) => speech.speak(text, 'zh-CN'), [speech])
 
   /**
-   * 本部分的题表。复习部分由错题池当场决定(§5),其余取课程数据。
+   * 本部分的题表。练习部分取练习题源(§8),其余取课程数据。
    *
-   * `levelIndex` 一律是**在 `unit.levels` 里的下标** —— `PartRun` 拿它直接索引。
+   * `levelIndex` 一律是**在 `unit.levels` 里的下标** —— `QuestionRun` 拿它直接索引。
    * `unit.levels` 里简单题全在前、困难题全在后,所以 `partLevels` 的下标与它同序。
    */
-  const items: readonly PartItem[] = useMemo(() => {
+  const items: readonly QuestionItem[] = useMemo(() => {
     if (part === 'review') {
-      return partReviewQuestions(unit, unitIndex, pool).map((item) => ({
-        kind: 'review' as const,
+      // 练习的题源 = 本单元「<3 星」的题,封顶 5 道(口径在 `practiceLevelsOf`)。
+      return practiceQuestions(unit, unitIndex, practiceLevelsOf(stars, unit)).map((item) => ({
+        kind: 'practice' as const,
         levelIndex: item.levelIndex,
         question: item.question,
       }))
@@ -87,27 +93,26 @@ export function UnitEntry({
       kind: 'level' as const,
       levelIndex: unit.levels.indexOf(level),
     }))
-  }, [part, unit, unitIndex, pool])
+  }, [part, unit, unitIndex, stars])
 
   /**
    * 本部分从哪道题接着走 = 该部分**第一道未通的题**(§7)。
    *
-   * 这一项**不是 state**:它每次渲染都重算是**有意的** —— `PartRun` 把它冻在自己的挂载状态里,
-   * 而 `PartRun` 按 `part` 换了 key,所以每部分只取一次初值。
-   * 复习部分恒从 0 起(它的题从不落库,没有「通过」这一说)。
+   * 这一项**不是 state**:它每次渲染都重算是**有意的** —— `QuestionRun` 把它冻在自己的挂载状态里,
+   * 而 `QuestionRun` 按 `part` 换了 key,所以每部分只取一次初值。
+   * 练习恒从 0 起(它的题从不落库,没有「通过」这一说)。
    *
    * `Math.max(0, …)` **不是多余的防御**:该部分全部已通时 `findIndex` 返回 `-1`,
-   * 少了这层,`PartRun` 收到 `startIndex = -1` ⇒ `items[-1]` 是 `undefined` ⇒ `return null`
+   * 少了这层,`QuestionRun` 收到 `startIndex = -1` ⇒ `items[-1]` 是 `undefined` ⇒ `return null`
    * ⇒ 重玩全通单元白屏且不调 `onDone`(卡死)。
    */
   const startIndex = part === 'review'
     ? 0
     : Math.max(0, items.findIndex((item) => item.kind === 'level' && (stars[unit.levels[item.levelIndex]!.id] ?? 0) === 0))
 
-  /** 落库 + 把错块记进池。**每道题结束时调一次**。 */
+  /** 落库。**每道题结束时调一次**。 */
   const endQuestion = useCallback(
     async (end: QuestionEnd) => {
-      setPool((cur) => addToPool(cur, end.wrongBlocks, end.exact ? exactPoolKey : undefined))
       const result = await settleLevel(
         {
           levelId: end.levelId,
@@ -153,7 +158,7 @@ export function UnitEntry({
   }, [flush, onExitToMap])
 
   // 连击的落点:每放一块上报一次。放对 'first'、放错 'wrong'。
-  // 复习部分不上报(见 PinyinBlocksGame 的 penalized),免得复习变成刷连击的通道。
+  // 练习不上报(见 PinyinBlocksGame 的 penalized),免得练习变成刷连击的通道。
   const handleBlock = useCallback(
     (kind: AnswerKind) => {
       const tier = celebrationFor(combo.answer(kind))
@@ -191,7 +196,7 @@ export function UnitEntry({
               />
             ))}
           </span>
-          {/* 复习部分不显示题数 —— 它的题由池当场决定,那个分母这一刻还在变。
+          {/* 练习不显示题数 —— 它的题由星级表当场决定,不该长得像一节课。
               题内进度由台阶条下面那排点表达(StageDots)。 */}
           {part === 'review' ? null : (
             <span data-part-progress className="text-sm font-bold text-ink-3 tabular-nums">
@@ -201,12 +206,12 @@ export function UnitEntry({
         </span>
       </div>
       {items.length > 0 ? (
-        // 换部分即换 key ⇒ 部分内题号、盘面、发牌全部重来;**错题池在上层,跨部分不动**。
-        <PartRun
+        // 换部分即换 key ⇒ 部分内题号、盘面、发牌全部重来。
+        <QuestionRun
           key={part}
           unit={unit}
           unitIndex={unitIndex}
-          part={part}
+          mode={part === 'hard' ? 'hard' : 'easy'}
           items={items}
           startIndex={startIndex}
           speak={speak}

@@ -16,7 +16,8 @@ import { registry } from '@/shared/services/core'
 import { easyLevelsOf, hardLevelsOf, UNITS, type Level } from './levels'
 import { canPlace, slotsFor } from './rules'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
-import { partReviewQuestions } from './mistakes'
+import { practiceQuestions } from './practice'
+import { PRACTICE_MAX, practiceLevelsOf } from './progress-stats'
 import { UnitEntry } from './UnitEntry'
 
 /**
@@ -218,50 +219,43 @@ function placeOneFitting() {
 }
 
 /**
- * 走到复习部分的完整路径:简单部分第一题上把**韵母**与**声调**两类各点错到阈值(⇒ 两类都入池),
- * 走完简单部分 → **直接**进困难部分 → 走完 → **直接**进复习部分(部分间过场已取消)。
+ * 走到练习部分的完整路径:走完简单部分 → **直接**进困难部分 → 走完 → **直接**进练习部分
+ * (部分间过场已取消)。
  *
- * 池是**跨部分**活着的(简单部分的错要到困难部分之后的复习部分才被考),两类错块 ⇒ 复习部分出两道小题。
- * 返回那两块错块(顺序 = 入池顺序),调用方可以用它复算 `partReviewQuestions` 对齐题面。
+ * 练习题源 = 本单元「<3 星」的题(封顶 `PRACTICE_MAX`),**不再**由错题池决定 ——
+ * 所以这条路径不必先在简单部分点错什么。
  */
-async function reachReviewPart(): Promise<
-  { wrongFinal: Block; wrongTone: Block } & ReturnType<typeof mountUnitEntry>
-> {
-  const mounted = mountUnitEntry({ unitIndex: 0 })
-  const level0 = UNITS[0]!.levels[0]!
-  // 块身份印在里层 `[data-value]` 上,外层 `[data-block-id]` wrapper 换 key 重挂时身份稳定 ⇒ 握着它连点。
-  const tapTwice = (host: HTMLElement) => {
-    fireEvent.keyDown(host, { key: 'Enter' })
-    fireEvent.keyDown(host, { key: 'Enter' })
-  }
-
-  const finalHost = trayBlocks().find((el) => {
-    const block = blockOf(el)
-    return block.type === 'final' && block.value !== level0.syl[0]!.final
-  })
-  expect(finalHost, '托盘中找不到要故意点错的韵母块').toBeDefined()
-  const wrongFinal = blockOf(finalHost as HTMLElement)
-  tapTwice(finalHost as HTMLElement)
-
-  const toneHost = trayBlocks().find((el) => {
-    const block = blockOf(el)
-    return block.type === 'tone' && block.value !== String(level0.syl[0]!.tone)
-  })
-  expect(toneHost, '托盘中找不到要故意点错的声调块').toBeDefined()
-  const wrongTone = blockOf(toneHost as HTMLElement)
-  tapTwice(toneHost as HTMLElement)
-
+async function reachPracticePart(stars: Record<string, number> = {}) {
+  const mounted = mountUnitEntry({ unitIndex: 0, stars })
   // 部分末不再等 1.2s 遮罩 —— 上一部分最后一题的成功动画走完,下一部分直接上屏。
   await solvePart(U1_EASY_INDEXES) // → 困难部分
-  await solvePart(U1_HARD_INDEXES) // → 复习部分
-  return { wrongFinal, wrongTone, ...mounted }
+  await solvePart(U1_HARD_INDEXES) // → 练习部分
+  return mounted
 }
 
-/** 屏上被挖空的槽(复习小题就是靠这个认出来的)。 */
+/** 本单元此刻的练习题表 —— 与宿主同一口径(`practiceLevelsOf` 是唯一题源)。 */
+const practiceItemsOf = (stars: Record<string, number> = {}) =>
+  practiceQuestions(UNITS[0]!, 0, practiceLevelsOf(stars, UNITS[0]!))
+
+/**
+ * 屏上被挖空的槽(练习恒整题挖空,靠它对齐题面)。
+ * **排序后交回**:DOM 里声调槽画在韵腹槽上方(顺序与 `slotsFor` 不同),比顺序等于比排版。
+ */
 function emptySlotIds(): string[] {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-slot-id]'))
     .filter((el) => el.querySelector('[data-value]') === null)
     .map((el) => el.dataset.slotId as string)
+    .sort()
+}
+
+/** 把练习的一道整题拼完:它的全部槽都得填对。 */
+async function solvePracticeItem(levelIndex: number) {
+  for (const slot of slotsFor(UNITS[0]!.levels[levelIndex]!)) {
+    const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot))
+    expect(pick, `练习题的槽 ${slot.id} 在托盘里找不到可放块`).toBeDefined()
+    fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+  }
+  await settle()
 }
 
 describe('UnitEntry · 撒花接线', () => {
@@ -347,7 +341,7 @@ describe('UnitEntry · 连击圆点', () => {
 })
 
 describe('UnitEntry · 部分推进与交账', () => {
-  // 题内错数由 `PartRun` 交给 `starsFor` 折算成星级 —— 3 次点错足够跨出 2 星的档界。
+  // 题内错数由 `QuestionRun` 交给 `starsFor` 折算成星级 —— 3 次点错足够跨出 2 星的档界。
   it('简单部分:一题错 3 次 ⇒ 该题按 starsFor(3) = 1 星落库', async () => {
     const { progressService } = mountUnitEntry()
     for (let i = 0; i < 3; i++) {
@@ -388,7 +382,7 @@ describe('UnitEntry · 部分推进与交账', () => {
   })
 })
 
-describe('UnitEntry —— 部分状态机与错题池', () => {
+describe('UnitEntry —— 部分状态机与练习题源', () => {
   // 部分间的 1.2s 遮罩已取消(`StageTransition` 退休):上一部分走完,下一部分**直接**上屏。
   it('简单部分走完直接落到困难部分 —— 过场取消了', async () => {
     mountUnitEntry({ unitIndex: 0 })
@@ -401,7 +395,7 @@ describe('UnitEntry —— 部分状态机与错题池', () => {
   })
 
   // `Math.max(0, …)`(UnitEntry.tsx)的守卫:本部分的题**全部已通**时 `findIndex` 返回 -1,
-  // 少了那层 Math.max,`PartRun` 收到 startIndex = -1 ⇒ `items[-1]` 是 undefined ⇒ 直接白屏。
+  // 少了那层 Math.max,`QuestionRun` 收到 startIndex = -1 ⇒ `items[-1]` 是 undefined ⇒ 直接白屏。
   // 单元全通 ⇒ 起点回到简单部分(整单元重玩),正好走到这条路径上。
   it('单元全部已通时进来:不白屏,从第一题开始走', () => {
     const stars = Object.fromEntries(
@@ -442,74 +436,65 @@ describe('UnitEntry —— 部分状态机与错题池', () => {
     expect(onSettle, '已经交过的账不许再交一次(弹层会重放)').toHaveBeenCalledTimes(1)
   })
 
-  // Review Focus #2:池跨部分活着 —— 简单部分点错的块,要到**困难部分之后的复习部分**才被考到。
-  it('简单部分的错块跨部分活着:复习部分按「一类型一道题」出两道小题', async () => {
-    await reachReviewPart()
+  // 练习题源 = 本单元「<3 星」的题(封顶 PRACTICE_MAX)—— 不再由错题池当场决定(§8)。
+  it('练习部分的题数 = 本单元「<3 星」的题,封顶 PRACTICE_MAX', async () => {
+    await reachPracticePart()
     const dots = document.querySelector<HTMLElement>('[data-review-dots]')
-    expect(dots, '复习部分没上屏').not.toBeNull()
-    // 池里两类错块 ⇒ 两道小题(池空只会出 1 道兜底题)。
-    expect(dots!.querySelectorAll('.pstage-dot').length, '两类错块 ⇒ 两颗进度点').toBe(2)
+    expect(dots, '练习部分没上屏').not.toBeNull()
+    // 一条题都没打过 ⇒ 本单元 12 题全部 <3 星 ⇒ 该撞上限。
+    expect(practiceLevelsOf({}, UNITS[0]!).length, 'u1 全 0 星 ⇒ 该封顶').toBe(PRACTICE_MAX)
+    expect(
+      dots!.querySelectorAll('.pstage-dot').length,
+      '练习题数按 practiceLevelsOf 算',
+    ).toBe(practiceLevelsOf({}, UNITS[0]!).length)
   })
 
-  // 复习部分是**多题**部分:两道小题要依次走完、进度点 1/2 → 2/2,且第二题换一块槽挖空(= 换了新实例)。
-  it('复习部分两道小题依次走完:进度点 1/2 → 2/2,第二题换新盘面', async () => {
-    const { wrongFinal, wrongTone } = await reachReviewPart()
-    // 池内容与入池顺序都是确定的 ⇒ 宿主算出来的小题可以在这里复算对齐,别靠猜。
-    const items = partReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
-    expect(items, '池里两类 ⇒ 两道小题').toHaveLength(2)
+  // 练习是**多题**部分:依次走完、进度点 1/N → 2/N,且第二题换一道题(换了新实例)。
+  it('练习逐题走完:进度点 1/N → 2/N,第二题换新题面', async () => {
+    await reachPracticePart()
+    const items = practiceItemsOf()
+    expect(items.length, 'u1 全 0 星 ⇒ 该封顶').toBe(PRACTICE_MAX)
 
     const dots = () => document.querySelector<HTMLElement>('[data-review-dots]')!
-    expect(dots().dataset.reviewDone, '第一道小题:进度 1/2').toBe('1')
-    // 屏上的盘面必须就是复算出来的第一道小题 —— 顺序对不上,下面解的就不是这一题。
-    expect(emptySlotIds(), '屏上是复算的第一道小题').toEqual([...items[0]!.question.slotIds])
-    const firstEmpty = emptySlotIds()
+    expect(dots().dataset.reviewDone, '第一题:进度 1/N').toBe('1')
+    // 屏上的盘面必须就是题源里的第一题 —— 对不上,下面解的就不是这一题。
+    expect(emptySlotIds(), '屏上是题源里的第一题').toEqual([...items[0]!.question.slotIds].sort())
 
-    // 解第一道小题:只填它挖空的槽(预填槽在复习部分拿不回来,也不该动)。
-    const slots = slotsFor(UNITS[0]!.levels[items[0]!.levelIndex]!)
-    for (const id of items[0]!.question.slotIds) {
-      const slot = slots.find((s) => s.id === id)!
-      const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot))
-      expect(pick, `复习小题的槽 ${id} 在托盘里找不到可放块`).toBeDefined()
-      fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
-    }
-    await settle()
+    await solvePracticeItem(items[0]!.levelIndex)
 
-    expect(dots().dataset.reviewDone, '第二道小题:进度推到 2/2').toBe('2')
+    expect(dots().dataset.reviewDone, '第二题:进度推到 2/N').toBe('2')
     expect(dots().querySelectorAll('.pstage-dot--on').length, '两颗进度点都亮').toBe(2)
-    // 第二题是**新实例**:换成另一类块被挖空(第一题挖声调、第二题挖韵母)。
-    expect(emptySlotIds(), '第二题该换一块槽挖空').not.toEqual(firstEmpty)
+    // 第二题是**新实例**:换成题源里第二道题的题面(两层都要断,免得「图换了但盘面没换」混过去)。
+    const first = UNITS[0]!.levels[items[0]!.levelIndex]!
+    const second = UNITS[0]!.levels[items[1]!.levelIndex]!
+    expect(document.body.textContent, '第二题该换新题面').toContain(second.emoji)
+    expect(document.body.textContent, '第一题的题面该下去了').not.toContain(first.emoji)
+    expect(emptySlotIds(), '第二题的盘面按第二道题挖空').toEqual([...items[1]!.question.slotIds].sort())
   })
 })
 
-describe('UnitEntry · 复习部分不落库', () => {
-  // spec §5 的不变量:复习部分只重考、不产生任何账目 —— 不落库、不记 miss、不交账。
+describe('UnitEntry · 练习部分不落库', () => {
+  // spec §8 的不变量:练习只重考、不产生任何账目 —— 不落库、不记 miss、不交账。
   //
-  // 这条守卫值钱在于**复习小题挂在池里第一道含该类型的别的题上**:它借用 host 题的
-  // `levelIndex` 拼盘面,`endQuestion` 若在复习部分被调用,写进库的会是**别人的**星级与星尘,
-  // 而且会顺带扫成就 —— 是产品可见的坏账。所以「两道小题全走完也不写」必须被钉住。
-  it('复习部分:两道小题全走完也不落库、不交账', async () => {
-    const { progressService, onSettle, wrongFinal, wrongTone } = await reachReviewPart()
-    // 走到复习部分时,简单部分末与困难部分末**各交过一次账**(onSettle 已 2 次),
-    // 简单部分 + 困难部分共 20 道题**各落过一次库**(recordClear 已 20 次)——
+  // 这条守卫值钱在于**练习题借用了真实课程的 `levelIndex`**:`endQuestion` 若在练习里被调用,
+  // 写进库的会是那些题的星级与星尘,而且会顺带扫成就 —— 是产品可见的坏账。
+  // 所以「练习全走完也不写」必须被钉住。
+  it('练习部分:全部题走完也不落库、不交账', async () => {
+    const { progressService, onSettle } = await reachPracticePart()
+    // 走到练习部分时,简单部分末与困难部分末**各交过一次账**(onSettle 已 2 次),
+    // 简单部分 + 困难部分共 20 道题**各落过一次库**——
     // 不清这两笔记数,下面的 not.toHaveBeenCalled() 会被存量污染(假红)。
     progressService.recordClear.mockClear()
     onSettle.mockClear()
 
-    const items = partReviewQuestions(UNITS[0]!, 0, [wrongFinal, wrongTone])
-    expect(items, '池里两类 ⇒ 两道小题').toHaveLength(2)
-    // 两道小题都要走完:部分才会走到 onDone ⇒ flush() 真的被调一次 ⇒ 「不交账」那条不是空过。
+    const items = practiceItemsOf()
+    expect(items.length, 'u1 全 0 星 ⇒ 该封顶').toBe(PRACTICE_MAX)
+    // 每一题都要走完:全部走完才会到 onDone ⇒ flush() 真的被调一次 ⇒ 「不交账」那条不是空过。
     for (const item of items) {
-      const slots = slotsFor(UNITS[0]!.levels[item.levelIndex]!)
-      for (const id of item.question.slotIds) {
-        const slot = slots.find((s) => s.id === id)!
-        const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot))
-        expect(pick, `复习小题的槽 ${id} 在托盘里找不到可放块`).toBeDefined()
-        fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
-      }
-      await settle()
+      await solvePracticeItem(item.levelIndex)
     }
 
-    expect(progressService.recordClear, '复习部分不落库').not.toHaveBeenCalled()
-    expect(onSettle, '复习部分不交账').not.toHaveBeenCalled()
+    expect(progressService.recordClear, '练习部分不落库').not.toHaveBeenCalled()
+    expect(onSettle, '练习部分不交账').not.toHaveBeenCalled()
   })
 })

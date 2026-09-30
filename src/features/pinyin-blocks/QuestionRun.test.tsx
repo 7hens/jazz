@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
 import { UNITS } from './levels'
 import { canPlace, slotsFor, starsFor } from './rules'
-import { WRONG_PICK_THRESHOLD } from './mistakes'
-import { PartRun, type PartItem, type QuestionEnd } from './PartRun'
+import { wholeReviewQuestion } from './practice'
+import { QuestionRun, type QuestionEnd, type QuestionItem } from './QuestionRun'
 
 const unit = UNITS[0]!
 const speak = vi.fn()
@@ -19,13 +19,13 @@ const advance = async (ms: number) => {
 // 显式给回调形参 `_end` 标型:vitest 4 的 `vi.fn` 按「实现」的函数签名推 `mock.calls` 的元素类型。
 // 用 `vi.fn(async () => {})`(零参)会推成 `[]`,`calls[0]![0]` 就是 TS2493。
 // 这里仍**不用** vitest 1 的元组泛型 `vi.fn<[], Promise<void>>`(vitest 4 下非法)。
-function mount(items: readonly PartItem[], onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})) {
+function mount(items: readonly QuestionItem[], onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})) {
   const onDone = vi.fn()
   const view = render(
-    <PartRun
+    <QuestionRun
       unit={unit}
       unitIndex={0}
-      part="easy"
+      mode="easy"
       items={items}
       speak={speak}
       onQuestionEnd={onQuestionEnd}
@@ -67,23 +67,22 @@ function solveCurrent(levelIndex: number): void {
   }
 }
 
-/**
- * 简单部分:把托盘中某一块**点错 `WRONG_PICK_THRESHOLD` 次** ⇒ 恰好记同样多次 miss,且那一块入错题池。
- * 手法:块身份在里层 `[data-value]`,点选走 `keyDown Enter` ——
- * 每次点错都会换 key 重挂**块本体**,但外层 `[data-block-id]` wrapper 身份稳定,故握着它连点是对的。
- */
-function pickWrongToPool(match: (b: Block) => boolean): void {
-  const host = trayBlocks().find((el) => match(blockOf(el)))
-  expect(host, '托盘中找不到要故意点错的块').toBeDefined()
-  for (let i = 0; i < WRONG_PICK_THRESHOLD; i++) {
-    fireEvent.keyDown(host as HTMLElement, { key: 'Enter' })
-  }
+/** 点一块**恒无处可落**的块 ⇒ 记一次 miss(u1-0 é 只要二声,「声调块 4」永远放不下)。 */
+function missOnce(): void {
+  fireEvent.keyDown(document.querySelector<HTMLElement>('[aria-label="声调块 4"]') as HTMLElement, { key: 'Enter' })
 }
 
-describe('PartRun', () => {
-  it('部分内一道接一道:第一题结束后自动换到第二题', async () => {
+/** 练习的一道整题(全部槽挖空)。种子固定 ⇒ 题面稳,断言不看发牌运气。 */
+const practiceItem = (levelIndex: number): QuestionItem => ({
+  kind: 'practice',
+  levelIndex,
+  question: wholeReviewQuestion(unit.levels[levelIndex]!, 0, () => 0.5),
+})
+
+describe('QuestionRun', () => {
+  it('一串内一道接一道:第一题结束后自动换到第二题', async () => {
     vi.useFakeTimers()
-    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
+    const items: QuestionItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
     const { view, onDone, onQuestionEnd } = mount(items)
     expect(view.container.textContent).toContain(unit.levels[0]!.emoji)
 
@@ -93,10 +92,8 @@ describe('PartRun', () => {
     expect(onQuestionEnd, '每题结束都该交一次账').toHaveBeenCalledTimes(1)
     const end = onQuestionEnd.mock.calls[0]![0] as QuestionEnd
     expect(end.levelId).toBe(unit.levels[0]!.id)
-    expect(end.exact, '简单部分的错块按家族记账').toBe(false)
-    // 一次不错 ⇒ 满星、错块为空。这两条是 Task 9 落库 / 喂错题池的输入,必须钉住零错这一端。
+    // 一次不错 ⇒ 满星。这是宿主落库的输入,必须钉住零错这一端。
     expect(end.stars, '一次不错 = 满星').toBe(starsFor(0))
-    expect(end.wrongBlocks, '一次不错 = 没有错块交出来').toEqual([])
     expect(onDone, '还有题没走完,不该交账').not.toHaveBeenCalled()
     expect(view.container.textContent).toContain(unit.levels[1]!.emoji)
     // 题位条跟着 `position` 走:换到第二题 ⇒ 两格里亮到第二格(宿主给的分母是真题数,不是写死三格)。
@@ -107,40 +104,37 @@ describe('PartRun', () => {
     vi.useRealTimers()
   })
 
-  it('错到阈值:错块交出来、星数按 starsFor 递减', async () => {
+  it('错了几次,星数就按 starsFor 递减', async () => {
     vi.useFakeTimers()
     // 一道题就够 —— 只看这一题结束时交出的账目。
-    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const items: QuestionItem[] = [{ kind: 'level', levelIndex: 0 }]
     const { onQuestionEnd } = mount(items)
 
-    // u1-0 是 é(e + 二声),四声块恒无处可落 —— 点错 WRONG_PICK_THRESHOLD 次:既记同样多次 miss,
-    // 也把那一块送进错题池(poolRef)。
-    pickWrongToPool((b) => b.type === 'tone' && b.value === '4')
+    missOnce()
+    missOnce()
     solveCurrent(0)
     await advance(2000)
 
     expect(onQuestionEnd).toHaveBeenCalledTimes(1)
     const end = onQuestionEnd.mock.calls[0]![0] as QuestionEnd
-    // 星数不写死:按 starsFor 现算(点错 WRONG_PICK_THRESHOLD 次 ⇒ 就是这个档),星规改了这条跟着走。
-    expect(end.stars, '星数按 starsFor(missCount) 算').toBe(starsFor(WRONG_PICK_THRESHOLD))
-    // 错块必须**原样交出来** —— 只断长度会漏掉「交错了块」,故比到 type + value。
-    expect(end.wrongBlocks, '错块要交出来').toHaveLength(1)
-    expect(end.wrongBlocks[0], '交出来的正是那块点错的四声块').toMatchObject({ type: 'tone', value: '4' })
+    // 星数不写死:按 starsFor 现算(错两次 ⇒ 就是这个档),星规改了这条跟着走。
+    expect(end.stars, '星数按 starsFor(missCount) 算').toBe(starsFor(2))
+    expect(end.stars, '错两次不该还是满星').not.toBe(starsFor(0))
     vi.useRealTimers()
   })
 
   it('startIndex = 1:接着上次从第二题走,不回第一题', async () => {
     vi.useFakeTimers()
-    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
+    const items: QuestionItem[] = [{ kind: 'level', levelIndex: 0 }, { kind: 'level', levelIndex: 1 }]
     const onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})
     const onDone = vi.fn()
     const view = render(
-      <PartRun
+      <QuestionRun
         unit={unit}
         unitIndex={0}
-        part="easy"
+        mode="easy"
         items={items}
-        // Task 9 的宿主靠它把「本部分第一道未通的题」传进来 —— 被吞掉则功能全废且无声。
+        // 宿主靠它把「本串第一道未通的题」传进来 —— 被吞掉则功能全废且无声。
         startIndex={1}
         speak={speak}
         onQuestionEnd={onQuestionEnd}
@@ -163,7 +157,7 @@ describe('PartRun', () => {
 
   it('最后一题走完交 onDone,不再往下走', async () => {
     vi.useFakeTimers()
-    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const items: QuestionItem[] = [{ kind: 'level', levelIndex: 0 }]
     const { onDone } = mount(items)
     solveCurrent(0)
     await advance(2000)
@@ -171,16 +165,33 @@ describe('PartRun', () => {
     vi.useRealTimers()
   })
 
-  it('困难部分的错块按精确身份记账', async () => {
+  // `mode` 是**题面身份**,不是本组件自己用的:它必须原样落到 PinyinBlocksGame 的 `stage` 上,
+  // 否则困难串会按简单题发牌(门禁跟着松掉)。断盘面上的困难材质类,不反射内部变量。
+  it('mode=hard 落到盘面上', () => {
+    const { container } = render(
+      <QuestionRun
+        unit={unit}
+        unitIndex={0}
+        mode="hard"
+        items={[{ kind: 'level', levelIndex: 0 }]}
+        speak={speak}
+        onDone={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('.ptray--hard'), '困难串该走困难盘面').not.toBeNull()
+  })
+
+  // 练习是**整题重考**:走完就往下走,但**不落库** —— 宿主压根拿不到账目(见 spec §8)。
+  it('练习项照走,只是不交账', async () => {
     vi.useFakeTimers()
-    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
+    const items: QuestionItem[] = [practiceItem(0)]
     const onQuestionEnd = vi.fn(async (_end: QuestionEnd) => {})
     const onDone = vi.fn()
     const view = render(
-      <PartRun
+      <QuestionRun
         unit={unit}
         unitIndex={0}
-        part="hard"
+        mode="easy"
         items={items}
         speak={speak}
         onQuestionEnd={onQuestionEnd}
@@ -188,24 +199,17 @@ describe('PartRun', () => {
       />,
     )
     expect(view.container.textContent).toContain(unit.levels[0]!.emoji)
-    solveCurrent(0)
-    await advance(2500)
-    expect(onQuestionEnd).toHaveBeenCalledTimes(1)
-    expect((onQuestionEnd.mock.calls[0]![0] as QuestionEnd).exact).toBe(true)
-    vi.useRealTimers()
-  })
+    // 练习是整题挖空 ⇒ 全部槽都空着(与简单题同形,区别在「不记账」)。
+    expect(
+      document.querySelectorAll('[data-slot-id] [data-value]').length,
+      '练习恒全槽挖空',
+    ).toBe(0)
 
-  it('不传 onQuestionEnd 时(复习部分)照走,只是不交账', async () => {
-    vi.useFakeTimers()
-    const items: PartItem[] = [{ kind: 'level', levelIndex: 0 }]
-    const onDone = vi.fn()
-    const view = render(
-      <PartRun unit={unit} unitIndex={0} part="review" items={items} speak={speak} onDone={onDone} />,
-    )
-    expect(view.container.textContent).toContain(unit.levels[0]!.emoji)
     solveCurrent(0)
     await advance(2000)
-    expect(onDone, '复习部分也不许卡住').toHaveBeenCalledTimes(1)
+
+    expect(onQuestionEnd, '练习不落库').not.toHaveBeenCalled()
+    expect(onDone, '练习走完照样回宿主').toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
 })
