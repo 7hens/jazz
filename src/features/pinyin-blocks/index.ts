@@ -7,9 +7,9 @@ export { PartRun, type PartItem, type PartRunProps, type QuestionEnd } from './P
 export { UnitMap } from './UnitMap'
 export { PinyinBlocksGame, type PinyinBlocksGameProps, type PartResult } from './PinyinBlocksGame'
 export { BlockChip } from './BlockChip'
-export { UNITS, easyLevelsOf, hardLevelsOf } from './levels'
+export { UNITS, easyLevelsOf, hardLevelsOf, LESSON_MAX, lessonsOf, pathLessons, SECTIONS } from './levels'
 export { PARTS, type Part } from './part'
-export type { Level, Syllable, Unit } from './levels'
+export type { Level, Lesson, Section, Syllable, Unit } from './levels'
 export type { Block, BlockType, Hint } from './blocks'
 export { hintFor, HINT_BY_UNIT } from './blocks'
 export {

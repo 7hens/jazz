@@ -469,3 +469,81 @@ export function spellSyllable(syl: Syllable): string {
 export function spell(level: Level): string {
   return level.syl.map(spellSyllable).join(' ')
 }
+
+/* ------------------------------------------------- 学习路径:Section / Lesson */
+
+/** 一节的题数上限。一节 3~5 题是产品口径(spec §3)。 */
+export const LESSON_MAX = 5
+
+/** 一个 Section:按教学点分段。**只有分组,没有新数据** —— 段头要展示的东西全部从段内单元派生。 */
+export type Section = {
+  readonly id: string
+  /** 仅用于家长 / 试玩者的选择器,游戏内不出现(与 `Unit.name` 同一口径)。 */
+  readonly name: string
+  readonly unitIds: readonly string[]
+}
+
+/** 7 段。段内 `unitIds` 的顺序即路径顺序。 */
+export const SECTIONS: readonly Section[] = [
+  { id: 's1', name: '单韵母', unitIds: ['u1'] },
+  { id: 's2', name: '声母', unitIds: ['u2', 'u3', 'u4'] },
+  { id: 's3', name: '复韵母', unitIds: ['u5'] },
+  { id: 's4', name: '鼻韵母', unitIds: ['u6', 'u7'] },
+  { id: 's5', name: '三拼与 ü', unitIds: ['u8', 'u9'] },
+  { id: 's6', name: '整体认读', unitIds: ['u10', 'u11'] },
+  { id: 's7', name: '双音节词', unitIds: ['u12'] },
+]
+
+/**
+ * 学习路径上的一个节点。**不是存档键** —— 切分线挪动不碰任何已存的星(spec §3.1)。
+ * 节是**派生视图**,不写进课程数据:换形状要同时改 `progress-stats` / `achievements` /
+ * worker / 存档格式五处(见上面 `easyLevelsOf` 的注释),`lessonsOf` 走同一条路躲开它。
+ */
+export type Lesson = {
+  /** 形如 'u2#easy-1'。 */
+  readonly id: string
+  readonly unitId: string
+  readonly part: 'easy' | 'hard'
+  readonly levelIds: readonly string[]
+}
+
+/**
+ * 把一个部分的题**均分**成 k 节(k = ceil(n / LESSON_MAX))。
+ *
+ * 为什么是均分而不是「每 5 题一刀」:n = 6 时后者切出 5 + 1,末节一道题不成课;均分给 3 + 3。
+ * 实测各档:`10→5+5`、`9→5+4`、`8→4+4`、`7→4+3`、`6→3+3`、`5→5`(单节)。
+ * **空部分切出 0 节** —— 不产空节(进一个空节就是一块白屏)。
+ */
+function splitEven(levels: readonly Level[], unitId: string, part: 'easy' | 'hard'): Lesson[] {
+  const n = levels.length
+  if (n === 0) return []
+  const k = Math.ceil(n / LESSON_MAX)
+  const base = Math.floor(n / k)
+  const rem = n % k
+  const out: Lesson[] = []
+  let at = 0
+  for (let i = 0; i < k; i++) {
+    const size = base + (i < rem ? 1 : 0)
+    out.push({
+      id: `${unitId}#${part}-${i}`,
+      unitId,
+      part,
+      levelIds: levels.slice(at, at + size).map((l) => l.id),
+    })
+    at += size
+  }
+  return out
+}
+
+/** 一个单元的全部节,顺序 = 简单各节 → 困难各节。 */
+export function lessonsOf(unit: Unit): readonly Lesson[] {
+  return [
+    ...splitEven(easyLevelsOf(unit), unit.id, 'easy'),
+    ...splitEven(hardLevelsOf(unit), unit.id, 'hard'),
+  ]
+}
+
+/** 全路径的节,按单元顺序展平 —— 地图顺序与「下一个该走哪一节」的唯一事实源。 */
+export function pathLessons(units: readonly Unit[] = UNITS): readonly Lesson[] {
+  return units.flatMap(lessonsOf)
+}
