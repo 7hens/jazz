@@ -145,7 +145,7 @@ export const HINT_BY_UNIT: Readonly<Record<string, Hint>> = {
 /**
  * 本题此刻的提示档:基线由单元给,连错 2 次临时回强(只升不降)。
  *
- * 第三参是**题面口径**,不是「这一关是不是复习关」—— 练习恒弱是因为它考的是还没打好的题,
+ * 第三参是**题面口径**,不是「这一关是不是练习」—— 练习恒弱是因为它考的是还没打好的题,
  * 不是因为题的出身。
  */
 export function hintFor(unitId: string, missCount: number, mode: 'easy' | 'hard' | 'practice' = 'easy'): Hint {

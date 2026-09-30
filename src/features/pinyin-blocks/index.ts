@@ -9,7 +9,6 @@ export { QuestionRun, type QuestionEnd, type QuestionItem, type QuestionRunProps
 export { PinyinBlocksGame, type PinyinBlocksGameProps, type QuestionResult } from './PinyinBlocksGame'
 export { BlockChip } from './BlockChip'
 export { UNITS, easyLevelsOf, hardLevelsOf, LESSON_MAX, lessonsOf, pathLessons, SECTIONS } from './levels'
-export { PARTS, type Part } from './part'
 export type { Level, Lesson, Section, Syllable, Unit } from './levels'
 export type { Block, BlockType, Hint } from './blocks'
 export { hintFor, HINT_BY_UNIT } from './blocks'
@@ -21,8 +20,8 @@ export {
 } from './settle'
 export { StageBar, StageDots } from './StageBar'
 export {
+  cleared,
   completedLevelCount,
-  isUnitUnlocked,
   lessonCleared,
   lessonClearedCount,
   lessonIndex,
@@ -62,18 +61,4 @@ export {
   wrongSlotIds,
 } from './rules'
 export type { Placement, Rng, Slot, TrayBlock } from './rules'
-export {
-  addToPool,
-  partReviewQuestions,
-  MAX_REVIEW_QUESTIONS,
-  notePick,
-  reviewQuestionFor,
-  REVIEW_TRAY_CAP,
-  WRONG_PICK_THRESHOLD,
-  type PartReviewItem,
-  type MistakePool,
-  type PickCounts,
-  type PoolKey,
-  type ReviewQuestion,
-} from './mistakes'
 export { practiceQuestions, wholeReviewQuestion, type PracticeItem, type PracticeQuestion } from './practice'

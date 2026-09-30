@@ -301,7 +301,7 @@ describe('buildBlocks', () => {
     expect(hard.filter((b) => b.type === 'initial')).toHaveLength(3)
   })
 
-  // 困难部分的错题池按**精确身份**记账(`exactPoolKey`),简单部分/复习部分按**家族**记账。
+  // 困难节的托盘按**精确身份**记账,简单节按**家族**记账(双身份块算同一块)。
   // 这个差别只有在「某一关 round-0 的困难托盘里同时含一对同家族、不同类型的**可放错块**」
   //(典型是 medial:u 与 final:u,或 medial:i 与 final:i)时才会在 UI 上显形 ——
   // 那时池的条数、复习小题的条数都会不同。

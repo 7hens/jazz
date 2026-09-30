@@ -37,11 +37,11 @@ export type Level = {
   readonly read: string
   readonly syl: readonly Syllable[]
   /**
-   * 困难部分。**不写 = 简单题**。
+   * 困难节。**不写 = 简单题**。
    *
    * 「简单 / 困难」的划分只有这一个字部分说了算:`easyLevelsOf` / `hardLevelsOf`
    * 两个派生视图都从它取,别在别处按单元序号或题数猜。
-   * (复习部分不从课程数据取题 —— 它由错题池当场决定,见 `partLevels`。)
+   * 练习不进这个口径 —— 它的题由星级表现算(`practiceLevelsOf`)。
    */
   readonly stage?: 'hard'
   /**
@@ -104,9 +104,9 @@ export const UNITS: readonly Unit[] = [
       // i / u 不能单独作音节:零声母时写成 yi / wu。块面仍是 i / u,显示串是它们的改写。
       { id: 'u1-50', emoji: '🪑', pinyin: 'yǐ', read: '椅', syl: [{ final: 'i', tone: 3 }] },
       { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ final: 'u', tone: 3 }] },
-      // 原单元末复习关(部分化后并入简单部分):一轮 a o e i u 走完
+      // 原单元末那组复习题(并入简单节后当普通题):一轮 a o e i u 走完
       { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }], listen: true },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u1 ?? []),
     ],
   },
@@ -124,7 +124,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u2-52', emoji: '🌍', pinyin: 'dì', read: '地', syl: [{ initial: 'd', final: 'i', tone: 4 }] },
       { id: 'u2-53', emoji: '😠', pinyin: 'nù', read: '怒', syl: [{ initial: 'n', final: 'u', tone: 4 }], listen: true },
       { id: 'u2-54', emoji: '✏️', pinyin: 'bǐ', read: '笔', syl: [{ initial: 'b', final: 'i', tone: 3 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u2 ?? []),
     ],
   },
@@ -140,7 +140,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u3-53', emoji: '7️⃣', pinyin: 'qī', read: '七', syl: [{ initial: 'q', final: 'i', tone: 1 }] },
       { id: 'u3-54', emoji: '🛁', pinyin: 'xǐ', read: '洗', syl: [{ initial: 'x', final: 'i', tone: 3 }] },
       { id: 'u3-55', emoji: '🥤', pinyin: 'hē', read: '喝', syl: [{ initial: 'h', final: 'e', tone: 1 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u3 ?? []),
     ],
   },
@@ -159,7 +159,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u4-56', emoji: '🦆', pinyin: 'yā', read: '鸭', syl: [{ initial: 'y', final: 'a', tone: 1 }] },
       { id: 'u4-57', emoji: '🙋', pinyin: 'wǒ', read: '我', syl: [{ initial: 'w', final: 'o', tone: 3 }] },
       { id: 'u4-58', emoji: '📄', pinyin: 'zhǐ', read: '纸', syl: [{ initial: 'zh', final: 'i', tone: 3 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u4 ?? []),
     ],
   },
@@ -181,7 +181,7 @@ export const UNITS: readonly Unit[] = [
       // er 是特殊韵母:自成音节,永远不跟声母拼
       { id: 'u5-51', emoji: '👶', pinyin: 'ér', read: '儿', syl: [{ final: 'er', tone: 2 }] },
       { id: 'u5-52', emoji: '👍', pinyin: 'hǎo', read: '好', syl: [{ initial: 'h', final: 'ao', tone: 3 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u5 ?? []),
     ],
   },
@@ -195,7 +195,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u6-50', emoji: '✉️', pinyin: 'xìn', read: '信', syl: [{ initial: 'x', final: 'i', nasal: 'n', tone: 4 }] },
       { id: 'u6-51', emoji: '🛞', pinyin: 'lún', read: '轮', syl: [{ initial: 'l', final: 'u', nasal: 'n', tone: 2 }] },
       { id: 'u6-52', emoji: '🍚', pinyin: 'fàn', read: '饭', syl: [{ initial: 'f', final: 'a', nasal: 'n', tone: 4 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u6 ?? []),
     ],
   },
@@ -210,7 +210,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u5-4', emoji: '👑', pinyin: 'wáng', read: '王', syl: [{ initial: 'w', final: 'a', nasal: 'ng', tone: 2 }] },
       { id: 'u7-50', emoji: '⭐', pinyin: 'xīng', read: '星', syl: [{ initial: 'x', final: 'i', nasal: 'ng', tone: 1 }] },
       { id: 'u7-51', emoji: '🐑', pinyin: 'yáng', read: '羊', syl: [{ initial: 'y', final: 'a', nasal: 'ng', tone: 2 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u7 ?? []),
     ],
   },
@@ -226,7 +226,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u8-50', emoji: '⬇️', pinyin: 'xià', read: '下', syl: [{ initial: 'x', medial: 'i', final: 'a', tone: 4 }] },
       { id: 'u8-51', emoji: '💰', pinyin: 'qián', read: '钱', syl: [{ initial: 'q', medial: 'i', final: 'a', nasal: 'n', tone: 2 }] },
       { id: 'u8-52', emoji: '🪥', pinyin: 'shuā', read: '刷', syl: [{ initial: 'sh', medial: 'u', final: 'a', tone: 1 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u8 ?? []),
     ],
   },
@@ -246,7 +246,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u9-55', emoji: '👧', pinyin: 'nǚ', read: '女', syl: [{ initial: 'n', final: 'ü', tone: 3 }] },
       { id: 'u9-56', emoji: '🟩', pinyin: 'lǜ', read: '绿', syl: [{ initial: 'l', final: 'ü', tone: 4 }] },
       { id: 'u9-57', emoji: '🙌', pinyin: 'jǔ', read: '举', syl: [{ initial: 'j', final: 'ü', tone: 3 }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u9 ?? []),
     ],
   },
@@ -263,7 +263,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u10-51', emoji: '📝', pinyin: 'zì', read: '字', syl: [{ initial: 'z', final: 'i', tone: 4, weld: true }] },
       { id: 'u10-52', emoji: '4️⃣', pinyin: 'sì', read: '四', syl: [{ initial: 's', final: 'i', tone: 4, weld: true }] },
       { id: 'u10-53', emoji: '🔟', pinyin: 'shí', read: '十', syl: [{ initial: 'sh', final: 'i', tone: 2, weld: true }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u10 ?? []),
     ],
   },
@@ -283,7 +283,7 @@ export const UNITS: readonly Unit[] = [
       { id: 'u11-54', emoji: '🎵', pinyin: 'yīn', read: '音', syl: [{ initial: 'y', final: 'i', nasal: 'n', tone: 1, weld: true }] },
       { id: 'u11-55', emoji: '☁️', pinyin: 'yún', read: '云', syl: [{ initial: 'y', final: 'ü', nasal: 'n', tone: 2, weld: true }] },
       { id: 'u11-56', emoji: '🌧️', pinyin: 'yǔ', read: '雨', syl: [{ initial: 'y', final: 'ü', tone: 3, weld: true }] },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u11 ?? []),
     ],
   },
@@ -359,7 +359,7 @@ export const UNITS: readonly Unit[] = [
           { initial: 'sh', final: 'u', tone: 4 },
         ],
       },
-      // 困难部分:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
+      // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。
       ...(HARD_LEVELS.u12 ?? []),
     ],
   },
