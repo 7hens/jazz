@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Block } from './blocks'
 import { UNITS, type Level } from './levels'
-import { slotsFor, type Rng } from './rules'
+import { slotsFor } from './rules'
 import {
   addToPool,
   partReviewQuestions,
@@ -10,14 +10,8 @@ import {
   notePick,
   reviewQuestionFor,
   REVIEW_TRAY_CAP,
-  wholeReviewQuestion,
   WRONG_PICK_THRESHOLD,
 } from './mistakes'
-
-const seq = (values: number[]): Rng => {
-  let i = 0
-  return () => values[i++ % values.length] as number
-}
 
 const b = (type: Block['type'], value: string): Block => ({ type, value })
 
@@ -133,7 +127,7 @@ describe('partReviewQuestions', () => {
   })
 })
 
-describe('reviewQuestionFor / wholeReviewQuestion', () => {
+describe('reviewQuestionFor', () => {
   it('挖空的是该题该类型的**全部**槽,其余槽用正确块预填', () => {
     const level = UNITS[6]!.levels[0]! // u7-0 xī guā:两个音节
     const q = reviewQuestionFor(level, 'final', [], 0)
@@ -171,18 +165,5 @@ describe('reviewQuestionFor / wholeReviewQuestion', () => {
     const visible = q.tray.filter((t) => !Object.values(q.prefill).includes(t.id))
     const finals = visible.filter((t) => t.type === 'final')
     expect(finals).toHaveLength(1)
-  })
-
-  it('wholeReviewQuestion 挖空所有槽、无预填', () => {
-    const unit = UNITS[0]!
-    const level = unit.levels[0]!
-    const q = wholeReviewQuestion(level, 0, seq([0.3, 0.7]))
-    expect(q.kind).toBe('whole')
-    expect(q.prefill).toEqual({})
-    expect([...q.slotIds].sort()).toEqual(slotsFor(level).map((s) => s.id).sort())
-    // 托盘等同简单部分的 buildBlocks —— 每题都要有块可放
-    for (const slot of slotsFor(level)) {
-      expect(q.tray.some((t) => t.value === slot.value), `缺 ${slot.type}:${slot.value}`).toBe(true)
-    }
   })
 })

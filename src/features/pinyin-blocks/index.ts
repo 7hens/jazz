@@ -69,7 +69,6 @@ export {
   notePick,
   reviewQuestionFor,
   REVIEW_TRAY_CAP,
-  wholeReviewQuestion,
   WRONG_PICK_THRESHOLD,
   type PartReviewItem,
   type MistakePool,
@@ -77,3 +76,4 @@ export {
   type PoolKey,
   type ReviewQuestion,
 } from './mistakes'
+export { practiceQuestions, wholeReviewQuestion, type PracticeItem, type PracticeQuestion } from './practice'

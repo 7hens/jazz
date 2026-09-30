@@ -4,7 +4,8 @@
 
 import type { Block, BlockType } from './blocks'
 import type { Level, Unit } from './levels'
-import { buildBlocks, familyKey, slotsFor, type Placement, type Rng, type TrayBlock } from './rules'
+import { wholeReviewQuestion } from './practice'
+import { familyKey, slotsFor, type Placement, type Rng, type TrayBlock } from './rules'
 
 /** 简单部分同一块被点错几次才进错题池。产品裁定值 N = 2(见 spec §3.5)。 */
 export const WRONG_PICK_THRESHOLD = 2
@@ -123,15 +124,6 @@ export function reviewQuestionFor(
 }
 
 /**
- * 池空时的兜底:照考一道**整题**(全部槽挖空、无预填、托盘同简单部分)。
- * 产品裁定「复习部分恒存在」,不存在「这个单元没有复习部分」。
- */
-export function wholeReviewQuestion(level: Level, unitIndex: number, rng: Rng = Math.random): ReviewQuestion {
-  const tray: TrayBlock[] = buildBlocks(level, unitIndex, rng).map((b, i) => ({ ...b, id: `q0-${i}` }))
-  return { kind: 'whole', slotIds: slotsFor(level).map((s) => s.id), prefill: {}, tray }
-}
-
-/**
  * 一个单元的复习部分:从池里取类型,**一个类型一道小题**,最多 `MAX_REVIEW_QUESTIONS` 道。
  *
  * 一道小题挂在哪道题上 = **本单元第一道含该类型槽的题**(`unit.levels` 顺序,含困难题)。
@@ -172,7 +164,7 @@ export function partReviewQuestions(
 
   // 兜底只在**池本身为空**时触发:池非空但类型在本单元全表里都找不到槽 ⇒ 返回空数组(不产出半道题)。
   if (recent.length === 0) {
-    return [{ levelIndex: 0, question: wholeReviewQuestion(first, unitIndex, rng) }]
+    return [{ levelIndex: 0, question: { kind: 'whole', prefill: {}, ...wholeReviewQuestion(first, unitIndex, rng) } }]
   }
   return out
 }
