@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AchievementService,
   AudioService,
@@ -19,7 +19,6 @@ import { UNITS } from './levels'
 import { addToPool, partReviewQuestions, exactPoolKey, type MistakePool } from './mistakes'
 import { firstIncompletePart, nextPartOf, partClearedCount, partLevels, partTotal } from './progress-stats'
 import { EMPTY_PART_SETTLEMENT, mergeSettlement, settleLevel, type PartSettlement } from './settle'
-import { StageTransition } from './StageTransition'
 
 /** 连击圆点:5 颗封顶 —— 再多也读不出来,而 5 正好对上第一个撒花档。 */
 const COMBO_DOTS = [0, 1, 2, 3, 4] as const
@@ -64,8 +63,6 @@ export function UnitEntry({
   const [part, setPart] = useState<Part>(() => firstIncompletePart(unit, stars))
   /** 错题池:**跨部分**活着(简单部分 + 困难部分的错合并成一个池)。退出到地图即随组件卸载丢弃。 */
   const [pool, setPool] = useState<MistakePool>([])
-  /** 部分间 1.2s 过场要进的那一部分。非空时优先渲染 `StageTransition`,部分内不出现。 */
-  const [transitionTo, setTransitionTo] = useState<Part | null>(null)
   /** 已落库、还没交出去的账。**必须是 ref** —— 它跨整部分活着。 */
   const pending = useRef<PartSettlement | null>(null)
 
@@ -141,11 +138,11 @@ export function UnitEntry({
     if (result.achievements.length === 0 && result.luckyReward <= 0) celebrate.play('word')
   }, [onSettle, celebrate])
 
-  /** 本部分走完 → 交账 → 过场进下一部分,或回地图。 */
+  /** 本部分走完 → 交账 → 直接进下一部分(过场已取消),或回地图。 */
   const handlePartDone = useCallback(() => {
     flush()
     const next = nextPartOf(unit, part)
-    if (next) setTransitionTo(next)
+    if (next) setPart(next)
     else onExitToMap()
   }, [flush, unit, part, onExitToMap])
 
@@ -203,16 +200,7 @@ export function UnitEntry({
           )}
         </span>
       </div>
-      {/* 部分间过场优先:1.2s 后换部分。空部分那一支是入口兜底(语义不同,见下)。 */}
-      {transitionTo ? (
-        <StageTransition
-          stage={transitionTo}
-          onDone={() => {
-            setPart(transitionTo)
-            setTransitionTo(null)
-          }}
-        />
-      ) : items.length > 0 ? (
+      {items.length > 0 ? (
         // 换部分即换 key ⇒ 部分内题号、盘面、发牌全部重来;**错题池在上层,跨部分不动**。
         <PartRun
           key={part}
@@ -228,10 +216,19 @@ export function UnitEntry({
           onDone={handlePartDone}
         />
       ) : (
-        // 空部分兜底:进去就是一块白屏,`partEnterable` 已在正常路径上挡掉,
-        // 这一支只在复习部分「池里的类型全找不到槽」时命中 —— 播一次过场就消化掉。
-        <StageTransition stage={part} onDone={handlePartDone} />
+        // 空部分兜底:进去就是一块白屏(`partEnterable` 已在正常路径上挡掉)。
+        // 没有过场可播了 —— 直接把决定权交回宿主。
+        <EmptyPartFallback onDone={handlePartDone} />
       )}
     </div>
   )
+}
+
+/** 空部分的兜底:渲染期不许调 `onDone`,故借一个 effect 把它推出去。 */
+function EmptyPartFallback({ onDone }: { onDone: () => void }) {
+  const done = useRef(onDone)
+  useEffect(() => {
+    done.current()
+  }, [])
+  return null
 }

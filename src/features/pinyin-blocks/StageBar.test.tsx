@@ -1,99 +1,55 @@
 import { cleanup, render } from '@testing-library/react'
-import { act } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { StageBar, StageDots } from './StageBar'
-import { STAGE_TRANSITION_MS, StageTransition } from './StageTransition'
 
-/** 亮起来的格子数(未亮的格子没有 --on / --cool 类)。 */
-const litCount = (el: HTMLElement) => el.querySelectorAll('.pstage-step--on, .pstage-step--cool').length
-const coolCount = (el: HTMLElement) => el.querySelectorAll('.pstage-step--cool').length
+/** 亮起来的格子数。 */
+const litCount = (el: HTMLElement) => el.querySelectorAll('.pstage-step--on').length
 
 afterEach(cleanup)
 
-describe('台阶条(部分标)', () => {
-  it('三部分各自的亮法:简单 1 格 / 困难 2 格 / 复习 2 格橙 + 1 格灰蓝', () => {
-    const easy = render(<StageBar stage="easy" />).container.firstElementChild as HTMLElement
-    expect(litCount(easy)).toBe(1)
-    expect(coolCount(easy)).toBe(0)
-
-    cleanup()
-    const hard = render(<StageBar stage="hard" />).container.firstElementChild as HTMLElement
-    expect(litCount(hard)).toBe(2)
-    expect(coolCount(hard)).toBe(0)
-
-    cleanup()
-    const review = render(<StageBar stage="review" />).container.firstElementChild as HTMLElement
-    expect(litCount(review)).toBe(3)
-    expect(coolCount(review)).toBe(1)
-    expect(review.dataset.stage).toBe('review')
+describe('本节题位条', () => {
+  it('有几道题就几格 —— 3 / 4 / 5 题三档都能画', () => {
+    for (const total of [3, 4, 5]) {
+      const { container, unmount } = render(<StageBar total={total} done={1} />)
+      expect(container.querySelectorAll('.pstage-step')).toHaveLength(total)
+      unmount()
+    }
   })
 
-  it('三格恒存在(形状先给,颜色后给 —— 减动效用户看到的也是一样的两个状态)', () => {
-    const { container } = render(<StageBar stage="easy" />)
-    expect(container.querySelectorAll('.pstage-step')).toHaveLength(3)
+  it('亮到第几格就是做到第几题（done 从 1 起）', () => {
+    const { rerender, container } = render(<StageBar total={4} done={1} />)
+    const bar = container.firstElementChild as HTMLElement
+    expect(litCount(bar)).toBe(1)
+    rerender(<StageBar total={4} done={3} />)
+    expect(litCount(bar)).toBe(3)
+  })
+
+  it('零文本:进度只进无障碍树', () => {
+    const { container } = render(<StageBar total={5} done={2} />)
+    const bar = container.firstElementChild as HTMLElement
+    expect(bar.textContent).toBe('')
+    expect(bar.getAttribute('aria-label')).toBe('本节 2/5')
+    expect(bar.dataset.barTotal).toBe('5')
+    expect(bar.dataset.barDone).toBe('2')
+  })
+
+  it('格子等高 —— 旧的「越右越高」编码的是部分难度阶，部分这个层没有了', () => {
+    const { container } = render(<StageBar total={4} done={0} />)
+    // 三格以上的档位不得再出现 nth-child 派生的高度差(形状必须靠 CSS 之外的东西判不出来,
+    // 故这里只钉「不再有 --cool / --pop 这两支旧语汇」)。
+    expect(container.querySelectorAll('.pstage-step--cool, .pstage-step--pop')).toHaveLength(0)
   })
 })
 
-describe('复习部分的小题进度点', () => {
+describe('练习的小题进度点', () => {
   const dotCount = () => document.querySelectorAll('.pstage-dot').length
   const onCount = () => document.querySelectorAll('.pstage-dot--on').length
 
   it('有几道题就画几个点,当前第几道就亮几颗', () => {
-    const { rerender } = render(<StageDots total={3} done={1} />)
-    expect(dotCount()).toBe(3)
+    const { rerender } = render(<StageDots total={5} done={1} />)
+    expect(dotCount()).toBe(5)
     expect(onCount()).toBe(1)
-    rerender(<StageDots total={3} done={2} />)
-    expect(onCount()).toBe(2)
-  })
-
-  it('池空时的整题小题只有一颗点', () => {
-    render(<StageDots total={1} done={1} />)
-    expect(dotCount()).toBe(1)
-    expect(onCount()).toBe(1)
-  })
-})
-
-describe('换部分过场', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
-
-  it('停 1.2s 后才交回,且期间台阶条已经是目标部分的样子', () => {
-    const onDone = vi.fn()
-    const { container } = render(<StageTransition stage="hard" onDone={onDone} />)
-    expect(container.querySelector('[data-stage-transition="hard"]')).not.toBeNull()
-    expect(litCount(container.querySelector('.pstage-bar') as HTMLElement)).toBe(2)
-
-    act(() => vi.advanceTimersByTime(STAGE_TRANSITION_MS - 1))
-    expect(onDone).not.toHaveBeenCalled()
-    act(() => vi.advanceTimersByTime(1))
-    expect(onDone).toHaveBeenCalledTimes(1)
-  })
-
-  // onDone 每次渲染都是新的内联箭头函数 —— 挂进 effect 的 deps 会把计时器反复重置,过场永远走不完。
-  it('中途重渲染不会重置计时器', () => {
-    const onDone = vi.fn()
-    const { rerender } = render(<StageTransition stage="review" onDone={onDone} />)
-    act(() => vi.advanceTimersByTime(1000))
-    rerender(<StageTransition stage="review" onDone={() => onDone()} />)
-    act(() => vi.advanceTimersByTime(200))
-    expect(onDone).toHaveBeenCalledTimes(1)
-  })
-
-  // 反向守卫:计时器里直接闭包捕获 onDone 也能让「调用次数 === 1」成立,
-  // 但那样交回的是挂载时的旧闭包,父组件会拿旧 state 推进/关闭。必须断调的是最新那个 spy。
-  it('中途换了 onDone,交回时走的是最新那个而不是挂载时捕获的旧闭包', () => {
-    const first = vi.fn()
-    const second = vi.fn()
-    const { rerender } = render(<StageTransition stage="review" onDone={first} />)
-    act(() => vi.advanceTimersByTime(STAGE_TRANSITION_MS - 200))
-    rerender(<StageTransition stage="review" onDone={second} />)
-    act(() => vi.advanceTimersByTime(200))
-    expect(second).toHaveBeenCalledTimes(1)
-    expect(first).not.toHaveBeenCalled()
-  })
-
-  it('进复习那一处遮罩里,第三格已经是灰蓝', () => {
-    const { container } = render(<StageTransition stage="review" onDone={vi.fn()} />)
-    expect(coolCount(container.querySelector('.pstage-bar') as HTMLElement)).toBe(1)
+    rerender(<StageDots total={5} done={4} />)
+    expect(onCount()).toBe(4)
   })
 })

@@ -1041,9 +1041,9 @@ describe('部分内单题的门禁(简单 / 困难 / 复习)', () => {
     mountPart(PART_LEVEL, { review: question })
     // 可见托盘 = 正解 b + 错解 p(韵母与声调都已预填,不在托盘里)。
     expect(trayBlocks()).toHaveLength(2)
-    // 三个槽都在屏上,台阶条也照常画着。
+    // 三个槽都在屏上;练习**不走题位条** —— 它换成一排小进度点,而这里没传 position ⇒ 一格都不画。
     expect(document.querySelectorAll('[data-slot-id]')).toHaveLength(3)
-    expect(document.querySelectorAll('.pstage-step')).toHaveLength(3)
+    expect(document.querySelectorAll('.pstage-step')).toHaveLength(0)
 
     const prefilled = slotsFor(LV).find((s) => s.id !== question.slotIds[0])!
     const chip = document.querySelector(`[data-slot-id="${prefilled.id}"] [data-value]`)

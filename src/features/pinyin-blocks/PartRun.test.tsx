@@ -99,12 +99,11 @@ describe('PartRun', () => {
     expect(end.wrongBlocks, '一次不错 = 没有错块交出来').toEqual([])
     expect(onDone, '还有题没走完,不该交账').not.toHaveBeenCalled()
     expect(view.container.textContent).toContain(unit.levels[1]!.emoji)
-    // 部分内题与题之间是**直接换题**,不该有过场遮罩(过场只发生在部分与部分之间)。
-    // 遮罩会蒙在下一题上 —— 屏幕有内容,上面几条断言全绿,只有这一条挡得住。
-    expect(
-      document.querySelector('[data-stage-transition]'),
-      '部分内题与题之间不该挂过场',
-    ).toBeNull()
+    // 题位条跟着 `position` 走:换到第二题 ⇒ 两格里亮到第二格(宿主给的分母是真题数,不是写死三格)。
+    const bar = document.querySelector<HTMLElement>('.pstage-bar')
+    expect(bar, '简单题上该画题位条').not.toBeNull()
+    expect(bar!.dataset.barTotal, '题位条按本串题数给格').toBe('2')
+    expect(bar!.dataset.barDone, '换到第二题 ⇒ 亮到第二格').toBe('2')
     vi.useRealTimers()
   })
 

@@ -95,7 +95,8 @@ export function PartRun({
       levelIndex={item.levelIndex}
       stage={part === 'hard' ? 'hard' : 'easy'}
       review={item.kind === 'review' ? item.question : null}
-      reviewProgress={item.kind === 'review' ? { done: index + 1, total: items.length } : undefined}
+      // 题位条要的「第几道 / 共几道」在宿主这一层算 —— 组件自己不知道一节课有多长。
+      position={{ done: index + 1, total: items.length }}
       speak={speak}
       playSound={playSound}
       onBlock={onBlock}

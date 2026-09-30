@@ -18,7 +18,7 @@ import {
 } from './rules'
 import { addToPool, exactPoolKey, notePick, type MistakePool, type PickCounts, type ReviewQuestion } from './mistakes'
 import { BlockChip } from './BlockChip'
-import { StageBar, StageDots, type StageId } from './StageBar'
+import { StageBar, StageDots } from './StageBar'
 import { cn } from '@/shared/ui/utils'
 import type { AnswerKind } from '@/shared/services'
 
@@ -55,8 +55,8 @@ export type PinyinBlocksGameProps = {
   stage?: 'easy' | 'hard'
   /** 复习部分的小题。给了它就走复习口径:canPlace 门禁 + 预填槽 + 限定托盘 + 不记 miss。 */
   review?: ReviewQuestion | null
-  /** 复习部分的小题进度(当前第几道 / 共几道)。只影响画点。 */
-  reviewProgress?: { done: number; total: number }
+  /** 本题在第几道 / 本串共几道。只影响画题位条与练习进度点。 */
+  position?: { done: number; total: number }
   /** 部分结束交回账目。给了它就不再走 onSolved / 自走那条路 —— 由入口页决定下一部分。 */
   onPartEnd?: (result: PartResult) => void
   /** 通关:交出本关星级(1..3),由入口页负责落库与推进。 */
@@ -99,7 +99,8 @@ type RoundProps = {
   onSolved?: (stars: number) => void
   stage: 'easy' | 'hard'
   review: ReviewQuestion | null
-  reviewProgress?: { done: number; total: number }
+  /** 本题在第几道 / 本串共几道。只影响画题位条与练习进度点。 */
+  position?: { done: number; total: number }
   onPartEnd?: (result: PartResult) => void
 }
 
@@ -118,14 +119,14 @@ function PinyinRound({
   onSolved,
   stage,
   review,
-  reviewProgress,
+  position,
   onPartEnd,
 }: RoundProps) {
   const unit = UNITS[unitIdx] ?? UNITS[0]!
   const level: Level = unit.levels[lvlIdx] ?? unit.levels[0]!
 
-  /** 三种口径。复习部分压过 stage —— 它自己就是一部分。类型直接借 StageId,免得两处各写一遍联合类型。 */
-  const mode: StageId = review ? 'review' : stage
+  /** 三种口径。练习压过 stage —— 它自己就是一整串题。 */
+  const mode: 'easy' | 'hard' | 'review' = review ? 'review' : stage
   const hard = mode === 'hard'
   /** 复习部分不记 miss、不上报连击 —— 星在进这一部分之前就落库了(spec §3.9)。 */
   const penalized = mode !== 'review'
@@ -675,13 +676,14 @@ function PinyinRound({
         🔊
       </button>
 
-      {/* 台阶条:三格,亮到第几格就是第几部分;复习部分下面再挂一排小题进度点。
-          位置钉在题面图上方、与拼装台同列 —— 不占新地方(spec §3.8)。 */}
+      {/* 题位条:一节有几道题就几格,亮到第几格就是做到第几题。
+          练习改用小一号的进度点 —— 练习不是一节课(它的题数还会随星级变)。 */}
       <div className="flex flex-col items-center gap-1.5">
-        <StageBar stage={mode} />
-        {mode === 'review' && reviewProgress ? (
-          <StageDots total={reviewProgress.total} done={reviewProgress.done} />
-        ) : null}
+        {mode === 'review' ? (
+          position ? <StageDots total={position.total} done={position.done} /> : null
+        ) : (
+          <StageBar total={position?.total ?? 1} done={position?.done ?? 0} />
+        )}
       </div>
 
       {/* 题面 / 拼装台 / 答案行 / 积木盘是一整列,在剩余空间里居中。
@@ -761,7 +763,7 @@ function PinyinRound({
         className={cn(
           'glass-strong flex w-full max-w-3xl flex-col items-center gap-3 rounded-4xl px-4 py-4 shadow-[var(--shadow-card)]',
           hard && 'ptray--hard',
-          mode === 'review' && 'ptray--review',
+          mode === 'review' && 'ptray--practice',
         )}
       >
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -792,7 +794,7 @@ export function PinyinBlocksGame({
   levelIndex,
   stage = 'easy',
   review = null,
-  reviewProgress,
+  position,
   onPartEnd,
   onSolved,
   onAdvance,
@@ -823,7 +825,7 @@ export function PinyinBlocksGame({
       onBlock={onBlock}
       stage={stage}
       review={review}
-      reviewProgress={reviewProgress}
+      position={position}
       onPartEnd={onPartEnd}
       // 有 onPartEnd 就不给这条老路:部分结束由入口页决定下一部分。
       onSolved={

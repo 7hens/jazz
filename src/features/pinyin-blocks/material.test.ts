@@ -345,29 +345,29 @@ describe('index.css 拼音积木材质段', () => {
     }
   })
 
-  it('三部分各有自己的底盘与台阶条', () => {
-    for (const cls of ['.ptray--hard {', '.ptray--review {', '.pblock--reject {', '.pstage-veil {']) {
+  it('底盘:困难与练习各有自己的盘面', () => {
+    for (const cls of ['.ptray--hard {', '.ptray--practice {', '.pblock--reject {']) {
       expect(css.split(cls).length - 1, `${cls} 只该有一条规则`).toBe(1)
     }
-    // 困难部分的盘压暗 + 橙环;复习部分的盘去饱和 + 虚线环。
+    // 困难部分的盘压暗 + 橙环;练习的盘去饱和 + 虚线环。
     const hard = css.indexOf('.ptray--hard {')
     expect(css.slice(hard, css.indexOf('}', hard))).toContain('var(--color-accent)')
-    const review = css.indexOf('.ptray--review {')
-    expect(css.slice(review, css.indexOf('}', review))).toContain('dashed')
+    const practice = css.indexOf('.ptray--practice {')
+    expect(css.slice(practice, css.indexOf('}', practice))).toContain('dashed')
   })
 
-  it('台阶条是「三格、越右越高」,亮态用 accent、复习部分第三格用灰蓝', () => {
-    // 行首锚定,不用 split —— 过场里的 `.pstage-bar--big .pstage-step {` 里含 `.pstage-step {` 这个
+  it('题位条:格子等高、只有亮暗两态,亮态用 accent', () => {
+    // 行首锚定,不用 split —— 放大版里的 `.pstage-bar--big .pstage-step {` 里含 `.pstage-step {` 这个
     // 子串,split 会把它一起数进来(同一类坑:复合选择器让「一条规则」的护栏数出两条)。
     const rules = (sel: string) => css.match(new RegExp(`^${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{`, 'gm'))?.length ?? 0
     expect(rules('.pstage-bar'), '.pstage-bar 只该有一条规则').toBe(1)
     expect(rules('.pstage-step'), '.pstage-step 只该有一条规则').toBe(1)
     expect(rules('.pstage-step--on'), '.pstage-step--on 只该有一条规则').toBe(1)
-    expect(rules('.pstage-step--cool'), '.pstage-step--cool 只该有一条规则').toBe(1)
     expect(rules('.pstage-dot'), '.pstage-dot 只该有一条规则').toBe(1)
     const on = css.indexOf('\n.pstage-step--on {')
     expect(css.slice(on, css.indexOf('}', on))).toContain('var(--color-accent)')
-    const cool = css.indexOf('\n.pstage-step--cool {')
-    expect(css.slice(cool, css.indexOf('}', cool))).toContain('var(--color-ink-2)')
+    // 格子等高:旧版那三支 nth-child 高度阶(编码部分难度)随「部分」这个层一起删了。
+    // 留着它,题位条就会被读成三级台阶 —— 而新语义是「同一节的第几题」。
+    expect(css, '题位条不该再有高度阶').not.toContain('.pstage-step:nth-child')
   })
 })

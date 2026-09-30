@@ -184,24 +184,10 @@ function fillWrongOnce(levelIndex = 0) {
   }
 }
 
-/** 推一段虚拟时间并把微任务排干 —— 需要精确卡在某个中间时刻时用它。 */
-async function advance(ms: number) {
-  await act(async () => {
-    vi.advanceTimersByTime(ms)
-  })
-}
-
 /** 通关回调在成功动画**之后**才发(260ms 判定 + 1600ms 停顿)—— 推时钟并把微任务排干。 */
 async function settle() {
   await act(async () => {
     vi.advanceTimersByTime(3000)
-  })
-}
-
-/** 部分间过场停 1.2s 才交回(STAGE_TRANSITION_MS)—— 推时钟越过它。 */
-async function transition() {
-  await act(async () => {
-    vi.advanceTimersByTime(1300)
   })
 }
 
@@ -233,7 +219,7 @@ function placeOneFitting() {
 
 /**
  * 走到复习部分的完整路径:简单部分第一题上把**韵母**与**声调**两类各点错到阈值(⇒ 两类都入池),
- * 走完简单部分 → 部分末过场 → 困难部分 → 部分末过场 → 复习部分。
+ * 走完简单部分 → **直接**进困难部分 → 走完 → **直接**进复习部分(部分间过场已取消)。
  *
  * 池是**跨部分**活着的(简单部分的错要到困难部分之后的复习部分才被考),两类错块 ⇒ 复习部分出两道小题。
  * 返回那两块错块(顺序 = 入池顺序),调用方可以用它复算 `partReviewQuestions` 对齐题面。
@@ -265,10 +251,9 @@ async function reachReviewPart(): Promise<
   const wrongTone = blockOf(toneHost as HTMLElement)
   tapTwice(toneHost as HTMLElement)
 
-  await solvePart(U1_EASY_INDEXES)
-  await transition() // → 困难部分
-  await solvePart(U1_HARD_INDEXES)
-  await transition() // → 复习部分
+  // 部分末不再等 1.2s 遮罩 —— 上一部分最后一题的成功动画走完,下一部分直接上屏。
+  await solvePart(U1_EASY_INDEXES) // → 困难部分
+  await solvePart(U1_HARD_INDEXES) // → 复习部分
   return { wrongFinal, wrongTone, ...mounted }
 }
 
@@ -404,29 +389,15 @@ describe('UnitEntry · 部分推进与交账', () => {
 })
 
 describe('UnitEntry —— 部分状态机与错题池', () => {
-  // ⚠ 部分末过场是真停 1.2s 的,而它**在最后一题结束之后才挂**。所以这条用例必须分两段推:
-  // 一次推过 1.2s 只会看到「遮罩已散」,那只覆盖「过场之后」这一半 ——
-  // 把 setTransitionTo(next) 删成直接 setPart(next)(过场整个消失)它照样全绿(假绿)。
-  it('简单部分走完挂部分末过场(1.2s),过场散去才进困难部分', async () => {
+  // 部分间的 1.2s 遮罩已取消(`StageTransition` 退休):上一部分走完,下一部分**直接**上屏。
+  it('简单部分走完直接落到困难部分 —— 过场取消了', async () => {
     mountUnitEntry({ unitIndex: 0 })
-    // 最后一题单独解决:它的结束时刻是后面那两段的原点。
-    await solvePart(U1_EASY_INDEXES.slice(0, -1))
-    solveCorrectly(U1_EASY_INDEXES[U1_EASY_INDEXES.length - 1]!)
-
-    // 第一段:推 2.4s —— 越过「落块 260ms 判定 + 1.6s 成功动画」(过场已在场),
-    // 又**不到**遮罩挂上后的 1.2s(过场还没散)。
-    await advance(2400)
-    const veil = document.querySelector<HTMLElement>('[data-stage-transition]')
-    expect(veil, '部分末该挂换部分过场').not.toBeNull()
-    expect(veil!.dataset.stageTransition, '过场指向下一部分').toBe('hard')
-    expect(document.body.textContent, '过场还在场时不该已经上困难部分题面').not.toContain(
-      U1_HARD_LEVELS[0]!.emoji,
+    await solvePart(U1_EASY_INDEXES)
+    expect(document.body.textContent, '困难部分第一题该上屏').toContain(U1_HARD_LEVELS[0]!.emoji)
+    // 光有图不算数:页头的部分进度得换成困难部分的分母(每道题都一次不错 ⇒ 已通 0)。
+    expect(document.querySelector('[data-part-progress]')?.textContent, '页头已在困难部分').toBe(
+      `0/${U1_HARD_LEVELS.length}`,
     )
-
-    // 第二段:推过 1.2s —— 遮罩散去,困难部分第一道题上屏。
-    await transition()
-    expect(document.querySelector('[data-stage-transition]'), '过场该散去').toBeNull()
-    expect(document.body.textContent).toContain(U1_HARD_LEVELS[0]!.emoji)
   })
 
   // `Math.max(0, …)`(UnitEntry.tsx)的守卫:本部分的题**全部已通**时 `findIndex` 返回 -1,
@@ -442,11 +413,10 @@ describe('UnitEntry —— 部分状态机与错题池', () => {
     expect(document.querySelectorAll('[data-slot-id]').length, '盘面上该有槽').toBeGreaterThan(0)
   })
 
-  it('部分内两道题之间没有过场(拼完直接换题)', async () => {
+  it('部分内两道题之间直接换题(拼完直接上屏下一题)', async () => {
     mountUnitEntry({ unitIndex: 0 })
     solveCorrectly(0)
     await settle()
-    expect(document.querySelector('[data-stage-transition]'), '部分内不该出过场').toBeNull()
     expect(document.body.textContent).toContain(UNITS[0]!.levels[1]!.emoji)
   })
 
@@ -467,7 +437,6 @@ describe('UnitEntry —— 部分状态机与错题池', () => {
   it('部分末交账一次;部分末之后按回地图不再重复交', async () => {
     const { onSettle } = mountUnitEntry({ unitIndex: 0 })
     await solvePart(U1_EASY_INDEXES)
-    await transition()
     expect(onSettle, '部分末交账').toHaveBeenCalledTimes(1)
     fireEvent.click(document.querySelector<HTMLElement>('[aria-label="回地图"]')!)
     expect(onSettle, '已经交过的账不许再交一次(弹层会重放)').toHaveBeenCalledTimes(1)

@@ -1,53 +1,34 @@
 import { cn } from '@/shared/ui/utils'
-import type { Part } from './part'
 
 /**
- * 台阶条的身份就是部分的类别 —— 台阶条有三格,一个单元三部分,同一套素材同一套语义。
- * 留着 `StageId` 这个名字是因为 `PinyinBlocksGame` 的 `stage` 入参是「部分」的视角,
- * 两处指的是同一个联合类型,不许各写一份。
+ * 本节题位条:这一节有几道题就几格,亮到第几格就是做到第几题(`done` 从 1 起)。
+ *
+ * 与旧「三格台阶条 = 三个部分」同名不同义 —— 部分这个层没有了(spec §9)。
+ * 旧版「越右越高」编码的是**难度阶**,新语义是**同一节的第几题**,故格子等高、只有亮/暗两态。
+ * 形状即语义:一排东西 + 亮暗两态,与连击点同源,孩子在这个游戏里已经学过。
  */
-export type StageId = Part
-
-/** 只进无障碍树,不上屏 —— 游戏区零可见文字。 */
-const LABEL: Record<StageId, string> = {
-  easy: '第一部分 简单',
-  hard: '第二部分 困难',
-  review: '第三部分 复习',
-}
-
-/**
- * 台阶条(部分标):三格并排、越右越高,亮到第几格就是第几部分。
- * 复习部分的第三格是灰蓝而不是橙 —— 复习不是第三级难度,是回炉(spec §3.8)。
- */
-export function StageBar({ stage, big = false, pop = false }: { stage: StageId; big?: boolean; pop?: boolean }) {
-  const cells: ('on' | 'off' | 'cool')[] = ['on', stage === 'easy' ? 'off' : 'on', stage === 'review' ? 'cool' : 'off']
+export function StageBar({ total, done, big = false }: { total: number; done: number; big?: boolean }) {
   return (
-    <span data-stage={stage} aria-label={LABEL[stage]} className={cn('pstage-bar', big && 'pstage-bar--big')}>
-      {cells.map((cell, index) => (
-        <span
-          key={index}
-          aria-hidden
-          className={cn(
-            'pstage-step',
-            cell === 'on' && 'pstage-step--on',
-            cell === 'cool' && 'pstage-step--cool',
-            pop && cell !== 'off' && 'pstage-step--pop',
-          )}
-          // 逐格点亮:只在过场里排延迟。减动效下动画被压成 0.01ms,延迟仍在 ⇒ 两态依然可读。
-          style={pop && cell !== 'off' ? { animationDelay: `${index * 180}ms` } : undefined}
-        />
+    <span
+      data-bar-total={total}
+      data-bar-done={done}
+      aria-label={`本节 ${done}/${total}`}
+      className={cn('pstage-bar', big && 'pstage-bar--big')}
+    >
+      {Array.from({ length: total }, (_, index) => (
+        <span key={index} aria-hidden className={cn('pstage-step', index < done && 'pstage-step--on')} />
       ))}
     </span>
   )
 }
 
 /**
- * 复习部分的小题进度点:最多 3 个,当前第几道就亮几颗(`done` 从 1 起)。
- * 颜色与台阶条第三格同源(同一支灰蓝),放错只抖不动它。
+ * 练习的小题进度点:做完几道亮几颗(`done` 从 1 起)。与题位条同源,只是更小一号 ——
+ * 练习不是一节课,不该长得像一节(它的题数还会随星级变)。
  */
 export function StageDots({ total, done }: { total: number; done: number }) {
   return (
-    <span data-review-dots data-review-done={done} aria-label={`复习 ${done}/${total}`} className="pstage-dots">
+    <span data-review-dots data-review-done={done} aria-label={`练习 ${done}/${total}`} className="pstage-dots">
       {Array.from({ length: total }, (_, index) => (
         <span key={index} aria-hidden className={cn('pstage-dot', index < done && 'pstage-dot--on')} />
       ))}

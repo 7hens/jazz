@@ -18,8 +18,7 @@ export {
   type PartSettlement,
   type LevelSettlement,
 } from './settle'
-export { StageBar, StageDots, type StageId } from './StageBar'
-export { STAGE_TRANSITION_MS, StageTransition } from './StageTransition'
+export { StageBar, StageDots } from './StageBar'
 export {
   completedLevelCount,
   isUnitUnlocked,
