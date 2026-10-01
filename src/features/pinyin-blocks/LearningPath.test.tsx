@@ -132,9 +132,9 @@ describe('现代蛇形路径', () => {
     expect(current.className).toContain('node-glow')
   })
 
-  it('节点有 path-connector（路径连接线）', () => {
+  it('节点有 SVG 连接线', () => {
     const { container } = renderPath()
-    const connectors = container.querySelectorAll('.path-connector')
-    expect(connectors.length).toBeGreaterThan(0)
+    const lines = container.querySelectorAll('svg line')
+    expect(lines.length).toBeGreaterThan(0)
   })
 })

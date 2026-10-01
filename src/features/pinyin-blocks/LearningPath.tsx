@@ -40,22 +40,31 @@ export type LearningPathProps = {
 /** 蛇形排布:节点在 4 个横向档位间来回,读起来是一条向左下折返的路。 */
 const ZIGZAG = ['ml-0', 'ml-10', 'ml-20', 'ml-10'] as const
 
-/** zigzag 档位的水平偏移量(rem)。 */
-const ZIGZAG_X = [0, 2.5, 5, 2.5] as const
+/** zigzag 档位的水平偏移量(px)。 */
+const ZIGZAG_X = [0, 40, 80, 40] as const
+
+/** 节点高度(px)。 */
+const NODE_H = [64, 40, 32] as const // current, cleared, locked
+
+/** 节点之间的垂直间距(px)。 */
+const GAP = 12
 
 /**
- * 根据相邻节点的 zigzag 位置计算连接线的角度和位置。
- * 连接线从前一个节点的底部中心指向当前节点的顶部中心。
+ * 计算第 i 个节点的中心坐标(相对于 unit-cluster 容器)。
+ * 用于 SVG 连接线定位。
  */
-function connectorStyle(i: number): React.CSSProperties {
-  const prev = (i - 1) % 4
-  const curr = i % 4
-  const dx = ZIGZAG_X[curr]! - ZIGZAG_X[prev]!
-  // 角度:水平偏移差决定旋转角度
-  const angle = dx * 15
+function nodeCenter(i: number, states: string[]): { x: number; y: number } {
+  const state = states[i]!
+  const h = NODE_H[state === 'current' ? 0 : state === 'cleared' ? 1 : 2]!
+  // 计算该节点之前所有节点的总高度 + 间距
+  let y = 0
+  for (let j = 0; j < i; j++) {
+    const prevH = NODE_H[states[j] === 'current' ? 0 : states[j] === 'cleared' ? 1 : 2]!
+    y += prevH + GAP
+  }
   return {
-    left: `calc(50% + ${dx * 1.25}rem)`,
-    transform: `rotate(${angle}deg)`,
+    x: ZIGZAG_X[i % 4]! + h / 2,
+    y: y + h / 2,
   }
 }
 
@@ -238,7 +247,7 @@ function UnitCluster({
   const practice = practiceLevelsOf(stars, unit)
   const practiceLit = practice.length > 0
   return (
-    <div data-unit-cluster={unit.id} className="flex flex-col items-center gap-3">
+    <div data-unit-cluster={unit.id} className="relative flex flex-col items-center gap-3">
       {showHeader ? (
         <div data-unit-header={unit.id} className="flex justify-center">
           <span className="flex min-h-6 flex-wrap items-center justify-center gap-1">
@@ -254,13 +263,34 @@ function UnitCluster({
         </div>
       ) : null}
 
+      {/* SVG 连接线层:覆盖整个 unit-cluster,精确连接相邻节点 */}
+      <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+        {own.slice(1).map((_, i) => {
+          const curr = i + 1
+          const states = own.map((l) => lessonState(stars, l, lessons))
+          const p1 = nodeCenter(i, states)
+          const p2 = nodeCenter(curr, states)
+          return (
+            <line
+              key={own[curr]!.id}
+              x1={p1.x}
+              y1={p1.y}
+              x2={p2.x}
+              y2={p2.y}
+              stroke="var(--color-accent)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              opacity="0.35"
+            />
+          )
+        })}
+      </svg>
+
       {own.map((lesson, i) => {
         const state = lessonState(stars, lesson, lessons)
         const locked = state === 'locked'
         return (
           <div key={lesson.id} className="relative">
-            {/* 路径连接线 */}
-            {i > 0 && <div className="path-connector" style={connectorStyle(i)} aria-hidden />}
             <button
               type="button"
               data-lesson-id={lesson.id}
