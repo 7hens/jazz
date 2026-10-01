@@ -209,6 +209,11 @@ async function solveFirstLesson() {
 /** 路径上第 1 个可点节点(当前节点)。 */
 const currentNode = () => document.querySelector<HTMLElement>('[data-lesson-state="current"]')!
 
+/** 现代蛇形路径所有节点初始可见,无需展开。 */
+function expandToFirstLesson() {
+  // 蛇形路径布局:所有节点初始可见,无需点击展开
+}
+
 describe('App 路由', () => {
   it('boot → login:认证返回匿名时显示登录门', async () => {
     const svc = registerAll()
@@ -260,6 +265,7 @@ describe('App 路由', () => {
     const { container } = mountApp()
 
     await waitFor(() => expect(container.querySelector('[data-learning-path]')).not.toBeNull())
+    expandToFirstLesson()
     fireEvent.click(currentNode())
 
     expect(await screen.findByRole('button', { name: '回路径' })).toBeInTheDocument()
@@ -288,6 +294,7 @@ describe('App 路由', () => {
     const { container } = mountApp({ settingsPublishes: false })
 
     await waitFor(() => expect(container.querySelector('[data-learning-path]')).not.toBeNull())
+    expandToFirstLesson()
     fireEvent.click(currentNode())
 
     // 关键区分断在正向断言之前,失败信息才指得准「悄悄进了哪儿」:
@@ -328,6 +335,7 @@ describe('App 庆祝态接线', () => {
     const { svc, container } = mountApp({ luckyReward: 50 })
 
     await waitFor(() => expect(container.querySelector('[data-learning-path]')).not.toBeNull())
+    expandToFirstLesson()
     fireEvent.click(currentNode())
     await screen.findByRole('button', { name: '回路径' })
 

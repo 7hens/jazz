@@ -513,6 +513,50 @@
     0 0 26px 5px color-mix(in srgb, var(--color-gold) 70%, transparent);
 }
 
+/* 当前节点的呼吸动画:柔和的缩放脉冲,吸引孩子注意力 */
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* 节点出现动画:从透明到可见,带轻微的上移 */
+@keyframes node-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 路径连接线:跟随 zigzag 排布的斜线,营造「路」的感觉 */
+.path-connector {
+  position: absolute;
+  top: -14px;
+  width: 3px;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 30%, transparent) 100%);
+  opacity: 0.35;
+  transform-origin: bottom center;
+}
+
+/* 当前节点光晕:柔和的发光效果 */
+.node-glow {
+  position: relative;
+}
+.node-glow::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 25%, transparent) 0%, transparent 70%);
+  opacity: 0;
+  animation: glow-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
 /* 答对迸星:位移量由组件按角度算好后经 --dx/--dy 传入 */
 @keyframes pspark {
   from {

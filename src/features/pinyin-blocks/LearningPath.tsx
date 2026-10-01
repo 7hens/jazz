@@ -7,13 +7,18 @@ import { SECTIONS, pathLessons, type Lesson, type Section, type Unit } from './l
 import {
   lessonState,
   practiceLevelsOf,
-  sectionClearedCount,
-  sectionTotal,
-  unitClearedCount,
   unitLessonsOf,
-  unitTotal,
   unitsOfSection,
 } from './progress-stats'
+
+/** 总进度:已通关节数 / 总节数 */
+function totalProgress(stars: LevelStars, lessons: readonly Lesson[]): { cleared: number; total: number } {
+  let cleared = 0
+  for (const lesson of lessons) {
+    if (lessonState(stars, lesson, lessons) === 'cleared') cleared++
+  }
+  return { cleared, total: lessons.length }
+}
 
 export type LearningPathProps = {
   stars: LevelStars
@@ -32,26 +37,27 @@ export type LearningPathProps = {
   onOpenParent(): void
 }
 
-/**
- * 名片行的块尺寸:比游戏内小一档(段头与簇头共用这一档)。尺寸由全场最宽的名片定,算一遍就够:
- * - 需要宽 5×32(w-8) + 4×4(gap-1) = **176px**;
- * - 路径内容列封顶 `max-w-2xl` = **672px**,名片行是它下面的一整行(flex 列,不再切格子) → 176 ≤ 672 ✓ 单行;
- * - 375px 手机内宽 = 375 − 32(px-4) = 343px → 单行也放得下(176 ✓)。
- * 所以还配了 `flex-wrap`:光缩盒子不够 —— 加宽的名片撑不破也只是被 flex 默认的 flex-shrink 压成歪条,
- * 「小一档」就成了假的。
- * 字号同理要缩,并且带 `!`:这里比的是 **`cn`(= tailwind-merge)的参数顺序**,不是样式表顺序 ——
- * `cn` 把同类里排在后面的留下、把输家**从 class 里删掉**。现序(调用方 className 在末位)下不带 `!`
- * 也赢;但有人把 className 提到 `cn` 参数前面(自然的「调用方优先」重构)就会静默回退到 1.75rem。
- * `!` 让两个类共存、由 `!important` 决胜,顺序怎么变都成立。
- * 级联与像素 jsdom 里都测不出(环境无 CSS、无布局引擎):`!` 的顺序无关性由 `LearningPath.test.tsx` 的
- * 「名片字号覆盖不依赖 cn 的参数顺序」钉住;这一格的**已知的预算输入**(块 / 名片行 / 内容列的类)
- * 由同文件的「u7 名片的布局预算:已知的输入都在(不验证布局,只钉输入)」钉住;剩下的(字是否顶格、折行好不好看)只能在浏览器里看,
- * 由构建产物与人工冒烟兜底。
- */
-const BADGE_BOX = 'h-8 w-8 text-[0.85rem]!'
-
 /** 蛇形排布:节点在 4 个横向档位间来回,读起来是一条向左下折返的路。 */
 const ZIGZAG = ['ml-0', 'ml-10', 'ml-20', 'ml-10'] as const
+
+/** zigzag 档位的水平偏移量(rem)。 */
+const ZIGZAG_X = [0, 2.5, 5, 2.5] as const
+
+/**
+ * 根据相邻节点的 zigzag 位置计算连接线的角度和位置。
+ * 连接线从前一个节点的底部中心指向当前节点的顶部中心。
+ */
+function connectorStyle(i: number): React.CSSProperties {
+  const prev = (i - 1) % 4
+  const curr = i % 4
+  const dx = ZIGZAG_X[curr]! - ZIGZAG_X[prev]!
+  // 角度:水平偏移差决定旋转角度
+  const angle = dx * 15
+  return {
+    left: `calc(50% + ${dx * 1.25}rem)`,
+    transform: `rotate(${angle}deg)`,
+  }
+}
 
 /** 段头 / 簇头的名片:段头 = 段内单元 badge 的并集(按 `type:value` 去重),簇头 = 本单元的 badge。 */
 function badgesOf(units: readonly Unit[]): readonly Block[] {
@@ -69,11 +75,10 @@ function badgesOf(units: readonly Unit[]): readonly Block[] {
 }
 
 /**
- * 学习路径。**零文本** —— 段头 / 簇头靠积木名片自表意 + 一个完成计数,节点靠三态图标:
- * 4-8 岁的孩子读不出「单韵母」这类字,而积木是他刚在游戏里摸过的东西。
+ * 学习路径 —— 现代蛇形。
  *
- * 三层可见结构(spec §6):Section 段头一行 → Unit 簇头一行(仅当段内单元 > 1)→ Lesson 圆形节点。
- * **单单元段不画簇头** —— 段头与簇头是同一套名片,画两遍是纯冗余。
+ * 所有节点可见,用一条渐变的「路」串起来。
+ * 视觉层次:当前节点(最大+呼吸) > 已完成(中等) > 锁定(最小最淡)。
  */
 export function LearningPath({
   stars,
@@ -85,45 +90,46 @@ export function LearningPath({
   onOpenParent,
 }: LearningPathProps) {
   const lessons = pathLessons()
+  const progress = totalProgress(stars, lessons)
 
   return (
     <div data-learning-path className="min-h-screen px-4 pb-10 pt-4">
-      <div className="mx-auto flex max-w-2xl items-center justify-between">
-        {/* 星尘:M3 的 assist chip 样子 —— 实底色阶 + full 圆角,不用描边也不用毛玻璃。
-            **不挂影**:M3 里 chip 是平的,浮起来的只有卡片 —— 那层影是「这一格可以进去」的信号,
-            洒到顶栏上就把它稀释成装饰了。
-            星形图标是装饰(读数由旁边那个高对比的数字承载),所以压在浅底上的低对比不构成问题。 */}
-        <span
-          aria-label={`星尘 ${totalStars}`}
-          className="flex items-center gap-1.5 rounded-full bg-surface-container-low px-3 py-1.5"
-        >
-          <Star className="h-4 w-4 text-gold" aria-hidden />
-          <span className="text-base font-extrabold tabular-nums">{totalStars}</span>
-        </span>
-        {/* 家长:M3 的 tonal 图标按钮(full 圆角 + 实底色阶 + 状态层),不是「描边圆」,同样不挂影。
-            状态层指认叠 on-surface-variant —— 图标本身就是那个色,悬停时加深的是它自己。 */}
-        <button
-          type="button"
-          onClick={onOpenParent}
-          aria-label="家长"
-          className="m3-state flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-surface-container-low text-ink-2 [--m3-state-color:var(--color-ink-2)]"
-        >
-          <Settings className="h-5 w-5" aria-hidden />
-        </button>
+      <div className="mx-auto flex max-w-2xl flex-col gap-3">
+        <div className="flex items-center justify-between">
+          {/* 星尘 */}
+          <span
+            aria-label={`星尘 ${totalStars}`}
+            className="flex items-center gap-1.5 rounded-full bg-surface-container-low px-3 py-1.5"
+          >
+            <Star className="h-4 w-4 text-gold" aria-hidden />
+            <span className="text-base font-extrabold tabular-nums">{totalStars}</span>
+          </span>
+          {/* 家长 */}
+          <button
+            type="button"
+            onClick={onOpenParent}
+            aria-label="家长"
+            className="m3-state flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-surface-container-low text-ink-2 [--m3-state-color:var(--color-ink-2)]"
+          >
+            <Settings className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+
+        {/* 总进度条 */}
+        <div data-total-progress className="flex items-center gap-2">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-container-high">
+            <div
+              className="h-full rounded-full bg-accent transition-all duration-500"
+              style={{ width: `${progress.total > 0 ? (progress.cleared / progress.total) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-xs font-bold text-ink-2 tabular-nums">
+            {progress.cleared}/{progress.total}
+          </span>
+        </div>
       </div>
 
-      {/* 成就徽章栏:每格 = 目录里的一条,**按目录全量渲染** —— spec 的「还有几个空着」才是收集动机,
-          只显已得的话它的信息量不超过成就弹层。两态:
-            已得 = 白圆 + 图标;未得 = **空圈**(不画图标,圈内只填一档灰蓝色阶)。
-          **未得态不压 opacity**:整块压透明度会把那圈描边连同底色一起合掉,「这是一个空位」就没了。
-          这一类比(压暗压到看不见)jsdom 永远测不出(无 CSS 引擎),人眼由 W-V4 兜。
-          两态**共用** `border-ink-2` 描边,它就是「这是一个空位」的承载者。**必须带主题限定**
-          (照 `ParentPanel.tsx` 两态注释的格式:逐个数字给主题与分母):
-          未得那格的圈压在 `--color-surface-container-high` 上:
-          亮色 3.6:1(#5a7ba0 压 #dbe9f7);暗色 5.7:1(#9fb8d4 压 #27395a)。
-          已得那格压在 `--color-surface` 上:亮 4.4:1(#ffffff)/ 暗 7.8:1(#14223d)。
-          数由 token 值合成推得、**非像素裁定**;动 ink-2 / 这两档色阶后都要重算,像素侧仍归 W-V4。
-          独立一行 + flex-wrap,不吃内容列宽:每格 h-8 w-8 + gap-1.5,乘目录条数须落在窄屏预算内(人眼由 W-V3 兜)。 */}
+      {/* 成就徽章栏 */}
       {earned === null ? null : (
         <div
           data-achievement-badges
@@ -149,7 +155,8 @@ export function LearningPath({
         </div>
       )}
 
-      <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-10">
+      {/* 蛇形路径 */}
+      <div className="mx-auto mt-6 flex max-w-2xl flex-col gap-8">
         {SECTIONS.map((section) => (
           <SectionGroup
             key={section.id}
@@ -181,9 +188,9 @@ function SectionGroup({
 }) {
   const units = unitsOfSection(section)
   return (
-    <section data-section-id={section.id} className="flex flex-col gap-6">
-      {/* 段头:本段新教块的积木名片行 + 段完成计数。**零文本**。 */}
-      <div className="flex flex-col items-center gap-1">
+    <section data-section-id={section.id} className="flex flex-col gap-4">
+      {/* 段头:本段新教块的积木名片行 */}
+      <div className="flex justify-center">
         <span className="flex min-h-9 flex-wrap items-center justify-center gap-1.5">
           {badgesOf(units).map((block, i) => (
             <BlockChip
@@ -193,9 +200,6 @@ function SectionGroup({
               className="h-9 w-9 text-[0.95rem]!"
             />
           ))}
-        </span>
-        <span data-section-progress={section.id} className="text-xs font-bold text-ink-2 tabular-nums">
-          {sectionClearedCount(stars, section, lessons)}/{sectionTotal(section, lessons)}
         </span>
       </div>
 
@@ -236,19 +240,16 @@ function UnitCluster({
   return (
     <div data-unit-cluster={unit.id} className="flex flex-col items-center gap-3">
       {showHeader ? (
-        <div data-unit-header={unit.id} className="flex flex-col items-center gap-1">
-          <span className="flex min-h-8 flex-wrap items-center justify-center gap-1">
+        <div data-unit-header={unit.id} className="flex justify-center">
+          <span className="flex min-h-6 flex-wrap items-center justify-center gap-1">
             {unit.badge.map((block, i) => (
               <BlockChip
                 key={`${block.type}-${block.value}-${i}`}
                 type={block.type}
                 value={block.value}
-                className={BADGE_BOX}
+                className="h-6 w-6 text-[0.7rem]!"
               />
             ))}
-          </span>
-          <span data-unit-progress={unit.id} className="text-xs font-bold text-ink-3 tabular-nums">
-            {unitClearedCount(stars, unit)}/{unitTotal(unit)}
           </span>
         </div>
       ) : null}
@@ -257,38 +258,40 @@ function UnitCluster({
         const state = lessonState(stars, lesson, lessons)
         const locked = state === 'locked'
         return (
-          <button
-            key={lesson.id}
-            type="button"
-            data-lesson-id={lesson.id}
-            data-lesson-state={state}
-            aria-disabled={locked}
-            aria-label={`第 ${i + 1} 节`}
-            onClick={() => {
-              if (locked) return
-              onPickLesson(lesson.id)
-            }}
-            className={cn(
-              'flex h-14 w-14 items-center justify-center rounded-full transition-shadow duration-150 ease-out',
-              ZIGZAG[i % ZIGZAG.length],
-              state === 'current' && 'm3-state cursor-pointer bg-accent text-accent-ink shadow-m3-2',
-              state === 'cleared' && 'm3-state cursor-pointer bg-surface text-ink shadow-m3-1',
-              locked && 'bg-surface-container-high text-ink-2 shadow-none',
-            )}
-          >
-            {locked ? (
-              <Lock aria-hidden className="h-5 w-5" />
-            ) : state === 'current' ? (
-              <Play aria-hidden className="h-5 w-5" />
-            ) : (
-              <Check aria-hidden className="h-6 w-6" />
-            )}
-          </button>
+          <div key={lesson.id} className="relative">
+            {/* 路径连接线 */}
+            {i > 0 && <div className="path-connector" style={connectorStyle(i)} aria-hidden />}
+            <button
+              type="button"
+              data-lesson-id={lesson.id}
+              data-lesson-state={state}
+              aria-disabled={locked}
+              aria-label={`第 ${i + 1} 节`}
+              onClick={() => {
+                if (locked) return
+                onPickLesson(lesson.id)
+              }}
+              className={cn(
+                'flex items-center justify-center rounded-full transition-all duration-200 ease-out',
+                ZIGZAG[i % ZIGZAG.length],
+                state === 'current' && 'node-glow m3-state h-16 w-16 cursor-pointer bg-accent text-accent-ink shadow-m3-2 animate-[pulse-soft_2s_ease-in-out_infinite]',
+                state === 'cleared' && 'm3-state h-10 w-10 cursor-pointer bg-surface text-ink-2 shadow-m3-1 opacity-70 hover:opacity-100',
+                locked && 'h-8 w-8 cursor-not-allowed bg-surface-container-high text-ink-3 opacity-40',
+              )}
+            >
+              {locked ? (
+                <Lock aria-hidden className="h-3.5 w-3.5" />
+              ) : state === 'current' ? (
+                <Play aria-hidden className="h-6 w-6" />
+              ) : (
+                <Check aria-hidden className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         )
       })}
 
-      {/* 练习入口:与节点同列但形状不同(方一点 + 回炉图标)—— 它不是这条链上的一环。
-          无题可练时不亮(spec §8.2):全 3 星 = 没什么可练的,伪造一道题是往屏幕上放假话。 */}
+      {/* 练习入口 */}
       <button
         type="button"
         data-practice-unit={unit.id}
@@ -300,13 +303,13 @@ function UnitCluster({
           onPickPractice(unit.id)
         }}
         className={cn(
-          'mt-1 flex h-11 w-11 items-center justify-center rounded-m3-lg',
+          'mt-1 flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed transition-all duration-200',
           practiceLit
-            ? 'm3-state cursor-pointer bg-surface-container-low text-ink shadow-m3-1 hover:shadow-m3-2'
-            : 'bg-surface-container-high text-ink-2 shadow-none',
+            ? 'm3-state cursor-pointer border-ink-3 text-ink-2 hover:border-ink-2 hover:text-ink'
+            : 'border-ink-3/30 text-ink-3/40',
         )}
       >
-        <RotateCcw aria-hidden className="h-5 w-5" />
+        <RotateCcw aria-hidden className="h-4 w-4" />
       </button>
     </div>
   )
