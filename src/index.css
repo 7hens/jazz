@@ -537,6 +537,81 @@
   transform-origin: bottom center;
 }
 
+/* ---- 单元地图的「路」----
+ * 两层叠出体积感,与 .pblock 的三层同源(内侧上缘高光 / 实心底边 / 落影):
+ *   1) lp-track  凹陷的槽 —— 下缘一道亮边 + 上缘一道暗影,读作压进画面的凹槽
+ *   2) lp-done   已走过的路面 —— 橙金渐变,只画到当前关卡
+ * 两层同一条 d,靠 stroke-width 递减做出「槽里嵌一条亮带」的层次。
+ * 刻意不画「路面中缝高光」:居中的细描边读作中缝而非反光,
+ * 高光要偏到受光侧才有圆润感,那是逐节点的事,不是整条路的事。 */
+.lp-track {
+  fill: none;
+  stroke: var(--color-surface-container-high);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* 下缘一道白亮边 + 上缘一道墨色暗影 = 一条压进画面的凹槽。
+     暗影走 --color-ink 掺透明,不写死 rgb(31 58 95) —— 那个值就是 --color-ink 本身,
+     暗色模式下换 token 才跟着换。 */
+  filter: drop-shadow(0 3px 0 rgb(255 255 255 / 0.5))
+    drop-shadow(0 -2px 3px color-mix(in srgb, var(--color-ink) 14%, transparent));
+}
+
+.lp-done {
+  fill: none;
+  stroke: url(#lp-done-gradient);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- 节点的立体语言 ----
+ * 已通关节点带一圈亮边(像多邻国的描边星标),当前节点更大更沉。
+ * 厚底边让节点从平面里「浮」起来,与积木块同一套材质语汇。 */
+.lp-node {
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.55),
+    0 6px 0 var(--lp-node-edge),
+    0 12px 18px -8px var(--color-shadow);
+}
+
+.lp-node--cleared {
+  --lp-node-edge: color-mix(in srgb, var(--color-ink-3) 55%, transparent);
+}
+
+.lp-node--current {
+  --lp-node-edge: var(--color-accent-ink);
+}
+
+.lp-node--locked {
+  --lp-node-edge: color-mix(in srgb, var(--color-ink-3) 40%, transparent);
+  box-shadow: none;
+}
+
+/* 当前节点:持续呼吸的光晕,把孩子的视线钉在这一格 */
+.lp-node--current::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-accent) 38%, transparent) 0%,
+    transparent 68%
+  );
+  animation: lp-halo 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes lp-halo {
+  0%, 100% { opacity: 0.35; transform: scale(0.94); }
+  50% { opacity: 0.8; transform: scale(1.12); }
+}
+
+/* 徽标轻微浮动,让「众星」有生命感 */
+@keyframes lp-badge-float {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50% { transform: translate(-50%, -50%) translateY(-4px); }
+}
+
 /* 当前节点光晕:柔和的发光效果 */
 .node-glow {
   position: relative;

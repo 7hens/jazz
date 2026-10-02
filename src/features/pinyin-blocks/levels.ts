@@ -68,7 +68,18 @@ export type Unit = {
   readonly id: string
   /** 仅用于家长/试玩者的关卡选择器,游戏内不出现。 */
   readonly name: string
-  /** 地图格子里的名片 —— 本单元新教的块。跟 levels 一样**显式写死**,不靠反推。 */
+  /**
+   * 地图格子里的图案 —— 孩子认得出的一枚 emoji。
+   *
+   * 跟 `badge` 分工不同：`badge` 是**教学数据**（本单元新教的块，要进音素池校验），
+   * 地图上不直接画 —— u12 有五块，横向排不下。`emoji` 是**地图标识**，
+   * 一枚就够，尺寸与块数无关。
+   *
+   * 选图规则：取该单元第一个关卡的 emoji —— 孩子已经在题面见过这张图，
+   * 地图上再见到是「认得出来」的同一个东西。
+   */
+  readonly emoji: string
+  /** 本单元新教的块。跟 levels 一样**显式写死**,不靠反推。 */
   readonly badge: readonly Block[]
   readonly levels: readonly Level[]
 }
@@ -92,6 +103,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u1',
     name: '单韵母',
+    emoji: '🦢',
     badge: [{ type: 'final', value: 'a' }],
     levels: [
       // 本单元只出零声母单韵母(块池 = a o e i u,见 `hard-levels.test.ts` 的池子那条),
@@ -113,6 +125,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u2',
     name: '声母 · 双唇舌尖',
+    emoji: '👨',
     badge: [{ type: 'initial', value: 'b' }, { type: 'final', value: 'a' }],
     levels: [
       { id: 'u2-0', emoji: '👨', pinyin: 'bà', read: '爸', syl: [{ initial: 'b', final: 'a', tone: 4 }] },
@@ -131,6 +144,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u3',
     name: '声母 · 舌根舌面',
+    emoji: '🐔',
     badge: [{ type: 'initial', value: 'g' }, { type: 'final', value: 'a' }],
     levels: [
       { id: 'u2-4', emoji: '🐔', pinyin: 'jī', read: '鸡', syl: [{ initial: 'j', final: 'i', tone: 1 }] },
@@ -147,6 +161,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u4',
     name: '声母 · 翘舌平舌',
+    emoji: '🦶',
     badge: [{ type: 'initial', value: 'zh' }, { type: 'final', value: 'a' }],
     levels: [
       { id: 'u2-5', emoji: '🦶', pinyin: 'zú', read: '足', syl: [{ initial: 'z', final: 'u', tone: 2 }], listen: true },
@@ -166,6 +181,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u5',
     name: '复韵母',
+    emoji: '🐱',
     badge: [{ type: 'final', value: 'ai' }],
     levels: [
       { id: 'u3-0', emoji: '🐱', pinyin: 'māo', read: '猫', syl: [{ initial: 'm', final: 'ao', tone: 1 }] },
@@ -188,6 +204,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u6',
     name: '前鼻韵母',
+    emoji: '🚪',
     badge: [{ type: 'final', value: 'a' }, { type: 'nasal', value: 'n' }],
     levels: [
       { id: 'u4-0', emoji: '🚪', pinyin: 'mén', read: '门', syl: [{ initial: 'm', final: 'e', nasal: 'n', tone: 2 }] },
@@ -202,6 +219,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u7',
     name: '后鼻韵母',
+    emoji: '🏡',
     badge: [{ type: 'final', value: 'a' }, { type: 'nasal', value: 'ng' }],
     levels: [
       { id: 'u4-2', emoji: '🏡', pinyin: 'fáng', read: '房', syl: [{ initial: 'f', final: 'a', nasal: 'ng', tone: 2 }] },
@@ -217,6 +235,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u8',
     name: '三拼 · 介母',
+    emoji: '🍉',
     badge: [{ type: 'initial', value: 'g' }, { type: 'medial', value: 'u' }, { type: 'final', value: 'a' }],
     levels: [
       { id: 'u5-0', emoji: '🍉', pinyin: 'guā', read: '瓜', syl: [{ initial: 'g', medial: 'u', final: 'a', tone: 1 }] },
@@ -233,6 +252,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u9',
     name: 'ü 行韵母 · 两点去留',
+    emoji: '🍊',
     badge: [{ type: 'initial', value: 'j' }, { type: 'final', value: 'ü' }],
     levels: [
       // ü 行四个韵母(ü / üe / ün / üan)加两点去留两面:j q x 之后去点,n l 之后保留。
@@ -253,6 +273,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u10',
     name: '整体认读 · 一',
+    emoji: '🕷️',
     badge: [{ type: 'initial', value: 'zh' }, { type: 'final', value: 'i' }],
     levels: [
       { id: 'u6-0', emoji: '🕷️', pinyin: 'zhī', read: '蜘', syl: [{ initial: 'zh', final: 'i', tone: 1, weld: true }] },
@@ -270,6 +291,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u11',
     name: '整体认读 · 二',
+    emoji: '🐟',
     badge: [{ type: 'initial', value: 'y' }, { type: 'final', value: 'ü' }, { type: 'nasal', value: 'n' }],
     levels: [
       { id: 'u6-4', emoji: '🐟', pinyin: 'yú', read: '鱼', syl: [{ initial: 'y', final: 'ü', tone: 2, weld: true }] },
@@ -290,6 +312,7 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u12',
     name: '双音节词',
+    emoji: '🍉',
     // 五个块 = 两组音节(零宽间隔由渲染层表意),比别的单元宽 —— 一眼看出「这一格是两部分」。
     badge: [
       { type: 'initial', value: 'x' },

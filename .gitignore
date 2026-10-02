@@ -32,3 +32,9 @@ __local*/
 *.njsproj
 *.sln
 *.sw?
+.playwright-mcp/
+.opencode/
+
+# Windows 上 `> nul` 重定向会在仓库根真的落一个名叫 nul 的文件
+# （nul 本是保留设备名），内容是命令的 stderr。挡掉它。
+/nul

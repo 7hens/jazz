@@ -22,6 +22,7 @@ const level = (id: string, hard = false): Level => ({
 const synth = (easy: number, hard: number): Unit => ({
   id: 'ux',
   name: '合成',
+  emoji: '🧪',
   badge: [],
   levels: [
     ...Array.from({ length: easy }, (_, i) => level(`ux-${i}`)),

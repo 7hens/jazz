@@ -73,6 +73,7 @@ describe('拼音进度统计', () => {
 const synth: Unit = {
   id: 'ux',
   name: '合成',
+  emoji: '🧪',
   badge: [],
   levels: [
     { id: 'ux-0', emoji: '🅰️', pinyin: 'ā', read: '啊', syl: [{ final: 'a', tone: 1 }] },
