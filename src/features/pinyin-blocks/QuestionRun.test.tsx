@@ -4,6 +4,7 @@ import { SPEAK_OF, type Block, type BlockType } from './blocks'
 import { UNITS } from './levels'
 import { canPlace, slotsFor, starsFor } from './rules'
 import { wholeReviewQuestion } from './practice'
+import { scaffoldLevelIdOf } from './scaffold'
 import { QuestionRun, type QuestionEnd, type QuestionItem } from './QuestionRun'
 
 const unit = UNITS[0]!
@@ -67,6 +68,29 @@ function solveCurrent(levelIndex: number): void {
   }
 }
 
+/**
+ * 只填**屏幕上还空着**的槽。脚手架遍用它:`solveCurrent` 会去动预填槽,而预填块压根不在托盘里,
+ * 那条路走到预填槽就会炸(且炸的是断言不是功能)。
+ */
+function solveEmptyOnScreen(levelIndex: number): void {
+  for (const slot of slotsFor(unit.levels[levelIndex]!)) {
+    if (document.querySelector(`[data-slot-id="${slot.id}"] .pblock`)) continue
+    const pick = trayBlocks().find((el) => canPlace(blockOf(el), slot))
+    expect(pick, `${slot.type}:${slot.value} 在托盘里找不到可放块`).toBeDefined()
+    fireEvent.keyDown(pick as HTMLElement, { key: 'Enter' })
+  }
+}
+
+/** 托盘的「牌面」:块 id + 身份。盘面靠 blockId 反查块,这张签名变了就等于换了盘。 */
+function traySignature(): string[] {
+  return trayBlocks()
+    .map((el) => {
+      const chip = el.querySelector<HTMLElement>('[data-value]')
+      return `${el.dataset.blockId}:${chip?.dataset.type}:${chip?.dataset.value}`
+    })
+    .sort()
+}
+
 /** 点一块**恒无处可落**的块 ⇒ 记一次 miss(u1-0 é 只要二声,「声调块 4」永远放不下)。 */
 function missOnce(): void {
   fireEvent.keyDown(document.querySelector<HTMLElement>('[aria-label="声调块 4"]') as HTMLElement, { key: 'Enter' })
@@ -78,6 +102,9 @@ const practiceItem = (levelIndex: number): QuestionItem => ({
   levelIndex,
   question: wholeReviewQuestion(unit.levels[levelIndex]!, 0, () => 0.5),
 })
+
+/** 脚手架遍的那一项(题面由 `QuestionRun` 自己算并冻结,这里只给题号)。 */
+const scaffoldItem = (levelIndex: number): QuestionItem => ({ kind: 'scaffold', levelIndex })
 
 describe('QuestionRun', () => {
   it('一串内一道接一道:第一题结束后自动换到第二题', async () => {
@@ -211,5 +238,70 @@ describe('QuestionRun', () => {
     expect(onQuestionEnd, '练习不落库').not.toHaveBeenCalled()
     expect(onDone, '练习走完照样回宿主').toHaveBeenCalledTimes(1)
     vi.useRealTimers()
+  })
+
+  // 一道题的两遍(spec §2.1):脚手架遍在屏上**预填非目标槽**,全拼遍回到今天的样子。
+  // 落库是**两个键**(spec §2.6):脚手架遍 `${id}s`、全拼遍 `${id}`。
+  // 顺序也断:题位条与落库都按项序走,两遍的键写反了会让「先脚手架后全拼」变成空话。
+  it('一道题跑两遍:先脚手架(预填 + 落 `${id}s`),后全拼(全空 + 落 `${id}`)', async () => {
+    vi.useFakeTimers()
+    const items: QuestionItem[] = [scaffoldItem(0), { kind: 'level', levelIndex: 0 }]
+    const { view, onQuestionEnd, onDone } = mount(items)
+    const level = unit.levels[0]!
+
+    // 第一遍:u1 挖韵母 ⇒ 声调槽预填锁定,韵母槽空着。
+    expect(document.querySelector('[data-slot-id="s0-t"] .pblock'), '声调槽该是预填的').not.toBeNull()
+    expect(document.querySelector('[data-slot-id="s0-f"]')?.getAttribute('aria-label')).toBe('空槽')
+
+    solveEmptyOnScreen(0)
+    await advance(2000)
+    expect(onQuestionEnd.mock.calls[0]![0] as QuestionEnd).toMatchObject({
+      levelId: scaffoldLevelIdOf(level.id),
+      stars: starsFor(0),
+    })
+
+    // 第二遍:同一道题、同一张图,盘面回到全空(spec §2.1「全拼遍 = 今天的玩法,一字不差」)。
+    expect(document.querySelectorAll('[data-slot-id] .pblock'), '全拼遍不该有预填').toHaveLength(0)
+    solveCurrent(0)
+    await advance(2000)
+    expect(onQuestionEnd.mock.calls[1]![0] as QuestionEnd).toMatchObject({ levelId: level.id })
+
+    expect(onQuestionEnd.mock.calls.map((c) => (c[0] as QuestionEnd).levelId)).toEqual([
+      scaffoldLevelIdOf(level.id),
+      level.id,
+    ])
+    expect(onDone, '两遍走完才交回宿主').toHaveBeenCalledTimes(1)
+    // 题位条按**遍**走(见 QuestionRun 里 position 那条注释):一节 3 道题改后是 6 格。
+    const bar = document.querySelector<HTMLElement>('.pstage-bar')!
+    expect(bar.dataset.barTotal).toBe('2')
+    expect(bar.dataset.barDone).toBe('2')
+    expect(view.container.textContent).toContain(level.emoji)
+    vi.useRealTimers()
+  })
+
+  // 承重的一条(spec §5):块 id 与托盘必须稳定。盘面只初始化**一次**(`placement` 初值取 `prefill`),
+  // 一旦题面被重算而种子变了,盘面与托盘就失配 —— 屏幕上就是「块放不进去」。
+  // 断成两半:① 重挂一次仍是同一副牌(题源可复现);② 重渲染不换牌(题面在挂载时就冻住)。
+  it('脚手架遍的牌面稳定:重挂一次、重渲染若干次都是同一副', () => {
+    const first = mount([scaffoldItem(0)])
+    const dealt = traySignature()
+    expect(dealt.length, '脚手架遍的托盘该有几块').toBeGreaterThan(0)
+    first.view.unmount()
+
+    const second = mount([scaffoldItem(0)])
+    expect(traySignature(), '同一项重挂一次必须发同一副牌').toEqual(dealt)
+    // `items` 换个数组身份再渲一次(宿主每次渲染重算 items 是常态):盘面不许跟着换牌。
+    second.view.rerender(
+      <QuestionRun
+        unit={unit}
+        unitIndex={0}
+        mode="easy"
+        items={[scaffoldItem(0)]}
+        speak={speak}
+        onQuestionEnd={vi.fn(async (_end: QuestionEnd) => {})}
+        onDone={vi.fn()}
+      />,
+    )
+    expect(traySignature(), '重渲染换了牌 = 盘面与托盘失配').toEqual(dealt)
   })
 })

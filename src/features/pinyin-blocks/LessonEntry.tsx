@@ -16,6 +16,7 @@ import { cn } from '@/shared/ui/utils'
 import { UNITS, pathLessons, type Lesson } from './levels'
 import { cleared } from './progress-stats'
 import { QuestionRun, type QuestionEnd, type QuestionItem } from './QuestionRun'
+import { scaffoldKindOf } from './scaffold'
 import { EMPTY_PART_SETTLEMENT, mergeSettlement, settleLevel, type PartSettlement } from './settle'
 
 /** 连击圆点:5 颗封顶 —— 再多也读不出来,而 5 正好对上第一个撒花档。 */
@@ -66,27 +67,62 @@ export function LessonEntry({
   const comboLit = Math.min(comboSnap.combo, COMBO_DOTS.length)
   const speak = useCallback((text: string) => speech.speak(text, 'zh-CN'), [speech])
 
-  /** 本节要走的题。`levelIndex` 一律是**在 `unit.levels` 里的下标** —— `QuestionRun` 拿它直接索引。 */
-  const items: readonly QuestionItem[] = useMemo(() => {
-    if (!lesson || !unit) return []
-    return lesson.levelIds.flatMap((id) => {
+  /**
+   * 本节要走的题。`levelIndex` 一律是**在 `unit.levels` 里的下标** —— `QuestionRun` 拿它直接索引。
+   *
+   * **一道题展开成两项** `[脚手架遍, 全拼遍]`(spec §2.1)—— 但**只有真能产出脚手架遍的题才是两项**:
+   * 题里没有可挖的那一类槽时(`scaffoldKindOf` 返 null)它自动退成单遍(spec §2.3 的兜底),
+   * 不硬凑第二项,否则屏上会出现「预填了却没有槽可挖」的怪盘面(不变量 7)。
+   *
+   * **只判 `scaffoldKindOf`,不在这里造题面**:题面(含 rng)由 `QuestionRun` 在挂载时算并冻结,
+   * 那边算出来的结果才真的上屏。这里造一份等于多一处「这个题有没有脚手架遍」的口径,
+   * 两处迟早分叉。`scaffoldQuestion` 返 `null` 与 `scaffoldKindOf` 返 `null` 是同一个判据
+   * (`scaffold.ts` 里第一件事就是拿 kind 短路),故这里判 kind 与判题面恒等价。
+   *
+   * **困难题一律不排脚手架遍**(`level.stage === 'hard'`,spec §7)。这不只是一条范围裁定,
+   * 是硬冲突:困难部分的门禁是 `sameTypeOnly`(值可以错),而预填槽装的是**确定的正确块** ——
+   * 两者摆在一起,那一部分考的「值可以错」当场作废。判据取 `level.stage` 而不是题号后缀:
+   * `levels.ts` 写明「简单 / 困难的划分只有这一个字段说了算」。
+   *
+   * 顺带记下 `itemStartOf`:`startIndex` 得在 **items 的坐标系**里给,而一道题现在可能是两项,
+   * 题号与项号不再一一对应(见下面那条注释)。
+   */
+  const { items, itemStartOf } = useMemo(() => {
+    const list: QuestionItem[] = []
+    const start = new Map<number, number>()
+    if (!lesson || !unit) return { items: list, itemStartOf: start }
+    for (const id of lesson.levelIds) {
       const levelIndex = unit.levels.findIndex((level) => level.id === id)
-      return levelIndex < 0 ? [] : [{ kind: 'level' as const, levelIndex }]
-    })
-  }, [lesson, unit])
+      if (levelIndex < 0) continue
+      start.set(levelIndex, list.length)
+      const level = unit.levels[levelIndex]!
+      // 脚手架遍在前:裁定 A 就是「先脚手架,后全拼」。
+      if (level.stage !== 'hard' && scaffoldKindOf(level, unitIndex) !== null) {
+        list.push({ kind: 'scaffold', levelIndex })
+      }
+      list.push({ kind: 'level', levelIndex })
+    }
+    return { items: list, itemStartOf: start }
+  }, [lesson, unit, unitIndex])
 
   /**
    * 从本节**第一道未通的题**接着走。本节全通 ⇒ 从第 0 题起(整节重玩)。
    *
+   * **换算到 items 的下标**:一道题现在可能是两项,`levelIds` 的题号直接当项号用会落到
+   * 别的题上去(前面的题各带两项时,题号 n 实际指的是另一道题)。走未通的那道题时落到它的
+   * **头一项** —— 脚手架遍还没做就先做脚手架遍,这正是本行的口径。
+   *
    * `Math.max(0, …)` **不是多余的防御**:全通时 `findIndex` 返回 -1,少了这层,
-   * `QuestionRun` 收到 `startIndex = -1` ⇒ `items[-1]` 是 `undefined` ⇒ `return null`
-   * ⇒ 重玩全通节点白屏且不调 `onDone`(卡死)。
+   * `QuestionRun` 收到越界的 `startIndex` ⇒ `items[startIndex]` 是 `undefined` ⇒ `return null`
+   * ⇒ 重玩全通节点白屏且不调 `onDone`(卡死)。题号查不到(课表与 `unit.levels` 打架)时同理。
    */
   const startIndex = useMemo(() => {
     if (!lesson || !unit) return 0
     const at = lesson.levelIds.findIndex((id) => !cleared(stars, id))
-    return at < 0 ? 0 : at
-  }, [lesson, unit, stars])
+    if (at < 0) return 0
+    const levelIndex = unit.levels.findIndex((l) => l.id === lesson.levelIds[at])
+    return Math.max(0, levelIndex < 0 ? 0 : (itemStartOf.get(levelIndex) ?? 0))
+  }, [lesson, unit, stars, itemStartOf])
 
   /** 落库。**每道题结束时调一次**。 */
   const endQuestion = useCallback(

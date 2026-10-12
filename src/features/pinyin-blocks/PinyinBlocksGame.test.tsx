@@ -4,6 +4,7 @@ import { UNITS } from './levels'
 import { canPlace, slotsFor, type Slot } from './rules'
 import { SPEAK_OF, type Block, type BlockType } from './blocks'
 import { wholeReviewQuestion, type PracticeQuestion } from './practice'
+import { scaffoldKindOf, scaffoldQuestion, type ScaffoldQuestion } from './scaffold'
 import type { AnswerKind } from '@/shared/services'
 import { HAN_TEXT } from '@/shared/testing/han-text'
 import { PinyinBlocksGame, type PinyinBlocksGameProps } from './PinyinBlocksGame'
@@ -1088,5 +1089,181 @@ describe('练习口径', () => {
     const { container } = renderPractice()
     expect(container.querySelector('.ptray--practice')).not.toBeNull()
     expect(container.querySelector('.ptray--hard')).toBeNull()
+  })
+})
+
+/**
+ * 脚手架遍的一道题(固定种子的 rng —— 题面稳,断言不看发牌运气)。
+ * 组件只吃结果,题源在 `scaffold.ts`;这条 helper 是把 `null`(不产生脚手架遍)显式炸出来。
+ */
+function scaffoldOf(levelId: string): ScaffoldQuestion {
+  const [unit, level] = at(levelId)
+  const question = scaffoldQuestion(UNITS[unit]!.levels[level]!, unit, () => 0.5)
+  expect(question, `${levelId} 该有脚手架遍`).not.toBeNull()
+  return question as ScaffoldQuestion
+}
+
+/** 脚手架遍的单题挂载:`u2-0`(👨 bà)在 u2 挖的是声母 ⇒ 只有声母槽空着。 */
+function mountScaffold(levelId: string, props: Partial<PinyinBlocksGameProps> = {}) {
+  const [unit, level] = at(levelId)
+  const speak = vi.fn()
+  const utils = render(
+    <PinyinBlocksGame
+      unitIndex={unit}
+      levelIndex={level}
+      speak={speak}
+      scaffold={scaffoldOf(levelId)}
+      {...props}
+    />,
+  )
+  return { ...utils, speak }
+}
+
+describe('脚手架遍(非目标槽预填锁定)', () => {
+  // 判定同样靠推时钟(判定 260ms + 成功动画 1600ms),收在壳上,末条必须还原。
+  beforeEach(() => {
+    vi.useFakeTimers()
+    Object.defineProperty(document, 'elementFromPoint', { value: () => null, configurable: true })
+  })
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    document.querySelectorAll('.pblock--dragging').forEach((el) => el.remove())
+  })
+
+  /** 屏幕上还空着的槽 —— 脚手架遍里恒等于 `slotIds`。 */
+  function emptySlots(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>('[data-slot-id]')).filter(
+      (el) => el.querySelector('.pblock') === null,
+    )
+  }
+
+  // 「给你」与「你放的」在屏幕上、在无障碍树里都不能同形(spec §2.8/§2.9):
+  // 同形的话孩子会去拖预填块,拖不动,以为是坏了。
+  it('预填槽挂 .pslot--given,且不挂「孩子自己放的」那一类', () => {
+    mountScaffold('u2-0')
+    const given = document.querySelector<HTMLElement>('[data-slot-id="s0-f"]')!
+    expect(given.classList.contains('pslot--given')).toBe(true)
+    expect(given.classList.contains('pslot--filled'), '复用 .pslot--filled 就把两件事画成同一件事了').toBe(
+      false,
+    )
+    expect(given.getAttribute('aria-label')).toBe('已给 a')
+    // 正解槽仍走「已放」那一支(此刻还空着,拼完才看得到,见下面那条正控)。
+    expect(document.querySelector('[data-slot-id="s0-i"]')?.getAttribute('aria-label')).toBe('空槽')
+    expect(document.querySelectorAll('.pslot--given'), 'u2-0 预填声调 + 韵母两个槽').toHaveLength(2)
+  })
+
+  it('预填块点不动:click 拿不回来(拿不回是第三道门禁)', () => {
+    mountScaffold('u2-0')
+    const slot = document.querySelector<HTMLElement>('[data-slot-id="s0-f"]')!
+    const chip = slot.querySelector<HTMLElement>('.pblock')!
+    const before = trayBlocks().length
+    fireEvent.click(chip)
+    expect(slot.getAttribute('aria-label'), '预填块被拿回了').toBe('已给 a')
+    expect(trayBlocks(), '块也不该回托盘').toHaveLength(before)
+  })
+
+  // 正控:上面那条守的是「预填块点不动」,这一条守的是「点得动的那些还能点」。
+  // 少了它,把 `onClick` 整体摘掉的写法也能让上一条全绿 —— 而那时孩子一块都拿不回来。
+  //
+  // 用 `u12-50`(🌳 dà shù)而不是 `u2-0`:u12 走声调型,两个声调槽都空着,放一块之后**盘未满**
+  // —— `takeBack` 与 `boardFull` 那道闸同源(`PinyinBlocksGame.tsx` 里已写明),u2-0 放完
+  // 正解就盘满,拿回是被**故意**冻住的,拿它当正控会测一条设计上就不成立的行为。
+  it('孩子自己放的块点得动(正控:不是「点哪儿都不动」)', () => {
+    mountScaffold('u12-50')
+    fireEvent.keyDown(screen.getAllByLabelText('声调块 4')[0] as HTMLElement, { key: 'Enter' })
+    const slot = document.querySelector<HTMLElement>('[data-slot-id="s0-t"]')!
+    expect(slot.classList.contains('pslot--filled')).toBe(true)
+    expect(slot.getAttribute('aria-label'), '这一支念的仍是「已放」').toBe('已放 4')
+
+    fireEvent.click(slot.querySelector<HTMLElement>('.pblock')!)
+    expect(slot.getAttribute('aria-label'), '自己放的块该能拿回').toBe('空槽')
+  })
+
+  // 预填块不进托盘 ⇒ 托盘那层的手势(onPointerDown / onKeyDown)压根不在它身上(spec §2.8/§2.9)。
+  it('预填块不进托盘可视列表,也不起拖拽手势', () => {
+    mountScaffold('u2-0')
+    const ids = trayBlocks().map((el) => el.dataset.blockId ?? '')
+    expect(ids.some((id) => id.startsWith('p')), '预填块还留在托盘里').toBe(false)
+    // 正控:挖空那一类的正解块在托盘里(否则这条恒真)。
+    expect(screen.getByLabelText('积木 b')).toBeInTheDocument()
+
+    const chip = document.querySelector<HTMLElement>('[data-slot-id="s0-f"] .pblock')!
+    fireEvent.pointerDown(chip, { clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(window, { clientX: 40, clientY: 40 })
+    expect(document.querySelector('.pblock--dragging'), '预填块不该起得了幽灵块').toBeNull()
+    fireEvent.pointerUp(window, { clientX: 40, clientY: 40 })
+  })
+
+  it('脚手架遍只有一个空槽:点正解 ⇒ 盘满 ⇒ 通关', () => {
+    const onSolved = vi.fn()
+    mountScaffold('u2-0', { onSolved })
+    expect(emptySlots(), 'u2-0 挖声母,只有声母槽空着').toHaveLength(1)
+
+    fireEvent.keyDown(screen.getByLabelText('积木 b'), { key: 'Enter' })
+    expect(emptySlots(), '点完正解就该盘满').toHaveLength(0)
+    settle()
+    expect(onSolved).toHaveBeenCalledWith(3)
+  })
+
+  // 脚手架遍恒用 `canPlace` 门禁(不变量 2):放错 = 弹回 + 闪红 + 记 miss,与今天简单部分同。
+  // 它没有失败路径,也**不进错题池**(错题池机制已随练习口径退休)—— 星级降一档就是全部后果。
+  it('点错块:弹回 + 闪红 + 记 miss(拿二星,与今天简单部分同)', () => {
+    const onSolved = vi.fn()
+    mountScaffold('u2-0', { onSolved })
+    // 挖空的是声母 ⇒ 托盘里除 b 之外的声母块恒放不下(不靠干扰块的随机性)。
+    const wrong = trayBlocks().find((el) => blockOf(el).type === 'initial' && blockOf(el).value !== 'b')!
+    const chip = wrong.querySelector<HTMLElement>('.pblock')!
+    expect(chip.classList.contains('pblock--reject'), '点错块该闪红').toBe(false)
+
+    fireEvent.keyDown(wrong, { key: 'Enter' })
+    // 换 key 重挂的是**块本体**(rejectBlock 驱动的动画重放,见 PinyinBlocksGame 的 trayBlock),
+    // 手里那个节点此刻已脱离文档 —— 断言要重新取,拿旧引用读 class 会永远读到抖动前的那张脸。
+    expect(
+      wrong.querySelector<HTMLElement>('.pblock')?.classList.contains('pblock--reject'),
+      '点错块该闪红',
+    ).toBe(true)
+    expect(trayBlocks(), '放不下的块该弹回托盘(不落位)').toContain(wrong)
+    expect(emptySlots(), '盘面不该被它填掉一格').toHaveLength(1)
+
+    fireEvent.keyDown(screen.getByLabelText('积木 b'), { key: 'Enter' })
+    settle()
+    expect(onSolved, '错一次 = 二星(错进账,没有别的后果)').toHaveBeenCalledWith(2)
+  })
+
+  // listen 纪律:声调型只挖声调槽,字母块全预填锁定(spec §2.2b)。
+  it('声调型:字母块全部预填,唯一空槽是声调槽', () => {
+    const [unit, level] = at('u10-50')
+    expect(scaffoldKindOf(UNITS[unit]!.levels[level]!, unit), 'u10 走声调型').toBe('tone')
+    mountScaffold('u10-50')
+    expect(emptySlots()).toHaveLength(1)
+    expect(emptySlots()[0]?.dataset.slotId).toBe('s0-t')
+    expect(document.querySelectorAll('.pslot--given'), 'r / i 两个字都是预填').toHaveLength(2)
+  })
+
+  // 「题里没有可挖的那一类槽 ⇒ 退成单遍」(spec §2.3 / 不变量 7)在组件侧的落点:
+  // 宿主算不出题面就传 `null`,盘面必须回到全拼遍的样子,而不是空盘或半预填。
+  // 今天 91 道简单题都产得出脚手架遍(spec §2.3 注:那是数据碰巧),故这条是**防御**,
+  // 走的正是那条兜底路径本身 —— 传 null 与「题面为 null 后宿主传下来的东西」是同一个入参。
+  it('题面为 null(退成单遍)时盘面全空:不预填、也不白屏', () => {
+    const [unit, level] = at('u2-0')
+    const speak = vi.fn()
+    render(<PinyinBlocksGame unitIndex={unit} levelIndex={level} speak={speak} scaffold={null} />)
+    expect(emptySlots(), '退成单遍 = 一块都不预填').toHaveLength(slotsFor(UNITS[unit]!.levels[level]!).length)
+    expect(document.querySelector('.pslot--given')).toBeNull()
+    expect(screen.getByLabelText('拼装台')).toBeInTheDocument()
+  })
+
+  // listen 一字不变(不变量 10):该念的照念,不该念的绝不念。
+  // 声调遍上「念出来 = 把答案(是第几声)告诉孩子」,所以这一条守的是**不念**那一端。
+  // **实测 u10–u12 无一题 `listen: true`**(只有 u1–u4 的少数题有),故「照样念」那一端
+  // 只能用 focus 型钉 —— 组件对两型**零分叉**(spec §3.1 末),那条 `Level.listen` 的路是同一条。
+  it('listen 纪律:声调型在 listen:false 的题上绝不念,listen:true 的题照样念', () => {
+    const tone = mountScaffold('u10-50') // ☀️ rì:listen 恒 false
+    expect(tone.speak, 'u10 的题念出来就是把第四声告诉孩子').not.toHaveBeenCalled()
+
+    const listened = mountScaffold('u1-1') // 😮 ó:图给不出「哦」,声音才是题面
+    expect(listened.speak).toHaveBeenCalledWith('哦')
   })
 })

@@ -49,9 +49,16 @@ function isSettingsResponse(value: unknown): value is SettingsResponse {
  *
  * `h?` = 困难部分的题(`hard-levels.ts`,id = 简单题 id + 'h')。漏了它,提交困难部分的星
  * 会被 worker 判 400(「星级数据不合法」)、被 `isLevelStars` 判成 Invalid API response。
- * 与真实关卡 id 的逐关对齐由 `levels.test.ts` 那条遍历 182 关的守卫钉住。
+ *
+ * **`s` = 脚手架遍的独立存档键**(`u2-0s`,见 `scaffold.ts` 的 `scaffoldLevelIdOf`):同一道题
+ * 跑两遍,脚手架遍写 `${id}s`、全拼遍写 `${id}`,换键实现「覆盖」而 merge 语义一字不动。
+ * **漏了它同一个坑一字复刻**(2026-09-29 困难部分那次,取证见 `docs/PLAN.md` P0):
+ * 服务端整包 400(打不进去的**不止这一题**,是这一题之前所有待写的星),
+ * 本文件这一侧则把响应判成 Invalid API response —— 客户端快照与本地兜底副本一起失效。
+ *
+ * 与真实关卡 id 的逐关对齐由 `levels.test.ts` 那条遍历 182 关 + 91 个 `s` 键的守卫钉住。
  */
-export const LEVEL_ID = /^u\d+-\d+h?$/
+export const LEVEL_ID = /^u\d+-\d+[hs]?$/
 
 function isLevelStars(value: unknown): value is Record<string, number> {
   if (!isObject(value)) return false

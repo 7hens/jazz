@@ -183,9 +183,20 @@ function levelById(id: string): Level {
   throw new Error(`课表里没有关卡 ${id}`)
 }
 
-/** 把**某一道题**按托盘里能放的正确块一个个点进去(点选路径 = 自动落位),一次不错。 */
+/**
+ * 把**当前这一遍**里还空着的槽按托盘里能放的正确块一个个点进去(点选路径 = 自动落位),一次不错。
+ *
+ * **只填空槽** —— 简单部分每道题跑两遍(脚手架遍 + 全拼遍,见 spec §2.1),脚手架遍的非目标槽
+ * 是**预填锁定**的:那些块不在托盘里(`liveBlocks` 滤掉了),所以按 `slotsFor(level)` 无差别地点
+ * 会撞上「托盘里找不到可放块」。空槽的判据是槽的 `aria-label`(空槽 / 已给 X / 已放 X)。
+ */
 function solveOnce(level: Level) {
-  for (const slot of slotsFor(level)) {
+  const emptySlotIds = new Set(
+    Array.from(document.querySelectorAll<HTMLElement>('[data-slot-id]'))
+      .filter((el) => el.getAttribute('aria-label') === '空槽')
+      .map((el) => el.dataset.slotId),
+  )
+  for (const slot of slotsFor(level).filter((s) => emptySlotIds.has(s.id))) {
     const fits = trayBlocks().filter((el) => canPlace(blockOf(el), slot))
     const pick = fits.find((el) => blockOf(el).type === slot.type) ?? fits[0]
     expect(pick, `${slot.type}:${slot.value} 在托盘里找不到可放块`).toBeDefined()
@@ -198,9 +209,16 @@ async function settleQuestion() {
   await act(async () => { vi.advanceTimersByTime(3000) })
 }
 
-/** 走完**第一节**(3~5 题)。题内一律拼对 ⇒ 没有错题、节末 `flush` 交账。 */
+/**
+ * 走完**第一节**(3~5 题)。题内一律拼对 ⇒ 没有错题、节末 `flush` 交账。
+ *
+ * **每道题跑两遍**:第 1 遍脚手架遍(只填空槽)、第 2 遍全拼遍(spec §2.1)。
+ * 少跑一遍节就走不完,节末交账那条断言会跟着失真。
+ */
 async function solveFirstLesson() {
   for (const id of pathLessons()[0]!.levelIds) {
+    solveOnce(levelById(id))
+    await settleQuestion()
     solveOnce(levelById(id))
     await settleQuestion()
   }
@@ -270,9 +288,10 @@ describe('App 路由', () => {
 
     expect(await screen.findByRole('button', { name: '回路径' })).toBeInTheDocument()
     expect(container.querySelector('[data-learning-path]')).toBeNull()
-    // 题位条读的是**本节**题数(几道题几格)—— 课程切分线挪动时断言跟着走,不钉死数字。
+    // 题位条读的是**本节**题数(几遍几格)—— 简单部分每道题跑两遍(脚手架遍 + 全拼遍,
+    // 见 spec §2.1),故分母是 items 的遍数而不是道题数;课程切分线挪动时断言跟着走,不钉死数字。
     const bar = document.querySelector('[data-bar-total]') as HTMLElement
-    expect(bar.dataset.barTotal).toBe(String(pathLessons()[0]!.levelIds.length))
+    expect(bar.dataset.barTotal).toBe(String(pathLessons()[0]!.levelIds.length * 2))
     expect(bar.dataset.barDone).toBe('1')
   })
 

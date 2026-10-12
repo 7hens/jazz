@@ -446,6 +446,25 @@
   border: none;
   background-color: transparent;
 }
+/* 脚手架遍的**预填槽**(spec §2.8):实线外框 + 边框略降不透明度,与「孩子自己放的」
+   (`.pslot--filled`,无外框)一眼可分 —— 不分的话孩子会去拖它,拖不动,以为是坏了。
+   **块本身不降不透明度**:降块面就是降可读性,而这个字母正是要读的。所以降的是
+   `border-color` 里的 alpha,不是 `opacity` 属性 —— 后者会把里面的块一起压暗。
+   **不写 `--slot-style`**:那个变量是容器(`.pslots` / `.pslots--hard`)那层的旋钮,
+   全文件只有两处声明点(material.test.ts 钉着)。预填槽是「这一个槽」而不是「这一整段」,
+   自己写 `border-style: solid` 作用域正好,不必去动那个容器变量。 */
+.pslot--given {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-ink) 26%, transparent);
+  cursor: not-allowed;
+}
+/* 拖不动的东西得自己说不能动(spec §2.8)。`.pblock--placed` 给入槽块的是 `cursor: pointer`
+   (点了能拿回来),预填块点不动 —— 不压掉的话,孩子看到的仍是「可以点」。
+   选择器写 `> *` 而不是后代选择器:material.test.ts 那些「一条规则」的护栏按**字面**数规则,
+   后代选择器里那个基座类会把基座自己数成两条(响亮假红)—— 注释里也不能照抄那个字面。 */
+.pslot--given > * {
+  cursor: not-allowed;
+}
 .pslot--wrong {
   animation: pblock-shake 0.4s;
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-red) 55%, transparent);

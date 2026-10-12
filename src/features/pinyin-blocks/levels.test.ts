@@ -39,7 +39,20 @@ const where = (l: { unitId: string; index: number }): string => `${l.unitId}#${l
 /** 源码里的 `const LEVEL_ID = /.../` 字面量(含斜杠与 flags),供下面那条守卫取用。 */
 const STORAGE_LEVEL_ID = /const LEVEL_ID = (\/[^/\n]+\/[a-z]*)/
 
-/** `/^u\d+-\d+h?$/i` 这样的字面量 → 真正则。取自源码,不在测试里再抄一份规则。 */
+/**
+ * **每一个会产生脚手架遍的存档键** = 每一道简单题的 id + `s`(如 `u2-0` → `u2-0s`)。
+ *
+ * 脚手架遍落独立键、全拼遍落 `${id}`,「覆盖」因此是换键实现而非改 merge(裁定 C,spec §2.6)。
+ * 覆盖面是**全部简单题**:`focusTypeOf` 在 u1–u9 有解(u10–u12 恒 null),但那三单元**走声调型**
+ * —— `slotsFor` 无条件产 tone 槽,23 道题恒有脚手架可跑 ⇒ 91 道简单题**全部**有 `s` 键。
+ * 拼接在**测试里**做而不是 import `scaffoldLevelIdOf`:那条守卫的职责就是「存档侧认不认得
+ * 这些键」,被测方之一若是生成方,这条守卫就成了自证(spec §3.1 的键名在 `scaffold.ts` 里)。
+ */
+const allScaffoldLevelIds: readonly string[] = UNITS.flatMap((u) =>
+  easyLevelsOf(u).map((level) => `${level.id}s`),
+)
+
+/** `/^u\d+-\d+[hs]?$/i` 这样的字面量 → 真正则。取自源码,不在测试里再抄一份规则。 */
 function regexOf(literal: string): RegExp {
   const end = literal.lastIndexOf('/')
   return new RegExp(literal.slice(1, end), literal.slice(end + 1))
@@ -224,7 +237,7 @@ describe('拼音积木关卡数据', () => {
   // 这一条改成**遍历每一道真实关卡 id** 去试三处正则:以后 id 再多一种后缀,这里先红。
   //
   // 三处源码按**文本**读(不 import)—— features 之间不许编译期互引,`api.test.ts` 读 worker 同法。
-  it('存档侧三处 LEVEL_ID 认下每一道真实关卡 id(含困难部分)', () => {
+  it('存档侧三处 LEVEL_ID 认下每一道真实关卡 id(含困难部分与脚手架遍的 s 键)', () => {
     const sources: Record<string, string> = {
       'worker/pinyin-progress.ts': workerPinyinSource,
       'src/features/api/api.ts': apiSource,
@@ -236,10 +249,25 @@ describe('拼音积木关卡数据', () => {
       expect(literal, `${file}: 没搜到 \`const LEVEL_ID = /.../\` 字面量 —— 搜法失效或字面量被改名,请让本测试与它同步`).toBeDefined()
 
       const re = regexOf(literal as string)
+
       const rejected = allLevels.filter((entry) => !re.test(entry.level.id))
       expect(
         rejected.map((entry) => `${where(entry)}=${entry.level.id}`).slice(0, 5),
         `${file} 的 LEVEL_ID(${literal})拒了 ${rejected.length}/${allLevels.length} 个真实关卡 id —— 孩子在那些部分拿的星会被 400 挡在库外`,
+      ).toEqual([])
+
+      // **`s` 后缀 = 脚手架遍的独立存档键(2026-10-12 脚手架遍那行)。**
+      //
+      // 脚手架遍的成绩落在 `${简单题 id}s`(如 `u2-0s`),全拼遍照常写 `${id}` —— 「覆盖」用换键
+      // 实现,三层 merge 一字不改(spec 裁定 C)。覆盖面是**全部 91 道简单题**:u1–u9 挖 focus
+      // 类型,u10–u12 挖声调(spec §2.2b),所以 `s` 键的样本必须含 u10/u11/u12,不能只测前九个单元。
+      //
+      // 这就是 2026-09-29 那个事故的**同一个坑**:`h` 后缀漏了 → 困难部分的星每题被 400 整包打回;
+      // 样本当时全是 182 个真实关卡 id,一个 `s` 键都没有,照原样**测不出来**。修法也在同一处。
+      const rejectedScaffold = allScaffoldLevelIds.filter((key) => !re.test(key))
+      expect(
+        rejectedScaffold.slice(0, 5),
+        `${file} 的 LEVEL_ID(${literal})拒了 ${rejectedScaffold.length}/${allScaffoldLevelIds.length} 个脚手架遍存档键(简单题 id + 's') —— 脚手架遍一落库就是**整包 400**(worker readStars 逐 key 校验,撞一个返 null),这一题之前所有待写的星全部打不进去`,
       ).toEqual([])
     }
   })

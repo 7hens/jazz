@@ -70,6 +70,17 @@ describe('进度兜底副本', () => {
       stars: { 'u1-0h': 3 },
       totalStars: 1,
     })
+    // 脚手架遍专用键(`s` 后缀,2026-10-12 那行)同样照收:漏了它副本**整份**判废且**静默** ——
+    // 服务端那份一丢,兜底本该顶上来却再也不写,孩子两边同时看不到进度。与 worker 那次 400
+    // 是同一个根因(原始取证见 `docs/PLAN.md` P0「困难部分的星落库被 400 整包打回」那行)。
+    expect(parseLocalProgress(JSON.stringify({ stars: { 'u2-0': 3, 'u2-0s': 2 }, totalStars: 1 }))).toEqual({
+      stars: { 'u2-0': 3, 'u2-0s': 2 },
+      totalStars: 1,
+    })
+    expect(parseLocalProgress(JSON.stringify({ stars: { 'u12-50s': 1 }, totalStars: 1 }))).toEqual({
+      stars: { 'u12-50s': 1 },
+      totalStars: 1,
+    })
     expect(parseLocalProgress(JSON.stringify({ stars: {}, totalStars: -1 }))).toBeNull()
     expect(parseLocalProgress(JSON.stringify({ stars: {}, totalStars: '120' }))).toBeNull()
     // 上限与 worker 的 MAX_TOTAL_STARS 对齐,同「服务端会拒的关 id」一个道理。

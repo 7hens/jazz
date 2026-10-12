@@ -96,16 +96,17 @@ describe('HTTP API service', () => {
     await expect(createHttpApiService(fetcher).login('secret')).rejects.toMatchObject({ status: 200, message: 'Invalid API response' })
   })
 
-  // `u1-0h` 是**困难部分**的题(id = 简单题 id + 'h'),两条路径都得当合法 key 收下 ——
-  // 收不下就等于困难部分的星在客户端这一层就被判成脏数据。
+  // `u1-0h` 是**困难部分**的题(id = 简单题 id + 'h'),`u2-0s` 是**脚手架遍专用键**,
+  // 两条路径都得当合法 key 收下 —— 收不下就等于那些遍的星在客户端这一层就被判成脏数据
+  // (整包 Invalid API response,快照与本地兜底副本一起失效)。
   it('拼音进度:GET 解析 stars 与 totalStars', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({
-      stars: { 'u1-0': 3, 'u1-0h': 2, 'u2-1': 2 },
+      stars: { 'u1-0': 3, 'u1-0h': 2, 'u2-0s': 1, 'u2-1': 2 },
       totalStars: 340,
     }), { status: 200 }))
     const api = createHttpApiService(fetcher)
     await expect(api.getPinyinProgress()).resolves.toEqual({
-      stars: { 'u1-0': 3, 'u1-0h': 2, 'u2-1': 2 },
+      stars: { 'u1-0': 3, 'u1-0h': 2, 'u2-0s': 1, 'u2-1': 2 },
       totalStars: 340,
     })
   })
@@ -127,12 +128,12 @@ describe('HTTP API service', () => {
   it('拼音进度:PUT 发 stars 与 totalStars 两个字段', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
     const api = createHttpApiService(fetcher)
-    const stars = { 'u1-0': 3, 'u1-0h': 3 }
+    const stars = { 'u1-0': 3, 'u1-0h': 3, 'u2-0s': 2 }
     await api.putPinyinProgress({ stars, totalStars: 30 })
     const [path, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit]
     expect(path).toBe('/api/pinyin-progress')
     expect(init.method).toBe('PUT')
-    // 原样发出去,一个 key 都不许被吞(吞掉 = 困难部分的星悄悄不进库)。
+    // 原样发出去,一个 key 都不许被吞(吞掉 = 困难部分 / 脚手架遍的星悄悄不进库)。
     expect(JSON.parse(String(init.body))).toEqual({ stars, totalStars: 30 })
   })
 
@@ -154,10 +155,12 @@ describe('HTTP API service', () => {
 
     expect(fromWorker, '没在 worker/pinyin-progress.ts 里搜到 `const LEVEL_ID = /.../` 字面量 —— 搜法失效或字面量被改名,请让本测试与 worker 同步').toBeDefined()
     expect(fromWorker, '关卡 id 格式两侧分家:必须同步改 src/features/api/api.ts 与 worker/pinyin-progress.ts 两处 LEVEL_ID(worker 会静默丢 key,下次保存即抹掉已得的星)').toBe(LEVEL_ID.toString())
-    // 两侧一起改错也得红:格式必须仍认真实关卡 id —— **两种形状各抽一个**(简单部分 u1-0、
-    // 困难部分 u1-0h)。这里只抽样本,逐关遍历 182 道的那条在 `pinyin-blocks/levels.test.ts`;
-    // 2026-09-29 的 400 就是只抽了 `u1-0` 一个样本、漏掉 `h` 那一族造成的。
+    // 两侧一起改错也得红:格式必须仍认真实关卡 id —— **三种形状各抽一个**(简单部分 u1-0、
+    // 困难部分 u1-0h、脚手架遍专用键 u2-0s)。这里只抽样本,逐关遍历 182 道 + 91 个 `s` 键的那条在
+    // `pinyin-blocks/levels.test.ts`;2026-09-29 的 400 就是只抽了 `u1-0` 一个样本、
+    // 漏掉 `h` 那一族造成的,而 2026-10-12 脚手架遍那行是同一个坑的复刻(`s` 后缀,取证见 `docs/PLAN.md` P0)。
     expect(LEVEL_ID.test('u1-0'), 'LEVEL_ID 已不认真实关卡 id —— 改回来的同时别忘了 worker/pinyin-progress.ts').toBe(true)
     expect(LEVEL_ID.test('u1-0h'), 'LEVEL_ID 把困难部分的 id(h 后缀)拒了 —— 孩子在困难部分拿的星会被 400 挡在库外').toBe(true)
+    expect(LEVEL_ID.test('u2-0s'), 'LEVEL_ID 把脚手架遍的存档键(s 后缀)拒了 —— 脚手架遍一落库就是整包 400,这一题之前所有待写的星全部打不进去').toBe(true)
   })
 })

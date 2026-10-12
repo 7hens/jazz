@@ -33,8 +33,16 @@ export function localProgressStorage(): Storage | null {
  *
  * 末尾 `h?` = 困难部分的题(91 道,id = 简单题 id + 'h');漏了它这一条会**静默**把副本判废
  * (整个 parseLocalProgress 返 null),兜底副本就再也不写了 —— 与 worker 那次 400 是同一个根因。
+ *
+ * 末尾 `s` = **脚手架遍专用键**(`u2-0s`,见 `scaffold.ts` 的 `scaffoldLevelIdOf`):同一道题跑两遍,
+ * 脚手架遍写 `${简单题 id}s`、全拼遍写 `${id}`,换键实现「覆盖」而 merge 一字不动
+ * (spec 裁定 C —— 「只升不降」是 2026-09-27 进度全丢事故后立的防线)。
+ * 漏了它**同一个坑一字复刻**(2026-09-29 困难部分那次,原始取证见 `docs/PLAN.md` P0
+ * 「缺陷修复:困难部分的星落库被 400 整包打回」):worker 侧 `readStars` 整包 400,
+ * 这一侧**整份副本判废**且**静默** —— 服务端那份一丢,兜底本该顶上来,却因为形状不被认
+ * 而再也不写,孩子两边同时看不到进度。
  */
-const LEVEL_ID = /^u\d+-\d+h?$/
+const LEVEL_ID = /^u\d+-\d+[hs]?$/
 
 /** 同 worker `MAX_TOTAL_STARS`(纯防呆)。漏掉这条,副本里的天文数字会把每一次 PUT 打成 400。 */
 const MAX_TOTAL_STARS = 1_000_000

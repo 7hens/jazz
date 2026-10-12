@@ -17,6 +17,7 @@ import {
   type TrayBlock,
 } from './rules'
 import type { PracticeQuestion } from './practice'
+import type { ScaffoldQuestion } from './scaffold'
 import { BlockChip } from './BlockChip'
 import { StageBar, StageDots } from './StageBar'
 import { cn } from '@/shared/ui/utils'
@@ -53,6 +54,15 @@ export type PinyinBlocksGameProps = {
   stage?: 'easy' | 'hard'
   /** 练习的一道题。给了它就走练习口径:预填无、限定托盘、不记 miss、不落库。 */
   practice?: PracticeQuestion | null
+  /**
+   * 脚手架遍的一道题(spec §3.1)。给了它就走脚手架口径:**非挖空类型的槽预填并锁定**,
+   * 托盘只有挖空的那一类块。与 `practice` 完全同构 —— 两者的差别**全部收敛在这一个入参上**,
+   * 不写第二套拼装台。
+   *
+   * 「脚手架遍落库、全拼遍覆盖」那条(spec §2.6)**不在组件里**:账目照常交回,
+   * 键由宿主按题序选的 `kind` 换(`scaffoldLevelIdOf`)—— 组件不知道自己在第几遍。
+   */
+  scaffold?: ScaffoldQuestion | null
   /** 本题在第几道 / 本串共几道。只影响画题位条与练习进度点。 */
   position?: { done: number; total: number }
   /** 一道题结束交回账目。给了它就不再走 onSolved / 自走那条路 —— 由宿主决定下一步。 */
@@ -78,7 +88,13 @@ function slotIdUnder(x: number, y: number): string | null {
   return hit?.dataset.slotId ?? null
 }
 
-/** 由轮次号派生的可复现 rng:同一轮的发牌稳定,重开一轮必然换一副。 */
+/**
+ * 由轮次号派生的可复现 rng:同一轮的发牌稳定,重开一轮必然换一副。
+ *
+ * ⚠ `QuestionRun` 那边另有一份**逐行相同**的实现 —— 它要给脚手架遍发牌,本文件不导出它,
+ * 因为从组件文件里导出普通函数会让 oxlint 的 fast-refresh 规则响(且那份 helper 与组件无关)。
+ * 两份不许各写各的:同一颗种子在两处洗出不同顺序,「可复现」就只是各自可复现。
+ */
 function makeRng(seed: number): Rng {
   let s = (seed * 2654435761) >>> 0
   return () => {
@@ -97,6 +113,8 @@ type RoundProps = {
   onSolved?: (stars: number) => void
   stage: 'easy' | 'hard'
   practice: PracticeQuestion | null
+  /** 脚手架遍的那道题。非空即走脚手架口径(预填锁定 + 限定托盘),见 `PinyinBlocksGameProps.scaffold`。 */
+  scaffold: ScaffoldQuestion | null
   /** 本题在第几道 / 本串共几道。只影响画题位条与练习进度点。 */
   position?: { done: number; total: number }
   onQuestionEnd?: (result: QuestionResult) => void
@@ -117,6 +135,7 @@ function PinyinRound({
   onSolved,
   stage,
   practice,
+  scaffold,
   position,
   onQuestionEnd,
 }: RoundProps) {
@@ -130,17 +149,31 @@ function PinyinRound({
   const penalized = mode !== 'practice'
 
   const slots = useMemo(() => slotsFor(level), [level])
-  // readonly:练习的托盘直接来自 `PracticeQuestion.tray`(契约就是只读的),这里不复制它。
+  // readonly:练习与脚手架的托盘直接来自题面自带(`PracticeQuestion.tray` / `ScaffoldQuestion.tray`,
+  // 契约就是只读的),这里不复制它。脚手架遍与练习**互斥**,脚手架优先 —— 它多带一层预填。
   const tray: readonly TrayBlock[] = useMemo(
     () =>
-      practice
-        ? practice.tray
-        : buildBlocks(level, unitIdx, makeRng(round), { hard }).map((b, i) => ({ ...b, id: `b${i}` })),
-    [level, unitIdx, round, practice, hard],
+      scaffold
+        ? scaffold.tray
+        : practice
+          ? practice.tray
+          : buildBlocks(level, unitIdx, makeRng(round), { hard }).map((b, i) => ({ ...b, id: `b${i}` })),
+    [level, unitIdx, round, practice, scaffold, hard],
   )
 
-  // 练习是**整题重考**:没有预填,盘面一律从空开始(spec §8.1)。
-  const [placement, setPlacement] = useState<Record<string, string>>({})
+  /**
+   * 预填锁定的槽 —— 脚手架遍的**唯一**一道闸(spec §3.2),三处都要挡:
+   * `placeBlock`(拖过去)、`takeBack`(纵深防御)、`renderSlot`(不绑 onClick)。
+   * 能拿回的话孩子会把预填的正确块全掏出来重摆一遍,脚手架就退化成「可自由改写的提示」。
+   *
+   * **只来自脚手架遍**:练习恒无预填(整题重考,spec §3.5),全拼遍同理。
+   */
+  const locked = useMemo(() => new Set(Object.keys(scaffold?.prefill ?? {})), [scaffold])
+
+  // 盘面初值 = 预填(spec §3.2)。**只有脚手架遍这条路有 prefill** —— 练习是整题重考、全拼遍
+  // 是今天的样子,两者恒从空开始(spec §3.5)。今天这里那行注释写的是「练习是整题重考:没有预填」,
+  // 它对练习仍然成立,只是不再是对**所有**题目的断言。
+  const [placement, setPlacement] = useState<Record<string, string>>(() => ({ ...(scaffold?.prefill ?? {}) }))
   const [status, setStatus] = useState<Status>('playing')
   const [wrongIds, setWrongIds] = useState<readonly string[]>([])
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -262,6 +295,9 @@ function PinyinRound({
   }, [slots, tray, level, playSound, speak, endQuestion, freezeResult])
 
   const placedBlockIds = useMemo(() => new Set(Object.values(placement)), [placement])
+  // 脚手架遍的预填块也走这道过滤 —— 它们在 `placement` 里(盘面初值就是 prefill),
+  // 所以不会出现在托盘的可视列表里。这一句同时是它们「不绑 onPointerDown」的根据:
+  // 托盘那层才绑手势(spec §2.8),不进托盘就没有可拖的手势。
   const liveBlocks = tray.filter((b) => !placedBlockIds.has(b.id))
   const welded = level.syl.some((s) => s.weld)
 
@@ -301,6 +337,9 @@ function PinyinRound({
 
   const placeBlock = useCallback(
     (blockId: string, slotId: string) => {
+      // 预填槽不进(spec §3.2 第一道闸)。点选路径走 `autoTargetId`,它只找**空**槽,
+      // 天然够不着预填槽 —— 真正会撞上来的是**拖拽**:孩子把一块盖到已经给好的槽上。
+      if (locked.has(slotId)) return
       if (status !== 'playing' || boardFull) return
       const block = tray.find((b) => b.id === blockId)
       const slot = slots.find((s) => s.id === slotId)
@@ -355,6 +394,7 @@ function PinyinRound({
     [
       status,
       boardFull,
+      locked,
       tray,
       slots,
       placement,
@@ -373,6 +413,10 @@ function PinyinRound({
 
   const takeBack = useCallback(
     (slotId: string) => {
+      // 预填槽不拿回(spec §3.2 第二道闸)—— **纵深防御**:视觉上已经不绑 onClick 了,
+      // 这道闸挡的是任何绕开视觉直接调到这里的路径。少了它,预填块一被拿回,盘面就不再满,
+      // 下面那道 `boardFull` 闸自己失效,再点一块放不下的就白记 miss(3 星变 2 星)。
+      if (locked.has(slotId)) return
       // 与 placeBlock / autoPlace 同一道闸。漏掉 `boardFull` 会留一条后门:盘满后的 260ms 里
       // 点一下已填槽就把块拿回托盘,**盘面不再满 ⇒ 上面那道闸自己失效**,再点一块放不下的
       // 就走 autoPlace 的 else 白记 miss(3 星变 2 星);`succeed()` 还会亮在一个空槽的盘面上。
@@ -383,7 +427,7 @@ function PinyinRound({
         return copy
       })
     },
-    [status, boardFull],
+    [status, boardFull, locked],
   )
 
   /** 点块就出声:孩子得先听见这块读什么,才谈得上把它拼出来。声调块没有可念的音,静默。 */
@@ -544,17 +588,23 @@ function PinyinRound({
   function renderSlot(slot: Slot, isTone: boolean) {
     const blockId = placement[slot.id]
     const block = blockId ? tray.find((b) => b.id === blockId) : undefined
+    /** 这一块是「给你」的,不是「你放的」—— 两件事在屏幕上、在无障碍树里都不能同形(spec §2.8/§2.9)。 */
+    const given = block !== undefined && locked.has(slot.id)
     return (
       <div
         // 被拒时换 key 重挂本槽,让抖动动画从头播(见 flashReject)
         key={reject?.id === slot.id ? `${slot.id}-${reject.n}` : slot.id}
         data-slot-id={slot.id}
-        aria-label={block ? `已放 ${block.value}` : '空槽'}
+        // 「已给 X」与「已放 X」:读屏用户能听到差别(spec §2.9)
+        aria-label={block ? `已${given ? '给' : '放'} ${block.value}` : '空槽'}
         className={cn(
           'pslot flex items-center justify-center',
           isTone ? TONE_BOX : boxFor(slot),
-          block && 'pslot--filled',
-          hoverSlot === slot.id && 'pslot--over',
+          // 预填槽**不挂** `.pslot--filled` —— 那个类表示「孩子自己放的」(无外框),
+          // 复用它会让这两件事同形,而同形正是本行要解决的那点歧义(spec §2.8)。
+          given ? 'pslot--given' : block && 'pslot--filled',
+          // 悬停高亮同样只给还能放的槽:预填槽拖过去落不下,亮起来是骗人。
+          hoverSlot === slot.id && !given && 'pslot--over',
           (wrongIds.includes(slot.id) || reject?.id === slot.id) && 'pslot--wrong',
           // 类型类恒挂:强/中/弱是染色深浅的差别,由容器上的两个变量决定,不是挂不挂类。
           !block && (isTone ? 'pslot--tone' : `pslot--${slot.type}`),
@@ -570,7 +620,9 @@ function PinyinRound({
             welded={welded && status === 'solved' && Boolean(level.syl[slot.sylIdx]?.weld)}
             // 触发判据与答案行的拼写同源:同一个 losesDots,渲染层不重算结构。
             dotsAway={losesDots(level.syl[slot.sylIdx]?.initial, block.value)}
-            onClick={() => takeBack(slot.id)}
+            // 预填块**不绑** onClick(spec §3.2 第三道闸):点它拿不回来。
+            // 它同样不绑 onPointerDown / onKeyDown —— 它压根不在托盘里(见 liveBlocks 的过滤)。
+            onClick={given ? undefined : () => takeBack(slot.id)}
             className={cn(boxFor(slot), isTone && PLACED_TONE)}
             data-block-id={block.id}
           />
@@ -746,6 +798,7 @@ export function PinyinBlocksGame({
   levelIndex,
   stage = 'easy',
   practice = null,
+  scaffold = null,
   position,
   onQuestionEnd,
   onSolved,
@@ -777,6 +830,7 @@ export function PinyinBlocksGame({
       onBlock={onBlock}
       stage={stage}
       practice={practice}
+      scaffold={scaffold}
       position={position}
       onQuestionEnd={onQuestionEnd}
       // 有 onQuestionEnd 就不给这条老路:一道题结束后去哪由宿主决定。

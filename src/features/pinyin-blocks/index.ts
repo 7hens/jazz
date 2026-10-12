@@ -8,7 +8,7 @@ export { PracticeEntry } from './PracticeEntry'
 export { QuestionRun, type QuestionEnd, type QuestionItem, type QuestionRunProps } from './QuestionRun'
 export { PinyinBlocksGame, type PinyinBlocksGameProps, type QuestionResult } from './PinyinBlocksGame'
 export { BlockChip } from './BlockChip'
-export { UNITS, easyLevelsOf, hardLevelsOf, LESSON_MAX, lessonsOf, pathLessons, SECTIONS } from './levels'
+export { UNITS, easyLevelsOf, focusTypeOf, hardLevelsOf, LESSON_MAX, lessonsOf, pathLessons, SECTIONS } from './levels'
 export type { Level, Lesson, Section, Syllable, Unit } from './levels'
 export type { Block, BlockType, Hint } from './blocks'
 export { hintFor, HINT_BY_UNIT } from './blocks'
@@ -62,3 +62,12 @@ export {
 } from './rules'
 export type { Placement, Rng, Slot, TrayBlock } from './rules'
 export { practiceQuestions, wholeReviewQuestion, type PracticeItem, type PracticeQuestion } from './practice'
+// 脚手架遍(spec §2.1):简单部分每道题先跑一遍「非目标槽预填锁定、只挖目标那一类块」。
+// 题面是纯函数 + 注入 rng,组件只吃结果;`scaffoldLevelIdOf` 是它那一遍的落库键(`${id}s`,spec §2.6)。
+export {
+  scaffoldKindOf,
+  scaffoldLevelIdOf,
+  scaffoldQuestion,
+  SCAFFOLD_TRAY_CAP,
+  type ScaffoldQuestion,
+} from './scaffold'

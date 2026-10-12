@@ -6,13 +6,14 @@ import type { Level, Unit } from './levels'
 import { buildBlocks, slotsFor, type Rng, type TrayBlock } from './rules'
 
 /**
- * 练习里的一道题。**恒是全槽挖空、无预填。**
+ * 练习里的一道题。**练习这条路恒是全槽挖空、无预填** —— 预填机制**回来了**,但只走**脚手架遍**那条路
+ * (`scaffold.ts`:简单部分每道题跑两遍的第 1 遍,那才是唯一带 `prefill` 的题源,spec §3.5)。
  *
  * 为什么不再按类型挖空:错题池存的是**块**,而星级只记得**哪道题**错过 ——
  * 「他错的是声母还是韵母」推不出来。故产品裁定练习重考整题,连带整个错题池机制退休(spec §8.1)。
  */
 export type PracticeQuestion = Readonly<{
-  /** 要挖空的槽。练习恒是全部槽。 */
+  /** 要挖空的槽。练习这条路恒是全部槽 —— 与 `ScaffoldQuestion.slotIds`(只挖目标那一类)正相反。 */
   slotIds: readonly string[]
   /** 本小题的托盘:同简单部分(正解 + `taughtBlocks` 里挑得出的干扰块)。 */
   tray: readonly TrayBlock[]

@@ -7,7 +7,7 @@
 // ⚠ `id` 是存档键,**前缀不等于所属单元**:旧关沿用建关时的 0–6 部分序号(如 `u2-4` 今天住在 u3),
 // 新关一律从 50 起(`u5-50`、…)—— 两代键永不可能相撞。挪关不改 id。
 
-import { Ü_DROP_INITIALS, type Block } from './blocks'
+import { Ü_DROP_INITIALS, type Block, type BlockType } from './blocks'
 import { HARD_LEVELS } from './hard-levels'
 
 /** 一个音节的结构。weld = 拼合后读音 ≠ 逐块拼读,拼对时被金箍焊成一体(整体认读音节)。 */
@@ -418,6 +418,32 @@ export function taughtBlocks(unitIndex: number): readonly Block[] {
   return [...seen.values()]
 }
 
+/**
+ * 本单元新教的那一类块 —— 脚手架遍只挖这一类(spec §2.2)。**取不到返 null**。
+ *
+ * 口径 = `Unit.badge` ∩ (本单元**之前**没教过的块),取其中第一个的 `type`。
+ * 纯派生:「哪个单元教什么」只有本文件知道(见文件头「块显式写死,不靠反推」),
+ * 在别处再写一份必然漂移。
+ *
+ * **为什么用 badge 而不是「单元里出现最多的类型」**:badge 是**本单元新教块**的唯一事实源,
+ * 而「哪个类型出现最多」量的是**用量**不是**新增** —— u2 顺带复习了一堆 `final: a`,
+ * 出现最多的类型是 `final`,但 u2 新教的是 `initial: b`。用它会把复习判成新教。
+ *
+ * **为什么取第一个而非全部**:一个单元理论上可能新教两类块(今天的 12 个单元里没有)。
+ * 挖两类 = 预填只剩声调块,脚手架就退化成「选声调」—— 而那正是声调遍(spec §2.2b)
+ * 要单独做的那一型。与其让它意外地退化成那样,不如显式裁定只挖第一个。
+ *
+ * u10 / u11 / u12 恒返 `null`:整体认读(`zh`/`y`/`i`)与双音节词(`x`/`g`/`u`/`a`)
+ * 用的全是 u1–u8 已经教过的块,它们教的是**组合**不是**新块**(实测,见 spec §2.2 那张表)。
+ */
+export function focusTypeOf(unitIndex: number): BlockType | null {
+  const unit = UNITS[unitIndex]
+  if (!unit) return null
+  const before = new Set(taughtBlocks(unitIndex - 1).map((b) => `${b.type}:${b.value}`))
+  const fresh = unit.badge.filter((b) => !before.has(`${b.type}:${b.value}`))
+  return fresh[0]?.type ?? null
+}
+
 /* ------------------------------------------------------------ 拼写(显示串) */
 
 /**
@@ -495,7 +521,14 @@ export function spell(level: Level): string {
 
 /* ------------------------------------------------- 学习路径:Section / Lesson */
 
-/** 一节的题数上限。一节 3~5 题是产品口径(spec §3)。 */
+/**
+ * 一节的题数上限 —— 切分的粒度是**道题**,不是遍数。
+ *
+ * 「一节 3~5 题」这条产品口径一字没变(spec §3);但简单部分现在**每道题跑两遍**
+ * (先脚手架遍、后全拼遍,spec §2.1),所以一节实际是 **6~10 遍**。
+ * 之所以还要改写这句话:不写就成假话 —— 读代码的人会以为一节 5 题 = 5 次答题。
+ * `splitEven` 按 `lesson.levelIds` 切,常量语义不变(spec §3.4)。
+ */
 export const LESSON_MAX = 5
 
 /** 一个 Section:按教学点分段。**只有分组,没有新数据** —— 段头要展示的东西全部从段内单元派生。 */
