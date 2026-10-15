@@ -103,19 +103,36 @@ export const UNITS: readonly Unit[] = [
   {
     id: 'u1',
     name: '单韵母',
-    emoji: '🦢',
+    // 2026-10-14 产品裁定换掉 🦢(鹅):**白色是唯一与浅蓝天空既无色相差、又无亮度差的一类**
+    // —— 压在 #bfe3ff 上只有 1.34:1,是 11 枚单元徽标里唯一真正隐形的一枚(其余彩色 emoji
+    // 靠**色相**与天空分开,亮度比虽低但一眼可辨 —— 这一条纠正了此前几轮按亮度口径的误判)。
+    // 🏡 的语义也正合 u1:**屋 wū 就是一个单韵母 u**。
+    // ⚠️ 与 u7(后鼻韵母)当前同用 🏡,两枚相邻单元的徽标会一模一样 —— 产品已知悉并选定,
+    //    将来若要分开,给 u7 换一枚即可,不必动 u1。
+    emoji: '🏡',
     badge: [{ type: 'final', value: 'a' }],
     levels: [
-      // 本单元只出零声母单韵母(块池 = a o e i u,见 `hard-levels.test.ts` 的池子那条),
-      // 而汉语里能被 6 岁孩子一眼命名的零声母单韵母**只有 8 个**:鹅é 饿è 衣yī 椅yǐ 姨yí 五wǔ 屋wū 雾wù。
+      // 本单元只出单韵母(见 `hard-levels.test.ts` 的池子那条),而汉语里能被 6 岁孩子一眼命名的
+      // 单韵母音节**只有 8 个**:鹅é 饿è 衣yī 椅yǐ 姨yí 五wǔ 屋wū 雾wù。
       // a / o / e 剩下的全是语气词与抽象字(啊 哦 噢 恶 意 无),**没有图**。所以 u1 的 a/o 题靠
       // `listen`(自动念)出题,而不是靠图;`read` 一律取 TTS 单字默认调,否则听到的和答案对不上。
+      //
+      // ⚠️ **块池是 a o e i u + y w,不是「只有 a o e i u」**(2026-10-14 修)。`i` / `u` / `ü` 在
+      // 汉语里**不能单独作音节**,零声母时写成 yi / wu / yu —— 而 `y` `w` 是**声母**、不在单韵母表里。
+      // 这一批关卡原来把 `syl` 写成 `{final:'i'}`(零声母),把那个 y / w **藏在拼写层**
+      // (`writeSyllable` 的零声母改写里):孩子的盘上只有一块 `i`,屏幕上却写着 `yǐ` ——
+      // **屏幕上那个 y 从来不是一块积木**,而单韵母表(a o e i u ü)里根本没有它。
+      // 现在一律写成 `{initial:'y', final:'i', weld:true}`:`y` 是盘上一块**真积木**,
+      // 脚手架遍按「填非目标槽」把它**预填**、只挖 `i` ⇒ **这正是标准教材教单韵母 i/u 的填空法**。
+      // 显示串一个字没变(`spellSyllable({initial:'y',final:'i'})` 同样得 `yī`,见 levels.test.ts),
+      // 变的只是**那个 y 从哪来**。`weld: true` 承重:y 代劳了后面的 i、w 代劳了后面的 u,
+      // 两块积木渲染成焊死的一整枚,漏标则困难题那条形状守卫当场红。
       { id: 'u1-0', emoji: '🦢', pinyin: 'é', read: '鹅', syl: [{ final: 'e', tone: 2 }] },
       { id: 'u1-1', emoji: '😮', pinyin: 'ó', read: '哦', syl: [{ final: 'o', tone: 2 }], listen: true },
       { id: 'u1-2', emoji: '🗣️', pinyin: 'ā', read: '啊', syl: [{ final: 'a', tone: 1 }], listen: true },
-      // i / u 不能单独作音节:零声母时写成 yi / wu。块面仍是 i / u,显示串是它们的改写。
-      { id: 'u1-50', emoji: '🪑', pinyin: 'yǐ', read: '椅', syl: [{ final: 'i', tone: 3 }] },
-      { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ final: 'u', tone: 3 }] },
+      // i / u 不能单独作音节 ⇒ 声母取 y / w,写成 yi / wu(见上面那段来历)。
+      { id: 'u1-50', emoji: '🪑', pinyin: 'yǐ', read: '椅', syl: [{ initial: 'y', final: 'i', tone: 3, weld: true }] },
+      { id: 'u1-51', emoji: '✋', pinyin: 'wǔ', read: '五', syl: [{ initial: 'w', final: 'u', tone: 3, weld: true }] },
       // 原单元末那组复习题(并入简单节后当普通题):一轮 a o e i u 走完
       { id: 'u1-52', emoji: '😋', pinyin: 'è', read: '饿', syl: [{ final: 'e', tone: 4 }], listen: true },
       // 困难节:另一批音节,与上面的简单题一一对应(id + 'h')。见 hard-levels.ts。

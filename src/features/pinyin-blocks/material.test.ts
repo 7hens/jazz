@@ -356,18 +356,23 @@ describe('index.css 拼音积木材质段', () => {
     expect(css.slice(practice, css.indexOf('}', practice))).toContain('dashed')
   })
 
-  it('题位条:格子等高、只有亮暗两态,亮态用 accent', () => {
-    // 行首锚定,不用 split —— 放大版里的 `.pstage-bar--big .pstage-step {` 里含 `.pstage-step {` 这个
-    // 子串,split 会把它一起数进来(同一类坑:复合选择器让「一条规则」的护栏数出两条)。
-    const rules = (sel: string) => css.match(new RegExp(`^${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{`, 'gm'))?.length ?? 0
-    expect(rules('.pstage-bar'), '.pstage-bar 只该有一条规则').toBe(1)
-    expect(rules('.pstage-step'), '.pstage-step 只该有一条规则').toBe(1)
-    expect(rules('.pstage-step--on'), '.pstage-step--on 只该有一条规则').toBe(1)
-    expect(rules('.pstage-dot'), '.pstage-dot 只该有一条规则').toBe(1)
-    const on = css.indexOf('\n.pstage-step--on {')
-    expect(css.slice(on, css.indexOf('}', on))).toContain('var(--color-accent)')
-    // 格子等高:旧版那三支 nth-child 高度阶(编码部分难度)随「部分」这个层一起删了。
-    // 留着它,题位条就会被读成三级台阶 —— 而新语义是「同一节的第几题」。
-    expect(css, '题位条不该再有高度阶').not.toContain('.pstage-step:nth-child')
+  // 题位条(`StageBar` / `StageDots` + `.pstage-*`)—— 2026-10-14 **整族删除**。
+  //
+  // 这一条原来钉的是形状(格子等高、只有亮暗两态、亮态用 accent)。那些细节随组件一起没了,
+  // **留下来的是「不许回来」**:产品裁定题面图正上方不许压进度条,而右上角那排小圆点是
+  // **连击点**(`data-combo-dots`)不是进度 —— 也就是说不存在「与它重复」这回事,删的是位置不是重复。
+  //
+  // ⚠️ **删掉的是显示,不是数据。** 「本节第几题」的分母是**遍数**(简单部分每题跑两遍:
+  // 脚手架遍 + 全拼遍,spec §2.1),那个数仍在 `PinyinBlocksGame.tsx` 上以 `data-question-total`
+  // 挂着 —— `LessonEntry.test.tsx` / `App.test.tsx` 断的就是它。**若将来要恢复可视进度条,
+  // 从那两个属性长出来,别重新去 `position` 里数一遍题。**
+  it('题位条整族已删:那排格子/小点不许再压回题面图上方', () => {
+    // ⚠️ 先剥注释:`index.css` 里「题位条整族删除」那段来历注**必然要提到** `.pstage-bar` 等词。
+    //   断的是「这些规则还在不在」,不是「这些词还在不在文件里」。
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    for (const sel of ['.pstage-bar', '.pstage-step', '.pstage-dot']) {
+      expect(rules, `${sel} 又回来了 —— 题面图正上方不许压进度条(见 index.css 那段来历注)`)
+        .not.toMatch(new RegExp(`^${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{`, 'm'))
+    }
   })
 })

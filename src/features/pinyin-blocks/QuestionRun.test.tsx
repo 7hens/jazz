@@ -5,6 +5,7 @@ import { UNITS } from './levels'
 import { canPlace, slotsFor, starsFor } from './rules'
 import { wholeReviewQuestion } from './practice'
 import { scaffoldLevelIdOf } from './scaffold'
+import { HAN_TEXT } from '@/shared/testing/han-text'
 import { QuestionRun, type QuestionEnd, type QuestionItem } from './QuestionRun'
 
 const unit = UNITS[0]!
@@ -123,11 +124,12 @@ describe('QuestionRun', () => {
     expect(end.stars, '一次不错 = 满星').toBe(starsFor(0))
     expect(onDone, '还有题没走完,不该交账').not.toHaveBeenCalled()
     expect(view.container.textContent).toContain(unit.levels[1]!.emoji)
-    // 题位条跟着 `position` 走:换到第二题 ⇒ 两格里亮到第二格(宿主给的分母是真题数,不是写死三格)。
-    const bar = document.querySelector<HTMLElement>('.pstage-bar')
-    expect(bar, '简单题上该画题位条').not.toBeNull()
-    expect(bar!.dataset.barTotal, '题位条按本串题数给格').toBe('2')
-    expect(bar!.dataset.barDone, '换到第二题 ⇒ 亮到第二格').toBe('2')
+    // ⚠️ 这里曾经断的是那排画出来的题位条;2026-10-14 产品裁定**把它整条删掉**(不许压在 emoji 上方),
+    // 于是改断 `data-question-total` / `data-question-done` —— **分母仍然是遍数**,这一点不能因为
+    // 「不再显示」就顺手改成道题数。观测点搬了家,语义没变。
+    const game = view.container.querySelector<HTMLElement>('[data-game-area]')!
+    expect(game.dataset.questionTotal, '分母按本串题数(=遍数)给').toBe('2')
+    expect(game.dataset.questionDone, '换到第二题 ⇒ 走到第二题').toBe('2')
     vi.useRealTimers()
   })
 
@@ -271,10 +273,11 @@ describe('QuestionRun', () => {
       level.id,
     ])
     expect(onDone, '两遍走完才交回宿主').toHaveBeenCalledTimes(1)
-    // 题位条按**遍**走(见 QuestionRun 里 position 那条注释):一节 3 道题改后是 6 格。
-    const bar = document.querySelector<HTMLElement>('.pstage-bar')!
-    expect(bar.dataset.barTotal).toBe('2')
-    expect(bar.dataset.barDone).toBe('2')
+    // 分母按**遍**走(见 QuestionRun 里 position 那条注释):一节 3 道题改后是 6 格。
+    // 同上,断的是观测锚点,不是那排画出来的格子 —— 那排格子 2026-10-14 已随题位条一并删除。
+    const game = view.container.querySelector<HTMLElement>('[data-game-area]')!
+    expect(game.dataset.questionTotal, '脚手架遍 + 全拼遍 ⇒ 两遍').toBe('2')
+    expect(game.dataset.questionDone, '两遍走完').toBe('2')
     expect(view.container.textContent).toContain(level.emoji)
     vi.useRealTimers()
   })
@@ -303,5 +306,52 @@ describe('QuestionRun', () => {
       />,
     )
     expect(traySignature(), '重渲染换了牌 = 盘面与托盘失配').toEqual(dealt)
+  })
+
+  // 2026-10-14 产品裁定:「整屏没有一个字,都不知道是干什么的」⇒ 关名 + 进度这一行回到孩子面。
+  // 断的是**值来自哪**(关名取 `unit.name`、进度取 `position`),不是措辞 —— 措辞产品随时可以再改,
+  // 而「关名与进度这两个数不许各算各的」是结构,改了就跑偏。
+  it('关名 + 进度那一行:关名取 unit.name,分母是遍数', async () => {
+    vi.useFakeTimers()
+    // 一道题跑两遍(脚手架遍 + 全拼遍):分母必须是 **2**,不是道题数 1。
+    const items: QuestionItem[] = [scaffoldItem(0), { kind: 'level', levelIndex: 0 }]
+    const { view } = mount(items)
+    const label = () => view.container.querySelector<HTMLElement>('[data-run-label]')!
+    const game = () => view.container.querySelector<HTMLElement>('[data-game-area]')!
+
+    expect(label().textContent).toContain(unit.name)
+    expect(label().textContent).toContain('1/2')
+
+    // **同一个数**:这一行的读数与观测锚点上那对 data-* 恒等 —— 两处不许各算一份。
+    expect(label().textContent).toContain(`/${game().dataset.questionTotal}`)
+    expect(label().textContent).toContain(`${game().dataset.questionDone}/`)
+
+    // 换题 ⇒ 分子跟着走、分母不动。
+    solveEmptyOnScreen(0)
+    await advance(2000)
+    solveCurrent(0)
+    await advance(2000)
+    expect(label().textContent, '走完第二遍 = 2/2').toContain('2/2')
+    // ⚠️ **可见文案不带单位,但 `aria-label` 必须带** —— 分母数的是遍,不是道题数。
+    // 读屏用户拿不到 `2/2` 这个视觉读法,那句话是他们唯一知道「这数的是遍」的地方。
+    // 去掉它,这两个数字对读屏用户就变成了没有单位的裸数。
+    expect(label().getAttribute('aria-label'), '读屏文案丢了「遍」—— 分母的语义只剩在代码注释里').toBe(
+      `${unit.name} · 本节第 2 遍,共 2 遍`,
+    )
+    vi.useRealTimers()
+  })
+
+  // ⚠️ 这条把「文字不进游戏区」钉死 —— `PinyinBlocksGame.test.tsx` 有两条汉字扫描
+  // (作答期间游戏区零汉字 / 拼对后直接文本含汉字的元素**恰好一个** = 答案行的同音汉字)。
+  // 那一行是**兄弟**节点而不是子节点,那两条才成立;哪天有人图省事把它挪进 `[data-game-area]`,
+  // 两条当场红 —— 这里让它有个更早、更直白的现场。
+  it('关名 + 进度那一行在游戏区之外(挪进去,作答期间零汉字那条就破了)', () => {
+    const items: QuestionItem[] = [scaffoldItem(0), { kind: 'level', levelIndex: 0 }]
+    const { view } = mount(items)
+    const label = view.container.querySelector<HTMLElement>('[data-run-label]')
+    expect(label, '这一行该渲染出来').not.toBeNull()
+    expect(label!.closest('[data-game-area]'), '文字被挪进游戏区了').toBeNull()
+    // 它确实带汉字 —— 否则上面那句可能只是「压根没渲染」的空绿。
+    expect(label!.textContent).toMatch(HAN_TEXT)
   })
 })

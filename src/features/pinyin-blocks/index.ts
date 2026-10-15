@@ -18,7 +18,6 @@ export {
   type PartSettlement,
   type LevelSettlement,
 } from './settle'
-export { StageBar, StageDots } from './StageBar'
 export {
   cleared,
   completedLevelCount,

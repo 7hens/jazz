@@ -192,13 +192,17 @@ describe('一节课', () => {
 
   // 题位条的格子是**遍**,不是道题(spec §3.4 里「切的是道题」讲的是 `LESSON_MAX` 怎么分节,
   // 与这条进度指示不是同一个旋钮)。分母 = 有脚手架遍的题数×2 + 其余×1。
-  it('题位条 = 本节的遍数(一题两遍),走完一题亮一格', () => {
+  // ⚠️ 2026-10-14 题位条整条删除(产品裁定:不许压在 emoji 上方)。**但这一条不能跟着删** ——
+  // 它是「简单部分每道题跑两遍(脚手架遍 + 全拼遍)」唯一的一条直接断言,删了就只剩下面那条
+  // 「两遍落两个键」在守落库,排题那一步没人守了。⇒ 观测点从画出来的格子搬到
+  // `PinyinBlocksGame` 上那对 `data-question-total` / `data-question-done`。
+  it('本节题数 = 遍数(一题两遍),不是道题数', () => {
     const lesson = pathLessons()[0]!
     mountLessonEntry({ lessonId: lesson.id, stars: {} })
     const expected = lesson.levelIds.reduce((n, id) => n + (hasScaffoldPass(id) ? 2 : 1), 0)
-    const bar = document.querySelector('[data-bar-total]') as HTMLElement
-    expect(bar.dataset.barTotal).toBe(String(expected))
-    expect(bar.dataset.barDone).toBe('1')
+    const game = document.querySelector('[data-game-area]') as HTMLElement
+    expect(game.dataset.questionTotal).toBe(String(expected))
+    expect(game.dataset.questionDone).toBe('1')
   })
 
   // 脚手架遍落 `${id}s`、全拼遍落 `${id}`(spec §2.6)。**两个不同的键**,只断一个都抓不到
@@ -251,7 +255,7 @@ describe('一节课', () => {
       }
       const { unmount } = mountLessonEntry({ lessonId: lesson.id, stars: {} })
       expect(
-        document.querySelector('[data-bar-total]')?.getAttribute('data-bar-total'),
+        document.querySelector('[data-game-area]')?.getAttribute('data-question-total'),
         lesson.id,
       ).toBe(String(expected))
       unmount()

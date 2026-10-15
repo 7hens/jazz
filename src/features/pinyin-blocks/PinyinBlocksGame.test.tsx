@@ -105,6 +105,36 @@ describe('拼音积木 · 游戏', () => {
     document.querySelectorAll('.pblock--dragging').forEach((el) => el.remove())
   })
 
+  /**
+   * 题面图 2026-10-14 起**没有任何光圈底板** —— 与路径页那枚徽标底板同批去掉。
+   *
+   * 钉三件事,都只为「别悄悄退回去」:
+   *  ① 它**不再挂** `.pemoji`(那一圈 `radial-gradient` 光圈就是从这个类来的);
+   *  ② 它**不再有内联 filter**。改前那是 `drop-shadow(0 10px 14px rgb(31 58 95 / 0.18))` ——
+   *     一条只朝下的影,**分不开轮廓**,浅色主体照样糊在浅蓝里(鹅🦢 就是这样被看见的);
+   *     而且那个 `rgb(...)` 字面量不在 token 体系内。两条一起钉:字面量被塞回来就会红。
+   *  ③ 它**不再有 `relative`** —— 那圈光是绝对定位的伪元素,`relative` 当初只为给它当包含块。
+   *
+   * 底板为什么没用:它是为**全部** emoji 铺的场,却只对**白/浅色那一族**起作用(那族确实与
+   * 浅蓝天空既无色相差也无亮度差),在另外十枚上有代价无收益;而且任何平色底板都必然与 emoji
+   * 内部的某一档**等亮度** —— 真实 emoji 是三档亮度(深 0.02 / 中 ~0.30 / 白 1.00)不是两档。
+   * 详见 `index.css` 里「题面图:没有任何光圈底板」那段。
+   *
+   * ⚠️ **与路径页徽标不一样**:徽标纯装饰、换 emoji 零成本;**题面图是承重的**(看图 → 命名 →
+   * 拼音节),换图等于换词。所以那一族真读不出来时的修法是**换那道题的图**,不是给全部图加底。
+   */
+  it('题面图不再有光圈底板,只留那一记落地影', () => {
+    const { container } = mount(0, 0) // u1-0 🦢 é(鹅 —— 产品报的那一只)
+    const pic = container.querySelector<HTMLElement>('[data-level-picture]')
+    expect(pic, '缺少 data-level-picture 锚点(同 data-answer-read 的先例:锚点用 data-*,别用会漂的类名)').not.toBeNull()
+    expect(pic!.className, '题面图又挂上 pemoji 了 —— 那圈光圈底板已被裁定去掉').not.toContain('pemoji')
+    expect(pic!.className, '题面图没挂 level-pic —— 改前那记朝下的落地影会一并消失').toContain('level-pic')
+    // ⚠️ 按 **class token** 判,别按子串:`level-pic` 不含 `pemoji`,但反过来 `pemoji--grounded`
+    // 曾经含有 `pemoji` —— 那正是删掉前最容易把「已删」误判成「还在」的一处。
+    expect(pic!.classList, '题面图宿主还有 relative —— 它当初只为那圈绝对定位的光圈当包含块').not.toContain('relative')
+    expect(pic!.style.filter, '题面图又有内联 filter 了 —— 会与落地影叠加,那一层颜色也不再走 token').toBe('')
+  })
+
   it('渲染题面图与拼装台,作答期间不出现汉字', () => {
     const { container } = mount(1, 1) // 🐴 mǎ
     expect(screen.getByText('🐴')).toBeInTheDocument()

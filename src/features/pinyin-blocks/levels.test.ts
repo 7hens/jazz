@@ -109,6 +109,35 @@ describe('拼音积木关卡数据', () => {
     }
   })
 
+  // 2026-10-14 产品裁定:`i` / `u` / `ü` 在汉语里不能单独作音节,零声母时写成 yi / wu / yu,
+  // 而 **y / w 是声母**、不在单韵母表(a o e i u ü)里。u1 那 7 关原来把 syl 写成零声母
+  // (`{final:'i'}`),**把 y / w 藏在拼写层的零声母改写里** —— 孩子的盘上只有一块 i,
+  // 屏幕上却写着 yǐ,**那个 y 从来不是一块积木**。现改为显式 `{initial:'y', ...}` + `weld`。
+  //
+  // 断的是**性质**不是**名单**(关卡 id 会增删,性质不会):屏幕拼写串里只要出现 y / w,
+  // syl 里就必须真的有那块声母积木。反过来改回零声母,这条当场红。
+  it('零声母正字法:拼写串里的 y / w 是真声母块,且代劳了韵母时必须焊死', () => {
+    for (const entry of allLevels) {
+      for (const [i, s] of entry.level.syl.entries()) {
+        const spelled = spellSyllable(s)
+        if (!/^[yw]/.test(spelled)) continue
+        const label = `${where(entry)} syl[${i}]`
+        expect(s.initial, `${label} 拼成 ${spelled} —— y / w 是声母,不能靠拼写层的零声母改写变出来`).toBe(
+          spelled[0],
+        )
+        // y 代劳后面的 i / ü(üe 也算),w 代劳后面的 u ⇒ 两块积木渲染成焊死的一整枚。
+        // ⚠️ 别把「代劳了哪些形状」在这里重抄一份 —— `WELD_SHAPES` 是全仓那份判据
+        // (`blocks.ts` 导出、`hard-levels.test.ts` 钉住)。这条只从 `syl` 本身推得出来,
+        // 两边不会分家;真要改代劳规则,改 `WELD_SHAPES`,顺带看这里红不红。
+        const swallowed =
+          (s.initial === 'y' && /^[iü]/.test(s.final ?? '')) || (s.initial === 'w' && s.final?.startsWith('u'))
+        expect(s.weld, `${label} = ${spelled}${swallowed ? ',代劳了后面的韵母,必须焊死' : ',没有代劳,不许焊'}`).toBe(
+          swallowed ? true : undefined,
+        )
+      }
+    }
+  })
+
   // 原来这条是「每个块都在该单元**硬编码的**解锁池里」。池改成从课程数据派生之后,
   // 它变成了同义反复(池就是课程自己),故换成它真正在守的那半条性质:
   // 池只增不减 —— 后面的单元一定收得下前面单元出过的每一个块。
@@ -188,6 +217,12 @@ describe('拼音积木关卡数据', () => {
     const TTS_DEFAULT: Readonly<Record<string, string>> = {
       啊: 'ā', 哦: 'ó', 噢: 'ō', 恶: 'è', 好: 'hǎo', 佛: 'fó',
       地: 'dì', 炸: 'zhà', 圈: 'quān', 累: 'lèi', 龟: 'guī', 泥: 'ní',
+      // 2026-10-15 补 u1 全部朗读字:这一关的「窝 wē」是**产品一眼看出来的错**
+      // (正确是 wō),而当时表里没有窝 ⇒ 整关被 `continue` 跳过、断言恒真。
+      // ⚠️ **这张表是外部知识,只能靠人读字典补**:它查的是「TTS 会怎么念」,
+      // 而项目的 `pinyin` 字段是「我们要它念什么」—— 拿后者填前者就是循环论证。
+      // 它**只查这一列字**,不在表里的关卡这一条完全不覆盖(不是查得松,是没查)。
+      鹅: 'é', 饿: 'è', 衣: 'yī', 椅: 'yǐ', 姨: 'yí', 意: 'yì', 五: 'wǔ', 雾: 'wù', 窝: 'wō',
     }
     const checked: string[] = []
     for (const entry of allLevels) {

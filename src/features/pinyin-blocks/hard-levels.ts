@@ -12,12 +12,32 @@ import type { Level } from './levels'
 
 export const HARD_LEVELS: Readonly<Partial<Record<string, readonly Level[]>>> = {
   u1: [
-    { id: 'u1-0h', emoji: '👕', pinyin: 'yī', read: '衣', syl: [{ final: 'i', tone: 1 }], stage: 'hard' },
+    { id: 'u1-0h', emoji: '👕', pinyin: 'yī', read: '衣', syl: [{ initial: 'y', final: 'i', tone: 1, weld: true }], stage: 'hard' },
     { id: 'u1-1h', emoji: '😯', pinyin: 'ō', read: '噢', syl: [{ final: 'o', tone: 1 }], stage: 'hard', listen: true },
-    { id: 'u1-2h', emoji: '🚫', pinyin: 'wú', read: '无', syl: [{ final: 'u', tone: 2 }], stage: 'hard', listen: true },
-    { id: 'u1-50h', emoji: '🧓', pinyin: 'yí', read: '姨', syl: [{ final: 'i', tone: 2 }], stage: 'hard', listen: true },
-    { id: 'u1-51h', emoji: '🌫️', pinyin: 'wù', read: '雾', syl: [{ final: 'u', tone: 4 }], stage: 'hard' },
-    { id: 'u1-52h', emoji: '💭', pinyin: 'yì', read: '意', syl: [{ final: 'i', tone: 4 }], stage: 'hard', listen: true },
+    // 2026-10-15 产品裁定:这一关原是「无 wú 🚫」,**🚫 会被孩子读成「勿」**(而「雾 wù」已占那个音),
+    // 产品要求换一个**没有歧义**的图 ⇒ 换成**窝 wē 🪺**。中间绕过的三条路记在这里:
+    //  · **只换图**:无 是抽象字,**任何 emoji 都不是它** —— 它挂 `listen: true` 正是因为没有图。
+    //  · **换成 🪵 木(mù)**:那枚图**已经在 u2-54h**(声母单元),而且**搬不进 u1** ——
+    //    `hard-levels.test.ts` 有一条「困难题只能用前面各单元 + 本单元简单部分教过的块」,
+    //    `m` 是 u2 才教的声母,u1 的题不许出现(实测:当场红 `u1-2h 用了还没教过的 initial:m`)。
+    //  · **换成 yē 椰**:拼音与 emoji 当时都空着,但 **`ye` 是整体认读音节**(u11-52 叶 yè、
+    //    u6-5 约 yuè),放进单韵母单元等于把两件事搅在一起 —— **产品指出,我当时只查了占用、
+    //    没查它是不是整体认读音**。
+    //
+    // **为什么窝 wē 是唯一解**:u1 合法块 = 韵母 a/o/e/i/u/ü + 声母 y/w。带图的音节早已占满,
+    // 不带图的(啊哦噢饿意姨)全是 `listen:true` 占位,而 `listen` 与「有一张认得出的图」互斥。
+    // **wō 是 w + o** —— `w` 只吞 `u`(`WELD_SHAPES` 里是 `w+u`,不是 `w+o`)
+    // ⇒ 盘上是 **w、o 两块分开的积木**,比原来那枚焊死的 w+u 更能教「这是 w 加 o」。
+    // 声调 1 也补上了(u1 的 w 层原本只有五 wǔ 三声、雾 wù 四声)。
+    // ⚠️ **这里我写错过一次:窝 是 wō(第一声,o),不是 wē(e)** —— 产品一眼看出来的。
+    // 当时那条 TTS 读音守卫**没抓住**,因为它是**白名单表**(只查表里那十几字),
+    // `窝` 不在表里 ⇒ 整关被 `continue` 跳过、断言恒真。**它查的是「调」,而 wē 与 wō
+    // 连调都一样(一声)** —— 字母错只能靠人眼。表已补上窝与 u1 其余朗读字。
+    // `w + o` 仍**不焊死**(`WELD_SHAPES` 里只有 `w+u`),盘上是 w、o 两块分开的积木。
+    { id: 'u1-2h', emoji: '🪺', pinyin: 'wō', read: '窝', syl: [{ initial: 'w', final: 'o', tone: 1 }], stage: 'hard' },
+    { id: 'u1-50h', emoji: '🧓', pinyin: 'yí', read: '姨', syl: [{ initial: 'y', final: 'i', tone: 2, weld: true }], stage: 'hard', listen: true },
+    { id: 'u1-51h', emoji: '🌫️', pinyin: 'wù', read: '雾', syl: [{ initial: 'w', final: 'u', tone: 4, weld: true }], stage: 'hard' },
+    { id: 'u1-52h', emoji: '💭', pinyin: 'yì', read: '意', syl: [{ initial: 'y', final: 'i', tone: 4, weld: true }], stage: 'hard', listen: true },
   ],
   u2: [
     { id: 'u2-0h', emoji: '8️⃣', pinyin: 'bā', read: '八', syl: [{ initial: 'b', final: 'a', tone: 1 }], stage: 'hard' },

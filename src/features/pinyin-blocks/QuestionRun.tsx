@@ -1,6 +1,10 @@
 // 一串题的推进机:一道接一道自动走,走完把决定权交回宿主(回路径)。
 // 复用 PinyinBlocksGame,只换入参 —— 不写第二套拼装台。
 // **按题号换 key 重挂** —— 换题即清空,不在 effect 里 setState 补重置。
+//
+// 2026-10-14 起还多渲染一行「关名 · n/N」(可见文案 2026-10-15 由「第 n/N 遍」改来)
+// —— 放在这一层是因为 `position` 只有这里算得出
+// (见 return 处那段注)。它是游戏区的**兄弟**节点:孩子面重新有了字,但那两条汉字扫描照旧。
 
 import { useCallback, useState } from 'react'
 import type { AnswerKind } from '@/shared/services'
@@ -124,24 +128,71 @@ export function QuestionRun({
 
   if (!item) return null
 
+  // **进度只有一个数源** —— 与传给 `PinyinBlocksGame` 的 `position` 是同一个对象,
+  // 不是另算的一份。这不是省事:那份 `position` 的分母是**遍数**(简单部分每道题跑两遍,
+  // 脚手架遍 + 全拼遍,spec §2.1),五处测试断的就是它;屏幕上若另起一份算法,两处迟早漂,
+  // 而漂掉的方向恰恰是那个**骗人的方向** —— 走完全部 10 遍而读数只到一半。
+  const position = { done: index + 1, total: items.length }
+
   return (
-    <PinyinBlocksGame
-      // 换题即换 key ⇒ 盘面、提示全部重来。
-      key={`${item.kind}-${index}`}
-      unitIndex={unitIndex}
-      levelIndex={item.levelIndex}
-      stage={mode}
-      practice={item.kind === 'practice' ? item.question : null}
-      scaffold={item.kind === 'scaffold' ? (scaffolds[index] ?? null) : null}
-      // **分母是「遍」不是「道题」** —— 与 `LESSON_MAX` 那条口径(spec §3.4)是两回事:
-      // 那个常量切的是**课表怎么分节**(一道题算一道),而题位条是**这一趟走到哪儿了**的进度指示,
-      // 它的单位就是孩子手上这一串里要答的遍数。一节 5 道题改后是 10 遍,条就该走 10 格 ——
-      // 显示 5 格会让孩子在走完全部 10 遍之后看到条只到一半,那是在骗人。
-      position={{ done: index + 1, total: items.length }}
-      speak={speak}
-      playSound={playSound}
-      onBlock={onBlock}
-      onQuestionEnd={(result) => { void onQuestionFinished(result.missCount) }}
-    />
+    <>
+      {/*
+       * 关名 + 进度这一行(2026-10-14 产品裁定:「整屏没有一个字,都不知道是干什么的」)。
+       *
+       * **为什么落在 `QuestionRun` 而不是 `LessonEntry`**:`position` 在这一层算出来
+       * (项号只有这里有),抬到 `LessonEntry` 得把 index 状态往上搬 —— 一次重构换一个一行字。
+       *
+       * **为什么落在 `[data-game-area]` 之外**:`PinyinBlocksGame.test.tsx` 有两条汉字扫描
+       * (作答期间零汉字 / 拼对后直接文本含汉字的元素恰好一个),游戏区里不许出现任何可见汉字。
+       * 这一行是 `PinyinBlocksGame` 的**兄弟节点**而不是子节点,那两条扫描照旧成立。
+       *
+       * **为什么练习页也出现它**:本组件同时服务 `LessonEntry` 与 `PracticeEntry`,两处语义一致
+       * (都在说「这是哪一节 + 走到哪儿」),故**有意**不按宿主分叉 —— 分叉就得再搬一次状态。
+       *
+       * 措辞:**分母数的是遍,不是道题数** —— 这一点在数据与 `aria-label` 里都还在(见下面
+       * `position` 那条);**可见文案按 2026-10-15 产品裁定写成 `n/N`,不带单位**。
+       * ⚠️ 那是一条**产品取舍**:单位不见了,看屏幕的孩子就少了「这数的是遍」这个提示 ——
+       *   将来若有人觉得读不出单位,**改回可见文案即可,但分母不许改成道题数**(那才是撒谎)。
+       *
+       * ⚠️ `aria-label` **故意比可见文案长**(「本节第 3 遍,共 3 遍」):读屏用户拿不到
+       *   `3/3` 这个视觉读法,那句话是给他们补的。**它与可见文案不一致是故意的**,
+       *   不是忘了改 —— 真要统一,先确认读屏用户不会因此少听到单位。
+       */}
+      <p
+        data-run-label
+        aria-label={`${unit.name} · 本节第 ${position.done} 遍,共 ${position.total} 遍`}
+        className="flex items-baseline justify-center gap-2 px-4 pt-1 pb-2 text-center"
+      >
+        <span className="text-base font-bold tracking-[0.18em] text-ink-2">{unit.name}</span>
+        {/* 分隔点只是排版,不给读屏念 —— 上面那行 aria-label 已经把两半连成一句了。 */}
+        <span aria-hidden className="text-sm text-ink-3">
+          ·
+        </span>
+        {/* 2026-10-15 产品裁定:可见文案由「第 n/N 遍」改为「n/N」。分母的**语义没变**
+            (仍是遍数,不是道题数 —— 见下面 `position` 那条注释与 W-F1 组),**变的只是屏幕上
+            写不写这个单位**。`tabular-nums` 保留:分子分母每题都变,等宽数字才不跳。 */}
+        <span className="text-sm font-semibold tabular-nums tracking-[0.1em] text-ink-3">
+          {position.done}/{position.total}
+        </span>
+      </p>
+      <PinyinBlocksGame
+        // 换题即换 key ⇒ 盘面、提示全部重来。
+        key={`${item.kind}-${index}`}
+        unitIndex={unitIndex}
+        levelIndex={item.levelIndex}
+        stage={mode}
+        practice={item.kind === 'practice' ? item.question : null}
+        scaffold={item.kind === 'scaffold' ? (scaffolds[index] ?? null) : null}
+        // **分母是「遍」不是「道题」** —— 与 `LESSON_MAX` 那条口径(spec §3.4)是两回事:
+        // 那个常量切的是**课表怎么分节**(一道题算一道),而这一行是**这一趟走到哪儿了**的进度指示,
+        // 它的单位就是孩子手上这一串里要答的遍数。一节 5 道题改后是 10 遍,就该写 10 ——
+        // 写 5 会让孩子在走完全部 10 遍之后看到读数只到一半,那是在骗人。
+        position={position}
+        speak={speak}
+        playSound={playSound}
+        onBlock={onBlock}
+        onQuestionEnd={(result) => { void onQuestionFinished(result.missCount) }}
+      />
+    </>
   )
 }

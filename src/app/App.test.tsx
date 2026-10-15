@@ -13,6 +13,7 @@ import {
   SpeechService,
 } from '@/shared/services'
 import type {
+  Achievement,
   AuthSnapshot,
   CelebrateLevel,
   ComboSnapshot,
@@ -56,6 +57,11 @@ type RegisterOpts = {
   settingsPublishes?: boolean
   /** 幸运奖励掷出的数。默认 0 = 不掷中,只有走庆祝态的用例需要它非 0。 */
   luckyReward?: number
+  /**
+   * `AchievementService.scan` 的返回值。默认空数组 = 一个成就都不得。
+   * 需要「结算确实产出了成就」的用例用它非空(见庆祝态那条承重用例)。
+   */
+  scanResult?: readonly Achievement[]
 }
 
 /** 只登记 App 相位机真正取用的服务 —— 未注册的服务会当场抛错,那本身也是断言。 */
@@ -121,7 +127,7 @@ function registerAll(opts: RegisterOpts = {}) {
   // 与 check / progressLoad 同形:mock 单独具名,接口对象只引用它 —— 断言才拿得到 `.mock`
   const celebratePlay = vi.fn((_level: CelebrateLevel) => undefined)
   const celebrate: CelebrateService = { play: celebratePlay }
-  const achievements: AchievementService = { scan: () => [] }
+  const achievements: AchievementService = { scan: () => opts.scanResult ?? [] }
   const lucky: LuckyBonusService = { roll: () => opts.luckyReward ?? 0 }
 
   registry.register(AuthService, auth)
@@ -260,12 +266,22 @@ describe('App 路由', () => {
     expect(container.querySelectorAll('[data-lesson-state="cleared"]')).toHaveLength(0)
   })
 
-  it('路径零汉字:节点靠三态图标自表意(文字部分是 aria-label,不进 textContent)', async () => {
+  // 2026-10-15:路径页不再是「零汉字」—— 每枚徽标下面加了一行**单元名**
+  // (产品裁定「路径徽章标记下面要加上章节标题」)。不变量本身没被推翻,改的是它的**边界**:
+  // 从「整页零汉字」收窄成「**白名单 + 范围契约**」——路径页里带汉字的元素**恰好**是那 12 行标题。
+  // 完整理由与判据在 `LearningPath.test.tsx` 那条同名用例里,这里是同一契约在整页视角下的一次复核
+  // (这一条守的是「渲染进真实应用后落点没变」——挂错宿主的话徽标会被算进别的页面去)。
+  it('路径汉字白名单:页面里带汉字的元素恰好是 12 行单元标题', async () => {
     const { container } = mountApp()
 
     await waitFor(() => expect(container.querySelector('[data-learning-path]')).not.toBeNull())
-    const text = container.querySelector('[data-learning-path]')!.textContent ?? ''
-    expect(text).not.toMatch(HAN_TEXT)
+    const path = container.querySelector('[data-learning-path]')!
+    // 扫「元素自身的文本子节点」而不是整棵树的 textContent —— 否则根节点永远"含汉字"。
+    const carriers = [...path.querySelectorAll<HTMLElement>('*')].filter((el) =>
+      [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && HAN_TEXT.test(n.textContent ?? '')),
+    )
+    expect(carriers.map((el) => el.dataset.unitTitle)).toEqual(UNITS.map((u) => u.id))
+    expect(carriers.map((el) => el.textContent)).toEqual(UNITS.map((u) => u.name))
   })
 
   it('401 → login:会话转为匿名后(哪怕相位还停在路径)回到登录门', async () => {
@@ -288,11 +304,13 @@ describe('App 路由', () => {
 
     expect(await screen.findByRole('button', { name: '回路径' })).toBeInTheDocument()
     expect(container.querySelector('[data-learning-path]')).toBeNull()
-    // 题位条读的是**本节**题数(几遍几格)—— 简单部分每道题跑两遍(脚手架遍 + 全拼遍,
-    // 见 spec §2.1),故分母是 items 的遍数而不是道题数;课程切分线挪动时断言跟着走,不钉死数字。
-    const bar = document.querySelector('[data-bar-total]') as HTMLElement
-    expect(bar.dataset.barTotal).toBe(String(pathLessons()[0]!.levelIds.length * 2))
-    expect(bar.dataset.barDone).toBe('1')
+    // 本节题数读的是**遍数** —— 简单部分每道题跑两遍(脚手架遍 + 全拼遍,见 spec §2.1),
+    // 故分母是 items 的遍数而不是道题数;课程切分线挪动时断言跟着走,不钉死数字。
+    // (2026-10-14 那排画出来的题位条已删,观测点搬到 `data-question-total`;分母的**语义不许
+    //  因为「不再显示」就被改成道题数** —— 那会把脚手架遍这条线悄悄改没。)
+    const game = document.querySelector('[data-game-area]') as HTMLElement
+    expect(game.dataset.questionTotal).toBe(String(pathLessons()[0]!.levelIds.length * 2))
+    expect(game.dataset.questionDone).toBe('1')
   })
 
   it('path → parent → path:家长面板开合', async () => {
@@ -327,21 +345,24 @@ describe('App 路由', () => {
     await waitFor(() => expect(container.querySelector('.animate-spin')).not.toBeNull())
   })
 
-  // settings 在路上时路径照样画得出来(App 的路径分支只等 progress),但徽章栏必须**整个不出现** ——
-  // 画成「全暗」等于对孩子说「你一个成就都没拿到」,而真相是「还不知道」。
-  it('settings 未就绪时路径上不出现徽章栏(而不是画成全暗)', async () => {
+  // ── 徽章栏:settings 就绪与否都**恒不出现** ─────────────────────────────────
+  // 2026-10-13 产品口径「徽章列表放在首页有点丑」⇒ `ACHIEVEMENTS_VISIBLE = false`。
+  // 原先这两条钉的是「settings 没到位时整条不出现 / 就绪后出现且全暗」;
+  // 现在钉的是**两种 settings 状态下都不出现**。保留用例而不是删 —— 删了就再没人守它不会偷偷回来。
+  it('settings 未就绪时路径上不出现徽章栏', async () => {
     const { container } = mountApp({ settingsPublishes: false })
 
     await waitFor(() => expect(container.querySelector('[data-learning-path]')).not.toBeNull())
+    expect(document.querySelectorAll('[data-achievement-badges]')).toHaveLength(0)
     expect(document.querySelectorAll('[data-badge-id]')).toHaveLength(0)
   })
 
-  it('settings 就绪后徽章栏出现,目录全量的格全暗(知道且为空 ≠ 不知道)', async () => {
+  it('settings 就绪后徽章栏仍不出现(成就总开关关着)', async () => {
     const { container } = mountApp()
 
     await waitFor(() => expect(container.querySelector('[data-learning-path]')).not.toBeNull())
-    expect(document.querySelectorAll('[data-badge-id]')).toHaveLength(ACHIEVEMENTS.length)
-    expect(document.querySelectorAll('[data-badge-earned="true"]')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-achievement-badges]')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-badge-id]')).toHaveLength(0)
   })
 })
 
@@ -367,6 +388,47 @@ describe('App 庆祝态接线', () => {
       expect(screen.getByText('🍀')).toBeInTheDocument()
       // 落块期间 combo 恒返 0 ⇒ 没有任何连击档;luckyReward > 0 ⇒ 让掉的 word 档也不发。
       // 所以这一节**唯一**该响的就是 lucky 档,逐值比对即可
+      expect(svc.celebratePlay.mock.calls.map(([level]) => level)).toEqual(['lucky'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /**
+   * **承重用例**:成就总开关关着时,结算**同时**产出成就与幸运奖励,幸运弹层仍必须弹出来。
+   *
+   * 它挡的是「在渲染层藏 `AchievementPopup`」那个坑:成就弹层的 `onDone` 是
+   * `advanceCelebration` 的**唯一**调用点,庆祝队列靠它一条条排空。渲染层藏掉弹层 ⇒
+   * 队列头一条成就永远出不去 ⇒ `celebration` 永远非 null ⇒ **之后每一个弹层都不再出现**。
+   * 那是**静默失效**(屏幕上只是「什么也不弹」,没有任何报错),不是「隐藏」。
+   *
+   * 所以正确的藏法在 `handleSettle` **入口**:开关关着就把成就从队列里摘掉,
+   * `achievements` 变空数组 ⇒ `advanceCelebration` 直接落到 LuckyBonus 分支 ⇒ 队列排得空、
+   * 幸运弹层照常出、不留残状态。
+   *
+   * 判据只用 LuckyBonus 独占的 🍀 与注入的 `celebrateService.play` 收到的档位(同上一条),
+   * 不用实现耦合。`scan` 这里**必须**返非空 —— scan 恒空的话即便把弹层在渲染层藏掉,
+   * 队列首格本来就是 LuckyBonus,这条会假绿。
+   */
+  it('成就隐藏(开关关)时,结算出成就 + 幸运奖励,庆祝队列照样排空:幸运弹层仍弹出来', async () => {
+    const { svc, container } = mountApp({
+      luckyReward: 50,
+      scanResult: ACHIEVEMENTS.slice(0, 1),
+    })
+    expect(ACHIEVEMENTS.length, '成就目录空了,上面那条 scan 非空的承重前提就不成立').toBeGreaterThan(0)
+
+    await waitFor(() => expect(container.querySelector('[data-learning-path]')).not.toBeNull())
+    expandToFirstLesson()
+    fireEvent.click(currentNode())
+    await screen.findByRole('button', { name: '回路径' })
+
+    vi.useFakeTimers()
+    try {
+      await solveFirstLesson()
+
+      // 正向:确实走到了幸运弹层。🍀 只属于 LuckyBonus;成就弹层被开关摘掉了不该出现。
+      expect(screen.getByText('🍀'), '成就隐藏后幸运弹层没弹出来 —— 庆祝队列被卡死了(成就弹层的 onDone 是 advanceCelebration 的唯一调用点)').toBeInTheDocument()
+      // 成就照常入账 ⇒ `flush` 看见 achievements 非空 ⇒ 不撒 word 档;luckyReward > 0 ⇒ 也不撒别的
       expect(svc.celebratePlay.mock.calls.map(([level]) => level)).toEqual(['lucky'])
     } finally {
       vi.useRealTimers()

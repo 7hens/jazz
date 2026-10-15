@@ -19,7 +19,6 @@ import {
 import type { PracticeQuestion } from './practice'
 import type { ScaffoldQuestion } from './scaffold'
 import { BlockChip } from './BlockChip'
-import { StageBar, StageDots } from './StageBar'
 import { cn } from '@/shared/ui/utils'
 import type { AnswerKind } from '@/shared/services'
 
@@ -666,6 +665,15 @@ function PinyinRound({
       // 选择器会**静默命中第一个槽位的内层**,零文本扫描面缩到单个槽、测试照旧全绿。
       // 同 `data-answer-read` 的先例:锚点用 data-*,别用会随样式漂移的类名。
       data-game-area
+      // 题位条 2026-10-14 **整条删掉**(产品裁定:不许压在 emoji 上方;右上角那排小圆点是连击点,
+      // 不是进度,所以确实没有重复)。**但「本节第几题」这个数不能跟着一起没** ——
+      // 简单部分每道题跑两遍(脚手架遍 + 全拼遍,spec §2.1),分母是**遍数**不是道题数,
+      // 而这正是 `LessonEntry.test.tsx` / `App.test.tsx` 唯一能观测到「一遍没漏排」的地方。
+      // ⇒ **显示删了,观测点留成 data-* 属性**(同 `data-level-picture` / `data-combo-dots` 的先例:
+      // 锚点用 data-*,别用会随样式漂的类名)。⚠️ 它**只**作观测锚点,不承载任何视觉语义,
+      //    将来若恢复可视进度条,从这里重新长出来,别把这两条当渲染契约。
+      data-question-total={position?.total}
+      data-question-done={position?.done}
       className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 pb-5"
     >
       {/* 重听塞在角落、压暗 —— 玩法是**看图猜音再拼**,声音是兜底不是入口;
@@ -680,24 +688,27 @@ function PinyinRound({
         🔊
       </button>
 
-      {/* 题位条:一节有几道题就几格,亮到第几格就是做到第几题。
-          练习改用小一号的进度点 —— 练习不是一节课(它的题数还会随星级变)。 */}
-      <div className="flex flex-col items-center gap-1.5">
-        {mode === 'practice' ? (
-          position ? <StageDots total={position.total} done={position.done} /> : null
-        ) : (
-          <StageBar total={position?.total ?? 1} done={position?.done ?? 0} />
-        )}
-      </div>
-
       {/* 题面 / 拼装台 / 答案行 / 积木盘是一整列,在剩余空间里居中。
           让哪一部分单独 flex-1 都会把它拉满整屏,隔出大部分空白。 */}
-      {/* 题面图自己不可点:能点就会变成「戳图听音」,凭图猜音这一环就绕过去了 */}
-      <div
-        aria-hidden
-        className="text-[6.5rem] leading-none select-none"
-        style={{ filter: 'drop-shadow(0 10px 14px rgb(31 58 95 / 0.18))' }}
-      >
+      {/* 题面图自己不可点:能点就会变成「戳图听音」,凭图猜音这一环就绕过去了。
+          `.level-pic` = 那一记朝下的落地影,**只挂在这一处** —— 改前这枚图就有(10px/14px),
+          搬进 token + em 保住观感;路径页徽标没有这一记,且带无限漂浮动画(filter 每帧重算),
+          见 index.css 里 `.level-pic` 上面的注。
+
+          2026-10-14:原先这里还挂过 `.pemoji`,它声明的是一圈 `radial-gradient` 光圈底板 ——
+          与路径页那枚徽标底板**同批去掉**。理由见 index.css「题面图:没有任何光圈底板」那段:
+          **底板是为全部 emoji 铺的场,却只对白/浅色那一族起作用**(那族确实与浅蓝天空既无色相差
+          也无亮度差),在另外十枚上有代价无收益;而且**任何平色底板都必然与 emoji 内部的某一档
+          等亮度**,三档亮度里必有一档垮掉。
+
+          ⚠️ **与路径页徽标最不一样的地方**:徽标是纯装饰,换 emoji 零成本;**题面图是承重的**
+          (孩子看图 → 命名 → 拼音节),换图等于换词(`emoji`/`read`/`syl` 三者一起改,
+          要过 TTS 读音与 `spell()` 守卫)。所以那一族真读不出来时的修法是**换那道题的图**,
+          不是给全部图加底。
+
+          `relative` 已随之删掉 —— 它当初只为了给那圈绝对定位的光圈当包含块,光圈没了它就
+          没有存在理由;留着会让下一个人以为底下还有东西要定位。 */}
+      <div data-level-picture aria-hidden className="level-pic text-[6.5rem] leading-none select-none">
         {level.emoji}
       </div>
 

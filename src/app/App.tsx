@@ -5,7 +5,7 @@ import { ACHIEVEMENTS, AchievementPopup } from '@/features/achievements'
 import { AuthEntry } from '@/features/auth'
 import { LuckyBonus } from '@/features/lucky-bonus'
 import { LessonEntry, PracticeEntry, MapEntry, type PartSettlement } from '@/features/pinyin-blocks'
-import { AuthService, CelebrateService, PinyinProgressService, SettingsService } from '@/shared/services'
+import { ACHIEVEMENTS_VISIBLE, AuthService, CelebrateService, PinyinProgressService, SettingsService } from '@/shared/services'
 import { useService, useServiceSnapshot } from '@/shared/services/core'
 import { ParentPanel } from './ParentPanel'
 import { useAppState } from './useAppState'
@@ -62,7 +62,17 @@ export default function App() {
 
   function handleSettle(result: PartSettlement) {
     if (result.achievements.length === 0 && result.luckyReward <= 0) return
-    setCelebration({ achievements: result.achievements, luckyReward: result.luckyReward })
+    setCelebration({
+      // 成就弹层当前**已隐藏**(2026-10-13 产品口径「徽章列表放在首页有点丑」,开关见
+      // `shared/services/achievements.ts` 的 `ACHIEVEMENTS_VISIBLE`),所以关着时**在入口摘掉成就**
+      // 而不是在渲染层藏弹层 —— 成就弹层的 onDone 是 `advanceCelebration` 的**唯一**调用点
+      // (庆祝队列靠它一条条排空),在渲染层藏掉它会让 `celebration` 永远非 null:幸运弹层之后
+      // 一个都不出。那是**静默失效**,不是隐藏。
+      // 成就数组为空时 `advanceCelebration` 直接落到 LuckyBonus 分支:开关关 ⇒ 成就弹层不出现、
+      // 队列照样排空、**幸运弹层照常出**(用户没让藏它)、不留残状态。
+      achievements: ACHIEVEMENTS_VISIBLE ? result.achievements : [],
+      luckyReward: result.luckyReward,
+    })
   }
 
   let content
@@ -104,6 +114,8 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       {content}
       {celebration ? (
+        // 这一支不看开关:开关在 `handleSettle` 入口就把成就从队列里摘掉了(见那里的注释)。
+        // 保留它是为了开关翻回 true 时无需改渲染层。
         celebration.achievements.length > 0 ? (
           <AchievementPopup list={celebration.achievements} celebrate={celebrateService.play} onDone={advanceCelebration} />
         ) : (

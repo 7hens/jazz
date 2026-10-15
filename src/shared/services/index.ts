@@ -4,7 +4,7 @@
 // 数据类随其服务契约文件归属(UserSettings→settings、ApiError/Rng→api/lucky-bonus),
 // 统一经本 barrel 流出。
 export type { Achievement, AchievementState } from './achievements'
-export { AchievementService } from './achievements'
+export { ACHIEVEMENTS_VISIBLE, AchievementService } from './achievements'
 export type { ApiUserSettings, User } from './api'
 export { ApiError, ApiService } from './api'
 export type { AudioCue } from './audio'

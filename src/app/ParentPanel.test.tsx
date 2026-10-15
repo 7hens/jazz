@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ACHIEVEMENTS } from '@/features/achievements'
 import { AuthService, PinyinProgressService, SettingsService } from '@/shared/services'
 import { registry } from '@/shared/services/core'
 import { ParentPanel } from './ParentPanel'
@@ -118,29 +117,34 @@ describe('家长面板', () => {
     ])
   })
 
-  it('成就目录全量出现(含未得),中文说明读得通', () => {
+  // ── 「成就」整节:恒不出现 ─────────────────────────────────────────────────
+  // 2026-10-13 产品口径「徽章列表放在首页有点丑」⇒ `ACHIEVEMENTS_VISIBLE = false`,
+  // 家长面板里这一节**整体隐藏**(标题 + 目录 + 底下两句分支文案)。
+  // 原先那四条钉的是「目录怎么画 / 没就绪时说什么」,现在钉的是「什么都不出现」。
+  // 保留用例而不是删 —— 删了就再没人守它不会偷偷回来。
+  const NOTHING_HIDDEN = '成就总开关关着时,面板里这一节应整体不出现(含标题与读取中/失败两句)'
+
+  it('settings 就绪 + 已有成就时,「成就」整节不出现', () => {
     register({ logout: vi.fn() }, { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() }, readySettings(['perfect_level']))
     render(<ParentPanel onClose={vi.fn()} />)
 
-    const items = [...document.querySelectorAll<HTMLElement>('[data-achievement-id]')]
-    expect(items.map((item) => item.dataset.achievementId)).toEqual(ACHIEVEMENTS.map((a) => a.id))
-    for (const achievement of ACHIEVEMENTS) {
-      expect(screen.getByText(new RegExp(achievement.name))).toBeInTheDocument()
-      expect(screen.getByText(new RegExp(achievement.description))).toBeInTheDocument()
-    }
+    expect(document.querySelectorAll('[data-achievement-id]'), NOTHING_HIDDEN).toHaveLength(0)
+    expect(screen.queryByRole('heading', { name: '成就' }), NOTHING_HIDDEN).toBeNull()
   })
 
-  it('已得 / 未得两态分开', () => {
+  it('已得 / 未得两态都不出现', () => {
     register({ logout: vi.fn() }, { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() }, readySettings(['perfect_level']))
     render(<ParentPanel onClose={vi.fn()} />)
 
-    const earned = [...document.querySelectorAll<HTMLElement>('[data-earned="true"]')]
-    expect(earned.map((item) => item.dataset.achievementId)).toEqual(['perfect_level'])
+    expect(document.querySelectorAll('[data-achievement-id]'), NOTHING_HIDDEN).toHaveLength(0)
+    expect(document.querySelectorAll('[data-earned="true"]'), NOTHING_HIDDEN).toHaveLength(0)
   })
 
   // 面板可能在地图刚画好、settings 还在路上时被打开(App.tsx 的 parent 分支不检查 settings)。
-  // 这时候**不能**把目录全量画成「未得」—— 那是屏幕上的一句假话。
-  it('settings 没就绪时不画目录,只说读取中', () => {
+  // 曾经这里刻意「只说读取中」以免把目录画成全暗 —— 现在整节都不出现,
+  // 那两句**也必须跟着走**:留一句「成就数据读取中…」在屏幕上,而它永远不会变,
+  // 正是仓库明令禁止的「往屏幕上放假话」(定稿见 2026-10-13 隐藏裁定)。
+  it('settings 没就绪时不画目录,也不留「读取中」那句假话', () => {
     register(
       { logout: vi.fn() },
       { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() },
@@ -149,12 +153,14 @@ describe('家长面板', () => {
     render(<ParentPanel onClose={vi.fn()} />)
 
     expect(document.querySelectorAll('[data-achievement-id]')).toHaveLength(0)
-    expect(screen.getByText('成就数据读取中…')).toBeInTheDocument()
+    expect(screen.queryByText('成就数据读取中…'), NOTHING_HIDDEN).toBeNull()
   })
 
-  // 拉取失败(auto/api 抛错后停在 error)是**另一种**非就绪:说成「读取中」就是一句永久的假话,
-  // 大人会一直等一个不会来的目录,走查也只会记「未验」—— 真故障被这句话盖掉。
-  it('settings 读取失败时说读取失败,不说读取中', () => {
+  // 拉取失败(auto/api 抛错后停在 error)曾是**另一种**非就绪:说成「读取中」就是一句永久的假话。
+  // 隐藏之后连「读取失败」也不该出现 —— 这一节没画出来,就不该有任何关于它的状态文字。
+  // ⚠️ 注意这条**盖不住真故障**:settings 拉取失败在隐藏期间对家长完全不可见,
+  // 这是隐藏的已知代价(见 docs/walkthrough.md W-P4);真故障靠服务端日志与其它页判。
+  it('settings 读取失败时不出现目录,也不出现任何状态文字', () => {
     register(
       { logout: vi.fn() },
       { getSnapshot: () => ({ status: 'ready', data: {} }), subscribe: () => () => {}, resetAll: vi.fn() },
@@ -163,7 +169,7 @@ describe('家长面板', () => {
     render(<ParentPanel onClose={vi.fn()} />)
 
     expect(document.querySelectorAll('[data-achievement-id]')).toHaveLength(0)
-    expect(screen.queryByText('成就数据读取中…')).not.toBeInTheDocument()
-    expect(screen.getByText('成就数据读取失败')).toBeInTheDocument()
+    expect(screen.queryByText('成就数据读取中…'), NOTHING_HIDDEN).toBeNull()
+    expect(screen.queryByText('成就数据读取失败'), NOTHING_HIDDEN).toBeNull()
   })
 })

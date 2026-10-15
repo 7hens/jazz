@@ -149,7 +149,10 @@ describe('一次练习', () => {
     const stars: Record<string, number> = Object.fromEntries(unit.levels.map((level) => [level.id, 3]))
     stars[unit.levels[0]!.id] = 2
     mountPracticeEntry({ unitId: unit.id, stars })
-    expect(document.querySelectorAll('.pstage-dot')).toHaveLength(1)
+    // ⚠️ 这里原本断的是那排 `.pstage-dot` 小点;2026-10-14 题位条整族删除,改断分母本身 ——
+    // 「封顶 5」这条规则在**题目池**上,与它画不画出来无关,别因为不显示就漏断。
+    const game = document.querySelector<HTMLElement>('[data-game-area]')!
+    expect(game.dataset.questionTotal).toBe('1')
   })
 
   it('不落库:走完一道题 progress.recordClear 一次都没调', async () => {
